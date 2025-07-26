@@ -257,11 +257,11 @@ def load_ebird_data(
     with pipeline.sql_client() as client:
         tables = client.execute_sql(
             f"""
-            SELECT 
-                table_name 
-            FROM 
-                information_schema.tables 
-            WHERE 
+            SELECT
+                table_name
+            FROM
+                information_schema.tables
+            WHERE
                 table_schema = '{dataset_name}'
             """
         )

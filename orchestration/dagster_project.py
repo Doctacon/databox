@@ -102,7 +102,7 @@ def data_quality_checks(context: dg.AssetExecutionContext) -> dict:
     with duckdb.get_connection() as conn:
         # Check for nulls in critical columns
         null_checks = conn.execute("""
-            SELECT 
+            SELECT
                 'stg_ebird_observations' as table_name,
                 COUNT(*) FILTER (WHERE speciesCode IS NULL) as null_species,
                 COUNT(*) FILTER (WHERE obsDt IS NULL) as null_dates,
@@ -112,7 +112,7 @@ def data_quality_checks(context: dg.AssetExecutionContext) -> dict:
 
         # Check for data freshness
         freshness = conn.execute("""
-            SELECT 
+            SELECT
                 MAX(obsDt) as latest_observation,
                 CURRENT_DATE - MAX(obsDt)::DATE as days_old
             FROM sqlmesh_example.stg_ebird_observations

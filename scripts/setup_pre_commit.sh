@@ -3,10 +3,15 @@
 
 echo "🔧 Setting up pre-commit hooks..."
 
-# Install pre-commit if not already installed
-if ! command -v pre-commit &> /dev/null; then
-    echo "📦 Installing pre-commit..."
-    pip install pre-commit
+# Check if we're in a virtual environment
+if [[ -z "$VIRTUAL_ENV" ]]; then
+    # Try to activate the local venv if it exists
+    if [[ -f ".venv/bin/activate" ]]; then
+        source .venv/bin/activate
+    else
+        echo "⚠️  No virtual environment found. Please activate your virtual environment first."
+        exit 1
+    fi
 fi
 
 # Install the pre-commit hooks

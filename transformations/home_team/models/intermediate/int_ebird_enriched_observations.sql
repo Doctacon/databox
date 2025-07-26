@@ -41,43 +41,43 @@ SELECT
     o.is_location_private,
     o.region_code,
     o.is_notable,
-    
+
     -- Taxonomy enrichment
     t.taxonomic_order,
     t.taxonomic_category,
     t.family_common_name,
     t.family_scientific_name,
-    
+
     -- Location enrichment (from hotspot data if available)
     h.country_code,
     h.state_code,
     h.county_code,
     h.total_species_count AS hotspot_total_species,
     h.latest_observation_datetime AS hotspot_latest_observation,
-    
+
     -- Derived fields
-    CASE 
+    CASE
         WHEN o.observation_hour BETWEEN 5 AND 11 THEN 'Morning'
         WHEN o.observation_hour BETWEEN 12 AND 17 THEN 'Afternoon'
         WHEN o.observation_hour BETWEEN 18 AND 20 THEN 'Evening'
         ELSE 'Night'
     END AS time_of_day,
-    
-    CASE 
+
+    CASE
         WHEN o.observation_month IN (12, 1, 2) THEN 'Winter'
         WHEN o.observation_month IN (3, 4, 5) THEN 'Spring'
         WHEN o.observation_month IN (6, 7, 8) THEN 'Summer'
         ELSE 'Fall'
     END AS season,
-    
-    CASE 
+
+    CASE
         WHEN o.count IS NULL THEN False
         WHEN o.count = 1 THEN False
         ELSE True
     END AS is_flock,
-    
+
     -- Distance from hotspot center (if at hotspot)
-    CASE 
+    CASE
         WHEN h.latitude IS NOT NULL AND h.longitude IS NOT NULL THEN
             2 * 3959 * ASIN(SQRT(
                 POWER(SIN((RADIANS(o.latitude) - RADIANS(h.latitude)) / 2), 2) +
@@ -86,7 +86,7 @@ SELECT
             ))
         ELSE NULL
     END AS distance_from_hotspot_miles,
-    
+
     o.loaded_at
 
 FROM observations o

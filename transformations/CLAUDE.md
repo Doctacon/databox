@@ -31,7 +31,7 @@ Always create models in `home_team/models/`:
 # Staging models
 home_team/models/staging/stg_[source]_[entity].sql
 
-# Intermediate models  
+# Intermediate models
 home_team/models/intermediate/int_[business_process].sql
 
 # Fact tables

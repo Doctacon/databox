@@ -18,7 +18,7 @@ SELECT
     EXTRACT(DAY FROM "obsDt"::timestamp) AS observation_day,
     EXTRACT(HOUR FROM "obsDt"::timestamp) AS observation_hour,
     "howMany" AS count,
-    CASE 
+    CASE
         WHEN "howMany" IS NULL THEN 'X' -- Present but not counted
         ELSE CAST("howMany" AS VARCHAR)
     END AS count_display,
@@ -48,7 +48,7 @@ SELECT
     EXTRACT(DAY FROM "obsDt"::timestamp) AS observation_day,
     EXTRACT(HOUR FROM "obsDt"::timestamp) AS observation_hour,
     "howMany" AS count,
-    CASE 
+    CASE
         WHEN "howMany" IS NULL THEN 'X' -- Present but not counted
         ELSE CAST("howMany" AS VARCHAR)
     END AS count_display,

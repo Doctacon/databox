@@ -5,7 +5,7 @@ vars:
   PYTHON_VERSION: "3.12"
   VENV_DIR: .venv
   DATA_DIR: ./data
-  
+
 env:
   PYTHONPATH: .
   DLT_DATA_DIR: ./data/dlt
@@ -30,7 +30,7 @@ tasks:
       - test -d {{.VENV_DIR}}
       - test -f .env
 
-  # Install dependencies  
+  # Install dependencies
   install:
     desc: "Install project dependencies"
     deps: [setup]
@@ -150,7 +150,7 @@ tasks:
     desc: "Run all CI checks"
     cmds:
       - task: lint
-      - task: typecheck  
+      - task: typecheck
       - task: test
       - task: check-secrets
 
