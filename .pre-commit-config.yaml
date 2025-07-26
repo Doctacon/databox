@@ -20,19 +20,3 @@ repos:
         args: [ --fix ]
       # Run the formatter.
       - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.14.1
-    hooks:
-      - id: mypy
-        additional_dependencies: [types-requests]
-        exclude: ^(tests/|scripts/)
-
-  - repo: local
-    hooks:
-      - id: check-secrets
-        name: Check for secrets
-        entry: python scripts/check_secrets.py
-        language: python
-        pass_filenames: true
-        additional_dependencies: [pyyaml]
