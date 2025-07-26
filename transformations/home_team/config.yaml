@@ -11,12 +11,12 @@ gateways:
       # register_comments: True
       # pre_ping: False
       # pretty_sql: False
-      # catalogs: 
-      # extensions: 
-      # connector_config: 
-      # secrets: 
-      # filesystems: 
-      # token: 
+      # catalogs:
+      # extensions:
+      # connector_config:
+      # secrets:
+      # filesystems:
+      # token:
 
 default_gateway: duckdb
 

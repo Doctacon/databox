@@ -10,4 +10,3 @@ MODEL (
   ),
   grain (id, event_date)
 );
-  

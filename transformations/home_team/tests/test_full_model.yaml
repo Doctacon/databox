@@ -16,4 +16,3 @@ test_example_full_model:
         num_orders: 2
       - item_id: 2
         num_orders: 1
-  

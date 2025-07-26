@@ -16,4 +16,3 @@ FROM
   sqlmesh_example.seed_model
 WHERE
   event_date BETWEEN @start_date AND @end_date
-  

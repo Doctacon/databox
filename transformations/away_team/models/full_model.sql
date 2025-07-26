@@ -12,4 +12,3 @@ SELECT
 FROM
   sqlmesh_example.incremental_model
 GROUP BY item_id
-  
