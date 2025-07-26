@@ -39,6 +39,9 @@ dlt_state/
 .sqlmesh/
 target/
 
+# Dagster
+.dagster/
+
 # Logs
 logs/
 *.log

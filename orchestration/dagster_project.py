@@ -68,9 +68,13 @@ def sqlmesh_staging(context: dg.AssetExecutionContext) -> None:
 
     config = context.resources.databox_config
 
+    # Get the path to sqlmesh in the virtual environment
+    venv_bin = PROJECT_ROOT / ".venv" / "bin"
+    sqlmesh_path = venv_bin / "sqlmesh"
+
     # Run sqlmesh plan and apply
     result = subprocess.run(
-        ["sqlmesh", "run"],
+        [str(sqlmesh_path), "run"],
         cwd=config.transformations_dir + "/home_team",
         capture_output=True,
         text=True,
