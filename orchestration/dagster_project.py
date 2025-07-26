@@ -38,10 +38,7 @@ class DataboxConfig:
 )
 def ebird_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     """Ingest eBird data using DLT."""
-    # Import here to avoid circular imports
-    import sys
-
-    sys.path.append(str(PROJECT_ROOT))
+    # Import the ebird source
     from pipelines.sources.ebird_api import ebird_source
 
     # Get config from context
