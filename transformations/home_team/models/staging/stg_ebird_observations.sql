@@ -5,59 +5,59 @@ MODEL (
 );
 
 SELECT
-    "subId" AS submission_id,
-    "speciesCode" AS species_code,
-    "comName" AS common_name,
-    "sciName" AS scientific_name,
-    "locId" AS location_id,
-    "locName" AS location_name,
-    "obsDt"::timestamp AS observation_datetime,
-    DATE("obsDt"::timestamp) AS observation_date,
-    EXTRACT(YEAR FROM "obsDt"::timestamp) AS observation_year,
-    EXTRACT(MONTH FROM "obsDt"::timestamp) AS observation_month,
-    EXTRACT(DAY FROM "obsDt"::timestamp) AS observation_day,
-    EXTRACT(HOUR FROM "obsDt"::timestamp) AS observation_hour,
-    "howMany" AS count,
+    sub_id AS submission_id,
+    species_code,
+    com_name AS common_name,
+    sci_name AS scientific_name,
+    loc_id AS location_id,
+    loc_name AS location_name,
+    obs_dt::timestamp AS observation_datetime,
+    DATE(obs_dt::timestamp) AS observation_date,
+    EXTRACT(YEAR FROM obs_dt::timestamp) AS observation_year,
+    EXTRACT(MONTH FROM obs_dt::timestamp) AS observation_month,
+    EXTRACT(DAY FROM obs_dt::timestamp) AS observation_day,
+    EXTRACT(HOUR FROM obs_dt::timestamp) AS observation_hour,
+    how_many AS count,
     CASE
-        WHEN "howMany" IS NULL THEN 'X' -- Present but not counted
-        ELSE CAST("howMany" AS VARCHAR)
+        WHEN how_many IS NULL THEN 'X' -- Present but not counted
+        ELSE CAST(how_many AS VARCHAR)
     END AS count_display,
     lat::DOUBLE AS latitude,
     lng::DOUBLE AS longitude,
-    "obsValid" AS is_valid,
-    "obsReviewed" AS is_reviewed,
-    "locationPrivate" AS is_location_private,
-    "_region_code" AS region_code,
-    "_is_notable" AS is_notable,
-    "_loaded_at"::timestamp AS loaded_at
+    obs_valid AS is_valid,
+    obs_reviewed AS is_reviewed,
+    location_private AS is_location_private,
+    _region_code AS region_code,
+    FALSE AS is_notable,
+    _loaded_at::timestamp AS loaded_at
 FROM raw_ebird_data.recent_observations
 
 UNION ALL
 
 SELECT
-    "subId" AS submission_id,
-    "speciesCode" AS species_code,
-    "comName" AS common_name,
-    "sciName" AS scientific_name,
-    "locId" AS location_id,
-    "locName" AS location_name,
-    "obsDt"::timestamp AS observation_datetime,
-    DATE("obsDt"::timestamp) AS observation_date,
-    EXTRACT(YEAR FROM "obsDt"::timestamp) AS observation_year,
-    EXTRACT(MONTH FROM "obsDt"::timestamp) AS observation_month,
-    EXTRACT(DAY FROM "obsDt"::timestamp) AS observation_day,
-    EXTRACT(HOUR FROM "obsDt"::timestamp) AS observation_hour,
-    "howMany" AS count,
+    sub_id AS submission_id,
+    species_code,
+    com_name AS common_name,
+    sci_name AS scientific_name,
+    loc_id AS location_id,
+    loc_name AS location_name,
+    obs_dt::timestamp AS observation_datetime,
+    DATE(obs_dt::timestamp) AS observation_date,
+    EXTRACT(YEAR FROM obs_dt::timestamp) AS observation_year,
+    EXTRACT(MONTH FROM obs_dt::timestamp) AS observation_month,
+    EXTRACT(DAY FROM obs_dt::timestamp) AS observation_day,
+    EXTRACT(HOUR FROM obs_dt::timestamp) AS observation_hour,
+    how_many AS count,
     CASE
-        WHEN "howMany" IS NULL THEN 'X' -- Present but not counted
-        ELSE CAST("howMany" AS VARCHAR)
+        WHEN how_many IS NULL THEN 'X' -- Present but not counted
+        ELSE CAST(how_many AS VARCHAR)
     END AS count_display,
     lat::DOUBLE AS latitude,
     lng::DOUBLE AS longitude,
-    "obsValid" AS is_valid,
-    "obsReviewed" AS is_reviewed,
-    "locationPrivate" AS is_location_private,
-    "_region_code" AS region_code,
-    "_is_notable" AS is_notable,
-    "_loaded_at"::timestamp AS loaded_at
+    obs_valid AS is_valid,
+    obs_reviewed AS is_reviewed,
+    location_private AS is_location_private,
+    _region_code AS region_code,
+    TRUE AS is_notable,
+    _loaded_at::timestamp AS loaded_at
 FROM raw_ebird_data.notable_observations

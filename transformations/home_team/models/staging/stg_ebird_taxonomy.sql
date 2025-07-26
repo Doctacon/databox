@@ -5,12 +5,12 @@ MODEL (
 );
 
 SELECT
-    "speciesCode" AS species_code,
-    "comName" AS common_name,
-    "sciName" AS scientific_name,
-    "taxonOrder" AS taxonomic_order,
-    "category" AS taxonomic_category,
-    "familyComName" AS family_common_name,
-    "familySciName" AS family_scientific_name,
-    "_loaded_at"::timestamp AS loaded_at
+    species_code,
+    com_name AS common_name,
+    sci_name AS scientific_name,
+    taxon_order AS taxonomic_order,
+    category AS taxonomic_category,
+    family_com_name AS family_common_name,
+    family_sci_name AS family_scientific_name,
+    _loaded_at::timestamp AS loaded_at
 FROM raw_ebird_data.taxonomy

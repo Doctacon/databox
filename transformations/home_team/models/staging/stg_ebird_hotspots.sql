@@ -5,15 +5,15 @@ MODEL (
 );
 
 SELECT
-    "locId" AS location_id,
-    "locName" AS location_name,
-    "countryCode" AS country_code,
-    "subnational1Code" AS state_code,
-    "subnational2Code" AS county_code,
+    loc_id AS location_id,
+    loc_name AS location_name,
+    country_code,
+    subnational1_code AS state_code,
+    subnational2_code AS county_code,
     lat::DOUBLE AS latitude,
     lng::DOUBLE AS longitude,
-    "latestObsDt"::timestamp AS latest_observation_datetime,
-    "numSpeciesAllTime" AS total_species_count,
-    "_region_code" AS region_code,
-    "_loaded_at"::timestamp AS loaded_at
+    latest_obs_dt::timestamp AS latest_observation_datetime,
+    num_species_all_time AS total_species_count,
+    _region_code AS region_code,
+    _loaded_at::timestamp AS loaded_at
 FROM raw_ebird_data.hotspots

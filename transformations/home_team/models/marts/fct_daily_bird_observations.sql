@@ -1,6 +1,6 @@
 MODEL (
   name sqlmesh_example.fct_daily_bird_observations,
-  kind TABLE,
+  kind FULL,
   description 'Daily bird observation facts aggregated by region, date, and species'
 );
 
