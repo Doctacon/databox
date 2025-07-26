@@ -1,0 +1,233 @@
+version: '3'
+
+vars:
+  PROJECT_NAME: databox
+  PYTHON_VERSION: "3.12"
+  VENV_DIR: .venv
+  DATA_DIR: ./data
+  
+env:
+  PYTHONPATH: .
+  DLT_DATA_DIR: ./data/dlt
+
+output: prefixed
+
+tasks:
+  # Environment setup
+  setup:
+    desc: "Setup development environment"
+    cmds:
+      - uv venv {{.VENV_DIR}}
+      - uv pip install -e .
+      - cp .env.example .env
+    sources:
+      - pyproject.toml
+      - .env.example
+    generates:
+      - "{{.VENV_DIR}}/pyvenv.cfg"
+      - .env
+    status:
+      - test -d {{.VENV_DIR}}
+      - test -f .env
+
+  # Install dependencies  
+  install:
+    desc: "Install project dependencies"
+    deps: [setup]
+    cmds:
+      - uv pip install -e .
+    sources:
+      - pyproject.toml
+      - uv.lock
+    
+  # Development tools
+  install-dev:
+    desc: "Install development dependencies"
+    deps: [install]
+    cmds:
+      - uv pip install -e '.[dev]'
+      - ./scripts/setup_pre_commit.sh
+    sources:
+      - pyproject.toml
+      - scripts/setup_pre_commit.sh
+
+  # Code quality
+  lint:
+    desc: "Run code linting"
+    deps: [install-dev]
+    cmds:
+      - "{{.VENV_DIR}}/bin/ruff check . --fix --unsafe-fixes"
+
+  format:
+    desc: "Format code"
+    deps: [install-dev]
+    cmds:
+      - "{{.VENV_DIR}}/bin/ruff format ."
+      - "{{.VENV_DIR}}/bin/ruff check . --fix"
+
+  typecheck:
+    desc: "Run type checking"
+    deps: [install-dev]
+    cmds:
+      - "{{.VENV_DIR}}/bin/mypy databox/"
+
+  test:
+    desc: "Run tests"
+    deps: [install-dev]
+    cmds:
+      - "{{.VENV_DIR}}/bin/pytest"
+
+  test-coverage:
+    desc: "Run tests with coverage"
+    deps: [install-dev]
+    cmds:
+      - "{{.VENV_DIR}}/bin/pytest --cov=databox --cov-report=html"
+
+  # Security
+  check-secrets:
+    desc: "Check for secrets in code"
+    cmds:
+      - python scripts/check_secrets.py {{.CLI_ARGS | default "."}}
+
+  pre-commit:
+    desc: "Run pre-commit hooks"
+    deps: [install-dev]
+    cmds:
+      - "{{.VENV_DIR}}/bin/pre-commit run --all-files"
+
+  # Data pipeline tasks
+  pipeline:list:
+    desc: "List available pipelines"
+    cmds:
+      - ls -la pipelines/sources/
+
+  pipeline:ebird:
+    desc: "Run eBird API pipeline"
+    deps: [install]
+    cmds:
+      - "{{.VENV_DIR}}/bin/python pipelines/sources/ebird_api.py {{.CLI_ARGS}}"
+
+  # SQLMesh tasks
+  transform:plan:
+    desc: "Plan SQLMesh transformations"
+    deps: [install]
+    dir: transformations/home_team
+    cmds:
+      - "{{.VENV_DIR}}/bin/sqlmesh plan"
+
+  transform:run:
+    desc: "Apply SQLMesh transformations"
+    deps: [install]
+    dir: transformations/home_team
+    cmds:
+      - "{{.VENV_DIR}}/bin/sqlmesh run"
+
+  transform:test:
+    desc: "Run SQLMesh tests"
+    deps: [install]
+    dir: transformations/home_team
+    cmds:
+      - "{{.VENV_DIR}}/bin/sqlmesh test"
+
+  transform:ui:
+    desc: "Start SQLMesh UI"
+    deps: [install]
+    dir: transformations/home_team
+    cmds:
+      - "{{.VENV_DIR}}/bin/sqlmesh ui"
+
+  # Data setup
+  setup-data:
+    desc: "Generate example data"
+    deps: [install]
+    cmds:
+      - "{{.VENV_DIR}}/bin/python scripts/setup_example_data.py"
+
+  # Development workflows
+  dev:
+    desc: "Start development workflow"
+    deps: [install-dev, pre-commit]
+    cmds:
+      - echo "Development environment ready!"
+      - echo "Available commands:"
+      - echo "  task pipeline:ebird -- --region US-CA"
+      - echo "  task transform:plan"
+      - echo "  task transform:ui"
+
+  # CI/CD tasks
+  ci:
+    desc: "Run all CI checks"
+    cmds:
+      - task: lint
+      - task: typecheck  
+      - task: test
+      - task: check-secrets
+
+  # Clean up
+  clean:
+    desc: "Clean build artifacts"
+    cmds:
+      - rm -rf build/
+      - rm -rf dist/
+      - rm -rf *.egg-info/
+      - rm -rf .pytest_cache/
+      - rm -rf .coverage
+      - rm -rf htmlcov/
+      - find . -type d -name __pycache__ -exec rm -rf {} +
+      - find . -type f -name "*.pyc" -delete
+
+  clean-all:
+    desc: "Clean everything including venv and data"
+    deps: [clean]
+    cmds:
+      - rm -rf {{.VENV_DIR}}
+      - rm -rf {{.DATA_DIR}}
+      - rm -rf .dlt/
+
+  # Database tasks
+  db:reset:
+    desc: "Reset the database"
+    cmds:
+      - rm -f data/databox.db
+      - echo "Database reset complete"
+
+  # Documentation
+  docs:serve:
+    desc: "Serve documentation locally"
+    deps: [install-dev]
+    cmds:
+      - echo "Documentation serving not yet implemented"
+
+  # Watch tasks for development
+  watch:lint:
+    desc: "Watch files and run linting"
+    deps: [install-dev]
+    watch: true
+    sources:
+      - "**/*.py"
+    cmds:
+      - task: lint
+
+  watch:test:
+    desc: "Watch files and run tests"
+    deps: [install-dev]
+    watch: true
+    sources:
+      - "**/*.py"
+    cmds:
+      - task: test
+
+  # Complete workflows
+  full-refresh:
+    desc: "Full data refresh pipeline"
+    cmds:
+      - task: pipeline:ebird
+      - task: transform:plan
+      - task: transform:run
+      - task: transform:test
+
+  # Default task
+  default:
+    desc: "Show available tasks"
+    cmds:
+      - task --list-all

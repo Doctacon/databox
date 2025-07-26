@@ -47,62 +47,85 @@ databox/
 
 ## Key Commands
 
+This project uses [Task](https://taskfile.dev/) for streamlined development workflows. Install Task first: `brew install go-task/tap/go-task`
+
 ### Environment Setup
 ```bash
-# Install dependencies
-pip install -e ".[dev]"
+# Complete development setup
+task setup
 
-# Copy environment template
-cp .env.example .env
+# Install dependencies only
+task install
+
+# Install with development tools
+task install-dev
 ```
 
 ### Running DLT Pipelines
 ```bash
-# Run a specific pipeline
-python pipelines/sources/example_pipeline.py
+# List available pipelines
+task pipeline:list
 
-# Run with custom configuration
-DLT_DATA_DIR=./custom_data python pipelines/sources/example_pipeline.py
+# Run eBird API pipeline
+task pipeline:ebird
+
+# Run with custom parameters
+task pipeline:ebird -- --region US-CA
 ```
 
 ### Working with SQLMesh
 ```bash
-# Navigate to the home_team project (default location)
-cd transformations/home_team
-
 # Plan changes (preview what will change)
-sqlmesh plan
+task transform:plan
 
 # Apply changes
-sqlmesh run
+task transform:run
 
 # Run tests
-sqlmesh test
+task transform:test
 
 # Start UI
-sqlmesh ui
-
-# Or use the CLI from project root
-databox transform plan
-databox transform run
-databox transform test
-databox transform ui
+task transform:ui
 ```
 
 ### Development Commands
 ```bash
-# Format code
-black .
-ruff check . --fix
+# Format and lint code
+task format
+task lint
 
 # Type checking
-mypy databox/
+task typecheck
 
 # Run tests
-pytest
+task test
 
 # Run tests with coverage
-pytest --cov=databox --cov-report=html
+task test-coverage
+
+# Run all CI checks
+task ci
+```
+
+### Common Workflows
+```bash
+# Start development environment
+task dev
+
+# Complete data refresh
+task full-refresh
+
+# Clean build artifacts
+task clean
+
+# Reset everything
+task clean-all
+
+# Watch and auto-lint
+task watch:lint
+
+# Show all available tasks
+task --list-all
 ```
 
 ## Best Practices
@@ -201,3 +224,6 @@ Never commit sensitive information. Instead:
 - dlt documentation: https://dlthub.com/docs
 - sqlmesh documentation: https://sqlmesh.com/
 - DuckDB documentation: https://duckdb.org/docs/
+
+## Memories
+- No config or databox folders are necessary for users who know how to run transformations with `sqlmesh` and pipelines with `dlt`
