@@ -8,3 +8,53 @@ wheels/
 
 # Virtual environments
 .venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data
+data/
+!data/.gitkeep
+*.db
+*.duckdb
+*.parquet
+*.csv
+!seeds/*.csv
+
+# DLT
+.dlt/
+dlt_state/
+
+# SQLMesh
+.sqlmesh/
+target/
+
+# Logs
+logs/
+*.log
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.bak
