@@ -175,7 +175,10 @@ def main():
 
     if obs_df.empty:
         st.error(
-            "No observation data found. Please ensure the eBird pipeline has been run and SQLMesh transformations are complete."
+            """
+            No observation data found.
+            Please ensure the eBird pipeline has been run and SQLMesh transformations are complete.
+            """
         )
         return
 
@@ -239,7 +242,7 @@ def main():
 
     # Notable filter
     if show_notable:
-        filtered_df = filtered_df[filtered_df["is_notable"] == True]
+        filtered_df = filtered_df[filtered_df["is_notable"]]
 
     # Main dashboard
     col1, col2, col3, col4 = st.columns(4)
