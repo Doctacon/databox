@@ -134,7 +134,7 @@ tasks:
     cmds:
       - echo "Production environment ready!"
       - echo "Available commands:"
-      - echo "  task pipeline:ebird -- --region US-CA"
+      - echo "  task pipeline:ebird -- --region US-AZ"
       - echo "  task transform:plan"
       - echo "  task transform:ui"
 

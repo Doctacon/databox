@@ -49,9 +49,9 @@ def process_observation(
 
 @dlt.source
 def ebird_source(
-    region_code: str = "US-CA",  # Default to California, USA
-    max_results: int = 100,
-    days_back: int = 7,
+    region_code: str = "US-AZ",  # Default to Arizona, USA
+    max_results: int = 10000,
+    days_back: int = 30,
 ):
     """
     eBird API source that fetches bird observation data.
@@ -238,9 +238,9 @@ def ebird_source(
 
 
 def load_ebird_data(
-    region_code: str = "US-CA",
-    max_results: int = 100,
-    days_back: int = 7,
+    region_code: str = "US-AZ",
+    max_results: int = 10000,
+    days_back: int = 30,
     dataset_name: str = "raw_ebird_data",
     database_url: str = None,
     dlt_data_dir: str = None,
@@ -308,8 +308,8 @@ def load_ebird_data(
 
 def load_multiple_regions(
     regions: list[str],
-    max_results: int = 100,
-    days_back: int = 7,
+    max_results: int = 10000,
+    days_back: int = 30,
     database_url: str = None,
     dlt_data_dir: str = None,
 ):
@@ -346,9 +346,7 @@ if __name__ == "__main__":
     print("  python pipelines/sources/ebird_api.py")
     print("\nOr import and use:")
     print("  from pipelines.sources.ebird_api import load_ebird_data")
-    print("  load_ebird_data('US-CA', days_back=7)")
+    print("  load_ebird_data('US-AZ', days_back=30)")
 
-    # Uncomment to run examples:
-    # load_ebird_data("US-CA", days_back=7)
-    # regions = ["US-CA", "US-NY", "US-TX", "US-FL"]
-    # load_multiple_regions(regions, days_back=3)
+    # Run the pipeline with Arizona data
+    load_ebird_data("US-AZ", days_back=30)

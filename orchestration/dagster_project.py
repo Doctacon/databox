@@ -43,8 +43,8 @@ def ebird_assets(context: dg.AssetExecutionContext):
 
     # Get config from context
     config = context.resources.databox_config
-    region = "US-CA"  # Default region
-    days_back = 7  # Default days back
+    region = "US-AZ"  # Default region
+    days_back = 30  # Default days back
 
     # Load the data
     load_ebird_data(

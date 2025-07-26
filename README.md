@@ -48,7 +48,7 @@ task pipeline:list
 task pipeline:ebird
 
 # Run with specific region
-task pipeline:ebird -- --region US-CA
+task pipeline:ebird -- --region US-AZ
 ```
 
 ### 4. Transform Data
@@ -161,7 +161,7 @@ task full-refresh
 
 ### Multi-Region Data Loading
 ```bash
-task pipeline:ebird -- --regions "US-CA,US-NY,US-TX"
+task pipeline:ebird -- --regions "US-AZ,US-NY,US-TX"
 ```
 
 ### SQLMesh Development

@@ -10,7 +10,7 @@ Databox is a world-class data project that uses:
 
 ### /dataops [operation]
 Handles common data operations with dynamic parameters. Examples:
-- `/dataops run ebird_api US-CA` - Run eBird pipeline for California
+- `/dataops run ebird_api US-AZ` - Run eBird pipeline for California
 - `/dataops refresh` - Run all pipelines and transformations
 - `/dataops check observations` - Data quality checks on specific table
 - `/dataops status` - Show pipeline run history
@@ -67,7 +67,7 @@ task pipeline:list
 task pipeline:ebird
 
 # Run with custom parameters
-task pipeline:ebird -- --region US-CA
+task pipeline:ebird -- --region US-AZ
 ```
 
 ### Working with SQLMesh

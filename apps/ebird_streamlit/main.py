@@ -162,7 +162,7 @@ def main():
 
     # Header
     st.title("🐦 eBird Observation Dashboard")
-    st.markdown("Interactive dashboard for exploring bird observation data from California")
+    st.markdown("Interactive dashboard for exploring bird observation data from multiple US states")
 
     # Sidebar filters
     st.sidebar.header("Filters")
@@ -181,6 +181,32 @@ def main():
             """
         )
         return
+
+    # State/Region filter
+    region_list = sorted(obs_df["region_code"].dropna().unique())
+    # Create readable state names from region codes
+    region_mapping = {
+        "US-AZ": "Arizona",
+        "US-CA": "California",
+        "US-NY": "New York",
+        "US-TX": "Texas",
+        "US-FL": "Florida",
+    }
+
+    # Create display options with readable names
+    region_options = []
+    region_display_map = {}
+    for region in region_list:
+        display_name = region_mapping.get(region, region)
+        region_options.append(display_name)
+        region_display_map[display_name] = region
+
+    selected_states = st.sidebar.multiselect(
+        "State/Region",
+        options=region_options,
+        default=region_options,  # Default to all available states
+        help="Select which states/regions to include",
+    )
 
     # Date range filter - convert datetime columns to date for picker compatibility
     obs_df["observation_date"] = pd.to_datetime(obs_df["observation_date"]).dt.date
@@ -220,6 +246,12 @@ def main():
 
     # Apply filters
     filtered_df = obs_df.copy()
+
+    # State/Region filter
+    if selected_states:
+        # Convert display names back to region codes
+        selected_region_codes = [region_display_map[state] for state in selected_states]
+        filtered_df = filtered_df[filtered_df["region_code"].isin(selected_region_codes)]
 
     # Date filter
     if len(date_range) == 2:
