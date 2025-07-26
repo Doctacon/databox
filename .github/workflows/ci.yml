@@ -53,12 +53,17 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           
+      - name: Create virtual environment
+        run: |
+          uv venv
+          uv pip install -e .
+          
       - name: Check for secrets
         run: |
           python scripts/check_secrets.py .
           
       - name: Run pip-audit
         run: |
-          uv pip install pip-audit
           source .venv/bin/activate
+          uv pip install pip-audit
           pip-audit
