@@ -256,7 +256,14 @@ def load_ebird_data(
     # Show loaded tables and counts
     with pipeline.sql_client() as client:
         tables = client.execute_sql(
-            f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
+            f"""
+            SELECT 
+                table_name 
+            FROM 
+                information_schema.tables 
+            WHERE 
+                table_schema = '{dataset_name}'
+            """
         )
         print("\nLoaded tables:")
         for table in tables:
