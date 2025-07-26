@@ -54,11 +54,8 @@ This project uses [Task](https://taskfile.dev/) for streamlined development work
 # Complete development setup
 task setup
 
-# Install dependencies only
+# Install dependencies
 task install
-
-# Install with development tools
-task install-dev
 ```
 
 ### Running DLT Pipelines
@@ -227,3 +224,4 @@ Never commit sensitive information. Instead:
 
 ## Memories
 - No config or databox folders are necessary for users who know how to run transformations with `sqlmesh` and pipelines with `dlt`
+- Stop with the dev environments for things like the pyproject.toml and docker-compose. this project only has prod environment

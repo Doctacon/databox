@@ -36,52 +36,43 @@ tasks:
     deps: [setup]
     cmds:
       - uv pip install -e .
-    sources:
-      - pyproject.toml
-      - uv.lock
-    
-  # Development tools
-  install-dev:
-    desc: "Install development dependencies"
-    deps: [install]
-    cmds:
-      - uv pip install -e '.[dev]'
       - ./scripts/setup_pre_commit.sh
     sources:
       - pyproject.toml
+      - uv.lock
       - scripts/setup_pre_commit.sh
 
   # Code quality
   lint:
     desc: "Run code linting"
-    deps: [install-dev]
+    deps: [install]
     cmds:
       - "{{.VENV_DIR}}/bin/ruff check . --fix --unsafe-fixes"
 
   format:
     desc: "Format code"
-    deps: [install-dev]
+    deps: [install]
     cmds:
       - "{{.VENV_DIR}}/bin/ruff format ."
       - "{{.VENV_DIR}}/bin/ruff check . --fix"
 
   typecheck:
     desc: "Run type checking"
-    deps: [install-dev]
+    deps: [install]
     cmds:
-      - "{{.VENV_DIR}}/bin/mypy databox/"
+      - "{{.VENV_DIR}}/bin/mypy . --ignore-missing-imports"
 
   test:
     desc: "Run tests"
-    deps: [install-dev]
+    deps: [install]
     cmds:
       - "{{.VENV_DIR}}/bin/pytest"
 
   test-coverage:
     desc: "Run tests with coverage"
-    deps: [install-dev]
+    deps: [install]
     cmds:
-      - "{{.VENV_DIR}}/bin/pytest --cov=databox --cov-report=html"
+      - "{{.VENV_DIR}}/bin/pytest --cov=. --cov-report=html"
 
   # Security
   check-secrets:
@@ -91,7 +82,7 @@ tasks:
 
   pre-commit:
     desc: "Run pre-commit hooks"
-    deps: [install-dev]
+    deps: [install]
     cmds:
       - "{{.VENV_DIR}}/bin/pre-commit run --all-files"
 
@@ -143,12 +134,12 @@ tasks:
     cmds:
       - "{{.VENV_DIR}}/bin/python scripts/setup_example_data.py"
 
-  # Development workflows
-  dev:
-    desc: "Start development workflow"
-    deps: [install-dev, pre-commit]
+  # Production workflows
+  prod:
+    desc: "Start production workflow"
+    deps: [install, pre-commit]
     cmds:
-      - echo "Development environment ready!"
+      - echo "Production environment ready!"
       - echo "Available commands:"
       - echo "  task pipeline:ebird -- --region US-CA"
       - echo "  task transform:plan"
@@ -194,14 +185,14 @@ tasks:
   # Documentation
   docs:serve:
     desc: "Serve documentation locally"
-    deps: [install-dev]
+    deps: [install]
     cmds:
       - echo "Documentation serving not yet implemented"
 
   # Watch tasks for development
   watch:lint:
     desc: "Watch files and run linting"
-    deps: [install-dev]
+    deps: [install]
     watch: true
     sources:
       - "**/*.py"
@@ -210,7 +201,7 @@ tasks:
 
   watch:test:
     desc: "Watch files and run tests"
-    deps: [install-dev]
+    deps: [install]
     watch: true
     sources:
       - "**/*.py"
@@ -225,6 +216,64 @@ tasks:
       - task: transform:plan
       - task: transform:run
       - task: transform:test
+
+  # Dagster tasks
+  dagster:dev:
+    desc: "Start Dagster development server"
+    deps: [install-orchestration]
+    dir: orchestration
+    cmds:
+      - "{{.VENV_DIR}}/bin/dagster dev -f dagster_project.py"
+
+  dagster:materialize:
+    desc: "Materialize Dagster assets"
+    deps: [install-orchestration]
+    dir: orchestration
+    cmds:
+      - "{{.VENV_DIR}}/bin/dagster asset materialize -f dagster_project.py --asset {{.CLI_ARGS}}"
+
+  dagster:job:
+    desc: "Execute a Dagster job"
+    deps: [install-orchestration]
+    dir: orchestration
+    cmds:
+      - "{{.VENV_DIR}}/bin/dagster job execute -f dagster_project.py -j {{.CLI_ARGS | default 'daily_ebird_pipeline'}}"
+
+  # Install orchestration dependencies
+  install-orchestration:
+    desc: "Install orchestration dependencies"
+    deps: [install]
+    cmds:
+      - uv pip install -e '.[orchestration]'
+    sources:
+      - pyproject.toml
+
+  # Docker tasks
+  docker:build:
+    desc: "Build Docker images"
+    cmds:
+      - docker-compose build
+
+  docker:up:
+    desc: "Start all services"
+    cmds:
+      - docker-compose up -d
+
+  docker:down:
+    desc: "Stop all services"
+    cmds:
+      - docker-compose down
+
+  docker:logs:
+    desc: "View container logs"
+    cmds:
+      - docker-compose logs -f {{.CLI_ARGS | default "databox"}}
+
+  docker:clean:
+    desc: "Clean Docker resources"
+    cmds:
+      - docker-compose down -v
+      - docker system prune -f
 
   # Default task
   default:
