@@ -223,21 +223,21 @@ tasks:
     deps: [install-orchestration]
     dir: orchestration
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster dev -f dagster_project.py"
+      - "../{{.VENV_DIR}}/bin/dagster dev -f dagster_project.py"
 
   dagster:materialize:
     desc: "Materialize Dagster assets"
     deps: [install-orchestration]
     dir: orchestration
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster asset materialize -f dagster_project.py --asset {{.CLI_ARGS}}"
+      - "../{{.VENV_DIR}}/bin/dagster asset materialize -f dagster_project.py --asset {{.CLI_ARGS}}"
 
   dagster:job:
     desc: "Execute a Dagster job"
     deps: [install-orchestration]
     dir: orchestration
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster job execute -f dagster_project.py -j {{.CLI_ARGS | default 'daily_ebird_pipeline'}}"
+      - "../{{.VENV_DIR}}/bin/dagster job execute -f dagster_project.py -j {{.CLI_ARGS | default 'daily_ebird_pipeline'}}"
 
   # Install orchestration dependencies
   install-orchestration:

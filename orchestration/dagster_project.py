@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 import dagster as dg
-from dagster_dlt import DagsterDltResource, dlt_assets
 from dagster_duckdb import DuckDBResource
 
 # Project paths
@@ -14,13 +13,14 @@ TRANSFORMATIONS_DIR = PROJECT_ROOT / "transformations"
 DATA_DIR = PROJECT_ROOT / "data"
 
 # Environment setup
-DATABASE_URL = os.getenv("DATABASE_URL", f"duckdb:///{DATA_DIR}/databox.db")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", str(PROJECT_ROOT / "pipelines" / "sources" / "data" / "databox.db")
+)
 DLT_DATA_DIR = os.getenv("DLT_DATA_DIR", str(DATA_DIR / "dlt"))
 
 
 # Resources
-@dg.ConfigurableResource
-class DataboxConfig:
+class DataboxConfig(dg.ConfigurableResource):
     """Configuration for Databox resources."""
 
     database_url: str = DATABASE_URL
@@ -29,36 +29,30 @@ class DataboxConfig:
     ebird_api_token: str = os.getenv("EBIRD_API_TOKEN", "")
 
 
-# DLT Assets
-@dlt_assets(
-    dlt_source=dg.file_relative_path(__file__, "../pipelines/sources/ebird_api.py"),
-    dlt_pipeline=dg.file_relative_path(__file__, "../pipelines/sources/ebird_api.py"),
+# Assets
+@dg.asset(
     name="ebird_raw_data",
     group_name="ingestion",
+    description="Ingest eBird data using DLT",
+    required_resource_keys={"databox_config"},
 )
-def ebird_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
+def ebird_assets(context: dg.AssetExecutionContext):
     """Ingest eBird data using DLT."""
     # Import the ebird source
-    from pipelines.sources.ebird_api import ebird_source
+    from pipelines.sources.ebird_api import load_ebird_data
 
     # Get config from context
     config = context.resources.databox_config
-    region = context.op_execution_context.op_config.get("region", "US-CA")
-    days_back = context.op_execution_context.op_config.get("days_back", 7)
-
-    # Create and run the pipeline
-    pipeline = dlt.create_pipeline(
-        pipeline_name="ebird_api",
-        dataset_name="raw_ebird_data",
-        destination="duckdb",
-        credentials=config.database_url,
-    )
+    region = "US-CA"  # Default region
+    days_back = 7  # Default days back
 
     # Load the data
-    results = pipeline.run(ebird_source(region_code=region, days_back=days_back))
+    load_ebird_data(
+        region_code=region, days_back=days_back, database_url=f"duckdb:///{config.database_url}"
+    )
 
     context.log.info(f"Loaded eBird data for region {region}")
-    yield from results
+    return {"status": "completed", "region": region, "days_back": days_back}
 
 
 # SQLMesh Assets
@@ -66,6 +60,7 @@ def ebird_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     deps=["ebird_raw_data"],
     group_name="transformation",
     description="Run SQLMesh transformations for staging models",
+    required_resource_keys={"databox_config"},
 )
 def sqlmesh_staging(context: dg.AssetExecutionContext) -> None:
     """Run SQLMesh staging transformations."""
@@ -75,10 +70,11 @@ def sqlmesh_staging(context: dg.AssetExecutionContext) -> None:
 
     # Run sqlmesh plan and apply
     result = subprocess.run(
-        ["sqlmesh", "run", "--no-prompts"],
+        ["sqlmesh", "run"],
         cwd=config.transformations_dir + "/home_team",
         capture_output=True,
         text=True,
+        input="y\n",  # Auto-confirm prompts
     )
 
     if result.returncode != 0:
@@ -91,6 +87,7 @@ def sqlmesh_staging(context: dg.AssetExecutionContext) -> None:
     deps=["sqlmesh_staging"],
     group_name="transformation",
     description="Data quality checks on transformed data",
+    required_resource_keys={"duckdb"},
 )
 def data_quality_checks(context: dg.AssetExecutionContext) -> dict:
     """Run data quality checks on transformed data."""
@@ -101,8 +98,8 @@ def data_quality_checks(context: dg.AssetExecutionContext) -> dict:
         null_checks = conn.execute("""
             SELECT
                 'stg_ebird_observations' as table_name,
-                COUNT(*) FILTER (WHERE speciesCode IS NULL) as null_species,
-                COUNT(*) FILTER (WHERE obsDt IS NULL) as null_dates,
+                COUNT(*) FILTER (WHERE species_code IS NULL) as null_species,
+                COUNT(*) FILTER (WHERE observation_datetime IS NULL) as null_dates,
                 COUNT(*) as total_rows
             FROM sqlmesh_example.stg_ebird_observations
         """).fetchone()
@@ -110,8 +107,8 @@ def data_quality_checks(context: dg.AssetExecutionContext) -> dict:
         # Check for data freshness
         freshness = conn.execute("""
             SELECT
-                MAX(obsDt) as latest_observation,
-                CURRENT_DATE - MAX(obsDt)::DATE as days_old
+                MAX(observation_datetime) as latest_observation,
+                CURRENT_DATE - MAX(observation_datetime)::DATE as days_old
             FROM sqlmesh_example.stg_ebird_observations
         """).fetchone()
 
@@ -135,19 +132,8 @@ def data_quality_checks(context: dg.AssetExecutionContext) -> dict:
 # Jobs
 @dg.job(
     resource_defs={
-        "dlt": DagsterDltResource(),
         "duckdb": DuckDBResource(database=DATABASE_URL),
         "databox_config": DataboxConfig(),
-    },
-    config={
-        "ops": {
-            "ebird_assets": {
-                "config": {
-                    "region": "US-CA",
-                    "days_back": 7,
-                }
-            }
-        }
     },
 )
 def daily_ebird_pipeline():
@@ -197,7 +183,6 @@ defs = dg.Definitions(
     schedules=[daily_ebird_schedule],
     sensors=[ebird_api_availability_sensor],
     resources={
-        "dlt": DagsterDltResource(),
         "duckdb": DuckDBResource(database=DATABASE_URL),
         "databox_config": DataboxConfig(),
     },
