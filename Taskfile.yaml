@@ -245,6 +245,14 @@ tasks:
     cmds:
       - "../{{.VENV_DIR}}/bin/dagster job execute -f dagster_project.py -j {{.CLI_ARGS | default 'daily_ebird_pipeline'}}"
 
+  # Streamlit tasks
+  streamlit:
+    desc: "Start Streamlit dashboard"
+    deps: [install]
+    dir: apps/ebird_streamlit
+    cmds:
+      - "../../{{.VENV_DIR}}/bin/streamlit run main.py"
+
   # Install orchestration dependencies
   install-orchestration:
     desc: "Install orchestration dependencies"
