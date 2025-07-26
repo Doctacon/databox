@@ -1,0 +1,8 @@
+*.md text
+*.py text
+*.yaml text
+*.yml text
+*.json text
+*.toml text
+*.txt text
+*.sh text eol=lf
