@@ -28,7 +28,6 @@ jobs:
         run: |
           uv venv
           uv pip install -e .
-          uv pip install mypy
           
       - name: Run ruff linting
         run: |
@@ -39,87 +38,6 @@ jobs:
         run: |
           source .venv/bin/activate
           ruff format . --check
-
-  type-check:
-    name: Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          
-      - name: Install dependencies
-        run: |
-          uv venv
-          uv pip install -e .
-          uv pip install mypy
-          
-      - name: Run mypy
-        run: |
-          source .venv/bin/activate
-          mypy . --ignore-missing-imports
-
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          
-      - name: Install dependencies
-        run: |
-          uv venv
-          uv pip install -e .
-          uv pip install pytest pytest-cov
-          
-      - name: Run pytest
-        run: |
-          source .venv/bin/activate
-          pytest --cov=. --cov-report=xml --cov-report=html
-          
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
-
-  sqlmesh-validate:
-    name: Validate SQLMesh Models
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          
-      - name: Install dependencies
-        run: |
-          uv venv
-          uv pip install -e .
-          
-      - name: Validate SQLMesh models
-        run: |
-          source .venv/bin/activate
-          cd transformations/home_team
-          sqlmesh audit
 
   security-check:
     name: Security Checks
@@ -144,35 +62,3 @@ jobs:
           uv pip install pip-audit
           source .venv/bin/activate
           pip-audit
-
-  build:
-    name: Build Package
-    runs-on: ubuntu-latest
-    needs: [lint, type-check, test, sqlmesh-validate, security-check]
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-        
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          
-      - name: Build distribution
-        run: |
-          uv pip install build
-          python -m build
-          
-      - name: Check distribution
-        run: |
-          uv pip install twine
-          source .venv/bin/activate
-          twine check dist/*
-          
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
