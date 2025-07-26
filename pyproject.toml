@@ -29,15 +29,13 @@ orchestration = [
     "dagster-duckdb>=0.21.0",
 ]
 
-[project.scripts]
-databox = "databox.cli:main"
-
 [build-system]
 requires = ["setuptools>=70.0.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["databox"]
+packages = ["pipelines", "orchestration"]
+include-package-data = true
 
 [tool.ruff]
 line-length = 100
