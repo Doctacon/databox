@@ -127,13 +127,6 @@ tasks:
     cmds:
       - "{{.VENV_DIR}}/bin/sqlmesh ui"
 
-  # Data setup
-  setup-data:
-    desc: "Generate example data"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/python scripts/setup_example_data.py"
-
   # Production workflows
   prod:
     desc: "Start production workflow"
