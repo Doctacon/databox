@@ -7,6 +7,10 @@ from typing import Any
 import dlt
 import pendulum
 from dlt.sources.helpers import requests as dlt_requests
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # eBird API base URL
 EBIRD_API_BASE = "https://api.ebird.org/v2"
@@ -263,7 +267,6 @@ def load_ebird_data(
         pipeline_name="ebird_api",
         destination=dlt.destinations.duckdb(credentials=database_url),
         dataset_name=dataset_name,
-        dir=dlt_data_dir,
     )
 
     # Create the source
