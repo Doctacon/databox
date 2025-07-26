@@ -109,6 +109,26 @@ pytest --cov=databox --cov-report=html
 3. Use sqlmesh's audit features for transformation testing
 4. Monitor data freshness and completeness
 
+## Security
+
+### Pre-commit Hooks
+The project includes pre-commit hooks that automatically check for:
+- Hardcoded secrets, API keys, and passwords
+- Database URLs with embedded credentials
+- AWS access keys and private keys
+- Any other sensitive information patterns
+
+To set up pre-commit hooks:
+```bash
+./scripts/setup_pre_commit.sh
+```
+
+### Handling Secrets
+Never commit sensitive information. Instead:
+1. Use environment variables via `.env` file
+2. Reference settings: `settings.api_key`
+3. Use placeholders in examples: `"your_api_key_here"`
+
 ## Common Tasks
 
 ### Adding a New Data Source
