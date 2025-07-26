@@ -18,6 +18,7 @@ dependencies = [
     "pendulum>=3.0.0",
     "pre-commit>=4.2.0",
     "ruff>=0.12.5",
+    "loguru>=0.7.3",
 ]
 
 [project.scripts]

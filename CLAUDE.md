@@ -6,6 +6,22 @@ Databox is a world-class data project that uses:
 - **sqlmesh** for powerful SQL-based data transformations with built-in testing and deployment
 - **DuckDB** as the default analytical database (lightweight, fast, and perfect for development)
 
+## Custom Slash Commands
+
+### /dataops [operation]
+Handles common data operations with dynamic parameters. Examples:
+- `/dataops run ebird_api US-CA` - Run eBird pipeline for California
+- `/dataops refresh` - Run all pipelines and transformations
+- `/dataops check observations` - Data quality checks on specific table
+- `/dataops status` - Show pipeline run history
+
+### /sqlgen [model_type] [entity]
+Generates SQL models with specific requirements. Examples:
+- `/sqlgen staging ebird observations` - Create staging model from raw eBird data
+- `/sqlgen fact daily bird sightings` - Create fact table for bird observation analytics
+- `/sqlgen dimension species with taxonomy` - Create species dimension with taxonomic data
+- `/sqlgen test dim_users` - Generate comprehensive tests for existing model
+
 ## Project Structure
 ```
 databox/
@@ -51,12 +67,8 @@ DLT_DATA_DIR=./custom_data python pipelines/sources/example_pipeline.py
 
 ### Working with SQLMesh
 ```bash
-# Initialize sqlmesh project (already done)
-cd transformations
-sqlmesh init
-
-# Create a new model
-sqlmesh create_model <model_name>
+# Navigate to the home_team project (default location)
+cd transformations/home_team
 
 # Plan changes (preview what will change)
 sqlmesh plan
@@ -69,6 +81,12 @@ sqlmesh test
 
 # Start UI
 sqlmesh ui
+
+# Or use the CLI from project root
+databox transform plan
+databox transform run
+databox transform test
+databox transform ui
 ```
 
 ### Development Commands
@@ -97,11 +115,13 @@ pytest --cov=databox --cov-report=html
 5. Use dlt's built-in schema evolution features
 
 ### SQLMesh Model Development
-1. Use CTEs for readability
-2. Write tests for critical business logic
-3. Use macros for repeated patterns
-4. Document models with descriptions
-5. Follow naming conventions (stg_ for staging, int_ for intermediate, fct_ for facts, dim_ for dimensions)
+1. **Always work in `home_team/` directory** - this is the default SQLMesh project
+2. Use `sqlmesh_example` schema for all models
+3. Use CTEs for readability
+4. Write tests for critical business logic
+5. Use macros for repeated patterns
+6. Document models with descriptions
+7. Follow naming conventions (stg_ for staging, int_ for intermediate, fct_ for facts, dim_ for dimensions)
 
 ### Data Quality
 1. Implement data quality checks in both dlt and sqlmesh
@@ -136,14 +156,15 @@ Never commit sensitive information. Instead:
 2. Implement the source using dlt decorators
 3. Add configuration to `.env`
 4. Test the pipeline locally
-5. Create corresponding sqlmesh models in `transformations/models/`
+5. Create corresponding sqlmesh models in `transformations/home_team/models/`
 
 ### Creating a Data Model
-1. Create a new SQL file in `transformations/models/`
-2. Define the model using sqlmesh syntax
-3. Add tests in `transformations/tests/`
-4. Run `sqlmesh plan` to preview changes
-5. Apply with `sqlmesh run`
+1. Create a new SQL file in `transformations/home_team/models/` (staging/, intermediate/, or marts/)
+2. Use the `sqlmesh_example` schema name in MODEL definition
+3. Define the model using sqlmesh syntax
+4. Add tests in `transformations/home_team/tests/`
+5. Run `sqlmesh plan` from `home_team/` directory to preview changes
+6. Apply with `sqlmesh run`
 
 ### Debugging Issues
 - Check logs in `logs/` directory
