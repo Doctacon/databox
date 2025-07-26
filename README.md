@@ -77,7 +77,6 @@ databox/
 ├── orchestration/     # Dagster orchestration
 ├── scripts/           # Utility scripts
 ├── tests/             # Unit and integration tests
-├── docs/              # Documentation
 └── notebooks/         # Jupyter notebooks
 ```
 
@@ -98,7 +97,7 @@ databox/
 - **Orchestration**: Dagster
 - **Testing**: pytest + sqlmesh tests
 - **Task Runner**: Task (go-task)
-- **Containerization**: Docker + docker-compose
+- **Package Manager**: uv (fast, reliable Python package management)
 
 ## Development
 
@@ -130,20 +129,6 @@ This project includes automatic security checks to prevent accidental commits of
 If you need to reference sensitive values:
 1. Use environment variables: `os.environ.get("API_KEY")`
 2. Use placeholder values: `"your_api_key_here"`
-
-### Docker
-
-```bash
-# Build and start all services
-task docker:build
-task docker:up
-
-# View logs
-task docker:logs
-
-# Stop services
-task docker:down
-```
 
 ### Orchestration
 

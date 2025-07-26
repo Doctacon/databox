@@ -248,32 +248,6 @@ tasks:
     sources:
       - pyproject.toml
 
-  # Docker tasks
-  docker:build:
-    desc: "Build Docker images"
-    cmds:
-      - docker-compose build
-
-  docker:up:
-    desc: "Start all services"
-    cmds:
-      - docker-compose up -d
-
-  docker:down:
-    desc: "Stop all services"
-    cmds:
-      - docker-compose down
-
-  docker:logs:
-    desc: "View container logs"
-    cmds:
-      - docker-compose logs -f {{.CLI_ARGS | default "databox"}}
-
-  docker:clean:
-    desc: "Clean Docker resources"
-    cmds:
-      - docker-compose down -v
-      - docker system prune -f
 
   # Default task
   default:
