@@ -31,13 +31,14 @@ def get_database_path():
     # Since we're running from apps/ebird_streamlit directory, go up two levels to project root
     current_dir = Path.cwd()
 
-    # If we're in ebird_streamlit, go up to project root
     if current_dir.name == "ebird_streamlit":
         project_root = current_dir.parent.parent
     elif current_dir.name == "apps":
         project_root = current_dir.parent
     else:
-    project_root = current_dir
+        project_root = current_dir
+
+    db_path = project_root / "data" / "databox.db"
 
     db_path = project_root / "data" / "databox.db"
 

@@ -30,15 +30,13 @@ databox/
 │   │       ├── staging/
 │   │       ├── intermediate/
 │   │       └── marts/
-│   ├── home_team/           # Cross-domain analytics layer
 │   └── _shared/             # Shared macros, audits, seeds
 ├── orchestration/           # Dagster (optional)
 │   └── dagster_project.py   # Auto-generated from pipeline registry
 ├── apps/                    # Visualization
 │   └── ebird_streamlit/
 ├── data/                    # Data storage (gitignored)
-│   ├── databox.db           # DuckDB database
-│   └── dlt/                 # dlt state
+│   └── databox.db           # DuckDB database
 └── scripts/                 # Utility scripts
 ```
 
@@ -65,7 +63,6 @@ task pipeline:run -- ebird    # Run a pipeline
 task transform:plan           # SQLMesh plan
 task transform:run            # SQLMesh run
 task full-refresh             # Run everything
-task ci                       # All CI checks
 ```
 
 ## Adding a New Data Source
