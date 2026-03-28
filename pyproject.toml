@@ -1,7 +1,7 @@
 [project]
 name = "databox"
-version = "0.1.0"
-description = "World-class data project using dlt for ingestion and sqlmesh for transformation"
+version = "0.2.0"
+description = "Dataset-agnostic data pipeline tool for ingestion, transformation, and quality checks"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -13,6 +13,8 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "requests>=2.32.3",
     "pydantic>=2.10.4",
+    "pydantic-settings>=2.13.0",
+    "pyyaml>=6.0",
     "streamlit>=1.41.1",
     "plotly>=5.24.1",
     "altair>=5.4.1",
@@ -21,9 +23,17 @@ dependencies = [
     "pre-commit>=4.2.0",
     "ruff>=0.12.5",
     "loguru>=0.7.3",
+    "typer>=0.15.0",
 ]
 
 [project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-mock>=3.14",
+    "faker>=30.0",
+    "responses>=0.25",
+]
 orchestration = [
     "dagster>=1.5.0",
     "dagster-webserver>=1.5.0",
@@ -31,13 +41,29 @@ orchestration = [
     "dagster-duckdb>=0.21.0",
 ]
 
+[project.scripts]
+databox = "cli.main:app"
+
 [build-system]
 requires = ["setuptools>=70.0.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["pipelines", "orchestration"]
+packages = ["pipelines", "orchestration", "config", "cli"]
 include-package-data = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "unit: isolated unit tests (no DB, no API)",
+    "integration: multi-component tests with real DuckDB",
+    "e2e: full stack tests",
+    "slow: tests that take >5s",
+]
 
 [tool.ruff]
 line-length = 100

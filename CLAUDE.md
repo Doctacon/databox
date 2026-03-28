@@ -1,227 +1,126 @@
 # Databox Project Guide
 
 ## Project Overview
-Databox is a world-class data project that uses:
+Databox is a dataset-agnostic data platform that uses:
 - **dlt (data load tool)** for flexible, Python-native data ingestion
-- **sqlmesh** for powerful SQL-based data transformations with built-in testing and deployment
-- **DuckDB** as the default analytical database (lightweight, fast, and perfect for development)
-
-## Custom Slash Commands
-
-### /dataops [operation]
-Handles common data operations with dynamic parameters. Examples:
-- `/dataops run ebird_api US-AZ` - Run eBird pipeline for California
-- `/dataops refresh` - Run all pipelines and transformations
-- `/dataops check observations` - Data quality checks on specific table
-- `/dataops status` - Show pipeline run history
-
-### /sqlgen [model_type] [entity]
-Generates SQL models with specific requirements. Examples:
-- `/sqlgen staging ebird observations` - Create staging model from raw eBird data
-- `/sqlgen fact daily bird sightings` - Create fact table for bird observation analytics
-- `/sqlgen dimension species with taxonomy` - Create species dimension with taxonomic data
-- `/sqlgen test dim_users` - Generate comprehensive tests for existing model
+- **sqlmesh** for SQL-based data transformations with built-in testing
+- **DuckDB** as the default analytical database
+- **Dagster** for optional orchestration (scheduling, sensors, asset lineage)
+- **Typer CLI** (`databox`) for unified command-line interface
 
 ## Project Structure
 ```
 databox/
-├── pipelines/          # dlt data ingestion pipelines
-│   ├── sources/       # Data source implementations
-│   └── destinations/  # Custom destination configurations
-├── transformations/    # sqlmesh project root
-│   ├── models/        # SQL transformation models
-│   ├── tests/         # Model tests
-│   ├── macros/        # Reusable SQL macros
-│   └── seeds/         # Static reference data
-├── data/              # Data storage (gitignored)
-│   ├── raw/           # Raw ingested data
-│   ├── staging/       # Intermediate transformations
-│   ├── processed/     # Final analytical tables
-│   └── dlt/           # dlt internal state
-├── config/            # Configuration management
-├── scripts/           # Utility scripts
-├── tests/             # Python tests
-├── docs/              # Documentation
-└── notebooks/         # Jupyter notebooks for analysis
+├── cli/                     # `databox` CLI (Typer)
+│   └── main.py              # Commands: run, list, validate, transform, quality, status
+├── config/                  # Central configuration
+│   ├── settings.py          # Pydantic settings (DB URL, paths, secrets)
+│   ├── pipeline_config.py   # Per-pipeline YAML config loader
+│   └── pipelines/           # Pipeline YAML configs
+│       └── ebird.yaml       # eBird pipeline config
+├── pipelines/               # dlt data ingestion
+│   ├── base.py              # PipelineSource protocol
+│   ├── registry.py          # Auto-discovers sources from config/pipelines/*.yaml
+│   └── sources/             # Source implementations
+│       └── ebird_api.py     # eBird source (implements PipelineSource)
+├── transformations/         # sqlmesh projects
+│   ├── ebird/               # eBird-specific sqlmesh project
+│   │   ├── config.yaml
+│   │   └── models/
+│   │       ├── staging/
+│   │       ├── intermediate/
+│   │       └── marts/
+│   ├── home_team/           # Cross-domain analytics layer
+│   └── _shared/             # Shared macros, audits, seeds
+├── orchestration/           # Dagster (optional)
+│   └── dagster_project.py   # Auto-generated from pipeline registry
+├── apps/                    # Visualization
+│   └── ebird_streamlit/
+├── data/                    # Data storage (gitignored)
+│   ├── databox.db           # DuckDB database
+│   └── dlt/                 # dlt state
+└── scripts/                 # Utility scripts
 ```
 
 ## Key Commands
 
-This project uses [Task](https://taskfile.dev/) for streamlined development workflows. Install Task first: `brew install go-task/tap/go-task`
-
-### Environment Setup
+### CLI (preferred)
 ```bash
-# Complete development setup
-task setup
-
-# Install dependencies
-task install
+databox list                  # List registered pipelines
+databox run ebird             # Run a pipeline
+databox validate ebird        # Check pipeline config/credentials
+databox transform plan        # Preview SQLMesh changes
+databox transform run         # Apply SQLMesh transforms
+databox transform test        # Run SQLMesh tests
+databox quality ebird.stg_ebird_observations  # Data quality checks
+databox status                # Show pipeline status & freshness
 ```
 
-### Running DLT Pipelines
+### Task (alternative)
 ```bash
-# List available pipelines
-task pipeline:list
-
-# Run eBird API pipeline
-task pipeline:ebird
-
-# Run with custom parameters
-task pipeline:ebird -- --region US-AZ
+task setup                    # Setup environment
+task install                  # Install dependencies
+task pipeline:list            # List pipelines
+task pipeline:run -- ebird    # Run a pipeline
+task transform:plan           # SQLMesh plan
+task transform:run            # SQLMesh run
+task full-refresh             # Run everything
+task ci                       # All CI checks
 ```
 
-### Working with SQLMesh
-```bash
-# Plan changes (preview what will change)
-task transform:plan
+## Adding a New Data Source
 
-# Apply changes
-task transform:run
+1. **Create source module**: `pipelines/sources/<source>.py`
+   - Define dlt resources using `@dlt.source` / `@dlt.resource`
+   - Create a class implementing the `PipelineSource` protocol (`name`, `config`, `resources()`, `load()`, `validate_config()`)
+   - Expose a `create_pipeline(config: PipelineConfig)` factory function
 
-# Run tests
-task transform:test
+2. **Add pipeline config**: `config/pipelines/<source>.yaml`
+   ```yaml
+   source_module: "pipelines.sources.<source>"
+   description: "Description of the data source"
+   schedule:
+     cron: "0 6 * * *"
+     enabled: true
+   params:
+     key: value
+   quality_rules:
+     - column: id
+       check: not_null
+   transform_project: "<source>"
+   ```
 
-# Start UI
-task transform:ui
-```
+3. **Create transform project**: `transformations/<source>/`
+   - Copy structure from `transformations/ebird/` as a template
+   - Update `config.yaml` to point to `../../data/databox.db`
+   - Read from `raw_<source>.*` schemas (auto-created by dlt)
+   - Write to `<source>.*` schema
 
-### Development Commands
-```bash
-# Format and lint code
-task format
-task lint
+4. **Add secrets to `.env`**: `API_KEY_<SOURCE>=your_key_here`
 
-# Type checking
-task typecheck
+5. **Test**: `databox run <source>` then `databox transform plan <source>`
 
-# Run tests
-task test
+No changes needed to orchestration, CLI, or Taskfile — they auto-discover from the registry.
 
-# Run tests with coverage
-task test-coverage
+## Architecture Decisions
 
-# Run all CI checks
-task ci
-```
+1. **Pipeline Registry**: Sources auto-discovered from `config/pipelines/*.yaml`. Each config points to a source module that implements `PipelineSource`.
 
-### Common Workflows
-```bash
-# Start development environment
-task dev
+2. **Per-Source Transforms**: Each data source gets its own sqlmesh project under `transformations/`. `home_team/` is reserved for cross-domain models.
 
-# Complete data refresh
-task full-refresh
+3. **Schema Isolation**: Pipelines load into `raw_<source>` schemas. Transforms read from `raw_*` and write to `<source>` schemas.
 
-# Clean build artifacts
-task clean
+4. **Single Database**: One DuckDB at `data/databox.db`, configured in `config/settings.py`.
 
-# Reset everything
-task clean-all
-
-# Watch and auto-lint
-task watch:lint
-
-# Show all available tasks
-task --list-all
-```
-
-## Best Practices
-
-### DLT Pipeline Development
-1. Keep pipelines modular - one source per file
-2. Use incremental loading where possible
-3. Implement proper error handling and retries
-4. Store sensitive credentials in environment variables
-5. Use dlt's built-in schema evolution features
-
-### SQLMesh Model Development
-1. **Always work in `home_team/` directory** - this is the default SQLMesh project
-2. Use `sqlmesh_example` schema for all models
-3. Use CTEs for readability
-4. Write tests for critical business logic
-5. Use macros for repeated patterns
-6. Document models with descriptions
-7. Follow naming conventions (stg_ for staging, int_ for intermediate, fct_ for facts, dim_ for dimensions)
-
-### Data Quality
-1. Implement data quality checks in both dlt and sqlmesh
-2. Use dlt's data contracts for source validation
-3. Use sqlmesh's audit features for transformation testing
-4. Monitor data freshness and completeness
+5. **Dynamic Orchestration**: Dagster assets are auto-generated from the pipeline registry. No hardcoded asset definitions.
 
 ## Security
 
-### Pre-commit Hooks
-The project includes pre-commit hooks that automatically check for:
-- Hardcoded secrets, API keys, and passwords
-- Database URLs with embedded credentials
-- AWS access keys and private keys
-- Any other sensitive information patterns
-
-To set up pre-commit hooks:
+Never commit secrets. Use `.env` for API keys. Pre-commit hooks catch hardcoded values:
 ```bash
 ./scripts/setup_pre_commit.sh
 ```
 
-### Handling Secrets
-Never commit sensitive information. Instead:
-1. Use environment variables via `.env` file
-2. Reference settings: `settings.api_key`
-3. Use placeholders in examples: `"your_api_key_here"`
-
-## Common Tasks
-
-### Adding a New Data Source
-1. Create a new file in `pipelines/sources/`
-2. Implement the source using dlt decorators
-3. Add configuration to `.env`
-4. Test the pipeline locally
-5. Create corresponding sqlmesh models in `transformations/home_team/models/`
-
-### Creating a Data Model
-1. Create a new SQL file in `transformations/home_team/models/` (staging/, intermediate/, or marts/)
-2. Use the `sqlmesh_example` schema name in MODEL definition
-3. Define the model using sqlmesh syntax
-4. Add tests in `transformations/home_team/tests/`
-5. Run `sqlmesh plan` from `home_team/` directory to preview changes
-6. Apply with `sqlmesh run`
-
-### Debugging Issues
-- Check logs in `logs/` directory
-- Use `dlt pipeline <name> trace` for detailed dlt debugging
-- Use `sqlmesh audit` for model validation
-- Check `.dlt/` directory for pipeline state
-
-## Architecture Decisions
-
-1. **DuckDB as Default Database**: Chosen for simplicity, performance, and zero dependencies. Easy to switch to PostgreSQL/Snowflake later.
-
-2. **Separation of Ingestion and Transformation**: Clear boundaries between raw data (dlt) and business logic (sqlmesh).
-
-3. **Environment-based Configuration**: All settings configurable via environment variables for easy deployment.
-
-4. **Type Safety**: Using Pydantic for configuration and mypy for static typing.
-
-## Future Enhancements
-- Add Airflow/Dagster for orchestration
-- Implement data catalog with DataHub/OpenMetadata
-- Add real-time streaming capabilities
-- Set up CI/CD pipeline for automated testing and deployment
-- Add data visualization layer with Streamlit/Dash
-
-## Troubleshooting
-
-### Common Issues
-1. **Import Errors**: Ensure you've installed the package with `pip install -e .`
-2. **Database Connection**: Check DATABASE_URL in .env
-3. **Permission Errors**: Ensure data directories have write permissions
-4. **Memory Issues**: Adjust DuckDB memory settings or batch sizes
-
-### Getting Help
-- dlt documentation: https://dlthub.com/docs
-- sqlmesh documentation: https://sqlmesh.com/
-- DuckDB documentation: https://duckdb.org/docs/
-
 ## Memories
-- No config or databox folders are necessary for users who know how to run transformations with `sqlmesh` and pipelines with `dlt`
-- Stop with the dev environments for things like the pyproject.toml and docker-compose. this project only has prod environment
+- This project only has a prod environment (no dev/docker-compose)
+- Use `uv` for all package management

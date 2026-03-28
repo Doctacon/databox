@@ -9,27 +9,24 @@ import pendulum
 from dlt.sources.helpers import requests as dlt_requests
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+from config.pipeline_config import PipelineConfig
+from config.settings import settings
+
 load_dotenv()
 
-# eBird API base URL
 EBIRD_API_BASE = "https://api.ebird.org/v2"
 
 
 def get_api_headers() -> dict[str, str]:
-    """Get API headers with token from environment."""
     api_token = os.getenv("EBIRD_API_TOKEN")
     if not api_token:
         raise ValueError("EBIRD_API_TOKEN not found in environment variables")
-
     return {"X-eBirdApiToken": api_token, "Accept": "application/json"}
 
 
 def process_observation(
     obs: dict[str, Any], region: str, is_notable: bool = False
 ) -> dict[str, Any]:
-    """Process and enrich observation data."""
-    # Add metadata
     obs["_region_code"] = region
     obs["_loaded_at"] = pendulum.now().isoformat()
     obs["_observation_date"] = obs.get("obsDt")
@@ -37,7 +34,6 @@ def process_observation(
     if is_notable:
         obs["_is_notable"] = True
 
-    # Convert howMany to int if present
     if obs.get("howMany"):
         try:
             obs["howMany"] = int(obs["howMany"])
@@ -49,19 +45,10 @@ def process_observation(
 
 @dlt.source
 def ebird_source(
-    region_code: str = "US-AZ",  # Default to Arizona, USA
+    region_code: str = "US-AZ",
     max_results: int = 10000,
     days_back: int = 30,
 ):
-    """
-    eBird API source that fetches bird observation data.
-
-    Args:
-        region_code: Region code (country, state, or county)
-        max_results: Maximum number of results per endpoint
-        days_back: Number of days to look back for observations
-    """
-    # Cache timestamp for this run
     loaded_at = pendulum.now().isoformat()
 
     @dlt.resource(
@@ -76,20 +63,16 @@ def ebird_source(
     def recent_observations(
         region: str = region_code, back: int = days_back
     ) -> Iterator[dict[str, Any]]:
-        """Fetch recent bird observations in a region."""
         url = f"{EBIRD_API_BASE}/data/obs/{region}/recent"
         params = {"back": back, "maxResults": max_results, "includeProvisional": True}
 
         try:
             response = dlt_requests.get(url, headers=get_api_headers(), params=params)
             response.raise_for_status()
-
             for obs in response.json():
                 yield process_observation(obs, region)
-
         except Exception as e:
-            print(f"⚠️  Error fetching recent observations for {region}: {e}")
-            # Allow pipeline to continue with other resources
+            print(f"Error fetching recent observations for {region}: {e}")
 
     @dlt.resource(
         primary_key="subId",
@@ -103,32 +86,25 @@ def ebird_source(
     def notable_observations(
         region: str = region_code, back: int = days_back
     ) -> Iterator[dict[str, Any]]:
-        """Fetch notable (rare) bird observations in a region."""
         url = f"{EBIRD_API_BASE}/data/obs/{region}/recent/notable"
         params = {"back": back, "maxResults": max_results}
 
         try:
             response = dlt_requests.get(url, headers=get_api_headers(), params=params)
             response.raise_for_status()
-
             for obs in response.json():
                 yield process_observation(obs, region, is_notable=True)
-
         except Exception as e:
-            print(f"⚠️  Error fetching notable observations for {region}: {e}")
+            print(f"Error fetching notable observations for {region}: {e}")
 
     @dlt.resource(primary_key="speciesCode", write_disposition="replace")
     def species_list(region: str = region_code) -> Iterator[dict[str, Any]]:
-        """Fetch list of species observed in a region."""
         url = f"{EBIRD_API_BASE}/product/spplist/{region}"
 
         try:
             response = dlt_requests.get(url, headers=get_api_headers())
             response.raise_for_status()
-
             species_codes = response.json()
-
-            # Batch yield for better performance
             for idx, species_code in enumerate(species_codes):
                 yield {
                     "speciesCode": species_code,
@@ -137,7 +113,7 @@ def ebird_source(
                     "_loaded_at": loaded_at,
                 }
         except Exception as e:
-            print(f"⚠️  Error fetching species list for {region}: {e}")
+            print(f"Error fetching species list for {region}: {e}")
 
     @dlt.resource(
         primary_key="locId",
@@ -149,50 +125,42 @@ def ebird_source(
         },
     )
     def hotspots(region: str = region_code, back: int = days_back) -> Iterator[dict[str, Any]]:
-        """Fetch birding hotspots in a region."""
         url = f"{EBIRD_API_BASE}/ref/hotspot/{region}"
         params = {"back": back, "fmt": "json"}
 
         try:
             response = dlt_requests.get(url, headers=get_api_headers(), params=params)
             response.raise_for_status()
-
             for hotspot in response.json():
                 hotspot["_loaded_at"] = loaded_at
                 hotspot["_region_code"] = region
                 yield hotspot
         except Exception as e:
-            print(f"⚠️  Error fetching hotspots for {region}: {e}")
+            print(f"Error fetching hotspots for {region}: {e}")
 
     @dlt.resource(primary_key="sciName", write_disposition="replace")
     def taxonomy() -> Iterator[dict[str, Any]]:
-        """Fetch eBird taxonomy (bird species reference data)."""
         url = f"{EBIRD_API_BASE}/ref/taxonomy/ebird"
         params = {"fmt": "json", "locale": "en"}
 
         try:
             response = dlt_requests.get(url, headers=get_api_headers(), params=params)
             response.raise_for_status()
-
             for species in response.json():
                 species["_loaded_at"] = loaded_at
                 yield species
         except Exception as e:
-            print(f"⚠️  Error fetching taxonomy: {e}")
+            print(f"Error fetching taxonomy: {e}")
 
     @dlt.resource(primary_key=["regionCode", "year", "month", "day"], write_disposition="merge")
     def region_stats(region: str = region_code, back: int = days_back) -> Iterator[dict[str, Any]]:
-        """Generate daily statistics for a region."""
         end_date = pendulum.now()
 
         for days_ago in range(back):
             date = end_date.subtract(days=days_ago)
             date_str = date.format("YYYY/MM/DD")
 
-            params = {
-                "back": 1,  # Just for this specific day
-                "maxResults": 500,  # Get more results for stats
-            }
+            params = {"back": 1, "maxResults": 500}
 
             try:
                 response = dlt_requests.get(
@@ -203,8 +171,6 @@ def ebird_source(
 
                 if response.status_code == 200:
                     observations = response.json()
-
-                    # Calculate statistics
                     species_set = {
                         obs.get("speciesCode", "") for obs in observations if obs.get("speciesCode")
                     }
@@ -224,9 +190,8 @@ def ebird_source(
                         "_loaded_at": loaded_at,
                     }
             except Exception as e:
-                print(f"⚠️  Error fetching stats for {region} on {date_str}: {e}")
+                print(f"Error fetching stats for {region} on {date_str}: {e}")
 
-    # Return all resources
     return [
         recent_observations,
         notable_observations,
@@ -237,63 +202,94 @@ def ebird_source(
     ]
 
 
+class EbirdPipelineSource:
+    """eBird pipeline source implementing the PipelineSource protocol."""
+
+    def __init__(self, config: PipelineConfig) -> None:
+        self.name = config.name
+        self.config = config
+        self._region = config.params.get("region_code", "US-AZ")
+        self._max_results = config.params.get("max_results", 10000)
+        self._days_back = config.params.get("days_back", 30)
+
+    def resources(self) -> list:
+        source = ebird_source(
+            region_code=self._region,
+            max_results=self._max_results,
+            days_back=self._days_back,
+        )
+        return source.resources.values()
+
+    def load(self):
+        schema_name = self.config.resolve_schema_name()
+        pipeline = dlt.pipeline(
+            pipeline_name=f"{self.name}_api",
+            destination=dlt.destinations.duckdb(credentials=settings.database_url),
+            dataset_name=schema_name,
+            pipelines_dir=settings.dlt_data_dir,
+        )
+
+        source = ebird_source(
+            region_code=self._region,
+            max_results=self._max_results,
+            days_back=self._days_back,
+        )
+        info = pipeline.run(source)
+
+        print("\neBird data loaded successfully!")
+        print(f"  Pipeline: {pipeline.pipeline_name}")
+        print(f"  Schema: {schema_name}")
+        print(f"  Region: {self._region}")
+        print(f"  Days back: {self._days_back}")
+        print(f"\n{info}")
+
+        return pipeline
+
+    def validate_config(self) -> bool:
+        return bool(os.getenv("EBIRD_API_TOKEN"))
+
+
+def create_pipeline(config: PipelineConfig) -> EbirdPipelineSource:
+    return EbirdPipelineSource(config)
+
+
 def load_ebird_data(
     region_code: str = "US-AZ",
     max_results: int = 10000,
     days_back: int = 30,
-    dataset_name: str = "raw_ebird_data",
-    database_url: str = None,
-    dlt_data_dir: str = None,
+    dataset_name: str = "raw_ebird",
+    database_url: str | None = None,
+    dlt_data_dir: str | None = None,
 ):
-    """
-    Load eBird data to the database.
-
-    Args:
-        region_code: Region code to fetch data for
-        max_results: Maximum results per API call
-        days_back: Number of days to look back
-        dataset_name: Name of the dataset in the database
-        database_url: Database connection URL (defaults to DuckDB)
-        dlt_data_dir: Directory for DLT state files
-    """
-    # Default configuration if not provided
     if database_url is None:
-        database_url = os.getenv("DATABASE_URL", "duckdb:///data/databox.db")
+        database_url = settings.database_url
     if dlt_data_dir is None:
-        dlt_data_dir = os.getenv("DLT_DATA_DIR", "./data/dlt")
+        dlt_data_dir = settings.dlt_data_dir
 
-    # Configure the pipeline
     pipeline = dlt.pipeline(
         pipeline_name="ebird_api",
         destination=dlt.destinations.duckdb(credentials=database_url),
         dataset_name=dataset_name,
+        pipelines_dir=dlt_data_dir,
     )
 
-    # Create the source
     source = ebird_source(region_code=region_code, max_results=max_results, days_back=days_back)
-
-    # Run the pipeline
     info = pipeline.run(source)
 
-    # Print the outcome
-    print("\n✅ eBird data loaded successfully!")
-    print(f"Pipeline: {pipeline.pipeline_name}")
-    print(f"Dataset: {dataset_name}")
-    print(f"Region: {region_code}")
-    print(f"Days back: {days_back}")
+    print("\neBird data loaded successfully!")
+    print(f"  Pipeline: {pipeline.pipeline_name}")
+    print(f"  Schema: {dataset_name}")
+    print(f"  Region: {region_code}")
+    print(f"  Days back: {days_back}")
     print(f"\n{info}")
 
-    # Show loaded tables and counts
     try:
         with pipeline.sql_client() as client:
             tables = client.execute_sql(
                 f"""
-                SELECT
-                    table_name
-                FROM
-                    information_schema.tables
-                WHERE
-                    table_schema = '{dataset_name}'
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = '{dataset_name}'
                 """
             )
             print("\nLoaded tables:")
@@ -301,7 +297,7 @@ def load_ebird_data(
                 count = client.execute_sql(f"SELECT COUNT(*) FROM {dataset_name}.{table[0]}")
                 print(f"  - {table[0]}: {count[0][0]} rows")
     except Exception as e:
-        print(f"⚠️  Could not fetch table counts: {e}")
+        print(f"Could not fetch table counts: {e}")
 
     return info
 
@@ -310,14 +306,13 @@ def load_multiple_regions(
     regions: list[str],
     max_results: int = 10000,
     days_back: int = 30,
-    database_url: str = None,
-    dlt_data_dir: str = None,
+    database_url: str | None = None,
+    dlt_data_dir: str | None = None,
 ):
-    """Load eBird data for multiple regions."""
-    results = {}
+    results: dict[str, dict[str, Any]] = {}
 
     for region in regions:
-        print(f"\n📍 Loading data for region: {region}")
+        print(f"\nLoading data for region: {region}")
         try:
             info = load_ebird_data(
                 region_code=region,
@@ -328,25 +323,23 @@ def load_multiple_regions(
             )
             results[region] = {"status": "success", "info": info}
         except Exception as e:
-            print(f"❌ Error loading region {region}: {e}")
+            print(f"Error loading region {region}: {e}")
             results[region] = {"status": "error", "error": str(e)}
             continue
 
-    # Summary
     success_count = sum(1 for r in results.values() if r["status"] == "success")
-    print(f"\n📊 Summary: {success_count}/{len(regions)} regions loaded successfully")
+    print(f"\nSummary: {success_count}/{len(regions)} regions loaded successfully")
 
     return results
 
 
 if __name__ == "__main__":
-    print("eBird API pipeline ready!")
+    print("eBird API pipeline")
     print("Set EBIRD_API_TOKEN in your .env file")
-    print("\nExamples:")
+    print("\nUsage:")
+    print("  databox run ebird")
+    print("  databox run ebird -- --region US-CA")
+    print("\nLegacy usage:")
     print("  python pipelines/sources/ebird_api.py")
-    print("\nOr import and use:")
-    print("  from pipelines.sources.ebird_api import load_ebird_data")
-    print("  load_ebird_data('US-AZ', days_back=30)")
 
-    # Run the pipeline with Arizona data
     load_ebird_data("US-AZ", days_back=30)

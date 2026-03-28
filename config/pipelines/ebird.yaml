@@ -1,0 +1,15 @@
+source_module: "pipelines.sources.ebird_api"
+description: "eBird bird observation data from the eBird API"
+schedule:
+  cron: "0 6 * * *"
+  enabled: true
+params:
+  region_code: "US-AZ"
+  max_results: 10000
+  days_back: 30
+quality_rules:
+  - column: speciesCode
+    check: not_null
+  - column: subId
+    check: unique
+transform_project: "ebird"

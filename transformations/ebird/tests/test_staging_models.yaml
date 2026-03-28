@@ -1,0 +1,107 @@
+test_stg_ebird_observations:
+  model: ebird.stg_ebird_observations
+  inputs:
+    raw_ebird.recent_observations:
+      rows:
+        - sub_id: "S001"
+          species_code: "norcar"
+          com_name: "Northern Cardinal"
+          sci_name: "Cardinalis cardinalis"
+          loc_id: "L123"
+          loc_name: "Test Park"
+          obs_dt: "2025-07-20 08:30"
+          how_many: 3
+          lat: 33.45
+          lng: -112.07
+          obs_valid: true
+          obs_reviewed: false
+          location_private: false
+          _region_code: "US-AZ"
+          _loaded_at: "2025-07-20T10:00:00+00:00"
+    raw_ebird.notable_observations:
+      rows:
+        - sub_id: "S002"
+          species_code: "blujay"
+          com_name: "Blue Jay"
+          sci_name: "Cyanocitta cristata"
+          loc_id: "L456"
+          loc_name: "Rare Spot"
+          obs_dt: "2025-07-21 14:00"
+          how_many: 1
+          lat: 33.50
+          lng: -112.10
+          obs_valid: true
+          obs_reviewed: true
+          location_private: false
+          _region_code: "US-AZ"
+          _loaded_at: "2025-07-21T10:00:00+00:00"
+  outputs:
+    query:
+      rows:
+        - submission_id: "S001"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          location_id: "L123"
+          location_name: "Test Park"
+          is_notable: false
+          region_code: "US-AZ"
+        - submission_id: "S002"
+          species_code: "blujay"
+          common_name: "Blue Jay"
+          scientific_name: "Cyanocitta cristata"
+          location_id: "L456"
+          location_name: "Rare Spot"
+          is_notable: true
+          region_code: "US-AZ"
+
+test_stg_ebird_taxonomy:
+  model: ebird.stg_ebird_taxonomy
+  inputs:
+    raw_ebird.taxonomy:
+      rows:
+        - species_code: "norcar"
+          com_name: "Northern Cardinal"
+          sci_name: "Cardinalis cardinalis"
+          taxon_order: 1001
+          category: "species"
+          family_com_name: "Cardinals and Allies"
+          family_sci_name: "Cardinalidae"
+          _loaded_at: "2025-07-20T10:00:00+00:00"
+  outputs:
+    query:
+      rows:
+        - species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          taxonomic_order: 1001
+          taxonomic_category: "species"
+          family_common_name: "Cardinals and Allies"
+          family_scientific_name: "Cardinalidae"
+
+test_stg_ebird_hotspots:
+  model: ebird.stg_ebird_hotspots
+  inputs:
+    raw_ebird.hotspots:
+      rows:
+        - loc_id: "L999"
+          loc_name: "Gilbert Water Ranch"
+          country_code: "US"
+          subnational1_code: "US-AZ"
+          subnational2_code: "US-AZ-013"
+          lat: 33.38
+          lng: -111.74
+          latest_obs_dt: "2025-07-19"
+          num_species_all_time: 280
+          _region_code: "US-AZ"
+          _loaded_at: "2025-07-20T10:00:00+00:00"
+  outputs:
+    query:
+      rows:
+        - location_id: "L999"
+          location_name: "Gilbert Water Ranch"
+          country_code: "US"
+          state_code: "US-AZ"
+          county_code: "US-AZ-013"
+          region_code: "US-AZ"
+          total_species_count: 280

@@ -1,0 +1,149 @@
+"""Tests for config.settings and config.pipeline_config."""
+
+from __future__ import annotations
+
+import pytest
+
+from config.pipeline_config import (
+    PipelineConfig,
+    PipelineSchedule,
+    QualityRule,
+    load_all_pipeline_configs,
+    load_pipeline_config,
+)
+
+
+class TestDataboxSettings:
+    @pytest.mark.unit
+    def test_default_database_url(self):
+        from config.settings import settings
+
+        assert "databox.db" in settings.database_url
+
+    @pytest.mark.unit
+    def test_default_log_level(self):
+        from config.settings import settings
+
+        assert settings.log_level == "INFO"
+
+    @pytest.mark.unit
+    def test_database_path_from_url(self):
+        from config.settings import DataboxSettings
+
+        s = DataboxSettings(database_url="duckdb:///tmp/test.db")
+        assert s.database_path.name == "test.db"
+
+    @pytest.mark.unit
+    def test_database_path_fallback(self):
+        from config.settings import DataboxSettings
+
+        s = DataboxSettings(database_url="postgresql://host/db")
+        assert s.database_path.name == "databox.db"
+
+    @pytest.mark.unit
+    def test_env_override(self, monkeypatch):
+        from config.settings import DataboxSettings
+
+        monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+        s = DataboxSettings()
+        assert s.log_level == "DEBUG"
+
+
+class TestPipelineSchedule:
+    @pytest.mark.unit
+    def test_defaults(self):
+        sched = PipelineSchedule()
+        assert sched.cron == "0 6 * * *"
+        assert sched.enabled is True
+
+    @pytest.mark.unit
+    def test_custom(self):
+        sched = PipelineSchedule(cron="0 */2 * * *", enabled=False)
+        assert sched.cron == "0 */2 * * *"
+        assert sched.enabled is False
+
+
+class TestQualityRule:
+    @pytest.mark.unit
+    def test_basic_rule(self):
+        rule = QualityRule(column="id", check="not_null")
+        assert rule.column == "id"
+        assert rule.check == "not_null"
+        assert rule.threshold is None
+
+    @pytest.mark.unit
+    def test_rule_with_threshold(self):
+        rule = QualityRule(column="score", check="gt", threshold=0.95)
+        assert rule.threshold == 0.95
+
+
+class TestPipelineConfig:
+    @pytest.mark.unit
+    def test_resolve_schema_explicit(self):
+        cfg = PipelineConfig(name="test", source_module="mod", schema_name="custom")
+        assert cfg.resolve_schema_name() == "custom"
+
+    @pytest.mark.unit
+    def test_resolve_schema_default(self):
+        cfg = PipelineConfig(name="ebird", source_module="mod")
+        assert cfg.resolve_schema_name() == "raw_ebird"
+
+    @pytest.mark.unit
+    def test_resolve_schema_empty_string(self):
+        cfg = PipelineConfig(name="weather", source_module="mod", schema_name="")
+        assert cfg.resolve_schema_name() == "raw_weather"
+
+    @pytest.mark.unit
+    def test_full_config(self):
+        cfg = PipelineConfig(
+            name="ebird",
+            source_module="pipelines.sources.ebird_api",
+            description="eBird data",
+            schedule=PipelineSchedule(cron="0 6 * * *"),
+            params={"region_code": "US-AZ"},
+            quality_rules=[QualityRule(column="speciesCode", check="not_null")],
+            transform_project="ebird",
+        )
+        assert cfg.name == "ebird"
+        assert cfg.transform_project == "ebird"
+        assert len(cfg.quality_rules) == 1
+
+
+class TestLoadPipelineConfig:
+    @pytest.mark.unit
+    def test_load_valid_config(self, mock_configs_dir, monkeypatch):
+        import config.pipeline_config as pc_mod
+
+        monkeypatch.setattr(pc_mod, "PIPELINES_CONFIG_DIR", mock_configs_dir)
+        cfg = load_pipeline_config("ebird")
+        assert cfg.name == "ebird"
+        assert cfg.source_module == "pipelines.sources.ebird_api"
+        assert cfg.params["region_code"] == "US-AZ"
+
+    @pytest.mark.unit
+    def test_load_missing_config(self, mock_configs_dir, monkeypatch):
+        import config.pipeline_config as pc_mod
+
+        monkeypatch.setattr(pc_mod, "PIPELINES_CONFIG_DIR", mock_configs_dir)
+        with pytest.raises(FileNotFoundError, match="no_exist"):
+            load_pipeline_config("no_exist")
+
+    @pytest.mark.unit
+    def test_load_all_empty_dir(self, tmp_path, monkeypatch):
+        import config.pipeline_config as pc_mod
+
+        monkeypatch.setattr(pc_mod, "PIPELINES_CONFIG_DIR", tmp_path / "empty")
+        result = load_all_pipeline_configs()
+        assert result == {}
+
+    @pytest.mark.unit
+    def test_load_all_multiple(self, mock_configs_dir, monkeypatch):
+        import config.pipeline_config as pc_mod
+
+        (mock_configs_dir / "weather.yaml").write_text(
+            'source_module: "mod"\ndescription: "Weather"'
+        )
+        monkeypatch.setattr(pc_mod, "PIPELINES_CONFIG_DIR", mock_configs_dir)
+        result = load_all_pipeline_configs()
+        assert "ebird" in result
+        assert "weather" in result

@@ -37,29 +37,13 @@ def get_database_path():
     elif current_dir.name == "apps":
         project_root = current_dir.parent
     else:
-        # Assume we're at project root
-        project_root = current_dir
+    project_root = current_dir
 
-    # Try multiple possible database locations
-    possible_paths = [
-        project_root / "pipelines" / "sources" / "data" / "databox.db",
-        current_dir.parent.parent
-        / "pipelines"
-        / "sources"
-        / "data"
-        / "databox.db",  # In case we're in ebird_streamlit
-        project_root / "data" / "databox.db",
-    ]
+    db_path = project_root / "data" / "databox.db"
 
-    db_path = None
-    for path in possible_paths:
-        if path.exists():
-            db_path = path
-            break
-
-    if db_path is None:
-        st.error("Database not found. Please run the eBird pipeline first: `task pipeline:ebird`")
-        st.info(f"Searched locations: {', '.join(str(p) for p in possible_paths)}")
+    if not db_path.exists():
+        st.error("Database not found. Please run the eBird pipeline first: `databox run ebird`")
+        st.info(f"Expected location: {db_path}")
         st.info(f"Current directory: {current_dir}")
         st.stop()
 
@@ -103,7 +87,7 @@ def load_observation_data():
         region_code,
         is_notable,
         loaded_at
-    FROM sqlmesh_example.stg_ebird_observations
+    FROM ebird.stg_ebird_observations
     WHERE observation_datetime IS NOT NULL
     ORDER BY observation_datetime DESC
     LIMIT 10000
@@ -127,7 +111,7 @@ def load_daily_facts():
         conn = get_database_connection()
         query = """
         SELECT *
-        FROM sqlmesh_example.fct_daily_bird_observations
+        FROM ebird.fct_daily_bird_observations
         ORDER BY observation_date DESC
         LIMIT 1000
         """
@@ -146,7 +130,7 @@ def load_hotspots():
         conn = get_database_connection()
         query = """
         SELECT *
-        FROM sqlmesh_example.stg_ebird_hotspots
+        FROM ebird.stg_ebird_hotspots
         LIMIT 1000
         """
         df = conn.execute(query).df()

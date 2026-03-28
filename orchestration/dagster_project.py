@@ -1,193 +1,129 @@
-"""Dagster project definitions for Databox orchestration."""
+"""Dagster project definitions — auto-generated from pipeline registry."""
 
-import os
+import subprocess
 from pathlib import Path
 
 import dagster as dg
 from dagster_duckdb import DuckDBResource
 
-# Project paths
+from config.pipeline_config import load_all_pipeline_configs
+from config.settings import settings
+
 PROJECT_ROOT = Path(__file__).parent.parent
-PIPELINES_DIR = PROJECT_ROOT / "pipelines"
 TRANSFORMATIONS_DIR = PROJECT_ROOT / "transformations"
-DATA_DIR = PROJECT_ROOT / "data"
-
-# Environment setup
-DATABASE_URL = os.getenv(
-    "DATABASE_URL", str(PROJECT_ROOT / "pipelines" / "sources" / "data" / "databox.db")
-)
-DLT_DATA_DIR = os.getenv("DLT_DATA_DIR", str(DATA_DIR / "dlt"))
 
 
-# Resources
-class DataboxConfig(dg.ConfigurableResource):
-    """Configuration for Databox resources."""
-
-    database_url: str = DATABASE_URL
-    dlt_data_dir: str = DLT_DATA_DIR
-    transformations_dir: str = str(TRANSFORMATIONS_DIR)
-    ebird_api_token: str = os.getenv("EBIRD_API_TOKEN", "")
-
-
-# Assets
-@dg.asset(
-    name="ebird_raw_data",
-    group_name="ingestion",
-    description="Ingest eBird data using DLT",
-    required_resource_keys={"databox_config"},
-)
-def ebird_assets(context: dg.AssetExecutionContext):
-    """Ingest eBird data using DLT."""
-    # Import the ebird source
-    from pipelines.sources.ebird_api import load_ebird_data
-
-    # Get config from context
-    config = context.resources.databox_config
-    region = "US-AZ"  # Default region
-    days_back = 30  # Default days back
-
-    # Load the data
-    load_ebird_data(
-        region_code=region, days_back=days_back, database_url=f"duckdb:///{config.database_url}"
+def create_pipeline_asset(config_name: str, source_module: str) -> dg.AssetsDefinition:
+    @dg.asset(
+        name=f"{config_name}_raw_data",
+        group_name="ingestion",
+        description=f"Ingest {config_name} data",
+        required_resource_keys={"databox_config"},
+        key_prefix=["ingestion"],
     )
+    def _asset(context: dg.AssetExecutionContext) -> dict:
+        import importlib
 
-    context.log.info(f"Loaded eBird data for region {region}")
-    return {"status": "completed", "region": region, "days_back": days_back}
+        mod = importlib.import_module(source_module)
+        factory = mod.create_pipeline
+        cfg = load_all_pipeline_configs().get(config_name)
+        if cfg is None:
+            raise ValueError(f"No config for pipeline '{config_name}'")
+
+        source = factory(cfg)
+        source.load()
+
+        context.log.info(f"Loaded {config_name} data")
+        return {"status": "completed", "pipeline": config_name}
+
+    return _asset
 
 
-# SQLMesh Assets
-@dg.asset(
-    deps=["ebird_raw_data"],
-    group_name="transformation",
-    description="Run SQLMesh transformations for staging models",
-    required_resource_keys={"databox_config"},
-)
-def sqlmesh_staging(context: dg.AssetExecutionContext) -> None:
-    """Run SQLMesh staging transformations."""
-    import subprocess
+def create_transform_asset(config_name: str, transform_project: str) -> dg.AssetsDefinition:
+    deps_key = dg.AssetKey([f"{config_name}_raw_data"])
 
-    config = context.resources.databox_config
-
-    # Get the path to sqlmesh in the virtual environment
-    venv_bin = PROJECT_ROOT / ".venv" / "bin"
-    sqlmesh_path = venv_bin / "sqlmesh"
-
-    # Run sqlmesh plan and apply
-    result = subprocess.run(
-        [str(sqlmesh_path), "run"],
-        cwd=config.transformations_dir + "/home_team",
-        capture_output=True,
-        text=True,
-        input="y\n",  # Auto-confirm prompts
+    @dg.asset(
+        name=f"{config_name}_transforms",
+        group_name="transformation",
+        description=f"Run SQLMesh transforms for {config_name}",
+        deps=[deps_key],
+        required_resource_keys={"databox_config"},
+        key_prefix=["transformation"],
     )
+    def _asset(context: dg.AssetExecutionContext) -> None:
+        project_dir = TRANSFORMATIONS_DIR / transform_project
+        if not project_dir.exists():
+            raise FileNotFoundError(f"Transform project not found: {project_dir}")
 
-    if result.returncode != 0:
-        raise Exception(f"SQLMesh failed: {result.stderr}")
+        venv_bin = PROJECT_ROOT / ".venv" / "bin"
+        sqlmesh_path = venv_bin / "sqlmesh"
 
-    context.log.info("SQLMesh transformations completed successfully")
-
-
-@dg.asset(
-    deps=["sqlmesh_staging"],
-    group_name="transformation",
-    description="Data quality checks on transformed data",
-    required_resource_keys={"duckdb"},
-)
-def data_quality_checks(context: dg.AssetExecutionContext) -> dict:
-    """Run data quality checks on transformed data."""
-    duckdb = context.resources.duckdb
-
-    with duckdb.get_connection() as conn:
-        # Check for nulls in critical columns
-        null_checks = conn.execute("""
-            SELECT
-                'stg_ebird_observations' as table_name,
-                COUNT(*) FILTER (WHERE species_code IS NULL) as null_species,
-                COUNT(*) FILTER (WHERE observation_datetime IS NULL) as null_dates,
-                COUNT(*) as total_rows
-            FROM sqlmesh_example.stg_ebird_observations
-        """).fetchone()
-
-        # Check for data freshness
-        freshness = conn.execute("""
-            SELECT
-                MAX(observation_datetime) as latest_observation,
-                CURRENT_DATE - MAX(observation_datetime)::DATE as days_old
-            FROM sqlmesh_example.stg_ebird_observations
-        """).fetchone()
-
-    results = {
-        "null_species_count": null_checks[1],
-        "null_dates_count": null_checks[2],
-        "total_rows": null_checks[3],
-        "latest_observation": str(freshness[0]),
-        "data_age_days": freshness[1],
-    }
-
-    context.log.info(f"Data quality check results: {results}")
-
-    # Fail if critical issues
-    if null_checks[1] > 0 or null_checks[2] > 0:
-        raise Exception("Data quality check failed: Found null values in critical columns")
-
-    return results
-
-
-# Jobs
-@dg.job(
-    resource_defs={
-        "duckdb": DuckDBResource(database=DATABASE_URL),
-        "databox_config": DataboxConfig(),
-    },
-)
-def daily_ebird_pipeline():
-    """Daily pipeline to ingest and transform eBird data."""
-    data_quality_checks()
-
-
-# Schedules
-@dg.schedule(
-    job=daily_ebird_pipeline,
-    cron_schedule="0 6 * * *",  # 6 AM daily
-)
-def daily_ebird_schedule(context: dg.ScheduleEvaluationContext):
-    """Schedule for daily eBird data pipeline."""
-    return {}
-
-
-# Sensors
-@dg.sensor(
-    job=daily_ebird_pipeline,
-    minimum_interval_seconds=3600,  # Check hourly
-)
-def ebird_api_availability_sensor(context: dg.SensorEvaluationContext):
-    """Check if eBird API is available before running pipeline."""
-    import requests
-
-    try:
-        # Check API health
-        response = requests.get(
-            "https://api.ebird.org/v2/ref/region/list/country/world",
-            headers={"X-eBirdApiToken": os.getenv("EBIRD_API_TOKEN", "")},
-            timeout=10,
+        result = subprocess.run(
+            [str(sqlmesh_path), "run"],
+            cwd=str(project_dir),
+            capture_output=True,
+            text=True,
+            input="y\n",
         )
 
-        if response.status_code == 200:
-            return dg.RunRequest(run_key=f"ebird_api_available_{context.cursor}")
-    except Exception as e:
-        context.log.error(f"eBird API check failed: {e}")
+        if result.returncode != 0:
+            raise Exception(f"SQLMesh failed for {transform_project}: {result.stderr}")
 
-    return dg.SkipReason("eBird API not available")
+        context.log.info(f"SQLMesh transforms completed for {transform_project}")
+
+    return _asset
 
 
-# Definitions
+class DataboxConfig(dg.ConfigurableResource):
+    database_url: str = settings.database_url
+    dlt_data_dir: str = settings.dlt_data_dir
+    transformations_dir: str = str(TRANSFORMATIONS_DIR)
+
+
+assets: list[dg.AssetsDefinition] = []
+jobs: list[dg.JobDefinition] = []
+schedules: list[dg.ScheduleDefinition] = []
+sensors: list[dg.SensorDefinition] = []
+
+pipeline_configs = load_all_pipeline_configs()
+
+for _name, _cfg in pipeline_configs.items():
+    ingestion_asset = create_pipeline_asset(_name, _cfg.source_module)
+    assets.append(ingestion_asset)
+
+    if _cfg.transform_project:
+        transform_asset = create_transform_asset(_name, _cfg.transform_project)
+        assets.append(transform_asset)
+
+    asset_keys = [dg.AssetKey([f"{_name}_raw_data"])]
+    if _cfg.transform_project:
+        asset_keys.append(dg.AssetKey([f"{_name}_transforms"]))
+
+    job = dg.JobDefinition(
+        name=f"{_name}_daily_pipeline",
+        asset_keys=asset_keys,
+        resource_defs={
+            "duckdb": DuckDBResource(database=settings.database_url),
+            "databox_config": DataboxConfig(),
+        },
+    )
+    jobs.append(job)
+
+    if _cfg.schedule.enabled:
+        schedule = dg.ScheduleDefinition(
+            job=job,
+            cron_schedule=_cfg.schedule.cron,
+        )
+        schedules.append(schedule)
+
+
 defs = dg.Definitions(
-    assets=[ebird_assets, sqlmesh_staging, data_quality_checks],
-    jobs=[daily_ebird_pipeline],
-    schedules=[daily_ebird_schedule],
-    sensors=[ebird_api_availability_sensor],
+    assets=assets,
+    jobs=jobs,
+    schedules=schedules,
+    sensors=sensors,
     resources={
-        "duckdb": DuckDBResource(database=DATABASE_URL),
+        "duckdb": DuckDBResource(database=settings.database_url),
         "databox_config": DataboxConfig(),
     },
 )

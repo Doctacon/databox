@@ -32,8 +32,7 @@ data/
 !seeds/*.csv
 
 # DLT
-.dlt/
-dlt_state/
+pipelines/.dlt/
 
 # SQLMesh
 .sqlmesh/
