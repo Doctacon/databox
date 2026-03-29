@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.factories import generate_resource_data, generate_row, generate_rows
+from factories import generate_resource_data, generate_row, generate_rows
 
 
 class TestGenerateRow:

@@ -31,8 +31,7 @@ def process_observation(
     obs["_loaded_at"] = pendulum.now().isoformat()
     obs["_observation_date"] = obs.get("obsDt")
 
-    if is_notable:
-        obs["_is_notable"] = True
+    obs["_is_notable"] = is_notable
 
     if obs.get("howMany"):
         try:

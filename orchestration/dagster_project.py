@@ -81,7 +81,7 @@ class DataboxConfig(dg.ConfigurableResource):
 
 
 assets: list[dg.AssetsDefinition] = []
-jobs: list[dg.JobDefinition] = []
+jobs: list = []
 schedules: list[dg.ScheduleDefinition] = []
 sensors: list[dg.SensorDefinition] = []
 
@@ -95,17 +95,13 @@ for _name, _cfg in pipeline_configs.items():
         transform_asset = create_transform_asset(_name, _cfg.transform_project)
         assets.append(transform_asset)
 
-    asset_keys = [dg.AssetKey([f"{_name}_raw_data"])]
+    selection = dg.AssetSelection.assets(dg.AssetKey([f"{_name}_raw_data"]))
     if _cfg.transform_project:
-        asset_keys.append(dg.AssetKey([f"{_name}_transforms"]))
+        selection = selection | dg.AssetSelection.assets(dg.AssetKey([f"{_name}_transforms"]))
 
-    job = dg.JobDefinition(
+    job = dg.define_asset_job(
         name=f"{_name}_daily_pipeline",
-        asset_keys=asset_keys,
-        resource_defs={
-            "duckdb": DuckDBResource(database=settings.database_url),
-            "databox_config": DataboxConfig(),
-        },
+        selection=selection,
     )
     jobs.append(job)
 

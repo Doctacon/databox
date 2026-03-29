@@ -1,0 +1,16 @@
+source_module: "pipelines.sources.noaa_api"
+description: "NOAA CDO daily weather observations"
+schedule:
+  cron: "0 6 * * *"
+  enabled: true
+params:
+  location_id: "FIPS:04"
+  dataset_id: "GHCND"
+  days_back: 30
+  datatypes: "TMAX,TMIN,PRCP,SNOW,AWND"
+quality_rules:
+  - column: datatype
+    check: not_null
+  - column: date
+    check: not_null
+transform_project: "noaa"
