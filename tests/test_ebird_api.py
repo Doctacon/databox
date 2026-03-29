@@ -91,9 +91,7 @@ class TestEbirdSourceResources:
 
 class TestEbirdHttpMocking:
     @pytest.mark.integration
-    def test_full_load_with_mocked_api(
-        self, tmp_db, mock_settings, mock_ebird_api_token, mocker
-    ):
+    def test_full_load_with_mocked_api(self, tmp_db, mock_settings, mock_ebird_api_token, mocker):
         import duckdb
 
         from config.pipeline_config import PipelineConfig
@@ -112,8 +110,7 @@ class TestEbirdHttpMocking:
         con = duckdb.connect(str(tmp_db))
         try:
             tables = con.execute(
-                "SELECT table_name FROM information_schema.tables "
-                "WHERE table_schema = 'raw_ebird'"
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'raw_ebird'"
             ).fetchall()
             table_names = [t[0] for t in tables]
             assert "recent_observations" in table_names

@@ -8,10 +8,10 @@ import pytest
 
 from pipelines.sources.noaa_api import (
     NoaaPipelineSource,
+    _chunk_date_range,
     noaa_source,
     process_station,
     process_weather_record,
-    _chunk_date_range,
 )
 
 
@@ -116,9 +116,7 @@ class TestNoaaSourceResources:
 
 class TestNoaaHttpMocking:
     @pytest.mark.integration
-    def test_full_load_with_mocked_api(
-        self, tmp_db, mock_settings, monkeypatch, mocker
-    ):
+    def test_full_load_with_mocked_api(self, tmp_db, mock_settings, monkeypatch, mocker):
         import duckdb
 
         from config.pipeline_config import PipelineConfig
@@ -138,8 +136,7 @@ class TestNoaaHttpMocking:
         con = duckdb.connect(str(tmp_db))
         try:
             tables = con.execute(
-                "SELECT table_name FROM information_schema.tables "
-                "WHERE table_schema = 'raw_noaa'"
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'raw_noaa'"
             ).fetchall()
             table_names = [t[0] for t in tables]
             assert "daily_weather" in table_names
@@ -153,7 +150,6 @@ class TestNoaaHttpMocking:
 
 def _mock_noaa_responses(mocker):
     import dlt.sources.helpers.requests as dlt_requests
-    import time
 
     sample_weather = [
         {

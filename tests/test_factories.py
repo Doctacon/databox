@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from factories import generate_resource_data, generate_row, generate_rows
 
 

@@ -61,7 +61,9 @@ def process_station(station: dict[str, Any], location_id: str) -> dict[str, Any]
     }
 
 
-def _paginate(url: str, headers: dict, params: dict, sleep: float = RATE_LIMIT_SLEEP) -> Iterator[dict]:
+def _paginate(
+    url: str, headers: dict, params: dict, sleep: float = RATE_LIMIT_SLEEP
+) -> Iterator[dict]:
     """Paginate through NOAA API results, respecting rate limits."""
     params = {**params, "limit": 1000, "offset": 0}
 
