@@ -87,6 +87,8 @@ sensors: list[dg.SensorDefinition] = []
 
 pipeline_configs = load_all_pipeline_configs()
 
+_all_selection: dg.AssetSelection | None = None
+
 for _name, _cfg in pipeline_configs.items():
     ingestion_asset = create_pipeline_asset(_name, _cfg.source_module)
     assets.append(ingestion_asset)
@@ -98,6 +100,8 @@ for _name, _cfg in pipeline_configs.items():
     selection = dg.AssetSelection.assets(dg.AssetKey([f"{_name}_raw_data"]))
     if _cfg.transform_project:
         selection = selection | dg.AssetSelection.assets(dg.AssetKey([f"{_name}_transforms"]))
+
+    _all_selection = selection if _all_selection is None else _all_selection | selection
 
     job = dg.define_asset_job(
         name=f"{_name}_daily_pipeline",
@@ -111,6 +115,10 @@ for _name, _cfg in pipeline_configs.items():
             cron_schedule=_cfg.schedule.cron,
         )
         schedules.append(schedule)
+
+# All-sources job — no schedule, intended for on-demand full refreshes
+if _all_selection is not None:
+    jobs.append(dg.define_asset_job(name="all_pipelines", selection=_all_selection))
 
 
 defs = dg.Definitions(
