@@ -44,16 +44,44 @@ test_stg_ebird_observations:
           scientific_name: "Cardinalis cardinalis"
           location_id: "L123"
           location_name: "Test Park"
-          is_notable: false
+          observation_datetime: "2025-07-20 08:30:00"
+          observation_date: "2025-07-20"
+          observation_year: 2025
+          observation_month: 7
+          observation_day: 20
+          observation_hour: 8
+          count: 3
+          count_display: "3"
+          latitude: 33.45
+          longitude: -112.07
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
           region_code: "US-AZ"
+          is_notable: false
+          loaded_at: "2025-07-20 10:00:00"
         - submission_id: "S002"
           species_code: "blujay"
           common_name: "Blue Jay"
           scientific_name: "Cyanocitta cristata"
           location_id: "L456"
           location_name: "Rare Spot"
-          is_notable: true
+          observation_datetime: "2025-07-21 14:00:00"
+          observation_date: "2025-07-21"
+          observation_year: 2025
+          observation_month: 7
+          observation_day: 21
+          observation_hour: 14
+          count: 1
+          count_display: "1"
+          latitude: 33.50
+          longitude: -112.10
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
           region_code: "US-AZ"
+          is_notable: true
+          loaded_at: "2025-07-21 10:00:00"
 
 test_stg_ebird_taxonomy:
   model: ebird.stg_ebird_taxonomy
@@ -78,6 +106,7 @@ test_stg_ebird_taxonomy:
           taxonomic_category: "species"
           family_common_name: "Cardinals and Allies"
           family_scientific_name: "Cardinalidae"
+          loaded_at: "2025-07-20 10:00:00"
 
 test_stg_ebird_hotspots:
   model: ebird.stg_ebird_hotspots
@@ -103,5 +132,9 @@ test_stg_ebird_hotspots:
           country_code: "US"
           state_code: "US-AZ"
           county_code: "US-AZ-013"
-          region_code: "US-AZ"
+          latitude: 33.38
+          longitude: -111.74
+          latest_observation_datetime: "2025-07-19 00:00:00"
           total_species_count: 280
+          region_code: "US-AZ"
+          loaded_at: "2025-07-20 10:00:00"

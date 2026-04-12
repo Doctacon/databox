@@ -1,4 +1,4 @@
-source_module: "pipelines.sources.ebird_api"
+source_module: "sources.ebird.source"
 description: "eBird bird observation data from the eBird API"
 schedule:
   cron: "0 6 * * *"

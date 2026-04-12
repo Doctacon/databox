@@ -1,4 +1,4 @@
-"""Dagster project definitions — auto-generated from pipeline registry."""
+"""Dagster definitions — auto-generated from pipeline registry."""
 
 import subprocess
 from pathlib import Path
@@ -10,7 +10,7 @@ from config.pipeline_config import load_all_pipeline_configs
 from config.settings import settings
 
 PROJECT_ROOT = Path(__file__).parent.parent
-TRANSFORMATIONS_DIR = PROJECT_ROOT / "transformations"
+TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
 
 
 def create_pipeline_asset(config_name: str, source_module: str) -> dg.AssetsDefinition:
@@ -51,7 +51,7 @@ def create_transform_asset(config_name: str, transform_project: str) -> dg.Asset
         key_prefix=["transformation"],
     )
     def _asset(context: dg.AssetExecutionContext) -> None:
-        project_dir = TRANSFORMATIONS_DIR / transform_project
+        project_dir = TRANSFORMS_DIR / transform_project
         if not project_dir.exists():
             raise FileNotFoundError(f"Transform project not found: {project_dir}")
 
@@ -77,7 +77,7 @@ def create_transform_asset(config_name: str, transform_project: str) -> dg.Asset
 class DataboxConfig(dg.ConfigurableResource):
     database_url: str = settings.database_url
     dlt_data_dir: str = settings.dlt_data_dir
-    transformations_dir: str = str(TRANSFORMATIONS_DIR)
+    transforms_dir: str = str(TRANSFORMS_DIR)
 
 
 assets: list[dg.AssetsDefinition] = []

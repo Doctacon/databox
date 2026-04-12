@@ -26,7 +26,7 @@ class TestList:
         mock_source.validate_config.return_value = True
 
         mocker.patch(
-            "pipelines.registry.get_registry",
+            "sources.registry.get_registry",
             return_value={"test": mock_source},
         )
         result = runner.invoke(app, ["list"])
@@ -35,7 +35,7 @@ class TestList:
 
     @pytest.mark.unit
     def test_list_empty(self, mocker):
-        mocker.patch("pipelines.registry.get_registry", return_value={})
+        mocker.patch("sources.registry.get_registry", return_value={})
         result = runner.invoke(app, ["list"])
         assert result.exit_code == 0
         assert "No pipelines registered" in result.output
@@ -46,7 +46,7 @@ class TestRun:
     def test_run_valid_pipeline(self, mocker):
         mock_source = MagicMock()
         mock_source.validate_config.return_value = True
-        mocker.patch("pipelines.registry.get_source", return_value=mock_source)
+        mocker.patch("sources.registry.get_source", return_value=mock_source)
 
         result = runner.invoke(app, ["run", "ebird"])
         assert result.exit_code == 0
@@ -56,7 +56,7 @@ class TestRun:
     def test_run_invalid_config(self, mocker):
         mock_source = MagicMock()
         mock_source.validate_config.return_value = False
-        mocker.patch("pipelines.registry.get_source", return_value=mock_source)
+        mocker.patch("sources.registry.get_source", return_value=mock_source)
 
         result = runner.invoke(app, ["run", "ebird"])
         assert result.exit_code == 1
@@ -64,7 +64,7 @@ class TestRun:
     @pytest.mark.unit
     def test_run_unknown_pipeline(self, mocker):
         mocker.patch(
-            "pipelines.registry.get_source",
+            "sources.registry.get_source",
             side_effect=KeyError("Pipeline 'nope' not found."),
         )
         result = runner.invoke(app, ["run", "nope"])
@@ -76,7 +76,7 @@ class TestValidate:
     def test_validate_valid(self, mocker):
         mock_source = MagicMock()
         mock_source.validate_config.return_value = True
-        mocker.patch("pipelines.registry.get_source", return_value=mock_source)
+        mocker.patch("sources.registry.get_source", return_value=mock_source)
 
         result = runner.invoke(app, ["validate", "ebird"])
         assert result.exit_code == 0
@@ -86,7 +86,7 @@ class TestValidate:
     def test_validate_invalid(self, mocker):
         mock_source = MagicMock()
         mock_source.validate_config.return_value = False
-        mocker.patch("pipelines.registry.get_source", return_value=mock_source)
+        mocker.patch("sources.registry.get_source", return_value=mock_source)
 
         result = runner.invoke(app, ["validate", "ebird"])
         assert result.exit_code == 1
@@ -147,7 +147,7 @@ class TestQuality:
         )
         con.close()
 
-        result = runner.invoke(app, ["quality", "raw_ebird.observations"])
+        result = runner.invoke(app, ["quality", "check", "raw_ebird.observations"])
         assert result.exit_code == 0
         assert "Total rows: 1" in result.output
 
@@ -157,8 +157,41 @@ class TestQuality:
             "config.settings.settings.database_url",
             f"duckdb:///{tmp_path / 'nonexistent.db'}",
         )
-        result = runner.invoke(app, ["quality", "raw_ebird.test"])
+        result = runner.invoke(app, ["quality", "check", "raw_ebird.test"])
         assert result.exit_code == 1
+
+    @pytest.mark.integration
+    def test_quality_report(self, tmp_db, mocker):
+        mocker.patch(
+            "config.settings.settings.database_url",
+            f"duckdb:///{tmp_db}",
+        )
+
+        con = duckdb.connect(str(tmp_db))
+        con.execute("CREATE SCHEMA raw_test")
+        con.execute(
+            "CREATE TABLE raw_test.observations AS "
+            "SELECT 'norcar' AS species_code, 3 AS count, "
+            "'2025-07-20'::timestamp AS _loaded_at"
+        )
+        con.close()
+
+        mock_cfg = PipelineConfig(
+            name="test",
+            source_module="mock.module",
+            schedule=PipelineSchedule(cron="0 6 * * *", enabled=True),
+            quality_rules=[
+                {"column": "species_code", "check": "not_null"},
+            ],
+        )
+        mocker.patch(
+            "config.pipeline_config.load_all_pipeline_configs",
+            return_value={"test": mock_cfg},
+        )
+
+        result = runner.invoke(app, ["quality", "report"])
+        assert result.exit_code == 0
+        assert "All checks passed" in result.output
 
 
 class TestStatus:
@@ -172,7 +205,7 @@ class TestStatus:
         mock_source = MagicMock()
         mock_source.config = PipelineConfig(name="ebird", source_module="mod")
         mock_source.validate_config.return_value = True
-        mocker.patch("pipelines.registry.get_registry", return_value={"ebird": mock_source})
+        mocker.patch("sources.registry.get_registry", return_value={"ebird": mock_source})
 
         con = duckdb.connect(str(tmp_db))
         con.execute("CREATE SCHEMA raw_ebird")
@@ -207,7 +240,7 @@ class TestResolveTransformProjects:
 
     @pytest.mark.unit
     def test_none_finds_projects_with_config(self, tmp_path, mocker):
-        transforms = tmp_path / "transformations"
+        transforms = tmp_path / "transforms"
         transforms.mkdir()
         proj = transforms / "test_proj"
         proj.mkdir()
@@ -221,7 +254,7 @@ class TestResolveTransformProjects:
 
     @pytest.mark.unit
     def test_none_defaults_to_home_team(self, tmp_path, mocker):
-        transforms = tmp_path / "transformations"
+        transforms = tmp_path / "transforms"
         transforms.mkdir()
 
         mocker.patch("config.settings.PROJECT_ROOT", tmp_path)

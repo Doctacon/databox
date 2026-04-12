@@ -17,14 +17,14 @@ def list_pipelines():
     from rich.console import Console
     from rich.table import Table
 
-    from pipelines.registry import get_registry
+    from sources.registry import get_registry
 
     console = Console()
     registry = get_registry()
 
     if not registry:
         console.print("[yellow]No pipelines registered.[/yellow]")
-        console.print("Add a YAML config to config/pipelines/ to register a pipeline.")
+        console.print("Add a config.yaml to sources/<name>/ to register a pipeline.")
         return
 
     tbl = Table(title="Registered Pipelines")
@@ -53,7 +53,7 @@ def run(
     name: str = typer.Argument(..., help="Pipeline name (e.g. ebird)"),
 ):
     """Run a registered pipeline by name."""
-    from pipelines.registry import get_source
+    from sources.registry import get_source
 
     source = get_source(name)
 
@@ -70,7 +70,7 @@ def validate(
     name: str = typer.Argument(..., help="Pipeline name to validate"),
 ):
     """Validate a pipeline's configuration and credentials."""
-    from pipelines.registry import get_source
+    from sources.registry import get_source
 
     source = get_source(name)
     valid = source.validate_config()
@@ -99,7 +99,7 @@ def transform_plan(
 
     projects = _resolve_transform_projects(project)
     for proj in projects:
-        proj_dir = PROJECT_ROOT / "transformations" / proj
+        proj_dir = PROJECT_ROOT / "transforms" / proj
         if not proj_dir.exists():
             typer.echo(f"Transform project '{proj}' not found at {proj_dir}", err=True)
             continue
@@ -124,7 +124,7 @@ def transform_run(
 
     projects = _resolve_transform_projects(project)
     for proj in projects:
-        proj_dir = PROJECT_ROOT / "transformations" / proj
+        proj_dir = PROJECT_ROOT / "transforms" / proj
         if not proj_dir.exists():
             typer.echo(f"Transform project '{proj}' not found at {proj_dir}", err=True)
             continue
@@ -149,7 +149,7 @@ def transform_test(
 
     projects = _resolve_transform_projects(project)
     for proj in projects:
-        proj_dir = PROJECT_ROOT / "transformations" / proj
+        proj_dir = PROJECT_ROOT / "transforms" / proj
         if not proj_dir.exists():
             typer.echo(f"Transform project '{proj}' not found at {proj_dir}", err=True)
             continue
@@ -162,51 +162,96 @@ def transform_test(
             raise typer.Exit(code=result.returncode)
 
 
-@app.command()
-def quality(
+_quality_app = typer.Typer(help="Data quality commands.")
+app.add_typer(_quality_app, name="quality")
+
+
+@_quality_app.command("check")
+def quality_check(
     table: str = typer.Argument(..., help="Table name (schema.table) to check"),
 ):
     """Run data quality checks on a table."""
-    import duckdb
-
     from config.settings import settings
+    from quality.engine import check_table
 
     db_path = settings.database_path
     if not db_path.exists():
         typer.echo(f"Database not found at {db_path}", err=True)
         raise typer.Exit(code=1)
 
-    con = duckdb.connect(str(db_path), read_only=True)
-
     try:
-        count = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-        typer.echo(f"Table: {table}")
-        typer.echo(f"  Total rows: {count}")
-
-        cols = con.execute(
-            "SELECT column_name FROM information_schema.columns "
-            f"WHERE table_name = '{table.split('.')[-1]}'"
-        ).fetchall()
-
-        typer.echo("  Null counts:")
-        for (col,) in cols:
-            null_count = con.execute(
-                f'SELECT COUNT(*) FROM {table} WHERE "{col}" IS NULL'
-            ).fetchone()[0]
-            marker = " (!)" if null_count > 0 else ""
-            typer.echo(f"    {col}: {null_count}{marker}")
-
-        try:
-            latest = con.execute(f"SELECT MAX(_loaded_at) FROM {table}").fetchone()[0]
-            typer.echo(f"  Latest load: {latest}")
-        except Exception:
-            pass
-
+        result = check_table(table, db_path)
     except Exception as e:
         typer.echo(f"Error checking table: {e}", err=True)
         raise typer.Exit(code=1) from None
-    finally:
-        con.close()
+
+    typer.echo(f"Table: {result['table']}")
+    typer.echo(f"  Total rows: {result['row_count']}")
+    typer.echo("  Null counts:")
+    for col, null_count in result["null_counts"]:
+        marker = " (!)" if null_count > 0 else ""
+        typer.echo(f"    {col}: {null_count}{marker}")
+    if result["latest_load"]:
+        typer.echo(f"  Latest load: {result['latest_load']}")
+
+
+@_quality_app.command("report")
+def quality_report():
+    """Run all configured quality rules against loaded data and show a report."""
+    from rich.console import Console
+    from rich.table import Table
+
+    from config.pipeline_config import load_all_pipeline_configs
+    from config.settings import settings
+    from quality.engine import run_report
+
+    console = Console()
+    db_path = settings.database_path
+
+    if not db_path.exists():
+        console.print("[yellow]Database not found. Run a pipeline first.[/yellow]")
+        raise typer.Exit(code=1)
+
+    configs = load_all_pipeline_configs()
+    results = run_report(db_path, configs)
+
+    tbl = Table(title="Quality Report")
+    tbl.add_column("Pipeline", style="cyan")
+    tbl.add_column("Table", style="green")
+    tbl.add_column("Rows", justify="right")
+    tbl.add_column("Freshness")
+    tbl.add_column("Rule")
+    tbl.add_column("Status")
+
+    for r in results:
+        status_str = r["status"]
+        if status_str.startswith("OK"):
+            styled = f"[green]{status_str}[/green]"
+        elif status_str.startswith("FAIL"):
+            styled = f"[red]{status_str}[/red]"
+        elif status_str.startswith("ERROR"):
+            styled = f"[bold red]{status_str}[/bold red]"
+        else:
+            styled = f"[yellow]{status_str}[/yellow]"
+        tbl.add_row(
+            r["pipeline"],
+            r["table"],
+            str(r["rows"]),
+            r["freshness"],
+            r["rule"],
+            styled,
+        )
+
+    console.print(tbl)
+
+    failures = sum(
+        1 for r in results if r["status"].startswith("FAIL") or r["status"].startswith("ERROR")
+    )
+    if failures:
+        console.print(f"\n[red]{failures} check(s) failed.[/red]")
+        raise typer.Exit(code=1)
+    else:
+        console.print("\n[green]All checks passed.[/green]")
 
 
 @app.command()
@@ -217,7 +262,7 @@ def status():
     from rich.table import Table
 
     from config.settings import settings
-    from pipelines.registry import get_registry
+    from sources.registry import get_registry
 
     console = Console()
     db_path = settings.database_path
@@ -273,7 +318,7 @@ def status():
 def _resolve_transform_projects(project: str | None) -> list[str]:
     from config.settings import PROJECT_ROOT
 
-    transforms_dir = PROJECT_ROOT / "transformations"
+    transforms_dir = PROJECT_ROOT / "transforms"
     if project:
         return [project]
 

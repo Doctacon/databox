@@ -2,14 +2,11 @@
 
 import importlib
 import logging
-from pathlib import Path
 
 from config.pipeline_config import PipelineConfig, load_all_pipeline_configs
-from pipelines.base import PipelineSource
+from sources.base import PipelineSource
 
 logger = logging.getLogger(__name__)
-
-SOURCES_DIR = Path(__file__).parent / "sources"
 
 _REGISTRY: dict[str, PipelineSource] | None = None
 

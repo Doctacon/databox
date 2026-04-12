@@ -97,7 +97,7 @@ class TestPipelineConfig:
     def test_full_config(self):
         cfg = PipelineConfig(
             name="ebird",
-            source_module="pipelines.sources.ebird_api",
+            source_module="sources.ebird.source",
             description="eBird data",
             schedule=PipelineSchedule(cron="0 6 * * *"),
             params={"region_code": "US-AZ"},
@@ -111,20 +111,20 @@ class TestPipelineConfig:
 
 class TestLoadPipelineConfig:
     @pytest.mark.unit
-    def test_load_valid_config(self, mock_configs_dir, monkeypatch):
+    def test_load_valid_config(self, mock_sources_dir, monkeypatch):
         import config.pipeline_config as pc_mod
 
-        monkeypatch.setattr(pc_mod, "PIPELINES_CONFIG_DIR", mock_configs_dir)
+        monkeypatch.setattr(pc_mod, "SOURCES_DIR", mock_sources_dir)
         cfg = load_pipeline_config("ebird")
         assert cfg.name == "ebird"
-        assert cfg.source_module == "pipelines.sources.ebird_api"
+        assert cfg.source_module == "sources.ebird.source"
         assert cfg.params["region_code"] == "US-AZ"
 
     @pytest.mark.unit
-    def test_load_missing_config(self, mock_configs_dir, monkeypatch):
+    def test_load_missing_config(self, mock_sources_dir, monkeypatch):
         import config.pipeline_config as pc_mod
 
-        monkeypatch.setattr(pc_mod, "PIPELINES_CONFIG_DIR", mock_configs_dir)
+        monkeypatch.setattr(pc_mod, "SOURCES_DIR", mock_sources_dir)
         with pytest.raises(FileNotFoundError, match="no_exist"):
             load_pipeline_config("no_exist")
 
@@ -132,18 +132,18 @@ class TestLoadPipelineConfig:
     def test_load_all_empty_dir(self, tmp_path, monkeypatch):
         import config.pipeline_config as pc_mod
 
-        monkeypatch.setattr(pc_mod, "PIPELINES_CONFIG_DIR", tmp_path / "empty")
+        monkeypatch.setattr(pc_mod, "SOURCES_DIR", tmp_path / "empty")
         result = load_all_pipeline_configs()
         assert result == {}
 
     @pytest.mark.unit
-    def test_load_all_multiple(self, mock_configs_dir, monkeypatch):
+    def test_load_all_multiple(self, mock_sources_dir, monkeypatch):
         import config.pipeline_config as pc_mod
 
-        (mock_configs_dir / "weather.yaml").write_text(
-            'source_module: "mod"\ndescription: "Weather"'
-        )
-        monkeypatch.setattr(pc_mod, "PIPELINES_CONFIG_DIR", mock_configs_dir)
+        weather_dir = mock_sources_dir / "weather"
+        weather_dir.mkdir()
+        (weather_dir / "config.yaml").write_text('source_module: "mod"\ndescription: "Weather"')
+        monkeypatch.setattr(pc_mod, "SOURCES_DIR", mock_sources_dir)
         result = load_all_pipeline_configs()
         assert "ebird" in result
         assert "weather" in result

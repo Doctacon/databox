@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pipelines.sources.noaa_api import (
+from sources.noaa.source import (
     NoaaPipelineSource,
     _chunk_date_range,
     noaa_source,
@@ -18,7 +18,7 @@ from pipelines.sources.noaa_api import (
 class TestNoaaApiHeaders:
     @pytest.mark.unit
     def test_get_api_headers(self, monkeypatch):
-        from pipelines.sources.noaa_api import get_api_headers
+        from sources.noaa.source import get_api_headers
 
         monkeypatch.setenv("NOAA_API_TOKEN", "test_token")
         headers = get_api_headers()
@@ -26,7 +26,7 @@ class TestNoaaApiHeaders:
 
     @pytest.mark.unit
     def test_missing_token(self, monkeypatch):
-        from pipelines.sources.noaa_api import get_api_headers
+        from sources.noaa.source import get_api_headers
 
         monkeypatch.delenv("NOAA_API_TOKEN", raising=False)
         with pytest.raises(ValueError, match="NOAA_API_TOKEN"):
@@ -127,7 +127,7 @@ class TestNoaaHttpMocking:
 
         cfg = PipelineConfig(
             name="noaa",
-            source_module="pipelines.sources.noaa_api",
+            source_module="sources.noaa.source",
             params={"location_id": "FIPS:04", "dataset_id": "GHCND", "days_back": 7},
         )
         source = NoaaPipelineSource(cfg)

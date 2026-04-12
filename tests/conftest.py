@@ -14,7 +14,7 @@ from config.pipeline_config import PipelineConfig, PipelineSchedule
 @pytest.fixture(autouse=True)
 def reset_registry():
     """Clear the pipeline registry cache between tests."""
-    import pipelines.registry as reg
+    import sources.registry as reg
 
     original = reg._REGISTRY
     reg._REGISTRY = None
@@ -55,7 +55,7 @@ def mock_pipeline_config():
     """Create a minimal PipelineConfig for testing."""
     return PipelineConfig(
         name="test_source",
-        source_module="pipelines.sources.ebird_api",
+        source_module="sources.ebird.source",
         description="Test pipeline",
         schedule=PipelineSchedule(cron="0 6 * * *", enabled=True),
         params={"region_code": "US-AZ", "max_results": 100, "days_back": 7},
@@ -65,12 +65,14 @@ def mock_pipeline_config():
 
 
 @pytest.fixture
-def mock_configs_dir(tmp_path):
-    """Create a temp config/pipelines/ directory with a YAML config."""
-    pipelines_dir = tmp_path / "pipelines"
-    pipelines_dir.mkdir()
+def mock_sources_dir(tmp_path):
+    """Create a temp sources/ directory with a YAML config for ebird."""
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    ebird_dir = sources_dir / "ebird"
+    ebird_dir.mkdir()
     yaml_content = """
-source_module: "pipelines.sources.ebird_api"
+source_module: "sources.ebird.source"
 description: "Test eBird pipeline"
 schedule:
   cron: "0 6 * * *"
@@ -81,8 +83,8 @@ params:
   days_back: 7
 transform_project: "ebird"
 """
-    (pipelines_dir / "ebird.yaml").write_text(yaml_content)
-    return pipelines_dir
+    (ebird_dir / "config.yaml").write_text(yaml_content)
+    return sources_dir
 
 
 @pytest.fixture
@@ -228,6 +230,7 @@ def load_test_data_to_db(con, schema: str, table: str, rows: list[dict]):
     con.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
     import pandas as pd
 
-    pd.DataFrame(rows)
-    con.execute(f"CREATE TABLE IF NOT EXISTS {schema}.{table} AS SELECT * FROM df")
-    con.execute(f"INSERT INTO {schema}.{table} SELECT * FROM df")
+    con.register("_tmp", pd.DataFrame(rows))
+    con.execute(f"CREATE TABLE IF NOT EXISTS {schema}.{table} AS SELECT * FROM _tmp")
+    con.execute(f"INSERT INTO {schema}.{table} SELECT * FROM _tmp")
+    con.unregister("_tmp")

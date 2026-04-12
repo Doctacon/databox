@@ -10,3 +10,9 @@ model_defaults:
   dialect: duckdb
   start: 2025-07-25
   cron: "@daily"
+
+linter:
+  enabled: true
+  rules:
+    - ambiguousorinvalidcolumn
+    - invalidselectstarexpansion

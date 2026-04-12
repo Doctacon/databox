@@ -259,10 +259,3 @@ class NoaaPipelineSource:
 
 def create_pipeline(config: PipelineConfig) -> NoaaPipelineSource:
     return NoaaPipelineSource(config)
-
-
-if __name__ == "__main__":
-    print("NOAA CDO pipeline")
-    print("Set NOAA_API_TOKEN in your .env file")
-    print("\nUsage:")
-    print("  databox run noaa")

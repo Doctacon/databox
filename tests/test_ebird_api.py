@@ -6,13 +6,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pipelines.sources.ebird_api import ebird_source, process_observation
+from sources.ebird.source import ebird_source, process_observation
 
 
 class TestEbirdApiHeaders:
     @pytest.mark.unit
     def test_get_api_headers(self, monkeypatch):
-        from pipelines.sources.ebird_api import get_api_headers
+        from sources.ebird.source import get_api_headers
 
         monkeypatch.setenv("EBIRD_API_TOKEN", "test_token")
         headers = get_api_headers()
@@ -20,7 +20,7 @@ class TestEbirdApiHeaders:
 
     @pytest.mark.unit
     def test_missing_token(self, monkeypatch):
-        from pipelines.sources.ebird_api import get_api_headers
+        from sources.ebird.source import get_api_headers
 
         monkeypatch.delenv("EBIRD_API_TOKEN", raising=False)
         with pytest.raises(ValueError, match="EBIRD_API_TOKEN"):
@@ -95,13 +95,13 @@ class TestEbirdHttpMocking:
         import duckdb
 
         from config.pipeline_config import PipelineConfig
-        from pipelines.sources.ebird_api import EbirdPipelineSource
+        from sources.ebird.source import EbirdPipelineSource
 
         _mock_ebird_responses(mocker)
 
         cfg = PipelineConfig(
             name="ebird",
-            source_module="pipelines.sources.ebird_api",
+            source_module="sources.ebird.source",
             params={"region_code": "US-AZ", "max_results": 10, "days_back": 1},
         )
         source = EbirdPipelineSource(cfg)

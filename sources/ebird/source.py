@@ -30,7 +30,6 @@ def process_observation(
     obs["_region_code"] = region
     obs["_loaded_at"] = pendulum.now().isoformat()
     obs["_observation_date"] = obs.get("obsDt")
-
     obs["_is_notable"] = is_notable
 
     if obs.get("howMany"):
@@ -250,95 +249,3 @@ class EbirdPipelineSource:
 
 def create_pipeline(config: PipelineConfig) -> EbirdPipelineSource:
     return EbirdPipelineSource(config)
-
-
-def load_ebird_data(
-    region_code: str = "US-AZ",
-    max_results: int = 10000,
-    days_back: int = 30,
-    dataset_name: str = "raw_ebird",
-    database_url: str | None = None,
-    dlt_data_dir: str | None = None,
-):
-    if database_url is None:
-        database_url = settings.database_url
-    if dlt_data_dir is None:
-        dlt_data_dir = settings.dlt_data_dir
-
-    pipeline = dlt.pipeline(
-        pipeline_name="ebird_api",
-        destination=dlt.destinations.duckdb(credentials=database_url),
-        dataset_name=dataset_name,
-        pipelines_dir=dlt_data_dir,
-    )
-
-    source = ebird_source(region_code=region_code, max_results=max_results, days_back=days_back)
-    info = pipeline.run(source)
-
-    print("\neBird data loaded successfully!")
-    print(f"  Pipeline: {pipeline.pipeline_name}")
-    print(f"  Schema: {dataset_name}")
-    print(f"  Region: {region_code}")
-    print(f"  Days back: {days_back}")
-    print(f"\n{info}")
-
-    try:
-        with pipeline.sql_client() as client:
-            tables = client.execute_sql(
-                f"""
-                SELECT table_name
-                FROM information_schema.tables
-                WHERE table_schema = '{dataset_name}'
-                """
-            )
-            print("\nLoaded tables:")
-            for table in tables:
-                count = client.execute_sql(f"SELECT COUNT(*) FROM {dataset_name}.{table[0]}")
-                print(f"  - {table[0]}: {count[0][0]} rows")
-    except Exception as e:
-        print(f"Could not fetch table counts: {e}")
-
-    return info
-
-
-def load_multiple_regions(
-    regions: list[str],
-    max_results: int = 10000,
-    days_back: int = 30,
-    database_url: str | None = None,
-    dlt_data_dir: str | None = None,
-):
-    results: dict[str, dict[str, Any]] = {}
-
-    for region in regions:
-        print(f"\nLoading data for region: {region}")
-        try:
-            info = load_ebird_data(
-                region_code=region,
-                max_results=max_results,
-                days_back=days_back,
-                database_url=database_url,
-                dlt_data_dir=dlt_data_dir,
-            )
-            results[region] = {"status": "success", "info": info}
-        except Exception as e:
-            print(f"Error loading region {region}: {e}")
-            results[region] = {"status": "error", "error": str(e)}
-            continue
-
-    success_count = sum(1 for r in results.values() if r["status"] == "success")
-    print(f"\nSummary: {success_count}/{len(regions)} regions loaded successfully")
-
-    return results
-
-
-if __name__ == "__main__":
-    print("eBird API pipeline")
-    print("Set EBIRD_API_TOKEN in your .env file")
-    print("\nUsage:")
-    print("  databox run ebird")
-    print("  databox run ebird -- --region US-CA")
-    print("\nLegacy usage:")
-    print("  python pipelines/sources/ebird_api.py")
-
-    load_ebird_data("US-AZ", days_back=30)

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from config.settings import PROJECT_ROOT
 
-PIPELINES_CONFIG_DIR = PROJECT_ROOT / "config" / "pipelines"
+SOURCES_DIR = PROJECT_ROOT / "sources"
 
 
 class PipelineSchedule(BaseModel):
@@ -19,6 +19,7 @@ class QualityRule(BaseModel):
     column: str
     check: str
     threshold: float | None = None
+    values: list[str] | None = None
 
 
 class PipelineConfig(BaseModel):
@@ -36,7 +37,7 @@ class PipelineConfig(BaseModel):
 
 
 def load_pipeline_config(name: str) -> PipelineConfig:
-    config_path = PIPELINES_CONFIG_DIR / f"{name}.yaml"
+    config_path = SOURCES_DIR / name / "config.yaml"
     if not config_path.exists():
         raise FileNotFoundError(f"No config found for pipeline '{name}' at {config_path}")
     with open(config_path) as f:
@@ -46,9 +47,10 @@ def load_pipeline_config(name: str) -> PipelineConfig:
 
 def load_all_pipeline_configs() -> dict[str, PipelineConfig]:
     configs: dict[str, PipelineConfig] = {}
-    if not PIPELINES_CONFIG_DIR.exists():
+    if not SOURCES_DIR.exists():
         return configs
-    for path in sorted(PIPELINES_CONFIG_DIR.glob("*.yaml")):
-        name = path.stem
-        configs[name] = load_pipeline_config(name)
+    for source_dir in sorted(SOURCES_DIR.iterdir()):
+        config_path = source_dir / "config.yaml"
+        if source_dir.is_dir() and not source_dir.name.startswith("_") and config_path.exists():
+            configs[source_dir.name] = load_pipeline_config(source_dir.name)
     return configs

@@ -138,7 +138,7 @@ tasks:
   transform:ui:
     desc: "Start SQLMesh UI"
     deps: [install]
-    dir: transformations/ebird
+    dir: transforms/ebird
     cmds:
       - "../../{{.VENV_DIR}}/bin/sqlmesh ui"
 
@@ -207,6 +207,7 @@ tasks:
     desc: "Full data refresh — run all pipelines and transforms"
     cmds:
       - task: pipeline:run -- ebird
+      - task: pipeline:run -- noaa
       - task: transform:plan
       - task: transform:run
       - task: transform:test
@@ -214,28 +215,20 @@ tasks:
   # Dagster
   dagster:dev:
     desc: "Start Dagster development server"
-    deps: [install-orchestration]
+    deps: [install]
     dir: orchestration
     env:
       DAGSTER_HOME: "{{.ROOT_DIR}}/.dagster"
     cmds:
-      - "../{{.VENV_DIR}}/bin/dagster dev -f dagster_project.py"
-
-  install-orchestration:
-    desc: "Install orchestration dependencies"
-    deps: [install]
-    cmds:
-      - uv pip install -e '.[orchestration]'
-    sources:
-      - pyproject.toml
+      - "../{{.VENV_DIR}}/bin/dagster dev -f definitions.py"
 
   # Streamlit
   streamlit:
-    desc: "Start Streamlit dashboard"
+    desc: "Start Databox Explorer dashboard"
     deps: [install]
-    dir: apps/ebird_streamlit
+    dir: app
     cmds:
-      - "../../{{.VENV_DIR}}/bin/streamlit run main.py"
+      - "../{{.VENV_DIR}}/bin/streamlit run main.py"
 
   # Watch
   watch:lint:
