@@ -1,8 +1,6 @@
-"""NOAA-specific API tests with HTTP mocking."""
+"""NOAA-specific API tests."""
 
 from __future__ import annotations
-
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -114,98 +112,33 @@ class TestNoaaSourceResources:
         assert res.write_disposition == "merge"
 
 
-class TestNoaaHttpMocking:
+class TestNoaaIngestion:
     @pytest.mark.integration
-    def test_full_load_with_mocked_api(self, tmp_db, mock_settings, monkeypatch, mocker):
+    def test_full_load(self, tmp_db, mock_settings):
+        import os
+
         import duckdb
 
         from config.pipeline_config import PipelineConfig
 
-        monkeypatch.setenv("NOAA_API_TOKEN", "test_token")
-
-        _mock_noaa_responses(mocker)
+        if not os.getenv("NOAA_API_TOKEN"):
+            pytest.skip("NOAA_API_TOKEN not set")
 
         cfg = PipelineConfig(
             name="noaa",
             source_module="sources.noaa.source",
-            params={"location_id": "FIPS:04", "dataset_id": "GHCND", "days_back": 7},
+            params={"location_id": "FIPS:04", "dataset_id": "GHCND", "days_back": 3},
         )
-        source = NoaaPipelineSource(cfg)
-        source.load()
+        NoaaPipelineSource(cfg).load()
 
         con = duckdb.connect(str(tmp_db))
         try:
-            tables = con.execute(
+            query = (
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'raw_noaa'"
-            ).fetchall()
-            table_names = [t[0] for t in tables]
+            )
+            table_names = [t[0] for t in con.execute(query).fetchall()]
             assert "daily_weather" in table_names
             assert "stations" in table_names
-
-            count = con.execute("SELECT COUNT(*) FROM raw_noaa.daily_weather").fetchone()[0]
-            assert count > 0
+            assert con.execute("SELECT COUNT(*) FROM raw_noaa.daily_weather").fetchone()[0] > 0
         finally:
             con.close()
-
-
-def _mock_noaa_responses(mocker):
-    import dlt.sources.helpers.requests as dlt_requests
-
-    sample_weather = [
-        {
-            "date": "2025-07-20",
-            "datatype": "TMAX",
-            "station": "GHCND:USC00010008",
-            "value": 105.3,
-            "attributes": ",,S,",
-        },
-        {
-            "date": "2025-07-20",
-            "datatype": "TMIN",
-            "station": "GHCND:USC00010008",
-            "value": 72.1,
-            "attributes": ",,S,",
-        },
-        {
-            "date": "2025-07-20",
-            "datatype": "PRCP",
-            "station": "GHCND:USC00010008",
-            "value": 0.0,
-            "attributes": ",,S,",
-        },
-    ]
-    sample_stations = [
-        {
-            "id": "GHCND:USC00010008",
-            "name": "PHOENIX",
-            "latitude": 33.45,
-            "longitude": -112.07,
-            "elevation": 331.0,
-            "elevationUnit": "METERS",
-            "mindate": "1895-01-01",
-            "maxdate": "2025-12-31",
-            "datacoverage": 0.95,
-        },
-    ]
-
-    def mock_get(url, **kwargs):
-        response = MagicMock()
-        response.status_code = 200
-        response.raise_for_status = MagicMock()
-
-        if "/datasets/" in url:
-            response.json.return_value = {
-                "id": "GHCND",
-                "name": "Daily Summaries",
-            }
-        elif "/data" in url:
-            response.json.return_value = {"results": sample_weather}
-        elif "/stations" in url:
-            response.json.return_value = {"results": sample_stations}
-        else:
-            response.json.return_value = {}
-
-        return response
-
-    mocker.patch.object(dlt_requests, "get", mock_get)
-    mocker.patch("time.sleep", return_value=None)

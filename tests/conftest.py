@@ -223,6 +223,19 @@ def ebird_sample_species_list():
     return ["norcar", "moudov", "amecro", "bkcchi"]
 
 
+@pytest.fixture
+def e2e_db(tmp_path, monkeypatch):
+    """Temp DuckDB for e2e tests — overrides both dlt settings and SQLMesh connection."""
+    import config.settings as settings_mod
+
+    db_path = tmp_path / "e2e_test.db"
+    duckdb.connect(str(db_path)).close()
+
+    monkeypatch.setattr(settings_mod.settings, "database_url", f"duckdb:///{db_path}")
+    monkeypatch.setattr(settings_mod.settings, "dlt_data_dir", str(tmp_path / ".dlt"))
+    return db_path
+
+
 def load_test_data_to_db(con, schema: str, table: str, rows: list[dict]):
     """Load test data rows into a DuckDB table, creating schema if needed."""
     if not rows:

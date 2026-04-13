@@ -122,9 +122,9 @@ def ebird_source(
             "numSpeciesAllTime": {"data_type": "bigint"},
         },
     )
-    def hotspots(region: str = region_code, back: int = days_back) -> Iterator[dict[str, Any]]:
+    def hotspots(region: str = region_code) -> Iterator[dict[str, Any]]:
         url = f"{EBIRD_API_BASE}/ref/hotspot/{region}"
-        params = {"back": back, "fmt": "json"}
+        params = {"fmt": "json"}
 
         try:
             response = dlt_requests.get(url, headers=get_api_headers(), params=params)

@@ -1,8 +1,6 @@
-"""eBird-specific API tests with HTTP mocking."""
+"""eBird-specific API tests."""
 
 from __future__ import annotations
-
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -89,103 +87,36 @@ class TestEbirdSourceResources:
         assert "howMany" in res.columns
 
 
-class TestEbirdHttpMocking:
+class TestEbirdIngestion:
     @pytest.mark.integration
-    def test_full_load_with_mocked_api(self, tmp_db, mock_settings, mock_ebird_api_token, mocker):
+    def test_full_load(self, tmp_db, mock_settings):
+        import os
+
         import duckdb
 
         from config.pipeline_config import PipelineConfig
         from sources.ebird.source import EbirdPipelineSource
 
-        _mock_ebird_responses(mocker)
+        if not os.getenv("EBIRD_API_TOKEN"):
+            pytest.skip("EBIRD_API_TOKEN not set")
 
         cfg = PipelineConfig(
             name="ebird",
             source_module="sources.ebird.source",
             params={"region_code": "US-AZ", "max_results": 10, "days_back": 1},
         )
-        source = EbirdPipelineSource(cfg)
-        source.load()
+        EbirdPipelineSource(cfg).load()
 
         con = duckdb.connect(str(tmp_db))
         try:
-            tables = con.execute(
+            query = (
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'raw_ebird'"
-            ).fetchall()
-            table_names = [t[0] for t in tables]
+            )
+            table_names = [t[0] for t in con.execute(query).fetchall()]
             assert "recent_observations" in table_names
             assert "hotspots" in table_names
             assert "taxonomy" in table_names
-
             count = con.execute("SELECT COUNT(*) FROM raw_ebird.recent_observations").fetchone()[0]
             assert count > 0
         finally:
             con.close()
-
-
-def _mock_ebird_responses(mocker):
-    import dlt.sources.helpers.requests as dlt_requests
-
-    sample_obs = [
-        {
-            "speciesCode": "norcar",
-            "comName": "Northern Cardinal",
-            "sciName": "Cardinalis cardinalis",
-            "locId": "L123",
-            "locName": "Test Park",
-            "obsDt": "2025-07-20 08:30",
-            "howMany": 3,
-            "lat": 33.45,
-            "lng": -112.07,
-            "obsValid": True,
-            "obsReviewed": False,
-            "locationPrivate": False,
-            "subId": "S001",
-        },
-    ]
-    sample_hotspot = [
-        {
-            "locId": "L999",
-            "locName": "Test Hotspot",
-            "countryCode": "US",
-            "subnational1Code": "US-AZ",
-            "subnational2Code": "US-AZ-013",
-            "lat": 33.38,
-            "lng": -111.74,
-            "latestObsDt": "2025-07-19",
-            "numSpeciesAllTime": 100,
-        },
-    ]
-    sample_taxon = [
-        {
-            "speciesCode": "norcar",
-            "comName": "Northern Cardinal",
-            "sciName": "Cardinalis cardinalis",
-            "taxonOrder": 1001,
-            "category": "species",
-            "familyComName": "Cardinals and Allies",
-            "familySciName": "Cardinalidae",
-        },
-    ]
-
-    def mock_get(url, **kwargs):
-        response = MagicMock()
-        response.status_code = 200
-        response.raise_for_status = MagicMock()
-
-        if "recent/notable" in url:
-            response.json.return_value = []
-        elif "/recent" in url:
-            response.json.return_value = sample_obs
-        elif "spplist" in url:
-            response.json.return_value = ["norcar"]
-        elif "hotspot" in url:
-            response.json.return_value = sample_hotspot
-        elif "taxonomy" in url:
-            response.json.return_value = sample_taxon
-        else:
-            response.json.return_value = []
-
-        return response
-
-    mocker.patch.object(dlt_requests, "get", mock_get)
