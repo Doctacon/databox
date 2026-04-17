@@ -1,6 +1,8 @@
 """Dagster definitions — fine-grained assets per dlt resource and sqlmesh model."""
 
+import os
 import subprocess
+from datetime import date, timedelta
 from pathlib import Path
 
 import dagster as dg
@@ -44,7 +46,10 @@ class DataboxConfig(dg.ConfigurableResource):
     group_name="ebird_ingestion",
 )
 def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
-    yield from dlt.run(context=context)
+    source = ebird_source(region_code="US-AZ", max_results=10000, days_back=30)
+    if os.getenv("DATABOX_SMOKE"):
+        source.add_limit(max_items=5)
+    yield from dlt.run(context=context, dlt_source=source)
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +73,15 @@ def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
     group_name="noaa_ingestion",
 )
 def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
-    yield from dlt.run(context=context)
+    source = noaa_source(
+        location_id="FIPS:04",
+        dataset_id="GHCND",
+        days_back=30,
+        datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
+    )
+    if os.getenv("DATABOX_SMOKE"):
+        source.add_limit(max_items=5)
+    yield from dlt.run(context=context, dlt_source=source)
 
 
 # ---------------------------------------------------------------------------
@@ -97,8 +110,12 @@ def create_sqlmesh_model_asset(
         if not MAIN_TRANSFORM_PROJECT.exists():
             raise FileNotFoundError(f"Transform project not found: {MAIN_TRANSFORM_PROJECT}")
         sqlmesh_bin = PROJECT_ROOT / ".venv" / "bin" / "sqlmesh"
+        cmd = [str(sqlmesh_bin), "run", "--select-model", model_name]
+        if os.getenv("DATABOX_SMOKE"):
+            start = (date.today() - timedelta(days=3)).isoformat()
+            cmd.extend(["--start", start])
         result = subprocess.run(
-            [str(sqlmesh_bin), "run", "--select-model", model_name],
+            cmd,
             cwd=str(MAIN_TRANSFORM_PROJECT),
             capture_output=True,
             text=True,

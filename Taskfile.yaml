@@ -234,15 +234,14 @@ tasks:
       - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f orchestration/definitions.py"
 
   verify:
-    desc: "Smoke test — limited ingest (5 items/resource) + last 3 days of transforms"
+    desc: "Smoke test via Dagster — limited ingest (5 items/resource) + last 3 days of transforms"
     deps: [install]
-    vars:
-      START_DATE:
-        sh: date -v-3d +%Y-%m-%d
+    env:
+      DAGSTER_HOME: "{{.ROOT_DIR}}/.dagster"
+      PYTHONPATH: "{{.ROOT_DIR}}"
+      DATABOX_SMOKE: "1"
     cmds:
-      - "{{.VENV_DIR}}/bin/databox run ebird --smoke"
-      - "{{.VENV_DIR}}/bin/databox run noaa --smoke"
-      - "{{.VENV_DIR}}/bin/databox transform run --start {{.START_DATE}}"
+      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f orchestration/definitions.py"
 
   # Streamlit
   streamlit:
