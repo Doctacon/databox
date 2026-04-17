@@ -333,6 +333,6 @@ def _resolve_transform_projects(project: str | None) -> list[str]:
             candidates.append(child.name)
 
     if not candidates:
-        candidates = ["home_team"]
+        raise typer.BadParameter(f"No transform projects found in {transforms_dir}")
 
     return candidates

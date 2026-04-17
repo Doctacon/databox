@@ -91,7 +91,7 @@ class TestNoaaE2E:
         cfg = PipelineConfig(
             name="noaa",
             source_module="sources.noaa.source",
-            params={"location_id": "FIPS:04", "dataset_id": "GHCND", "days_back": 3},
+            params={"location_id": "FIPS:04", "dataset_id": "GHCND", "days_back": 30},
         )
         NoaaPipelineSource(cfg).load()
 

@@ -253,12 +253,14 @@ class TestResolveTransformProjects:
         assert "test_proj" in result
 
     @pytest.mark.unit
-    def test_none_defaults_to_home_team(self, tmp_path, mocker):
+    def test_none_raises_when_no_projects(self, tmp_path, mocker):
+        import typer
+
         transforms = tmp_path / "transforms"
         transforms.mkdir()
 
         mocker.patch("config.settings.PROJECT_ROOT", tmp_path)
         from cli.main import _resolve_transform_projects
 
-        result = _resolve_transform_projects(None)
-        assert result == ["home_team"]
+        with pytest.raises(typer.BadParameter):
+            _resolve_transform_projects(None)
