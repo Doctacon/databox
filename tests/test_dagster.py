@@ -26,20 +26,41 @@ class TestDagsterAssetGeneration:
         assert len(definitions.assets) > 0
 
     @pytest.mark.unit
-    def test_assets_match_registered_pipelines(self):
+    def test_ebird_dlt_assets_exist(self):
+        """Verify fine-grained eBird dlt assets are generated."""
         try:
             from orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
 
-        from sources.registry import get_registry
+        all_keys = {spec.key for a in definitions.assets for spec in a.specs}
+        ebird_resources = [
+            "recent_observations",
+            "notable_observations",
+            "species_list",
+            "hotspots",
+            "taxonomy",
+            "region_stats",
+        ]
+        for resource in ebird_resources:
+            matching = [k for k in all_keys if resource in k.path[-1]]
+            assert matching, f"No asset found for eBird resource '{resource}'"
 
-        registry = get_registry()
-        asset_names = {a.key.path[-1] for a in definitions.assets}
+    @pytest.mark.unit
+    def test_noaa_dlt_assets_exist(self):
+        """Verify fine-grained NOAA dlt assets are generated."""
+        try:
+            from orchestration import definitions
+        except ImportError:
+            pytest.skip("Dagster not installed")
+            return
 
-        for name in registry:
-            assert f"{name}_raw_data" in asset_names, f"Missing ingestion asset for '{name}'"
+        all_keys = {spec.key for a in definitions.assets for spec in a.specs}
+        noaa_resources = ["daily_weather", "stations", "datasets"]
+        for resource in noaa_resources:
+            matching = [k for k in all_keys if resource in k.path[-1]]
+            assert matching, f"No asset found for NOAA resource '{resource}'"
 
     @pytest.mark.unit
     def test_transform_assets_for_configured_projects(self):
@@ -49,15 +70,22 @@ class TestDagsterAssetGeneration:
             pytest.skip("Dagster not installed")
             return
 
-        from sources.registry import get_registry
+        all_keys = {spec.key for a in definitions.assets for spec in a.specs}
+        expected_sqlmesh_models = [
+            ("sqlmesh", "ebird", "stg_ebird_observations"),
+            ("sqlmesh", "ebird", "stg_ebird_taxonomy"),
+            ("sqlmesh", "ebird", "stg_ebird_hotspots"),
+            ("sqlmesh", "ebird", "int_ebird_enriched_observations"),
+            ("sqlmesh", "ebird", "fct_daily_bird_observations"),
+            ("sqlmesh", "noaa", "stg_noaa_daily_weather"),
+            ("sqlmesh", "noaa", "stg_noaa_stations"),
+            ("sqlmesh", "noaa", "fct_daily_weather"),
+        ]
+        import dagster as dg
 
-        registry = get_registry()
-        asset_names = {a.key.path[-1] for a in definitions.assets}
-
-        for name, source in registry.items():
-            cfg = source.config
-            if cfg.transform_project:
-                assert f"{name}_transforms" in asset_names, f"Missing transform asset for '{name}'"
+        for parts in expected_sqlmesh_models:
+            key = dg.AssetKey(list(parts))
+            assert key in all_keys, f"Missing sqlmesh asset: {parts}"
 
     @pytest.mark.unit
     def test_jobs_created_per_pipeline(self):
@@ -98,34 +126,26 @@ class TestDagsterAssetGeneration:
                 )
 
 
-class TestCreatePipelineAsset:
-    """Test the factory function for creating pipeline ingestion assets."""
+class TestSqlmeshModelAsset:
+    """Test the factory function for creating per-model sqlmesh assets."""
 
     @pytest.mark.unit
-    def test_creates_asset_with_correct_name(self):
+    def test_creates_asset_with_correct_key(self):
         try:
-            from orchestration.definitions import create_pipeline_asset
+            import dagster as dg
+
+            from orchestration.definitions import create_sqlmesh_model_asset
         except ImportError:
             pytest.skip("Dagster not installed")
             return
 
-        asset = create_pipeline_asset("test", "some.module")
+        asset = create_sqlmesh_model_asset("ebird.stg_ebird_observations", "ebird_staging", [])
         assert asset is not None
+        assert asset.key == dg.AssetKey(["sqlmesh", "ebird", "stg_ebird_observations"])
 
 
-class TestMainTransformsAsset:
-    """Test the shared main_transforms asset."""
-
-    @pytest.mark.unit
-    def test_main_transforms_asset_exists(self):
-        try:
-            from orchestration import definitions
-        except ImportError:
-            pytest.skip("Dagster not installed")
-            return
-
-        asset_names = {a.key.path[-1] for a in definitions.assets}
-        assert "main_transforms" in asset_names
+class TestJobsAndSchedules:
+    """Test jobs and schedules are created correctly."""
 
     @pytest.mark.unit
     def test_all_pipelines_job_exists(self):
@@ -137,3 +157,30 @@ class TestMainTransformsAsset:
 
         job_names = {j.name for j in definitions.jobs}
         assert "all_pipelines" in job_names
+
+    @pytest.mark.unit
+    def test_per_source_jobs_exist(self):
+        try:
+            from orchestration import definitions
+        except ImportError:
+            pytest.skip("Dagster not installed")
+            return
+
+        job_names = {j.name for j in definitions.jobs}
+        assert "ebird_daily_pipeline" in job_names
+        assert "noaa_daily_pipeline" in job_names
+
+    @pytest.mark.unit
+    def test_total_asset_count(self):
+        """Verify we have ~17 fine-grained assets (9 dlt + 8 sqlmesh)."""
+        try:
+            from orchestration import definitions
+        except ImportError:
+            pytest.skip("Dagster not installed")
+            return
+
+        all_specs = [spec for a in definitions.assets for spec in a.specs]
+        # 6 ebird dlt + 3 noaa dlt + 8 sqlmesh = 17
+        assert len(all_specs) >= 17, (
+            f"Expected at least 17 fine-grained assets, got {len(all_specs)}"
+        )
