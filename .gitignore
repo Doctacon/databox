@@ -63,6 +63,7 @@ temp/
 .cache/
 
 .worktrees/
+.cloned_repos/
 
 # MCP tooling (user-specific, not project config)
 .mcp.json

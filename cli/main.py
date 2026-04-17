@@ -51,6 +51,9 @@ def list_pipelines():
 @app.command()
 def run(
     name: str = typer.Argument(..., help="Pipeline name (e.g. ebird)"),
+    smoke: bool = typer.Option(
+        False, "--smoke", help="Limit to 5 items per resource for smoke testing"
+    ),
 ):
     """Run a registered pipeline by name."""
     from sources.registry import get_source
@@ -62,7 +65,7 @@ def run(
         typer.echo(msg, err=True)
         raise typer.Exit(code=1)
 
-    source.load()
+    source.load(smoke=smoke)
 
 
 @app.command()
@@ -118,6 +121,9 @@ def transform_plan(
 @_transform_app.command("run")
 def transform_run(
     project: str = typer.Argument(None, help="Transform project name. Defaults to all."),
+    start: str = typer.Option(
+        None, "--start", "-s", help="Start date for sqlmesh run (e.g. 2025-01-01)"
+    ),
 ):
     """Apply SQLMesh transformations."""
     import subprocess
@@ -135,10 +141,10 @@ def transform_run(
         from pathlib import Path
 
         sqlmesh_bin = str(Path(sys.executable).parent / "sqlmesh")
-        result = subprocess.run(
-            [sqlmesh_bin, "run"],
-            cwd=str(proj_dir),
-        )
+        cmd = [sqlmesh_bin, "run"]
+        if start:
+            cmd.extend(["--start", start])
+        result = subprocess.run(cmd, cwd=str(proj_dir))
         if result.returncode != 0:
             raise typer.Exit(code=result.returncode)
 

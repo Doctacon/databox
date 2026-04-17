@@ -113,16 +113,27 @@ class TestCreatePipelineAsset:
         assert asset is not None
 
 
-class TestCreateTransformAsset:
-    """Test the factory function for creating transform assets."""
+class TestMainTransformsAsset:
+    """Test the shared main_transforms asset."""
 
     @pytest.mark.unit
-    def test_creates_asset_with_deps(self):
+    def test_main_transforms_asset_exists(self):
         try:
-            from orchestration.definitions import create_transform_asset
+            from orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
 
-        asset = create_transform_asset("test", "test_project")
-        assert asset is not None
+        asset_names = {a.key.path[-1] for a in definitions.assets}
+        assert "main_transforms" in asset_names
+
+    @pytest.mark.unit
+    def test_all_pipelines_job_exists(self):
+        try:
+            from orchestration import definitions
+        except ImportError:
+            pytest.skip("Dagster not installed")
+            return
+
+        job_names = {j.name for j in definitions.jobs}
+        assert "all_pipelines" in job_names

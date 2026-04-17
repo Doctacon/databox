@@ -11,6 +11,7 @@ from config.settings import settings
 
 PROJECT_ROOT = Path(__file__).parent.parent
 TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
+MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
 
 
 def create_pipeline_asset(config_name: str, source_module: str) -> dg.AssetsDefinition:
@@ -39,37 +40,34 @@ def create_pipeline_asset(config_name: str, source_module: str) -> dg.AssetsDefi
     return _asset
 
 
-def create_transform_asset(config_name: str, transform_project: str) -> dg.AssetsDefinition:
-    deps_key = dg.AssetKey([f"{config_name}_raw_data"])
-
+def create_main_transforms_asset(
+    ingestion_keys: list[dg.AssetKey],
+) -> dg.AssetsDefinition:
     @dg.asset(
-        name=f"{config_name}_transforms",
+        name="main_transforms",
         group_name="transformation",
-        description=f"Run SQLMesh transforms for {config_name}",
-        deps=[deps_key],
+        description="Run SQLMesh transforms for all sources (transforms/main/)",
+        deps=ingestion_keys,
         required_resource_keys={"databox_config"},
         key_prefix=["transformation"],
     )
     def _asset(context: dg.AssetExecutionContext) -> None:
-        project_dir = TRANSFORMS_DIR / transform_project
-        if not project_dir.exists():
-            raise FileNotFoundError(f"Transform project not found: {project_dir}")
+        if not MAIN_TRANSFORM_PROJECT.exists():
+            raise FileNotFoundError(f"Transform project not found: {MAIN_TRANSFORM_PROJECT}")
 
-        venv_bin = PROJECT_ROOT / ".venv" / "bin"
-        sqlmesh_path = venv_bin / "sqlmesh"
+        sqlmesh_path = PROJECT_ROOT / ".venv" / "bin" / "sqlmesh"
 
         result = subprocess.run(
             [str(sqlmesh_path), "run"],
-            cwd=str(project_dir),
+            cwd=str(MAIN_TRANSFORM_PROJECT),
             capture_output=True,
             text=True,
-            input="y\n",
         )
 
         if result.returncode != 0:
-            raise Exception(f"SQLMesh failed for {transform_project}: {result.stderr}")
+            raise Exception(f"SQLMesh failed:\n{result.stderr}")
 
-        context.log.info(f"SQLMesh transforms completed for {transform_project}")
+        context.log.info("SQLMesh transforms completed")
 
     return _asset
 
@@ -80,45 +78,38 @@ class DataboxConfig(dg.ConfigurableResource):
     transforms_dir: str = str(TRANSFORMS_DIR)
 
 
+pipeline_configs = load_all_pipeline_configs()
+
 assets: list[dg.AssetsDefinition] = []
 jobs: list = []
 schedules: list[dg.ScheduleDefinition] = []
 sensors: list[dg.SensorDefinition] = []
 
-pipeline_configs = load_all_pipeline_configs()
-
-_all_selection: dg.AssetSelection | None = None
+ingestion_keys: list[dg.AssetKey] = []
 
 for _name, _cfg in pipeline_configs.items():
     ingestion_asset = create_pipeline_asset(_name, _cfg.source_module)
     assets.append(ingestion_asset)
-
-    if _cfg.transform_project:
-        transform_asset = create_transform_asset(_name, _cfg.transform_project)
-        assets.append(transform_asset)
-
-    selection = dg.AssetSelection.assets(dg.AssetKey([f"{_name}_raw_data"]))
-    if _cfg.transform_project:
-        selection = selection | dg.AssetSelection.assets(dg.AssetKey([f"{_name}_transforms"]))
-
-    _all_selection = selection if _all_selection is None else _all_selection | selection
+    ingestion_keys.append(dg.AssetKey(["ingestion", f"{_name}_raw_data"]))
 
     job = dg.define_asset_job(
         name=f"{_name}_daily_pipeline",
-        selection=selection,
+        selection=dg.AssetSelection.assets(dg.AssetKey(["ingestion", f"{_name}_raw_data"])),
     )
     jobs.append(job)
 
     if _cfg.schedule.enabled:
-        schedule = dg.ScheduleDefinition(
-            job=job,
-            cron_schedule=_cfg.schedule.cron,
-        )
-        schedules.append(schedule)
+        schedules.append(dg.ScheduleDefinition(job=job, cron_schedule=_cfg.schedule.cron))
 
-# All-sources job — no schedule, intended for on-demand full refreshes
-if _all_selection is not None:
-    jobs.append(dg.define_asset_job(name="all_pipelines", selection=_all_selection))
+# Single shared transform asset depending on all ingestion assets
+transforms_asset = create_main_transforms_asset(ingestion_keys)
+assets.append(transforms_asset)
+
+# All-sources job: all ingestion + transforms
+all_selection = dg.AssetSelection.assets(*ingestion_keys) | dg.AssetSelection.assets(
+    dg.AssetKey(["transformation", "main_transforms"])
+)
+jobs.append(dg.define_asset_job(name="all_pipelines", selection=all_selection))
 
 
 defs = dg.Definitions(
@@ -130,4 +121,5 @@ defs = dg.Definitions(
         "duckdb": DuckDBResource(database=settings.database_url),
         "databox_config": DataboxConfig(),
     },
+    executor=dg.multiprocess_executor.configured({"max_concurrent": 1}),
 )

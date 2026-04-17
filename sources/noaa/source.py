@@ -226,7 +226,7 @@ class NoaaPipelineSource:
         )
         return source.resources.values()
 
-    def load(self):
+    def load(self, smoke: bool = False):
         schema_name = self.config.resolve_schema_name()
         pipeline = dlt.pipeline(
             pipeline_name=f"{self.name}_api",
@@ -242,7 +242,9 @@ class NoaaPipelineSource:
             days_back=self._days_back,
             datatypes=self._datatypes,
         )
-        print(f"Starting NOAA pipeline [{schema_name}]...")
+        if smoke:
+            source.add_limit(max_items=5)
+        print(f"Starting NOAA pipeline [{schema_name}]{'  [SMOKE]' if smoke else ''}...")
         info = pipeline.run(source)
 
         print("\nNOAA data loaded successfully!")

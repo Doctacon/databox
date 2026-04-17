@@ -12,4 +12,3 @@ quality_rules:
     check: not_null
   - column: subId
     check: unique
-transform_project: "ebird"

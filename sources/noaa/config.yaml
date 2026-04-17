@@ -13,4 +13,3 @@ quality_rules:
     check: not_null
   - column: date
     check: not_null
-transform_project: "noaa"

@@ -16,8 +16,8 @@ class PipelineSource(Protocol):
         """Return the dlt resources for this source."""
         ...
 
-    def load(self) -> Any:
-        """Build and run the dlt pipeline. Returns the pipeline for inspection."""
+    def load(self, smoke: bool = False) -> Any:
+        """Build and run the dlt pipeline. smoke=True fetches minimal data for verification."""
         ...
 
     def validate_config(self) -> bool:
