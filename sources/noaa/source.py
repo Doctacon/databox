@@ -233,6 +233,7 @@ class NoaaPipelineSource:
             destination=dlt.destinations.duckdb(credentials=settings.database_url),
             dataset_name=schema_name,
             pipelines_dir=settings.dlt_data_dir,
+            progress="log",
         )
 
         source = noaa_source(
@@ -241,6 +242,7 @@ class NoaaPipelineSource:
             days_back=self._days_back,
             datatypes=self._datatypes,
         )
+        print(f"Starting NOAA pipeline [{schema_name}]...")
         info = pipeline.run(source)
 
         print("\nNOAA data loaded successfully!")

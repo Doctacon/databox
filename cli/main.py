@@ -104,8 +104,11 @@ def transform_plan(
             typer.echo(f"Transform project '{proj}' not found at {proj_dir}", err=True)
             continue
         typer.echo(f"Planning transforms for: {proj}")
+        from pathlib import Path
+
+        sqlmesh_bin = str(Path(sys.executable).parent / "sqlmesh")
         result = subprocess.run(
-            [sys.executable, "-m", "sqlmesh", "plan"],
+            [sqlmesh_bin, "plan", "--auto-apply"],
             cwd=str(proj_dir),
         )
         if result.returncode != 0:
@@ -129,8 +132,11 @@ def transform_run(
             typer.echo(f"Transform project '{proj}' not found at {proj_dir}", err=True)
             continue
         typer.echo(f"Running transforms for: {proj}")
+        from pathlib import Path
+
+        sqlmesh_bin = str(Path(sys.executable).parent / "sqlmesh")
         result = subprocess.run(
-            [sys.executable, "-m", "sqlmesh", "run"],
+            [sqlmesh_bin, "run"],
             cwd=str(proj_dir),
         )
         if result.returncode != 0:
@@ -154,8 +160,11 @@ def transform_test(
             typer.echo(f"Transform project '{proj}' not found at {proj_dir}", err=True)
             continue
         typer.echo(f"Testing transforms for: {proj}")
+        from pathlib import Path
+
+        sqlmesh_bin = str(Path(sys.executable).parent / "sqlmesh")
         result = subprocess.run(
-            [sys.executable, "-m", "sqlmesh", "test"],
+            [sqlmesh_bin, "test"],
             cwd=str(proj_dir),
         )
         if result.returncode != 0:

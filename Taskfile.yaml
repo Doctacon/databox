@@ -17,7 +17,7 @@ tasks:
     cmds:
       - uv venv {{.VENV_DIR}}
       - uv pip install -e .
-      - cp -n .env.example .env
+      - test -f .env || cp .env.example .env
     sources:
       - pyproject.toml
       - .env.example
@@ -206,8 +206,10 @@ tasks:
   full-refresh:
     desc: "Full data refresh — run all pipelines and transforms"
     cmds:
-      - task: pipeline:run -- ebird
-      - task: pipeline:run -- noaa
+      - task: pipeline:run
+        vars: { CLI_ARGS: ebird }
+      - task: pipeline:run
+        vars: { CLI_ARGS: noaa }
       - task: transform:plan
       - task: transform:run
       - task: transform:test

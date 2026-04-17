@@ -26,10 +26,12 @@ databox/
 │   └── noaa/
 │       ├── config.yaml      # NOAA pipeline config
 │       └── source.py        # NOAA dlt source (daily_weather, stations, datasets)
-├── transforms/              # sqlmesh projects
-│   ├── ebird/               # eBird transforms (staging → intermediate → marts)
-│   ├── noaa/                # NOAA transforms (staging + marts)
-│   └── _shared/             # Shared macros, audits, seeds
+├── transforms/              # sqlmesh project (single, all sources)
+│   └── main/                # staging → intermediate → marts for all sources
+│       ├── config.yaml
+│       ├── models/ebird/    # eBird models (staging → intermediate → marts)
+│       ├── models/noaa/     # NOAA models (staging + marts)
+│       └── tests/
 ├── quality/                 # Data quality engine
 │   └── engine.py            # check_table() and run_report() pure functions
 ├── orchestration/           # Dagster orchestration
@@ -109,11 +111,11 @@ task streamlit                # Launch data explorer
    transform_project: "<source>"
    ```
 
-3. **Create transform project**: `transforms/<source>/`
-   - Copy structure from `transforms/ebird/` as a template
-   - Update `config.yaml` to point to `../../data/databox.db`
+3. **Add transform models**: `transforms/main/models/<source>/`
+   - Copy structure from `transforms/main/models/ebird/` as a template
    - Read from `raw_<source>.*` schemas (auto-created by dlt)
    - Write to `<source>.*` schema
+   - Add tests to `transforms/main/tests/`
 
 4. **Add secrets to `.env`**: `API_KEY_<SOURCE>=your_key_here`
 
@@ -135,7 +137,7 @@ Supported checks:
 
 1. **Source Co-location**: Each source's config, ingestion code, and tests live together under `sources/<name>/`. The registry auto-discovers sources by scanning for `sources/*/config.yaml`.
 
-2. **Per-Source Transforms**: Each data source gets its own sqlmesh project under `transforms/`. No cross-domain projects.
+2. **Single Transform Project**: All sources share one sqlmesh project at `transforms/main/`. Models are organized by source under `models/ebird/` and `models/noaa/` but live in the same sqlmesh environment, avoiding state conflicts.
 
 3. **Schema Isolation**: Pipelines load into `raw_<source>` schemas. Transforms read from `raw_*` and write to `<source>` schemas.
 

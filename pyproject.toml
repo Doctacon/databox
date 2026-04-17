@@ -28,6 +28,7 @@ dependencies = [
     "dagster-webserver>=1.5.0",
     "dagster-dlt>=0.1.0",
     "dagster-duckdb>=0.21.0",
+    "psutil>=6.0.0",
 ]
 
 [project.optional-dependencies]

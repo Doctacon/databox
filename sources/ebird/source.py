@@ -156,39 +156,28 @@ def ebird_source(
 
         for days_ago in range(back):
             date = end_date.subtract(days=days_ago)
-            date_str = date.format("YYYY/MM/DD")
-
-            params = {"back": 1, "maxResults": 500}
 
             try:
                 response = dlt_requests.get(
-                    f"{EBIRD_API_BASE}/data/obs/{region}/recent/{date_str}",
+                    f"{EBIRD_API_BASE}/product/stats/{region}/{date.year}/{date.month}/{date.day}",
                     headers=get_api_headers(),
-                    params=params,
                 )
 
                 if response.status_code == 200:
-                    observations = response.json()
-                    species_set = {
-                        obs.get("speciesCode", "") for obs in observations if obs.get("speciesCode")
-                    }
-                    location_set = {
-                        obs.get("locId", "") for obs in observations if obs.get("locId")
-                    }
-
+                    data = response.json()
                     yield {
                         "regionCode": region,
                         "year": date.year,
                         "month": date.month,
                         "day": date.day,
                         "date": date.date().isoformat(),
-                        "speciesCount": len(species_set),
-                        "observationCount": len(observations),
-                        "locationCount": len(location_set),
+                        "numChecklists": data.get("numChecklists"),
+                        "numContributors": data.get("numContributors"),
+                        "numSpecies": data.get("numSpecies"),
                         "_loaded_at": loaded_at,
                     }
             except Exception as e:
-                print(f"Error fetching stats for {region} on {date_str}: {e}")
+                print(f"Error fetching stats for {region} on {date.date()}: {e}")
 
     return [
         recent_observations,
@@ -225,6 +214,7 @@ class EbirdPipelineSource:
             destination=dlt.destinations.duckdb(credentials=settings.database_url),
             dataset_name=schema_name,
             pipelines_dir=settings.dlt_data_dir,
+            progress="log",
         )
 
         source = ebird_source(
@@ -232,6 +222,7 @@ class EbirdPipelineSource:
             max_results=self._max_results,
             days_back=self._days_back,
         )
+        print(f"Starting eBird pipeline [{schema_name}]...")
         info = pipeline.run(source)
 
         print("\neBird data loaded successfully!")
