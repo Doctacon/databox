@@ -13,16 +13,10 @@ output: prefixed
 
 tasks:
   setup:
-    desc: "Setup development environment"
+    desc: "Create virtual environment (skipped if .venv already exists)"
     cmds:
       - uv venv {{.VENV_DIR}}
-      - uv sync
       - test -f .env || cp .env.example .env
-    sources:
-      - pyproject.toml
-      - .env.example
-    generates:
-      - "{{.VENV_DIR}}/pyvenv.cfg"
     status:
       - test -d {{.VENV_DIR}}
 
