@@ -4,8 +4,7 @@ version = "0.2.0"
 requires-python = ">=3.12"
 dependencies = [
     "databox-config",
-    "psycopg2-binary>=2.9",
-    "soda-postgres>=3.0.0",
+    "soda-duckdb>=3.0.0",
 ]
 
 [build-system]

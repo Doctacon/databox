@@ -1,7 +1,8 @@
 MODEL (
   name usgs_staging.stg_usgs_sites,
   kind VIEW,
-  description 'Staging model for USGS monitoring site metadata'
+  description 'Staging model for USGS monitoring site metadata',
+  grants (select_ = ['staging_reader'])
 );
 
 SELECT

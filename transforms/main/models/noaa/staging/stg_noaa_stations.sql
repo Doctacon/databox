@@ -1,7 +1,8 @@
 MODEL (
   name noaa_staging.stg_noaa_stations,
   kind VIEW,
-  description 'Staging model for NOAA weather stations'
+  description 'Staging model for NOAA weather stations',
+  grants (select_ = ['staging_reader'])
 );
 
 SELECT

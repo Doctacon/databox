@@ -57,8 +57,6 @@ INCLUDE_PATTERNS = [
     "*.bash",
     "*.zsh",
     "*.fish",
-    "Dockerfile",
-    ".dockerignore",
     "Makefile",
 ]
 

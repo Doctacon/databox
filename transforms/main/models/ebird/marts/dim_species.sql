@@ -1,7 +1,8 @@
 MODEL (
   name ebird.dim_species,
   kind FULL,
-  description 'Species dimension from eBird taxonomy — one row per species_code'
+  description 'Species dimension from eBird taxonomy — one row per species_code',
+  grants (select_ = ['staging_reader', 'domain_reader'])
 );
 
 SELECT DISTINCT ON (species_code)

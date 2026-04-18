@@ -1,7 +1,8 @@
 MODEL (
   name analytics.fct_bird_weather_daily,
   kind FULL,
-  description 'eBird daily observations joined with NOAA weather conditions — one row per region x date x species'
+  description 'eBird daily observations joined with NOAA weather conditions — one row per region x date x species',
+  grants (select_ = ['staging_reader', 'domain_reader', 'analyst'])
 );
 
 -- NOAA GHCND unit conversion: TMAX/TMIN in tenths of °C, PRCP in tenths of mm, AWND in tenths of m/s

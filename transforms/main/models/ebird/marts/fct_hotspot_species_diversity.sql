@@ -1,7 +1,8 @@
 MODEL (
   name ebird.fct_hotspot_species_diversity,
   kind FULL,
-  description 'Per-hotspot biodiversity metrics including Shannon diversity index and species richness'
+  description 'Per-hotspot biodiversity metrics including Shannon diversity index and species richness',
+  grants (select_ = ['staging_reader', 'domain_reader'])
 );
 
 WITH obs AS (

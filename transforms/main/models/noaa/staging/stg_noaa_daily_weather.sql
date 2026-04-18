@@ -1,7 +1,8 @@
 MODEL (
   name noaa_staging.stg_noaa_daily_weather,
   kind VIEW,
-  description 'Staging model for NOAA daily weather observations'
+  description 'Staging model for NOAA daily weather observations',
+  grants (select_ = ['staging_reader'])
 );
 
 SELECT

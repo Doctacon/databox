@@ -199,7 +199,7 @@ tasks:
   db:reset:
     desc: "Reset the database"
     cmds:
-      - rm -f data/databox.db
+      - rm -f data/databox.duckdb
       - echo "Database reset complete"
 
   # Full refresh
@@ -242,13 +242,6 @@ tasks:
       DATABOX_SMOKE: "1"
     cmds:
       - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox-orchestration/databox_orchestration/definitions.py"
-
-  verify:docker:
-    desc: "Smoke test inside Docker Compose — full stack (build, run, tear down)"
-    cmds:
-      - DOCKER_BUILDKIT=1 docker compose build --ssh default
-      - docker compose run --rm dagster python scripts/smoke.py
-      - defer: docker compose down
 
   # Streamlit
   streamlit:
