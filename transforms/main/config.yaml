@@ -1,17 +1,13 @@
 gateways:
-  postgres:
+  duckdb:
     connection:
-      type: postgres
-      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
-      port: "{{ env_var('POSTGRES_PORT', '5432') | int }}"
-      database: "{{ env_var('POSTGRES_DB', 'databox') }}"
-      user: "{{ env_var('POSTGRES_USER', 'databox') }}"
-      password: "{{ env_var('POSTGRES_PASSWORD', 'databox') }}"
+      type: duckdb
+      database: "{{ env_var('DUCKDB_PATH', 'data/databox.duckdb') }}"
 
-default_gateway: postgres
+default_gateway: duckdb
 
 model_defaults:
-  dialect: postgres
+  dialect: duckdb
   start: 2025-07-25
   cron: "@daily"
 

@@ -45,14 +45,14 @@ class DataboxSQLMeshContextConfig(SQLMeshContextConfig):
 
 
 class DataboxConfig(dg.ConfigurableResource):
-    database_url: str = settings.database_url
+    database_path: str = settings.database_path
     dlt_data_dir: str = settings.dlt_data_dir
     transforms_dir: str = str(TRANSFORMS_DIR)
 
 
 _sqlmesh_config = DataboxSQLMeshContextConfig(
     path=str(MAIN_TRANSFORM_PROJECT),
-    gateway="postgres",
+    gateway="duckdb",
 )
 
 
@@ -77,7 +77,7 @@ class DataboxDltTranslator(DagsterDltTranslator):
     dlt_source=ebird_source(region_code="US-AZ", max_results=10000, days_back=30),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="ebird_api",
-        destination=dlt.destinations.postgres(credentials=settings.database_url),
+        destination=dlt.destinations.duckdb(credentials=settings.database_path),
         dataset_name="raw_ebird",
         pipelines_dir=settings.dlt_data_dir,
     ),
@@ -105,7 +105,7 @@ def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
     ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="noaa_api",
-        destination=dlt.destinations.postgres(credentials=settings.database_url),
+        destination=dlt.destinations.duckdb(credentials=settings.database_path),
         dataset_name="raw_noaa",
         pipelines_dir=settings.dlt_data_dir,
     ),
@@ -133,7 +133,7 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     dlt_source=usgs_source(state_cd="AZ", parameter_cds="00060,00065,00010", days_back=30),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="usgs_api",
-        destination=dlt.destinations.postgres(credentials=settings.database_url),
+        destination=dlt.destinations.duckdb(credentials=settings.database_path),
         dataset_name="raw_usgs",
         pipelines_dir=settings.dlt_data_dir,
     ),
@@ -168,15 +168,12 @@ def sqlmesh_project(context: dg.AssetExecutionContext, sqlmesh: SQLMeshResource)
 
 
 def _soda_datasource_yaml() -> str:
+    db_path = os.getenv("DUCKDB_PATH", settings.database_path)
     return f"""
 name: databox
-type: postgres
+type: duckdb
 connection:
-  host: {os.getenv("POSTGRES_HOST", "localhost")}
-  port: {int(os.getenv("POSTGRES_PORT", "5432"))}
-  database: {os.getenv("POSTGRES_DB", "databox")}
-  user: {os.getenv("POSTGRES_USER", "databox")}
-  password: {os.getenv("POSTGRES_PASSWORD", "databox")}
+  database: {db_path}
 """
 
 

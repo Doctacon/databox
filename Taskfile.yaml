@@ -199,7 +199,7 @@ tasks:
   db:reset:
     desc: "Reset the database"
     cmds:
-      - rm -f data/databox.db
+      - rm -f data/databox.duckdb
       - echo "Database reset complete"
 
   # Full refresh
