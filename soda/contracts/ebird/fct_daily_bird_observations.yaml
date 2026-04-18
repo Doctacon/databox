@@ -1,6 +1,10 @@
 dataset: databox/ebird/fct_daily_bird_observations
 
 columns:
+  - name: region_code
+    checks:
+      - missing:
+          must_be: 0
   - name: observation_date
     checks:
       - missing:
@@ -13,16 +17,14 @@ columns:
     checks:
       - missing:
           must_be: 0
-  - name: order_name
   - name: family_common_name
-  - name: location_id
+  - name: taxonomic_category
+  - name: observation_count
     checks:
       - missing:
           must_be: 0
-  - name: location_name
-  - name: state_code
-  - name: total_count
-  - name: observation_count
+  - name: submission_count
+  - name: location_count
 
 checks:
   - row_count:

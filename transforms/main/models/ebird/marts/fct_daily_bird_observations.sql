@@ -37,7 +37,7 @@ WITH daily_observations AS (
         COUNT(CASE WHEN is_valid THEN 1 END) AS valid_observations,
         COUNT(CASE WHEN is_reviewed THEN 1 END) AS reviewed_observations,
 
-        COUNT(DISTINCT ROUND(latitude, 2) || ',' || ROUND(longitude, 2)) AS unique_locations_approx,
+        COUNT(DISTINCT ROUND(latitude::NUMERIC, 2) || ',' || ROUND(longitude::NUMERIC, 2)) AS unique_locations_approx,
 
         MIN(loaded_at) AS first_loaded_at,
         MAX(loaded_at) AS last_loaded_at
@@ -62,17 +62,17 @@ SELECT
     observation_count,
 
     total_birds_counted,
-    ROUND(avg_flock_size, 2) AS avg_flock_size,
+    ROUND(avg_flock_size::NUMERIC, 2) AS avg_flock_size,
     max_flock_size,
 
     counted_observations,
     presence_only_observations,
     ROUND(
-        CASE
+        (CASE
             WHEN observation_count > 0
-            THEN counted_observations::DOUBLE / observation_count * 100
+            THEN counted_observations::DOUBLE PRECISION / observation_count * 100
             ELSE 0
-        END, 1
+        END)::NUMERIC, 1
     ) AS pct_counted_observations,
 
     morning_observations,
@@ -86,24 +86,24 @@ SELECT
     valid_observations,
     reviewed_observations,
     ROUND(
-        CASE
+        (CASE
             WHEN observation_count > 0
-            THEN valid_observations::DOUBLE / observation_count * 100
+            THEN valid_observations::DOUBLE PRECISION / observation_count * 100
             ELSE 0
-        END, 1
+        END)::NUMERIC, 1
     ) AS pct_valid_observations,
 
     unique_locations_approx,
     ROUND(
-        CASE
+        (CASE
             WHEN location_count > 0
-            THEN observation_count::DOUBLE / location_count
+            THEN observation_count::DOUBLE PRECISION / location_count
             ELSE 0
-        END, 2
+        END)::NUMERIC, 2
     ) AS avg_observations_per_location,
 
     ROUND(
-        LOG(observation_count + 1) * LOG(location_count + 1), 2
+        (LOG(observation_count + 1) * LOG(location_count + 1))::NUMERIC, 2
     ) AS popularity_score,
 
     first_loaded_at,

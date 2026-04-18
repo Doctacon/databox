@@ -9,6 +9,7 @@ dependencies = [
     "typer>=0.15.0",
     "rich>=13.9.4",
     "psycopg2-binary>=2.9",
+    "sqlmesh>=0.204.0",
 ]
 
 [project.scripts]

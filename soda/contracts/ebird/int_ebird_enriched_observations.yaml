@@ -1,7 +1,7 @@
 dataset: databox/ebird/int_ebird_enriched_observations
 
 columns:
-  - name: observation_id
+  - name: submission_id
     checks:
       - missing:
           must_be: 0
@@ -14,18 +14,22 @@ columns:
       - missing:
           must_be: 0
   - name: scientific_name
-  - name: order_name
   - name: family_common_name
+  - name: taxonomic_category
   - name: location_id
     checks:
       - missing:
           must_be: 0
   - name: location_name
-  - name: observed_at
+  - name: observation_datetime
     checks:
       - missing:
           must_be: 0
-  - name: how_many
+  - name: observation_date
+    checks:
+      - missing:
+          must_be: 0
+  - name: count
   - name: latitude
   - name: longitude
 

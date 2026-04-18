@@ -113,11 +113,16 @@ def create_sqlmesh_model_asset(
         if os.getenv("DATABOX_SMOKE"):
             start = (date.today() - timedelta(days=3)).isoformat()
             cmd.extend(["--start", start])
+        import copy
+
+        env = copy.copy(os.environ)
+        env.pop("SQLMESH_GATEWAY", None)
         result = subprocess.run(
             cmd,
             cwd=str(MAIN_TRANSFORM_PROJECT),
             capture_output=True,
             text=True,
+            env=env,
         )
         if result.returncode != 0:
             raise Exception(f"SQLMesh failed for model '{model_name}':\n{result.stderr}")

@@ -1,7 +1,7 @@
 dataset: databox/ebird/stg_ebird_observations
 
 columns:
-  - name: observation_id
+  - name: submission_id
     checks:
       - missing:
           must_be: 0
@@ -21,15 +21,19 @@ columns:
       - missing:
           must_be: 0
   - name: location_name
-  - name: observed_at
+  - name: observation_datetime
     checks:
       - missing:
           must_be: 0
-  - name: how_many
+  - name: observation_date
+    checks:
+      - missing:
+          must_be: 0
+  - name: count
   - name: latitude
   - name: longitude
   - name: is_valid
-  - name: submission_id
+  - name: region_code
     checks:
       - missing:
           must_be: 0
