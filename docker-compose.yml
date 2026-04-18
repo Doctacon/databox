@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: databox
+      POSTGRES_USER: databox
+      POSTGRES_PASSWORD: databox
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "databox"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  dagster:
+    build:
+      context: .
+      dockerfile: Dockerfile.dagster
+    command: dagster dev -f orchestration/definitions.py --host 0.0.0.0 --port 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://databox:databox@postgres:5432/databox
+      DAGSTER_HOME: /dagster_home
+    env_file:
+      - .env
+    volumes:
+      - dagster_home:/dagster_home
+      - .:/app
+    ports:
+      - "3000:3000"
+
+  dagster-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile.dagster
+    command: dagster-daemon run
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://databox:databox@postgres:5432/databox
+      DAGSTER_HOME: /dagster_home
+    env_file:
+      - .env
+    volumes:
+      - dagster_home:/dagster_home
+      - .:/app
+
+volumes:
+  postgres_data: {}
+  dagster_home: {}
