@@ -243,6 +243,15 @@ tasks:
     cmds:
       - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox-orchestration/databox_orchestration/definitions.py"
 
+  verify:docker:
+    desc: "Smoke test inside Docker Compose — full stack (build, run, tear down)"
+    cmds:
+      - docker compose build
+      - docker compose run --rm -e DATABOX_SMOKE=1 dagster
+          dagster asset materialize --select '*'
+          -f packages/databox-orchestration/databox_orchestration/definitions.py
+      - defer: docker compose down
+
   # Streamlit
   streamlit:
     desc: "Start Databox Explorer dashboard"

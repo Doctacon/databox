@@ -2,6 +2,7 @@
 
 import os
 import typing as t
+from datetime import date, timedelta
 from pathlib import Path
 
 import dagster as dg
@@ -118,7 +119,8 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     enabled_subsetting=True,
 )
 def sqlmesh_project(context: dg.AssetExecutionContext, sqlmesh: SQLMeshResource):
-    yield from sqlmesh.run(context=context, config=_sqlmesh_config)
+    start = (date.today() - timedelta(days=3)).isoformat() if os.getenv("DATABOX_SMOKE") else None
+    yield from sqlmesh.run(context=context, config=_sqlmesh_config, start=start)
 
 
 # ---------------------------------------------------------------------------
