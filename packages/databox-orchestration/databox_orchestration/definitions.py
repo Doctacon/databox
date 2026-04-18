@@ -1,21 +1,39 @@
-"""Dagster definitions — fine-grained assets per dlt resource and sqlmesh model."""
+"""Dagster definitions — dlt assets + dagster-sqlmesh integration."""
 
 import os
-import subprocess
-from datetime import date, timedelta
+import typing as t
 from pathlib import Path
 
 import dagster as dg
 import dlt
 from dagster_dlt import DagsterDltResource, dlt_assets
+from dagster_sqlmesh import SQLMeshContextConfig, SQLMeshResource, sqlmesh_assets
+from dagster_sqlmesh.translator import SQLMeshDagsterTranslator
 from databox_config.settings import settings
 from databox_sources.ebird.source import ebird_source
 from databox_sources.noaa.source import noaa_source
+from sqlglot import exp
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
 MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
 SODA_DIR = PROJECT_ROOT / "soda"
+
+
+# ---------------------------------------------------------------------------
+# Custom translator — asset keys use ["sqlmesh", schema, table]
+# ---------------------------------------------------------------------------
+
+
+class DataboxSQLMeshTranslator(SQLMeshDagsterTranslator):
+    def get_asset_key_name(self, fqn: str) -> t.Sequence[str]:
+        table = exp.to_table(fqn)
+        return ["sqlmesh", table.db, table.name]
+
+
+class DataboxSQLMeshContextConfig(SQLMeshContextConfig):
+    def get_translator(self) -> SQLMeshDagsterTranslator:
+        return DataboxSQLMeshTranslator()
 
 
 # ---------------------------------------------------------------------------
@@ -29,8 +47,14 @@ class DataboxConfig(dg.ConfigurableResource):
     transforms_dir: str = str(TRANSFORMS_DIR)
 
 
+_sqlmesh_config = DataboxSQLMeshContextConfig(
+    path=str(MAIN_TRANSFORM_PROJECT),
+    gateway="postgres",
+)
+
+
 # ---------------------------------------------------------------------------
-# dlt assets — eBird (one asset per resource)
+# dlt assets — eBird
 # ---------------------------------------------------------------------------
 
 
@@ -52,7 +76,7 @@ def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
 
 
 # ---------------------------------------------------------------------------
-# dlt assets — NOAA (one asset per resource)
+# dlt assets — NOAA
 # ---------------------------------------------------------------------------
 
 
@@ -84,52 +108,17 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
 
 
 # ---------------------------------------------------------------------------
-# SQLMesh per-model asset factory
+# SQLMesh assets — all models as one multi-asset
 # ---------------------------------------------------------------------------
 
 
-def create_sqlmesh_model_asset(
-    model_name: str,
-    group: str,
-    deps: list[dg.AssetKey],
-) -> dg.AssetsDefinition:
-    """Return a single @asset that runs `sqlmesh run --select-model <model_name>`."""
-    # Convert "ebird.stg_ebird_observations" → ["sqlmesh", "ebird", "stg_ebird_observations"]
-    parts = model_name.split(".")
-    asset_key = dg.AssetKey(["sqlmesh"] + parts)
-
-    @dg.asset(
-        key=asset_key,
-        group_name=group,
-        description=f"SQLMesh model: {model_name}",
-        deps=deps,
-        required_resource_keys={"databox_config"},
-        tags={"kind": "sqlmesh", "dagster/storage_kind": "postgres"},
-    )
-    def _asset(context: dg.AssetExecutionContext) -> None:
-        if not MAIN_TRANSFORM_PROJECT.exists():
-            raise FileNotFoundError(f"Transform project not found: {MAIN_TRANSFORM_PROJECT}")
-        sqlmesh_bin = PROJECT_ROOT / ".venv" / "bin" / "sqlmesh"
-        cmd = [str(sqlmesh_bin), "run", "--select-model", model_name]
-        if os.getenv("DATABOX_SMOKE"):
-            start = (date.today() - timedelta(days=3)).isoformat()
-            cmd.extend(["--start", start])
-        import copy
-
-        env = copy.copy(os.environ)
-        env.pop("SQLMESH_GATEWAY", None)
-        result = subprocess.run(
-            cmd,
-            cwd=str(MAIN_TRANSFORM_PROJECT),
-            capture_output=True,
-            text=True,
-            env=env,
-        )
-        if result.returncode != 0:
-            raise Exception(f"SQLMesh failed for model '{model_name}':\n{result.stderr}")
-        context.log.info(f"SQLMesh model '{model_name}' completed successfully")
-
-    return _asset
+@sqlmesh_assets(
+    environment="prod",
+    config=_sqlmesh_config,
+    enabled_subsetting=True,
+)
+def sqlmesh_project(context: dg.AssetExecutionContext, sqlmesh: SQLMeshResource):
+    yield from sqlmesh.run(context=context, config=_sqlmesh_config)
 
 
 # ---------------------------------------------------------------------------
@@ -155,8 +144,6 @@ def create_soda_asset_check(
     contract_path: Path,
     check_name: str = "soda_contract",
 ) -> dg.AssetChecksDefinition:
-    """Return an @asset_check that runs a Soda contract against the given asset."""
-
     @dg.asset_check(asset=asset_key, name=check_name)
     def _check() -> dg.AssetCheckResult:
         from soda_core.common.yaml import ContractYamlSource, DataSourceYamlSource
@@ -181,88 +168,6 @@ def create_soda_asset_check(
 
     return _check
 
-
-# ---------------------------------------------------------------------------
-# SQLMesh model assets
-# ---------------------------------------------------------------------------
-
-# Keys for all ebird dlt assets (as upstream deps for staging models)
-_ebird_dlt_keys = [spec.key for spec in ebird_dlt_assets.specs]
-_noaa_dlt_keys = [spec.key for spec in noaa_dlt_assets.specs]
-
-# eBird staging
-stg_ebird_observations = create_sqlmesh_model_asset(
-    "ebird_staging.stg_ebird_observations", "ebird_staging", _ebird_dlt_keys
-)
-stg_ebird_taxonomy = create_sqlmesh_model_asset(
-    "ebird_staging.stg_ebird_taxonomy", "ebird_staging", _ebird_dlt_keys
-)
-stg_ebird_hotspots = create_sqlmesh_model_asset(
-    "ebird_staging.stg_ebird_hotspots", "ebird_staging", _ebird_dlt_keys
-)
-
-# eBird intermediate
-int_ebird_enriched_observations = create_sqlmesh_model_asset(
-    "ebird.int_ebird_enriched_observations",
-    "ebird_intermediate",
-    [
-        dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_observations"]),
-        dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_taxonomy"]),
-    ],
-)
-
-# eBird marts
-fct_daily_bird_observations = create_sqlmesh_model_asset(
-    "ebird.fct_daily_bird_observations",
-    "ebird_marts",
-    [
-        dg.AssetKey(["sqlmesh", "ebird", "int_ebird_enriched_observations"]),
-        dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_hotspots"]),
-    ],
-)
-dim_species = create_sqlmesh_model_asset(
-    "ebird.dim_species",
-    "ebird_marts",
-    [dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_taxonomy"])],
-)
-fct_hotspot_species_diversity = create_sqlmesh_model_asset(
-    "ebird.fct_hotspot_species_diversity",
-    "ebird_marts",
-    [dg.AssetKey(["sqlmesh", "ebird", "int_ebird_enriched_observations"])],
-)
-
-# NOAA staging
-stg_noaa_daily_weather = create_sqlmesh_model_asset(
-    "noaa_staging.stg_noaa_daily_weather", "noaa_staging", _noaa_dlt_keys
-)
-stg_noaa_stations = create_sqlmesh_model_asset(
-    "noaa_staging.stg_noaa_stations", "noaa_staging", _noaa_dlt_keys
-)
-
-# NOAA mart
-fct_daily_weather = create_sqlmesh_model_asset(
-    "noaa.fct_daily_weather",
-    "noaa_marts",
-    [
-        dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_daily_weather"]),
-        dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_stations"]),
-    ],
-)
-
-# Cross-domain analytics marts
-fct_bird_weather_daily = create_sqlmesh_model_asset(
-    "analytics.fct_bird_weather_daily",
-    "analytics",
-    [
-        dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]),
-        dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
-    ],
-)
-fct_species_weather_preferences = create_sqlmesh_model_asset(
-    "analytics.fct_species_weather_preferences",
-    "analytics",
-    [dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"])],
-)
 
 # ---------------------------------------------------------------------------
 # Soda asset checks — one per SQLMesh model
@@ -290,6 +195,14 @@ _soda_checks: list[dg.AssetChecksDefinition] = [
         SODA_DIR / "contracts/ebird/fct_daily_bird_observations.yaml",
     ),
     create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "ebird", "dim_species"]),
+        SODA_DIR / "contracts/ebird/dim_species.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]),
+        SODA_DIR / "contracts/ebird/fct_hotspot_species_diversity.yaml",
+    ),
+    create_soda_asset_check(
         dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_daily_weather"]),
         SODA_DIR / "contracts/noaa_staging/stg_noaa_daily_weather.yaml",
     ),
@@ -302,14 +215,6 @@ _soda_checks: list[dg.AssetChecksDefinition] = [
         SODA_DIR / "contracts/noaa/fct_daily_weather.yaml",
     ),
     create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "ebird", "dim_species"]),
-        SODA_DIR / "contracts/ebird/dim_species.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]),
-        SODA_DIR / "contracts/ebird/fct_hotspot_species_diversity.yaml",
-    ),
-    create_soda_asset_check(
         dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"]),
         SODA_DIR / "contracts/analytics/fct_bird_weather_daily.yaml",
     ),
@@ -320,43 +225,34 @@ _soda_checks: list[dg.AssetChecksDefinition] = [
 ]
 
 # ---------------------------------------------------------------------------
-# Collect all assets
+# Asset key constants for jobs
 # ---------------------------------------------------------------------------
 
-_ebird_sqlmesh_assets = [
-    stg_ebird_observations,
-    stg_ebird_taxonomy,
-    stg_ebird_hotspots,
-    int_ebird_enriched_observations,
-    fct_daily_bird_observations,
-    dim_species,
-    fct_hotspot_species_diversity,
-]
-_noaa_sqlmesh_assets = [
-    stg_noaa_daily_weather,
-    stg_noaa_stations,
-    fct_daily_weather,
-]
-_analytics_sqlmesh_assets = [
-    fct_bird_weather_daily,
-    fct_species_weather_preferences,
-]
+_ebird_dlt_keys = [spec.key for spec in ebird_dlt_assets.specs]
+_noaa_dlt_keys = [spec.key for spec in noaa_dlt_assets.specs]
 
-assets: list[dg.AssetsDefinition] = (
-    [ebird_dlt_assets]
-    + [noaa_dlt_assets]
-    + _ebird_sqlmesh_assets
-    + _noaa_sqlmesh_assets
-    + _analytics_sqlmesh_assets
-)
+_ebird_sqlmesh_keys = [
+    dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_observations"]),
+    dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_taxonomy"]),
+    dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_hotspots"]),
+    dg.AssetKey(["sqlmesh", "ebird", "int_ebird_enriched_observations"]),
+    dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]),
+    dg.AssetKey(["sqlmesh", "ebird", "dim_species"]),
+    dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]),
+]
+_noaa_sqlmesh_keys = [
+    dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_daily_weather"]),
+    dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_stations"]),
+    dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
+]
+_analytics_sqlmesh_keys = [
+    dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"]),
+    dg.AssetKey(["sqlmesh", "analytics", "fct_species_weather_preferences"]),
+]
 
 # ---------------------------------------------------------------------------
 # Jobs
 # ---------------------------------------------------------------------------
-
-_ebird_sqlmesh_keys = [a.key for a in _ebird_sqlmesh_assets]
-_noaa_sqlmesh_keys = [a.key for a in _noaa_sqlmesh_assets]
-_analytics_sqlmesh_keys = [a.key for a in _analytics_sqlmesh_assets]
 
 ebird_daily_pipeline = dg.define_asset_job(
     name="ebird_daily_pipeline",
@@ -382,7 +278,7 @@ all_pipelines = dg.define_asset_job(
 jobs = [ebird_daily_pipeline, noaa_daily_pipeline, all_pipelines]
 
 # ---------------------------------------------------------------------------
-# Schedules (both pipelines have enabled: true, cron: "0 6 * * *")
+# Schedules
 # ---------------------------------------------------------------------------
 
 schedules = [
@@ -395,7 +291,7 @@ schedules = [
 # ---------------------------------------------------------------------------
 
 defs = dg.Definitions(
-    assets=assets,
+    assets=[ebird_dlt_assets, noaa_dlt_assets, sqlmesh_project],
     asset_checks=_soda_checks,
     jobs=jobs,
     schedules=schedules,
@@ -403,6 +299,7 @@ defs = dg.Definitions(
     resources={
         "databox_config": DataboxConfig(),
         "dlt": DagsterDltResource(),
+        "sqlmesh": SQLMeshResource(),
     },
     executor=dg.multiprocess_executor.configured({"max_concurrent": 1}),
 )
