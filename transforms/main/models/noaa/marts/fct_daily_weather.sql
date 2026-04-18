@@ -1,7 +1,8 @@
 MODEL (
   name noaa.fct_daily_weather,
   kind FULL,
-  description 'Daily weather facts pivoted from normalized observations to one row per station per date'
+  description 'Daily weather facts pivoted from normalized observations to one row per station per date',
+  grants (select_ = ['staging_reader', 'domain_reader'])
 );
 
 WITH pivoted AS (

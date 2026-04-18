@@ -1,7 +1,8 @@
 MODEL (
   name ebird.fct_daily_bird_observations,
   kind FULL,
-  description 'Daily bird observation facts aggregated by region, date, and species'
+  description 'Daily bird observation facts aggregated by region, date, and species',
+  grants (select_ = ['staging_reader', 'domain_reader'])
 );
 
 WITH daily_observations AS (

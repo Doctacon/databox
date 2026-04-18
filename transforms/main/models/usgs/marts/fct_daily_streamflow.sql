@@ -1,7 +1,8 @@
 MODEL (
   name usgs.fct_daily_streamflow,
   kind FULL,
-  description 'Daily streamflow facts pivoted to one row per site per date with key hydrological metrics'
+  description 'Daily streamflow facts pivoted to one row per site per date with key hydrological metrics',
+  grants (select_ = ['staging_reader', 'domain_reader'])
 );
 
 WITH pivoted AS (
