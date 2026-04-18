@@ -303,5 +303,5 @@ defs = dg.Definitions(
         "dlt": DagsterDltResource(),
         "sqlmesh": SQLMeshResource(),
     },
-    executor=dg.multiprocess_executor.configured({"max_concurrent": 1}),
+    executor=dg.in_process_executor,
 )

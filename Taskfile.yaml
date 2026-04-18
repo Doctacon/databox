@@ -246,10 +246,8 @@ tasks:
   verify:docker:
     desc: "Smoke test inside Docker Compose — full stack (build, run, tear down)"
     cmds:
-      - docker compose build
-      - docker compose run --rm -e DATABOX_SMOKE=1 dagster
-          dagster asset materialize --select '*'
-          -f packages/databox-orchestration/databox_orchestration/definitions.py
+      - DOCKER_BUILDKIT=1 docker compose build --ssh default
+      - docker compose run --rm dagster python scripts/smoke.py
       - defer: docker compose down
 
   # Streamlit

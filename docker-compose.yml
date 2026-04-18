@@ -26,6 +26,12 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://databox:databox@postgres:5432/databox
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: databox
+      POSTGRES_USER: databox
+      POSTGRES_PASSWORD: databox
+      DLT_DATA_DIR: /dlt_data
       DAGSTER_HOME: /dagster_home
     env_file:
       - .env

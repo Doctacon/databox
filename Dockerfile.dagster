@@ -1,6 +1,9 @@
+# syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends git openssh-client && rm -rf /var/lib/apt/lists/*
 
 RUN pip install uv
 
@@ -9,7 +12,10 @@ COPY packages/ packages/
 COPY . .
 
 ENV UV_PROJECT_ENVIRONMENT=/venv
-RUN uv sync --frozen --no-dev
+RUN --mount=type=ssh \
+    mkdir -p /root/.ssh && \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts && \
+    uv sync --frozen --no-dev
 
 ENV PYTHONPATH=/app
 ENV PATH="/venv/bin:$PATH"
