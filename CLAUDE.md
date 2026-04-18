@@ -4,7 +4,7 @@
 Databox is a dataset-agnostic data platform for a single operator, using zero-cost open-source tooling:
 - **dlt (data load tool)** for flexible, Python-native data ingestion
 - **sqlmesh** for SQL-based data transformations with built-in testing
-- **PostgreSQL** as the primary database (via Docker)
+- **DuckDB** as the primary database (file-based, zero-infra)
 - **Dagster** for orchestration (scheduling, sensors, asset lineage)
 - **Typer CLI** (`databox`) for unified command-line interface
 - **Soda Core** for data quality contracts per SQLMesh model
@@ -14,7 +14,7 @@ Databox is a dataset-agnostic data platform for a single operator, using zero-co
 databox/
 ├── packages/                # uv workspace — all Python code lives here
 │   ├── databox-config/      # Pydantic settings, pipeline config loader
-│   ├── databox-sources/     # dlt sources (ebird, noaa) + registry
+│   ├── databox-sources/     # dlt sources (ebird, noaa, usgs) + registry
 │   ├── databox-quality/     # Data quality engine (Soda integration)
 │   ├── databox-orchestration/ # Dagster definitions (assets, jobs, schedules)
 │   └── databox-cli/         # Typer CLI (`databox` command)
@@ -22,24 +22,25 @@ databox/
 │   └── main/                # Single SQLMesh project for all sources
 │       ├── models/ebird/    # staging → intermediate → marts
 │       ├── models/noaa/     # staging → marts
+│       ├── models/usgs/     # staging → marts
 │       ├── models/analytics/ # cross-domain analytics marts
 │       └── tests/
 ├── soda/
 │   └── contracts/           # Soda quality contracts per model
 │       ├── ebird_staging/
 │       ├── noaa_staging/
+│       ├── usgs_staging/
 │       ├── ebird/
 │       ├── noaa/
+│       ├── usgs/
 │       └── analytics/
-├── docker/
-│   └── postgres/init.sql    # Schema creation (raw_*, *_staging, *, analytics)
 ├── app/                     # Streamlit data explorer
 │   └── main.py
 ├── scripts/                 # Utility scripts
-└── docker-compose.yml       # Postgres + Dagster services
+└── data/databox.duckdb      # DuckDB database file (gitignored)
 ```
 
-### Schema Layering (Postgres)
+### Schema Layering (DuckDB)
 ```
 raw_ebird / raw_noaa        ← dlt loads (untouched API data)
 ebird_staging / noaa_staging ← SQLMesh stg_* views (column renames only)
@@ -88,30 +89,29 @@ task streamlit                # Launch data explorer
 - **Transforms**: staging (daily_weather, stations) → marts (fct_daily_weather with pivoted metrics)
 - **Config**: `sources/noaa/config.yaml`
 
+### USGS Water Services
+- **API**: NWIS Daily Values (no API key required)
+- **Resources**: daily_values (discharge/gage height/water temp), sites
+- **Transforms**: staging (daily_values, sites) → marts (fct_daily_streamflow pivoted)
+- **Config**: `sources/usgs/config.yaml`
+
 ## Adding a New Data Source
 
 1. **Create source package**: `packages/databox-sources/databox_sources/<source>/`
    - `source.py`: dlt resources using `@dlt.source` / `@dlt.resource`
    - `config.yaml`: pipeline config
 
-2. **Add Postgres schemas** to `docker/postgres/init.sql`:
-   ```sql
-   CREATE SCHEMA IF NOT EXISTS raw_<source>;
-   CREATE SCHEMA IF NOT EXISTS <source>_staging;
-   CREATE SCHEMA IF NOT EXISTS <source>;
-   ```
-
-3. **Add transform models**: `transforms/main/models/<source>/`
+2. **Add transform models**: `transforms/main/models/<source>/`
    - Copy structure from `transforms/main/models/ebird/` as a template
    - Read from `raw_<source>.*` (dlt writes here)
    - Staging models write to `<source>_staging.*`
    - Mart models write to `<source>.*`
 
-4. **Add Soda contracts**: `soda/contracts/<source>_staging/` and `soda/contracts/<source>/`
+3. **Add Soda contracts**: `soda/contracts/<source>_staging/` and `soda/contracts/<source>/`
 
-5. **Wire Dagster assets** in `packages/databox-orchestration/databox_orchestration/definitions.py`
+4. **Wire Dagster assets** in `packages/databox-orchestration/databox_orchestration/definitions.py`
 
-6. **Add secrets to `.env`**: `API_KEY_<SOURCE>=your_key_here`
+5. **Add secrets to `.env`**: `API_KEY_<SOURCE>=your_key_here`
 
 ## Architecture Decisions
 
@@ -136,7 +136,8 @@ Never commit secrets. Use `.env` for API keys. Pre-commit hooks catch hardcoded 
 - Use `uv` for all package management
 - dlt state lives in `.dlt_state/` at project root (not in `data/`)
 - Dagster is a core dependency (not optional)
-- Docker Compose runs Postgres; Dagster connects to it via env vars
+- DuckDB file lives at `data/databox.duckdb`; set `DUCKDB_PATH` to override
+- After adding new SQLMesh models, run `sqlmesh plan --auto-apply prod` in `transforms/main/` to create prod virtual views before Soda contracts can query them
 
 <!-- rtk-instructions v2 -->
 # RTK (Rust Token Killer) - Token-Optimized Commands

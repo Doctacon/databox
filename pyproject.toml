@@ -8,7 +8,6 @@ dependencies = [
     "databox-sources",
     "databox-quality",
     "databox-orchestration",
-    "databox-cli",
 ]
 
 [dependency-groups]
@@ -34,7 +33,6 @@ databox-config = { workspace = true }
 databox-sources = { workspace = true }
 databox-quality = { workspace = true }
 databox-orchestration = { workspace = true }
-databox-cli = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

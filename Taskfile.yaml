@@ -97,43 +97,27 @@ tasks:
     cmds:
       - "{{.VENV_DIR}}/bin/pre-commit run --all-files"
 
-  # Pipeline commands (via CLI)
-  pipeline:list:
-    desc: "List registered pipelines"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/databox list"
-
-  pipeline:run:
-    desc: "Run a pipeline by name (pass name via -- <name>)"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/databox run {{.CLI_ARGS}}"
-
-  pipeline:ebird:
-    desc: "Run eBird pipeline (shorthand)"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/databox run ebird"
-
-  # Transform commands (via CLI)
+  # Transform commands (sqlmesh directly — useful for dev/debugging)
   transform:plan:
     desc: "Plan SQLMesh transformations"
     deps: [install]
+    dir: transforms/main
     cmds:
-      - "{{.VENV_DIR}}/bin/databox transform plan {{.CLI_ARGS}}"
+      - "../../{{.VENV_DIR}}/bin/sqlmesh plan --auto-apply {{.CLI_ARGS}}"
 
   transform:run:
-    desc: "Apply SQLMesh transformations"
+    desc: "Run SQLMesh transformations"
     deps: [install]
+    dir: transforms/main
     cmds:
-      - "{{.VENV_DIR}}/bin/databox transform run {{.CLI_ARGS}}"
+      - "../../{{.VENV_DIR}}/bin/sqlmesh run {{.CLI_ARGS}}"
 
   transform:test:
     desc: "Run SQLMesh tests"
     deps: [install]
+    dir: transforms/main
     cmds:
-      - "{{.VENV_DIR}}/bin/databox transform test {{.CLI_ARGS}}"
+      - "../../{{.VENV_DIR}}/bin/sqlmesh test {{.CLI_ARGS}}"
 
   transform:ui:
     desc: "Start SQLMesh UI"
@@ -141,30 +125,6 @@ tasks:
     dir: transforms/main
     cmds:
       - "../../{{.VENV_DIR}}/bin/sqlmesh ui"
-
-  # Quality & Status
-  quality:
-    desc: "Run quality checks on a table (pass schema.table)"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/databox quality {{.CLI_ARGS}}"
-
-  status:
-    desc: "Show pipeline status and data freshness"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/databox status"
-
-  # Production
-  prod:
-    desc: "Start production workflow"
-    deps: [install, pre-commit]
-    cmds:
-      - echo "Production environment ready!"
-      - echo "Commands:"
-      - echo "  databox run <pipeline>"
-      - echo "  databox transform plan"
-      - echo "  databox status"
 
   # CI/CD
   ci:
@@ -204,32 +164,26 @@ tasks:
 
   # Full refresh
   full-refresh:
-    desc: "Full data refresh — run all pipelines and transforms"
+    desc: "Full data refresh — all pipelines + transforms + quality checks via Dagster"
     cmds:
-      - task: pipeline:run
-        vars: { CLI_ARGS: ebird }
-      - task: pipeline:run
-        vars: { CLI_ARGS: noaa }
-      - task: transform:plan
-      - task: transform:run
-      - task: transform:test
+      - task: dagster:materialize
 
   # Dagster
   dagster:dev:
     desc: "Start Dagster development server"
     deps: [install]
     env:
-      DAGSTER_HOME: "{{.ROOT_DIR}}/.dagster"
-      PYTHONPATH: "{{.ROOT_DIR}}"
+      DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
+      PYTHONPATH: "{{.USER_WORKING_DIR}}"
     cmds:
       - "{{.VENV_DIR}}/bin/dagster dev -f packages/databox-orchestration/databox_orchestration/definitions.py"
 
   dagster:materialize:
-    desc: "Materialize all Dagster assets (runs all pipelines + transforms sequentially)"
+    desc: "Materialize all Dagster assets (runs all pipelines + transforms + quality checks)"
     deps: [install]
     env:
-      DAGSTER_HOME: "{{.ROOT_DIR}}/.dagster"
-      PYTHONPATH: "{{.ROOT_DIR}}"
+      DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
+      PYTHONPATH: "{{.USER_WORKING_DIR}}"
     cmds:
       - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox-orchestration/databox_orchestration/definitions.py"
 
@@ -237,8 +191,8 @@ tasks:
     desc: "Smoke test via Dagster — limited ingest (5 items/resource) + last 3 days of transforms"
     deps: [install]
     env:
-      DAGSTER_HOME: "{{.ROOT_DIR}}/.dagster"
-      PYTHONPATH: "{{.ROOT_DIR}}"
+      DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
+      PYTHONPATH: "{{.USER_WORKING_DIR}}"
       DATABOX_SMOKE: "1"
     cmds:
       - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox-orchestration/databox_orchestration/definitions.py"
