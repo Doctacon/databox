@@ -1,5 +1,5 @@
 MODEL (
-  name home_team.fct_bird_weather_daily,
+  name analytics.fct_bird_weather_daily,
   kind FULL,
   description 'eBird daily observations joined with NOAA weather conditions — one row per region x date x species'
 );

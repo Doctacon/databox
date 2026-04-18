@@ -1,5 +1,5 @@
 MODEL (
-  name home_team.fct_species_weather_preferences,
+  name analytics.fct_species_weather_preferences,
   kind FULL,
   description 'Per-species weather preference aggregates — what conditions correlate with each species appearing'
 );
@@ -10,7 +10,7 @@ WITH ranked_seasons AS (
         season AS dominant_season
     FROM (
         SELECT species_code, season, COUNT(*) AS n
-        FROM home_team.fct_bird_weather_daily
+        FROM analytics.fct_bird_weather_daily
         WHERE season IS NOT NULL
         GROUP BY species_code, season
     ) s
@@ -49,7 +49,7 @@ SELECT
 
     CURRENT_TIMESTAMP AS last_updated_at
 
-FROM home_team.fct_bird_weather_daily b
+FROM analytics.fct_bird_weather_daily b
 LEFT JOIN ranked_seasons rs USING (species_code)
 GROUP BY b.species_code, rs.dominant_season
 ORDER BY total_observations DESC

@@ -1,32 +1,31 @@
-dataset: databox/home_team/fct_species_weather_preferences
+dataset: databox/analytics/fct_bird_weather_daily
 
 columns:
-  - name: species_code
+  - name: region_code
     checks:
       - missing:
           must_be: 0
-      - duplicate:
+  - name: observation_date
+    checks:
+      - missing:
+          must_be: 0
+  - name: species_code
+    checks:
+      - missing:
           must_be: 0
   - name: common_name
     checks:
       - missing:
           must_be: 0
-  - name: total_observation_days
+  - name: observation_count
     checks:
       - missing:
           must_be: 0
-  - name: total_observations
-    checks:
-      - missing:
-          must_be: 0
-  - name: avg_high_temp_c
-  - name: avg_low_temp_c
-  - name: p25_high_temp_c
-  - name: p75_high_temp_c
-  - name: avg_precip_mm
-  - name: pct_rainy_days
+  - name: avg_tmax_c
+  - name: avg_tmin_c
+  - name: avg_prcp_mm
   - name: avg_wind_ms
-  - name: dominant_season
+  - name: is_rainy_day
 
 checks:
   - row_count:

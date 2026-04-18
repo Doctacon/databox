@@ -248,19 +248,19 @@ fct_daily_weather = create_sqlmesh_model_asset(
     ],
 )
 
-# Cross-domain home_team marts
+# Cross-domain analytics marts
 fct_bird_weather_daily = create_sqlmesh_model_asset(
-    "home_team.fct_bird_weather_daily",
-    "home_team",
+    "analytics.fct_bird_weather_daily",
+    "analytics",
     [
         dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]),
         dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
     ],
 )
 fct_species_weather_preferences = create_sqlmesh_model_asset(
-    "home_team.fct_species_weather_preferences",
-    "home_team",
-    [dg.AssetKey(["sqlmesh", "home_team", "fct_bird_weather_daily"])],
+    "analytics.fct_species_weather_preferences",
+    "analytics",
+    [dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"])],
 )
 
 # ---------------------------------------------------------------------------
@@ -309,12 +309,12 @@ _soda_checks: list[dg.AssetChecksDefinition] = [
         SODA_DIR / "contracts/ebird/fct_hotspot_species_diversity.yaml",
     ),
     create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "home_team", "fct_bird_weather_daily"]),
-        SODA_DIR / "contracts/home_team/fct_bird_weather_daily.yaml",
+        dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"]),
+        SODA_DIR / "contracts/analytics/fct_bird_weather_daily.yaml",
     ),
     create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "home_team", "fct_species_weather_preferences"]),
-        SODA_DIR / "contracts/home_team/fct_species_weather_preferences.yaml",
+        dg.AssetKey(["sqlmesh", "analytics", "fct_species_weather_preferences"]),
+        SODA_DIR / "contracts/analytics/fct_species_weather_preferences.yaml",
     ),
 ]
 
@@ -336,7 +336,7 @@ _noaa_sqlmesh_assets = [
     stg_noaa_stations,
     fct_daily_weather,
 ]
-_home_team_sqlmesh_assets = [
+_analytics_sqlmesh_assets = [
     fct_bird_weather_daily,
     fct_species_weather_preferences,
 ]
@@ -346,7 +346,7 @@ assets: list[dg.AssetsDefinition] = (
     + [noaa_dlt_assets]
     + _ebird_sqlmesh_assets
     + _noaa_sqlmesh_assets
-    + _home_team_sqlmesh_assets
+    + _analytics_sqlmesh_assets
 )
 
 # ---------------------------------------------------------------------------
@@ -355,7 +355,7 @@ assets: list[dg.AssetsDefinition] = (
 
 _ebird_sqlmesh_keys = [a.key for a in _ebird_sqlmesh_assets]
 _noaa_sqlmesh_keys = [a.key for a in _noaa_sqlmesh_assets]
-_home_team_sqlmesh_keys = [a.key for a in _home_team_sqlmesh_assets]
+_analytics_sqlmesh_keys = [a.key for a in _analytics_sqlmesh_assets]
 
 ebird_daily_pipeline = dg.define_asset_job(
     name="ebird_daily_pipeline",
@@ -374,7 +374,7 @@ all_pipelines = dg.define_asset_job(
         *_noaa_dlt_keys,
         *_ebird_sqlmesh_keys,
         *_noaa_sqlmesh_keys,
-        *_home_team_sqlmesh_keys,
+        *_analytics_sqlmesh_keys,
     ),
 )
 
