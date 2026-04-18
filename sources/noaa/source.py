@@ -230,7 +230,7 @@ class NoaaPipelineSource:
         schema_name = self.config.resolve_schema_name()
         pipeline = dlt.pipeline(
             pipeline_name=f"{self.name}_api",
-            destination=dlt.destinations.duckdb(credentials=settings.database_url),
+            destination=dlt.destinations.postgres(credentials=settings.database_url),
             dataset_name=schema_name,
             pipelines_dir=settings.dlt_data_dir,
             progress="log",

@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 from unittest.mock import MagicMock
 
-import duckdb
 import pytest
 
 from config.pipeline_config import PipelineConfig, PipelineSchedule
+
+_TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL",
+    os.environ.get("DATABASE_URL", "postgresql://databox:databox@localhost:5432/databox"),
+)
 
 
 @pytest.fixture(autouse=True)
@@ -24,29 +29,36 @@ def reset_registry():
 
 @pytest.fixture
 def tmp_db(tmp_path):
-    """Create a temp DuckDB database file and return its path."""
-    db_path = tmp_path / "test.db"
-    con = duckdb.connect(str(db_path))
-    con.close()
-    return db_path
+    """Return a fake 'db path' token for tests that previously used a DuckDB path.
+
+    Integration tests that need a real DB should use `pg_con` instead.
+    This fixture exists so unit tests that only mock the DB still compile.
+    """
+    return tmp_path / "test.db"
 
 
 @pytest.fixture
-def tmp_db_con(tmp_db):
-    """Return an open DuckDB connection to the temp database."""
-    con = duckdb.connect(str(tmp_db))
+def pg_con():
+    """Return a live psycopg2 connection for integration tests.
+
+    Skips the test if the database is not reachable.
+    """
+    psycopg2 = pytest.importorskip("psycopg2")
+    try:
+        con = psycopg2.connect(_TEST_DATABASE_URL)
+    except Exception as e:
+        pytest.skip(f"Postgres not available: {e}")
     yield con
     con.close()
 
 
 @pytest.fixture
-def mock_settings(tmp_db, monkeypatch):
-    """Override settings to point at temp database."""
+def mock_settings(tmp_path, monkeypatch):
+    """Override settings to point at the test database URL."""
     import config.settings as settings_mod
 
-    test_url = f"duckdb:///{tmp_db}"
-    monkeypatch.setattr(settings_mod.settings, "database_url", test_url)
-    monkeypatch.setattr(settings_mod.settings, "dlt_data_dir", str(tmp_db.parent / ".dlt"))
+    monkeypatch.setattr(settings_mod.settings, "database_url", _TEST_DATABASE_URL)
+    monkeypatch.setattr(settings_mod.settings, "dlt_data_dir", str(tmp_path / ".dlt"))
     return settings_mod.settings
 
 
@@ -224,26 +236,43 @@ def ebird_sample_species_list():
 
 
 @pytest.fixture
-def e2e_db(tmp_path, monkeypatch):
-    """Temp DuckDB for e2e tests — overrides both dlt settings and SQLMesh connection."""
+def e2e_db(monkeypatch):
+    """Postgres connection URL for e2e tests — overrides dlt settings.
+
+    Skips if DATABASE_URL is not set or DB is unreachable.
+    """
     import config.settings as settings_mod
 
-    db_path = tmp_path / "e2e_test.db"
-    duckdb.connect(str(db_path)).close()
+    database_url = os.environ.get("DATABASE_URL", _TEST_DATABASE_URL)
+    psycopg2 = pytest.importorskip("psycopg2")
+    try:
+        con = psycopg2.connect(database_url)
+        con.close()
+    except Exception as e:
+        pytest.skip(f"Postgres not available for e2e tests: {e}")
 
-    monkeypatch.setattr(settings_mod.settings, "database_url", f"duckdb:///{db_path}")
-    monkeypatch.setattr(settings_mod.settings, "dlt_data_dir", str(tmp_path / ".dlt"))
-    return db_path
+    monkeypatch.setattr(settings_mod.settings, "database_url", database_url)
+    return database_url
 
 
 def load_test_data_to_db(con, schema: str, table: str, rows: list[dict]):
-    """Load test data rows into a DuckDB table, creating schema if needed."""
+    """Load test data rows into a Postgres table, creating schema if needed."""
     if not rows:
         return
-    con.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
     import pandas as pd
 
-    con.register("_tmp", pd.DataFrame(rows))
-    con.execute(f"CREATE TABLE IF NOT EXISTS {schema}.{table} AS SELECT * FROM _tmp")
-    con.execute(f"INSERT INTO {schema}.{table} SELECT * FROM _tmp")
-    con.unregister("_tmp")
+    cur = con.cursor()
+    cur.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+
+    df = pd.DataFrame(rows)
+    cols = ", ".join(f'"{c}"' for c in df.columns)
+    placeholders = ", ".join(["%s"] * len(df.columns))
+    col_defs = ", ".join(f'"{c}" TEXT' for c in df.columns)
+
+    cur.execute(f"CREATE TABLE IF NOT EXISTS {schema}.{table} ({col_defs})")
+    for row in df.itertuples(index=False):
+        cur.execute(
+            f"INSERT INTO {schema}.{table} ({cols}) VALUES ({placeholders})",
+            list(row),
+        )
+    con.commit()

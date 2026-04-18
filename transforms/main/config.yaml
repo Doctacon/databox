@@ -1,13 +1,17 @@
 gateways:
-  duckdb:
+  postgres:
     connection:
-      type: duckdb
-      database: ../../data/databox.db
+      type: postgres
+      host: ${POSTGRES_HOST:-localhost}
+      port: 5432
+      database: ${POSTGRES_DB:-databox}
+      user: ${POSTGRES_USER:-databox}
+      password: ${POSTGRES_PASSWORD:-databox}
 
-default_gateway: duckdb
+default_gateway: postgres
 
 model_defaults:
-  dialect: duckdb
+  dialect: postgres
   start: 2025-07-25
   cron: "@daily"
 

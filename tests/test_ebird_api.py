@@ -89,10 +89,8 @@ class TestEbirdSourceResources:
 
 class TestEbirdIngestion:
     @pytest.mark.integration
-    def test_full_load(self, tmp_db, mock_settings):
+    def test_full_load(self, pg_con, mock_settings):
         import os
-
-        import duckdb
 
         from config.pipeline_config import PipelineConfig
         from sources.ebird.source import EbirdPipelineSource
@@ -107,16 +105,13 @@ class TestEbirdIngestion:
         )
         EbirdPipelineSource(cfg).load()
 
-        con = duckdb.connect(str(tmp_db))
-        try:
-            query = (
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'raw_ebird'"
-            )
-            table_names = [t[0] for t in con.execute(query).fetchall()]
-            assert "recent_observations" in table_names
-            assert "hotspots" in table_names
-            assert "taxonomy" in table_names
-            count = con.execute("SELECT COUNT(*) FROM raw_ebird.recent_observations").fetchone()[0]
-            assert count > 0
-        finally:
-            con.close()
+        cur = pg_con.cursor()
+        cur.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'raw_ebird'"
+        )
+        table_names = [t[0] for t in cur.fetchall()]
+        assert "recent_observations" in table_names
+        assert "hotspots" in table_names
+        assert "taxonomy" in table_names
+        cur.execute("SELECT COUNT(*) FROM raw_ebird.recent_observations")
+        assert cur.fetchone()[0] > 0
