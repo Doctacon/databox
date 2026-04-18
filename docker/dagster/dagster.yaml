@@ -1,8 +1,0 @@
-storage:
-  postgres:
-    postgres_db:
-      username: databox
-      password: databox
-      hostname: postgres
-      db_name: databox
-      port: 5432
