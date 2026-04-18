@@ -1,0 +1,24 @@
+dataset: databox/usgs/fct_daily_streamflow
+
+columns:
+  - name: site_no
+    checks:
+      - missing:
+          must_be: 0
+  - name: observation_date
+    checks:
+      - missing:
+          must_be: 0
+  - name: state_cd
+  - name: discharge_cfs
+  - name: gage_height_ft
+  - name: water_temp_c
+
+checks:
+  - row_count:
+      must_be_greater_than: 0
+  - freshness:
+      column: last_updated_at
+      threshold:
+        unit: hour
+        must_be_less_than: 25

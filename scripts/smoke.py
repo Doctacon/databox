@@ -18,10 +18,11 @@ from databox_orchestration.definitions import (
     ebird_dlt_assets,
     noaa_dlt_assets,
     sqlmesh_project,
+    usgs_dlt_assets,
 )
 
 defs = dg.Definitions(
-    assets=[ebird_dlt_assets, noaa_dlt_assets, sqlmesh_project],
+    assets=[ebird_dlt_assets, noaa_dlt_assets, usgs_dlt_assets, sqlmesh_project],
     resources={
         "databox_config": DataboxConfig(),
         "dlt": DagsterDltResource(),

@@ -1,0 +1,14 @@
+source_module: "databox_sources.usgs.source"
+description: "USGS Water Services daily streamflow and gage data"
+schedule:
+  cron: "0 6 * * *"
+  enabled: true
+params:
+  state_cd: "AZ"
+  parameter_cds: "00060,00065,00010"
+  days_back: 30
+quality_rules:
+  - column: site_no
+    check: not_null
+  - column: observation_date
+    check: not_null

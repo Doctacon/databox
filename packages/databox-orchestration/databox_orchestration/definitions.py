@@ -14,6 +14,7 @@ from dagster_sqlmesh.translator import SQLMeshDagsterTranslator
 from databox_config.settings import settings
 from databox_sources.ebird.source import ebird_source
 from databox_sources.noaa.source import noaa_source
+from databox_sources.usgs.source import usgs_source
 from sqlglot import exp
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
@@ -118,6 +119,29 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
         days_back=30,
         datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
     )
+    if os.getenv("DATABOX_SMOKE"):
+        source.add_limit(max_items=5)
+    yield from dlt.run(context=context, dlt_source=source)
+
+
+# ---------------------------------------------------------------------------
+# dlt assets — USGS
+# ---------------------------------------------------------------------------
+
+
+@dlt_assets(
+    dlt_source=usgs_source(state_cd="AZ", parameter_cds="00060,00065,00010", days_back=30),
+    dlt_pipeline=dlt.pipeline(
+        pipeline_name="usgs_api",
+        destination=dlt.destinations.postgres(credentials=settings.database_url),
+        dataset_name="raw_usgs",
+        pipelines_dir=settings.dlt_data_dir,
+    ),
+    group_name="usgs_ingestion",
+    dagster_dlt_translator=DataboxDltTranslator(),
+)
+def usgs_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
+    source = usgs_source(state_cd="AZ", parameter_cds="00060,00065,00010", days_back=30)
     if os.getenv("DATABOX_SMOKE"):
         source.add_limit(max_items=5)
     yield from dlt.run(context=context, dlt_source=source)
@@ -239,6 +263,18 @@ _soda_checks: list[dg.AssetChecksDefinition] = [
         dg.AssetKey(["sqlmesh", "analytics", "fct_species_weather_preferences"]),
         SODA_DIR / "contracts/analytics/fct_species_weather_preferences.yaml",
     ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_daily_values"]),
+        SODA_DIR / "contracts/usgs_staging/stg_usgs_daily_values.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_sites"]),
+        SODA_DIR / "contracts/usgs_staging/stg_usgs_sites.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "usgs", "fct_daily_streamflow"]),
+        SODA_DIR / "contracts/usgs/fct_daily_streamflow.yaml",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
@@ -247,6 +283,7 @@ _soda_checks: list[dg.AssetChecksDefinition] = [
 
 _ebird_dlt_keys = [spec.key for spec in ebird_dlt_assets.specs]
 _noaa_dlt_keys = [spec.key for spec in noaa_dlt_assets.specs]
+_usgs_dlt_keys = [spec.key for spec in usgs_dlt_assets.specs]
 
 _ebird_sqlmesh_keys = [
     dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_observations"]),
@@ -261,6 +298,11 @@ _noaa_sqlmesh_keys = [
     dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_daily_weather"]),
     dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_stations"]),
     dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
+]
+_usgs_sqlmesh_keys = [
+    dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_daily_values"]),
+    dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_sites"]),
+    dg.AssetKey(["sqlmesh", "usgs", "fct_daily_streamflow"]),
 ]
 _analytics_sqlmesh_keys = [
     dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"]),
@@ -281,18 +323,25 @@ noaa_daily_pipeline = dg.define_asset_job(
     selection=dg.AssetSelection.assets(*_noaa_dlt_keys, *_noaa_sqlmesh_keys),
 )
 
+usgs_daily_pipeline = dg.define_asset_job(
+    name="usgs_daily_pipeline",
+    selection=dg.AssetSelection.assets(*_usgs_dlt_keys, *_usgs_sqlmesh_keys),
+)
+
 all_pipelines = dg.define_asset_job(
     name="all_pipelines",
     selection=dg.AssetSelection.assets(
         *_ebird_dlt_keys,
         *_noaa_dlt_keys,
+        *_usgs_dlt_keys,
         *_ebird_sqlmesh_keys,
         *_noaa_sqlmesh_keys,
+        *_usgs_sqlmesh_keys,
         *_analytics_sqlmesh_keys,
     ),
 )
 
-jobs = [ebird_daily_pipeline, noaa_daily_pipeline, all_pipelines]
+jobs = [ebird_daily_pipeline, noaa_daily_pipeline, usgs_daily_pipeline, all_pipelines]
 
 # ---------------------------------------------------------------------------
 # Schedules
@@ -301,6 +350,7 @@ jobs = [ebird_daily_pipeline, noaa_daily_pipeline, all_pipelines]
 schedules = [
     dg.ScheduleDefinition(job=ebird_daily_pipeline, cron_schedule="0 6 * * *"),
     dg.ScheduleDefinition(job=noaa_daily_pipeline, cron_schedule="0 6 * * *"),
+    dg.ScheduleDefinition(job=usgs_daily_pipeline, cron_schedule="0 6 * * *"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -308,7 +358,7 @@ schedules = [
 # ---------------------------------------------------------------------------
 
 defs = dg.Definitions(
-    assets=[ebird_dlt_assets, noaa_dlt_assets, sqlmesh_project],
+    assets=[ebird_dlt_assets, noaa_dlt_assets, usgs_dlt_assets, sqlmesh_project],
     asset_checks=_soda_checks,
     jobs=jobs,
     schedules=schedules,
