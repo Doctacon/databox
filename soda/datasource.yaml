@@ -1,0 +1,7 @@
+data_source databox:
+  type: postgres
+  host: ${POSTGRES_HOST:-localhost}
+  port: 5432
+  database: ${POSTGRES_DB:-databox}
+  username: ${POSTGRES_USER:-databox}
+  password: ${POSTGRES_PASSWORD:-databox}

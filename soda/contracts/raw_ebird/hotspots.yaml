@@ -1,0 +1,25 @@
+dataset: databox/raw_ebird/hotspots
+
+columns:
+  - name: loc_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: loc_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: country_code
+  - name: subnational1_code
+  - name: lat
+  - name: lng
+  - name: latest_obs_dt
+  - name: num_species_all_time
+  - name: _dlt_load_id
+    checks:
+      - missing:
+          must_be: 0
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

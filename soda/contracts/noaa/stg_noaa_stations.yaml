@@ -1,0 +1,22 @@
+dataset: databox/noaa/stg_noaa_stations
+
+columns:
+  - name: station_id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: name
+    checks:
+      - missing:
+          must_be: 0
+  - name: latitude
+  - name: longitude
+  - name: elevation
+  - name: min_date
+  - name: max_date
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

@@ -1,0 +1,29 @@
+dataset: databox/ebird/fct_daily_bird_observations
+
+columns:
+  - name: observation_date
+    checks:
+      - missing:
+          must_be: 0
+  - name: species_code
+    checks:
+      - missing:
+          must_be: 0
+  - name: common_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: order_name
+  - name: family_common_name
+  - name: location_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: location_name
+  - name: state_code
+  - name: total_count
+  - name: observation_count
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

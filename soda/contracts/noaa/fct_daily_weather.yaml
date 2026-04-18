@@ -1,0 +1,21 @@
+dataset: databox/noaa/fct_daily_weather
+
+columns:
+  - name: station_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: station_name
+  - name: date
+    checks:
+      - missing:
+          must_be: 0
+  - name: tmax
+  - name: tmin
+  - name: prcp
+  - name: snow
+  - name: awnd
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

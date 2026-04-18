@@ -1,0 +1,39 @@
+dataset: databox/raw_ebird/notable_observations
+
+columns:
+  - name: spec_code
+    checks:
+      - missing:
+          must_be: 0
+  - name: com_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: sci_name
+  - name: loc_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: loc_name
+  - name: obs_dt
+    checks:
+      - missing:
+          must_be: 0
+  - name: how_many
+  - name: lat
+  - name: lng
+  - name: valid
+  - name: reviewed
+  - name: location_private
+  - name: sub_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: _dlt_load_id
+    checks:
+      - missing:
+          must_be: 0
+
+checks:
+  - row_count:
+      must_be_greater_than_or_equal: 0

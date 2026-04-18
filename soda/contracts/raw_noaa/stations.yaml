@@ -1,0 +1,26 @@
+dataset: databox/raw_noaa/stations
+
+columns:
+  - name: id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: name
+    checks:
+      - missing:
+          must_be: 0
+  - name: latitude
+  - name: longitude
+  - name: elevation
+  - name: min_date
+  - name: max_date
+  - name: _dlt_load_id
+    checks:
+      - missing:
+          must_be: 0
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

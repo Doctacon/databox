@@ -1,0 +1,15 @@
+dataset: databox/raw_ebird/species_list
+
+columns:
+  - name: spec_code
+    checks:
+      - missing:
+          must_be: 0
+  - name: _dlt_load_id
+    checks:
+      - missing:
+          must_be: 0
+
+checks:
+  - row_count:
+      must_be_greater_than: 0
