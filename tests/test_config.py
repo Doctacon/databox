@@ -14,7 +14,8 @@ from databox_config.pipeline_config import (
 
 class TestDataboxSettings:
     @pytest.mark.unit
-    def test_default_database_url(self):
+    def test_default_database_url(self, monkeypatch):
+        monkeypatch.delenv("DATABASE_URL", raising=False)
         from databox_config.settings import DataboxSettings
 
         s = DataboxSettings()

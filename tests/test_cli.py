@@ -114,8 +114,9 @@ class TestTransform:
         mock_result = MagicMock()
         mock_result.returncode = 1
         mocker.patch("subprocess.run", return_value=mock_result)
+        mocker.patch("pathlib.Path.exists", return_value=True)
 
-        result = runner.invoke(app, ["transform", "run", "ebird"])
+        result = runner.invoke(app, ["transform", "run", "main"])
         assert result.exit_code == 1
 
     @pytest.mark.unit
