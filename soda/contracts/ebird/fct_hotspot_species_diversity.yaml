@@ -1,0 +1,28 @@
+dataset: databox/ebird/fct_hotspot_species_diversity
+
+columns:
+  - name: location_id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: location_name
+  - name: total_species_count
+    checks:
+      - missing:
+          must_be: 0
+  - name: total_observations
+    checks:
+      - missing:
+          must_be: 0
+  - name: shannon_diversity_index
+  - name: most_common_species_code
+  - name: most_common_species_name
+  - name: peak_season
+  - name: first_observation_date
+  - name: last_observation_date
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

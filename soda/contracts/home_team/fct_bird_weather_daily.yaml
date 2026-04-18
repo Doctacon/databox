@@ -1,0 +1,32 @@
+dataset: databox/home_team/fct_bird_weather_daily
+
+columns:
+  - name: region_code
+    checks:
+      - missing:
+          must_be: 0
+  - name: observation_date
+    checks:
+      - missing:
+          must_be: 0
+  - name: species_code
+    checks:
+      - missing:
+          must_be: 0
+  - name: common_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: observation_count
+    checks:
+      - missing:
+          must_be: 0
+  - name: avg_tmax_c
+  - name: avg_tmin_c
+  - name: avg_prcp_mm
+  - name: avg_wind_ms
+  - name: is_rainy_day
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

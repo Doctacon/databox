@@ -1,0 +1,33 @@
+dataset: databox/home_team/fct_species_weather_preferences
+
+columns:
+  - name: species_code
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: common_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: total_observation_days
+    checks:
+      - missing:
+          must_be: 0
+  - name: total_observations
+    checks:
+      - missing:
+          must_be: 0
+  - name: avg_high_temp_c
+  - name: avg_low_temp_c
+  - name: p25_high_temp_c
+  - name: p75_high_temp_c
+  - name: avg_precip_mm
+  - name: pct_rainy_days
+  - name: avg_wind_ms
+  - name: dominant_season
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

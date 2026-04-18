@@ -1,0 +1,22 @@
+dataset: databox/ebird/dim_species
+
+columns:
+  - name: species_code
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: common_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: scientific_name
+  - name: taxonomic_order
+  - name: taxonomic_category
+  - name: family_common_name
+  - name: family_scientific_name
+
+checks:
+  - row_count:
+      must_be_greater_than: 0
