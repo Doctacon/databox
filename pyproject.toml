@@ -28,6 +28,7 @@ dependencies = [
     "dagster-webserver>=1.5.0",
     "dagster-dlt>=0.1.0",
     "psutil>=6.0.0",
+    "soda-postgres>=3.0.0",
 ]
 
 [project.optional-dependencies]
