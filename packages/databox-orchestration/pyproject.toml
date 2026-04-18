@@ -11,6 +11,7 @@ dependencies = [
     "dlt[postgres]>=1.14.1",
     "sqlmesh>=0.204.0",
     "dagster-postgres>=0.28.21",
+    "dagster-sqlmesh",
 ]
 
 [build-system]
@@ -20,3 +21,4 @@ build-backend = "setuptools.build_meta"
 [tool.uv.sources]
 databox-config = { workspace = true }
 databox-sources = { workspace = true }
+dagster-sqlmesh = { git = "ssh://git@github.com/Doctacon/dagster-sqlmesh.git" }
