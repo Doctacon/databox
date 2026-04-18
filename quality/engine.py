@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import psycopg2
 
 if TYPE_CHECKING:
     from config.pipeline_config import PipelineConfig
+
+
+def _fetchone_value(cur: psycopg2.extensions.cursor) -> Any:
+    row = cur.fetchone()
+    assert row is not None
+    return row[0]
 
 
 def check_table(table: str, database_url: str) -> dict:
@@ -20,7 +26,7 @@ def check_table(table: str, database_url: str) -> dict:
     try:
         cur = con.cursor()
         cur.execute(f"SELECT COUNT(*) FROM {table}")
-        row_count = cur.fetchone()[0]
+        row_count = _fetchone_value(cur)
 
         cur.execute(
             "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
@@ -31,12 +37,12 @@ def check_table(table: str, database_url: str) -> dict:
         null_counts = []
         for (col,) in cols:
             cur.execute(f'SELECT COUNT(*) FROM {table} WHERE "{col}" IS NULL')
-            n = cur.fetchone()[0]
+            n = _fetchone_value(cur)
             null_counts.append((col, n))
 
         try:
             cur.execute(f"SELECT MAX(_loaded_at) FROM {table}")
-            latest_load = cur.fetchone()[0]
+            latest_load = _fetchone_value(cur)
         except Exception:
             con.rollback()
             latest_load = None
@@ -75,11 +81,11 @@ def run_report(database_url: str, configs: dict[str, PipelineConfig]) -> list[di
             for tbl in table_names:
                 fqn = f'"{schema}"."{tbl}"'
                 cur.execute(f"SELECT COUNT(*) FROM {fqn}")
-                count = cur.fetchone()[0]
+                count = _fetchone_value(cur)
 
                 try:
                     cur.execute(f"SELECT MAX(_loaded_at) FROM {fqn}")
-                    latest = cur.fetchone()[0]
+                    latest = _fetchone_value(cur)
                 except Exception:
                     con.rollback()
                     latest = None
@@ -116,12 +122,12 @@ def run_report(database_url: str, configs: dict[str, PipelineConfig]) -> list[di
                 try:
                     if rule.check == "not_null":
                         cur.execute(f'SELECT COUNT(*) FROM {fqn} WHERE "{rule.column}" IS NULL')
-                        violations = cur.fetchone()[0]
+                        violations = _fetchone_value(cur)
                         status = "OK" if violations == 0 else f"FAIL ({violations} nulls)"
 
                     elif rule.check == "unique":
                         cur.execute(f'SELECT COUNT(*) - COUNT(DISTINCT "{rule.column}") FROM {fqn}')
-                        dupes = cur.fetchone()[0]
+                        dupes = _fetchone_value(cur)
                         status = "OK" if dupes == 0 else f"FAIL ({dupes} duplicates)"
 
                     elif rule.check == "range" and rule.threshold is not None:
@@ -137,7 +143,7 @@ def run_report(database_url: str, configs: dict[str, PipelineConfig]) -> list[di
                                 f'SELECT COUNT(*) FROM {fqn} WHERE "{rule.column}" > %s',
                                 (rule.threshold,),
                             )
-                            out_of_range = cur.fetchone()[0]
+                            out_of_range = _fetchone_value(cur)
                             status = (
                                 "OK"
                                 if out_of_range == 0
@@ -151,7 +157,7 @@ def run_report(database_url: str, configs: dict[str, PipelineConfig]) -> list[di
                         cur.execute(
                             f'SELECT COUNT(*) FROM {fqn} WHERE "{rule.column}" NOT IN ({val_list})'
                         )
-                        invalid = cur.fetchone()[0]
+                        invalid = _fetchone_value(cur)
                         status = "OK" if invalid == 0 else f"FAIL ({invalid} invalid)"
 
                     else:
