@@ -7,8 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
-from config.pipeline_config import PipelineConfig, PipelineSchedule
+from databox_config.pipeline_config import PipelineConfig, PipelineSchedule
 
 _TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
@@ -19,7 +18,7 @@ _TEST_DATABASE_URL = os.environ.get(
 @pytest.fixture(autouse=True)
 def reset_registry():
     """Clear the pipeline registry cache between tests."""
-    import sources.registry as reg
+    import databox_sources.registry as reg
 
     original = reg._REGISTRY
     reg._REGISTRY = None
@@ -55,7 +54,7 @@ def pg_con():
 @pytest.fixture
 def mock_settings(tmp_path, monkeypatch):
     """Override settings to point at the test database URL."""
-    import config.settings as settings_mod
+    import databox_config.settings as settings_mod
 
     monkeypatch.setattr(settings_mod.settings, "database_url", _TEST_DATABASE_URL)
     monkeypatch.setattr(settings_mod.settings, "dlt_data_dir", str(tmp_path / ".dlt"))
@@ -67,7 +66,7 @@ def mock_pipeline_config():
     """Create a minimal PipelineConfig for testing."""
     return PipelineConfig(
         name="test_source",
-        source_module="sources.ebird.source",
+        source_module="databox_sources.ebird.source",
         description="Test pipeline",
         schedule=PipelineSchedule(cron="0 6 * * *", enabled=True),
         params={"region_code": "US-AZ", "max_results": 100, "days_back": 7},
@@ -84,7 +83,7 @@ def mock_sources_dir(tmp_path):
     ebird_dir = sources_dir / "ebird"
     ebird_dir.mkdir()
     yaml_content = """
-source_module: "sources.ebird.source"
+source_module: "databox_sources.ebird.source"
 description: "Test eBird pipeline"
 schedule:
   cron: "0 6 * * *"
@@ -241,7 +240,7 @@ def e2e_db(monkeypatch):
 
     Skips if DATABASE_URL is not set or DB is unreachable.
     """
-    import config.settings as settings_mod
+    import databox_config.settings as settings_mod
 
     database_url = os.environ.get("DATABASE_URL", _TEST_DATABASE_URL)
     psycopg2 = pytest.importorskip("psycopg2")

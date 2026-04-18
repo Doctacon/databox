@@ -5,9 +5,9 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, Field
 
-from config.settings import PROJECT_ROOT
+from databox_config.settings import PROJECT_ROOT
 
-SOURCES_DIR = PROJECT_ROOT / "sources"
+SOURCES_DIR = PROJECT_ROOT / "packages" / "databox-sources" / "databox_sources"
 
 
 class PipelineSchedule(BaseModel):

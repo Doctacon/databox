@@ -62,7 +62,7 @@ class TestGenerateRows:
 class TestGenerateResourceData:
     @pytest.mark.integration
     def test_generates_for_ebird_resource(self):
-        from sources.ebird.source import ebird_source
+        from databox_sources.ebird.source import ebird_source
 
         src = ebird_source(region_code="US-AZ", max_results=10, days_back=1)
         resource = src.resources["recent_observations"]
@@ -72,7 +72,7 @@ class TestGenerateResourceData:
 
     @pytest.mark.integration
     def test_generates_for_hotspots_resource(self):
-        from sources.ebird.source import ebird_source
+        from databox_sources.ebird.source import ebird_source
 
         src = ebird_source(region_code="US-AZ", max_results=10, days_back=1)
         resource = src.resources["hotspots"]

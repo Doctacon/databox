@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import pytest
-
-from sources.noaa.source import (
+from databox_sources.noaa.source import (
     NoaaPipelineSource,
     _chunk_date_range,
     noaa_source,
@@ -16,7 +15,7 @@ from sources.noaa.source import (
 class TestNoaaApiHeaders:
     @pytest.mark.unit
     def test_get_api_headers(self, monkeypatch):
-        from sources.noaa.source import get_api_headers
+        from databox_sources.noaa.source import get_api_headers
 
         monkeypatch.setenv("NOAA_API_TOKEN", "test_token")
         headers = get_api_headers()
@@ -24,7 +23,7 @@ class TestNoaaApiHeaders:
 
     @pytest.mark.unit
     def test_missing_token(self, monkeypatch):
-        from sources.noaa.source import get_api_headers
+        from databox_sources.noaa.source import get_api_headers
 
         monkeypatch.delenv("NOAA_API_TOKEN", raising=False)
         with pytest.raises(ValueError, match="NOAA_API_TOKEN"):
@@ -117,14 +116,14 @@ class TestNoaaIngestion:
     def test_full_load(self, pg_con, mock_settings):
         import os
 
-        from config.pipeline_config import PipelineConfig
+        from databox_config.pipeline_config import PipelineConfig
 
         if not os.getenv("NOAA_API_TOKEN"):
             pytest.skip("NOAA_API_TOKEN not set")
 
         cfg = PipelineConfig(
             name="noaa",
-            source_module="sources.noaa.source",
+            source_module="databox_sources.noaa.source",
             params={"location_id": "FIPS:04", "dataset_id": "GHCND", "days_back": 30},
         )
         NoaaPipelineSource(cfg).load()

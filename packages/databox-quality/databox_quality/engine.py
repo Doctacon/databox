@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 import psycopg2
 
 if TYPE_CHECKING:
-    from config.pipeline_config import PipelineConfig
+    from databox_config.pipeline_config import PipelineConfig
 
 
 def _fetchone_value(cur: psycopg2.extensions.cursor) -> Any:

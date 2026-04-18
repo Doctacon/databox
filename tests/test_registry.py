@@ -6,9 +6,8 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
-from config.pipeline_config import PipelineConfig
-from sources.base import PipelineSource
+from databox_config.pipeline_config import PipelineConfig
+from databox_sources.base import PipelineSource
 
 
 class TestPipelineSourceProtocol:
@@ -54,11 +53,11 @@ class TestPipelineSourceProtocol:
 
     @pytest.mark.unit
     def test_ebird_source_is_compliant(self, mock_ebird_api_token):
-        from sources.ebird.source import create_pipeline
+        from databox_sources.ebird.source import create_pipeline
 
         cfg = PipelineConfig(
             name="ebird",
-            source_module="sources.ebird.source",
+            source_module="databox_sources.ebird.source",
             params={"region_code": "US-AZ"},
         )
         source = create_pipeline(cfg)
@@ -68,7 +67,7 @@ class TestPipelineSourceProtocol:
 class TestRegistry:
     @pytest.mark.unit
     def test_get_registry_discovers_ebird(self):
-        from sources.registry import get_registry
+        from databox_sources.registry import get_registry
 
         registry = get_registry(refresh=True)
         assert "ebird" in registry
@@ -76,28 +75,28 @@ class TestRegistry:
 
     @pytest.mark.unit
     def test_get_source_existing(self):
-        from sources.registry import get_source
+        from databox_sources.registry import get_source
 
         source = get_source("ebird")
         assert source.name == "ebird"
 
     @pytest.mark.unit
     def test_get_source_missing(self):
-        from sources.registry import get_source
+        from databox_sources.registry import get_source
 
         with pytest.raises(KeyError, match="no_exist"):
             get_source("no_exist")
 
     @pytest.mark.unit
     def test_get_source_missing_message(self):
-        from sources.registry import get_source
+        from databox_sources.registry import get_source
 
         with pytest.raises(KeyError, match="not found"):
             get_source("anything")
 
     @pytest.mark.unit
     def test_registry_caching(self):
-        import sources.registry as reg
+        import databox_sources.registry as reg
 
         reg._REGISTRY = None
         r1 = reg.get_registry()
@@ -106,7 +105,7 @@ class TestRegistry:
 
     @pytest.mark.unit
     def test_registry_refresh(self):
-        import sources.registry as reg
+        import databox_sources.registry as reg
 
         reg._REGISTRY = None
         r1 = reg.get_registry()
@@ -115,7 +114,7 @@ class TestRegistry:
 
     @pytest.mark.unit
     def test_build_source_missing_module(self):
-        from sources.registry import _build_source
+        from databox_sources.registry import _build_source
 
         cfg = PipelineConfig(
             name="bad",
@@ -126,11 +125,11 @@ class TestRegistry:
 
     @pytest.mark.unit
     def test_build_source_missing_factory(self):
-        from sources.registry import _build_source
+        from databox_sources.registry import _build_source
 
         cfg = PipelineConfig(
             name="bad",
-            source_module="config.settings",
+            source_module="databox_config.settings",
         )
         with pytest.raises(AttributeError, match="create_pipeline"):
             _build_source(cfg)
@@ -139,8 +138,8 @@ class TestRegistry:
     def test_bad_source_skipped(self, monkeypatch):
         from unittest.mock import patch
 
-        import sources.registry as reg
-        from config.pipeline_config import PipelineConfig, PipelineSchedule
+        import databox_sources.registry as reg
+        from databox_config.pipeline_config import PipelineConfig, PipelineSchedule
 
         bad_cfg = PipelineConfig(
             name="broken",

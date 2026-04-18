@@ -1,55 +1,32 @@
 [project]
 name = "databox"
 version = "0.2.0"
-description = "Dataset-agnostic data pipeline tool for ingestion, transformation, and quality checks"
-readme = "README.md"
+description = "Dataset-agnostic data pipeline tool"
 requires-python = ">=3.12"
 dependencies = [
-    "dlt[postgres]>=1.14.1",
-    "sqlmesh>=0.204.0",
-    "psycopg2-binary>=2.9",
-    "pandas>=2.2.3",
-    "pyarrow>=18.1.0",
-    "python-dotenv>=1.0.1",
-    "requests>=2.32.3",
-    "pydantic>=2.10.4",
-    "pydantic-settings>=2.13.0",
-    "pyyaml>=6.0",
-    "streamlit>=1.41.1",
-    "plotly>=5.24.1",
-    "altair>=5.4.1",
-    "rich>=13.9.4",
-    "pendulum>=3.0.0",
-    "pre-commit>=4.2.0",
-    "ruff>=0.12.5",
-    "loguru>=0.7.3",
-    "typer>=0.15.0",
-    "dagster>=1.5.0",
-    "dagster-webserver>=1.5.0",
-    "dagster-dlt>=0.1.0",
-    "psutil>=6.0.0",
-    "soda-postgres>=3.0.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-cov>=5.0",
-    "pytest-mock>=3.14",
-    "faker>=30.0",
-    "responses>=0.25",
+    "databox-config",
+    "databox-sources",
+    "databox-quality",
+    "databox-orchestration",
+    "databox-cli",
 ]
 
 [project.scripts]
-databox = "cli.main:app"
+databox = "databox_cli.main:app"
 
 [build-system]
 requires = ["setuptools>=70.0.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["sources", "quality", "orchestration", "config", "cli"]
-include-package-data = true
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+databox-config = { workspace = true }
+databox-sources = { workspace = true }
+databox-quality = { workspace = true }
+databox-orchestration = { workspace = true }
+databox-cli = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -59,7 +36,7 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short"
 markers = [
     "unit: isolated unit tests (no DB, no API)",
-    "integration: multi-component tests with real DuckDB",
+    "integration: multi-component tests with real DB",
     "e2e: full stack tests",
     "slow: tests that take >5s",
 ]

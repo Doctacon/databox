@@ -1,0 +1,16 @@
+[project]
+name = "databox-quality"
+version = "0.2.0"
+requires-python = ">=3.12"
+dependencies = [
+    "databox-config",
+    "psycopg2-binary>=2.9",
+    "soda-postgres>=3.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=70.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv.sources]
+databox-config = { workspace = true }

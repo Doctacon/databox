@@ -3,8 +3,9 @@
 import importlib
 import logging
 
-from config.pipeline_config import PipelineConfig, load_all_pipeline_configs
-from sources.base import PipelineSource
+from databox_config.pipeline_config import PipelineConfig, load_all_pipeline_configs
+
+from databox_sources.base import PipelineSource
 
 logger = logging.getLogger(__name__)
 
