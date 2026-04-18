@@ -7,7 +7,8 @@ from pathlib import Path
 
 import dagster as dg
 import dlt
-from dagster_dlt import DagsterDltResource, dlt_assets
+from dagster_dlt import DagsterDltResource, DagsterDltTranslator, dlt_assets
+from dagster_dlt.translator import DltResourceTranslatorData
 from dagster_sqlmesh import SQLMeshContextConfig, SQLMeshResource, sqlmesh_assets
 from dagster_sqlmesh.translator import SQLMeshDagsterTranslator
 from databox_config.settings import settings
@@ -55,6 +56,18 @@ _sqlmesh_config = DataboxSQLMeshContextConfig(
 
 
 # ---------------------------------------------------------------------------
+# Custom dlt translator — keys match SQLMesh raw table deps
+# ---------------------------------------------------------------------------
+
+
+class DataboxDltTranslator(DagsterDltTranslator):
+    def get_asset_spec(self, data: DltResourceTranslatorData) -> dg.AssetSpec:
+        default = super().get_asset_spec(data)
+        dataset = data.pipeline.dataset_name  # e.g. "raw_ebird"
+        return default.replace_attributes(key=dg.AssetKey(["sqlmesh", dataset, data.resource.name]))
+
+
+# ---------------------------------------------------------------------------
 # dlt assets — eBird
 # ---------------------------------------------------------------------------
 
@@ -68,6 +81,7 @@ _sqlmesh_config = DataboxSQLMeshContextConfig(
         pipelines_dir=settings.dlt_data_dir,
     ),
     group_name="ebird_ingestion",
+    dagster_dlt_translator=DataboxDltTranslator(),
 )
 def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     source = ebird_source(region_code="US-AZ", max_results=10000, days_back=30)
@@ -95,6 +109,7 @@ def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
         pipelines_dir=settings.dlt_data_dir,
     ),
     group_name="noaa_ingestion",
+    dagster_dlt_translator=DataboxDltTranslator(),
 )
 def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     source = noaa_source(
