@@ -6,17 +6,17 @@ MODEL (
 
 WITH observations AS (
     SELECT *
-    FROM ebird.stg_ebird_observations
+    FROM ebird_staging.stg_ebird_observations
 ),
 
 taxonomy AS (
     SELECT *
-    FROM ebird.stg_ebird_taxonomy
+    FROM ebird_staging.stg_ebird_taxonomy
 ),
 
 hotspots AS (
     SELECT *
-    FROM ebird.stg_ebird_hotspots
+    FROM ebird_staging.stg_ebird_hotspots
 )
 
 SELECT

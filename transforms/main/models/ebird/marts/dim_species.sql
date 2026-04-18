@@ -13,5 +13,5 @@ SELECT DISTINCT ON (species_code)
     family_common_name,
     family_scientific_name,
     loaded_at
-FROM ebird.stg_ebird_taxonomy
+FROM ebird_staging.stg_ebird_taxonomy
 ORDER BY species_code, loaded_at DESC

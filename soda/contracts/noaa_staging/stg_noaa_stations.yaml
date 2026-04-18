@@ -1,22 +1,21 @@
-dataset: databox/ebird/stg_ebird_hotspots
+dataset: databox/noaa_staging/stg_noaa_stations
 
 columns:
-  - name: location_id
+  - name: station_id
     checks:
       - missing:
           must_be: 0
       - duplicate:
           must_be: 0
-  - name: location_name
+  - name: station_name
     checks:
       - missing:
           must_be: 0
-  - name: country_code
-  - name: state_code
   - name: latitude
   - name: longitude
-  - name: latest_obs_date
-  - name: num_species_all_time
+  - name: elevation
+  - name: min_date
+  - name: max_date
 
 checks:
   - row_count:

@@ -1,5 +1,5 @@
 MODEL (
-  name ebird.stg_ebird_hotspots,
+  name ebird_staging.stg_ebird_hotspots,
   kind VIEW,
   description 'Staging model for eBird birding hotspots'
 );

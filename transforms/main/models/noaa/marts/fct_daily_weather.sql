@@ -18,7 +18,7 @@ WITH pivoted AS (
         COUNT(CASE WHEN value IS NULL THEN 1 END) AS missing_value_count,
         MIN(loaded_at) AS first_loaded_at,
         MAX(loaded_at) AS last_loaded_at
-    FROM noaa.stg_noaa_daily_weather
+    FROM noaa_staging.stg_noaa_daily_weather
     GROUP BY station, observation_date, location_id
 )
 

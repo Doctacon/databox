@@ -1,5 +1,5 @@
 MODEL (
-  name noaa.stg_noaa_stations,
+  name noaa_staging.stg_noaa_stations,
   kind VIEW,
   description 'Staging model for NOAA weather stations'
 );

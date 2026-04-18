@@ -1,5 +1,5 @@
 MODEL (
-  name ebird.stg_ebird_taxonomy,
+  name ebird_staging.stg_ebird_taxonomy,
   kind VIEW,
   description 'Staging model for eBird taxonomy reference data'
 );

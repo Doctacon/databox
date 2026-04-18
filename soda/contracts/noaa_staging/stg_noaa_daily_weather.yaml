@@ -1,4 +1,4 @@
-dataset: databox/noaa/stg_noaa_daily_weather
+dataset: databox/noaa_staging/stg_noaa_daily_weather
 
 columns:
   - name: station

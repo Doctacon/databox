@@ -1,5 +1,5 @@
 MODEL (
-  name noaa.stg_noaa_daily_weather,
+  name noaa_staging.stg_noaa_daily_weather,
   kind VIEW,
   description 'Staging model for NOAA daily weather observations'
 );

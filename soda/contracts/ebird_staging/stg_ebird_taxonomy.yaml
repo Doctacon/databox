@@ -1,4 +1,4 @@
-dataset: databox/ebird/stg_ebird_taxonomy
+dataset: databox/ebird_staging/stg_ebird_taxonomy
 
 columns:
   - name: species_code
@@ -15,9 +15,8 @@ columns:
     checks:
       - missing:
           must_be: 0
-  - name: category
-  - name: taxon_order
-  - name: order_name
+  - name: taxonomic_category
+  - name: taxonomic_order
   - name: family_common_name
   - name: family_scientific_name
 

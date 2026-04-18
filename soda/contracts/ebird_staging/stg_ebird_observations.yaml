@@ -1,4 +1,4 @@
-dataset: databox/ebird/stg_ebird_observations
+dataset: databox/ebird_staging/stg_ebird_observations
 
 columns:
   - name: submission_id
