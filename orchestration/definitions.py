@@ -16,6 +16,7 @@ from sources.noaa.source import noaa_source
 PROJECT_ROOT = Path(__file__).parent.parent
 TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
 MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
+SODA_DIR = PROJECT_ROOT / "soda"
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +128,56 @@ def create_sqlmesh_model_asset(
 
 
 # ---------------------------------------------------------------------------
+# Soda asset check factory
+# ---------------------------------------------------------------------------
+
+
+def _soda_datasource_yaml() -> str:
+    return f"""
+name: databox
+type: postgres
+connection:
+  host: {os.getenv("POSTGRES_HOST", "localhost")}
+  port: {int(os.getenv("POSTGRES_PORT", "5432"))}
+  database: {os.getenv("POSTGRES_DB", "databox")}
+  user: {os.getenv("POSTGRES_USER", "databox")}
+  password: {os.getenv("POSTGRES_PASSWORD", "databox")}
+"""
+
+
+def create_soda_asset_check(
+    asset_key: dg.AssetKey,
+    contract_path: Path,
+    check_name: str = "soda_contract",
+) -> dg.AssetChecksDefinition:
+    """Return an @asset_check that runs a Soda contract against the given asset."""
+
+    @dg.asset_check(asset=asset_key, name=check_name)
+    def _check() -> dg.AssetCheckResult:
+        from soda_core.common.yaml import ContractYamlSource, DataSourceYamlSource
+        from soda_core.contracts.contract_verification import ContractVerificationSession
+
+        result = ContractVerificationSession.execute(
+            contract_yaml_sources=[ContractYamlSource.from_str(contract_path.read_text())],
+            data_source_yaml_sources=[DataSourceYamlSource.from_str(_soda_datasource_yaml())],
+        )
+        metadata: dict = {
+            "checks_total": result.number_of_checks,
+            "checks_passed": result.number_of_checks_passed,
+            "checks_failed": result.number_of_checks_failed,
+        }
+        if result.is_failed:
+            return dg.AssetCheckResult(
+                passed=False,
+                description=result.get_errors_str(),
+                metadata=metadata,
+            )
+        return dg.AssetCheckResult(passed=True, metadata=metadata)
+
+    return _check
+
+
+# ---------------------------------------------------------------------------
 # SQLMesh model assets
 # ---------------------------------------------------------------------------
 
@@ -182,6 +233,45 @@ fct_daily_weather = create_sqlmesh_model_asset(
         dg.AssetKey(["sqlmesh", "noaa", "stg_noaa_stations"]),
     ],
 )
+
+# ---------------------------------------------------------------------------
+# Soda asset checks — one per SQLMesh model
+# ---------------------------------------------------------------------------
+
+_soda_checks: list[dg.AssetChecksDefinition] = [
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "ebird", "stg_ebird_observations"]),
+        SODA_DIR / "contracts/ebird/stg_ebird_observations.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "ebird", "stg_ebird_taxonomy"]),
+        SODA_DIR / "contracts/ebird/stg_ebird_taxonomy.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "ebird", "stg_ebird_hotspots"]),
+        SODA_DIR / "contracts/ebird/stg_ebird_hotspots.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "ebird", "int_ebird_enriched_observations"]),
+        SODA_DIR / "contracts/ebird/int_ebird_enriched_observations.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]),
+        SODA_DIR / "contracts/ebird/fct_daily_bird_observations.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "noaa", "stg_noaa_daily_weather"]),
+        SODA_DIR / "contracts/noaa/stg_noaa_daily_weather.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "noaa", "stg_noaa_stations"]),
+        SODA_DIR / "contracts/noaa/stg_noaa_stations.yaml",
+    ),
+    create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
+        SODA_DIR / "contracts/noaa/fct_daily_weather.yaml",
+    ),
+]
 
 # ---------------------------------------------------------------------------
 # Collect all assets
@@ -248,6 +338,7 @@ schedules = [
 
 defs = dg.Definitions(
     assets=assets,
+    asset_checks=_soda_checks,
     jobs=jobs,
     schedules=schedules,
     sensors=[],
