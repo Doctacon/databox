@@ -104,6 +104,7 @@ def create_sqlmesh_model_asset(
         description=f"SQLMesh model: {model_name}",
         deps=deps,
         required_resource_keys={"databox_config"},
+        tags={"kind": "sqlmesh", "dagster/storage_kind": "postgres"},
     )
     def _asset(context: dg.AssetExecutionContext) -> None:
         if not MAIN_TRANSFORM_PROJECT.exists():
