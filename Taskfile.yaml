@@ -138,7 +138,7 @@ tasks:
   transform:ui:
     desc: "Start SQLMesh UI"
     deps: [install]
-    dir: transforms/ebird
+    dir: transforms/main
     cmds:
       - "../../{{.VENV_DIR}}/bin/sqlmesh ui"
 
@@ -194,7 +194,7 @@ tasks:
     cmds:
       - rm -rf {{.VENV_DIR}}
       - rm -rf {{.DATA_DIR}}
-      - rm -rf .dlt/
+      - rm -rf .dlt_state/
 
   db:reset:
     desc: "Reset the database"
