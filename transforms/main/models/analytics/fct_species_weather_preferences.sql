@@ -1,7 +1,8 @@
 MODEL (
   name analytics.fct_species_weather_preferences,
   kind FULL,
-  description 'Per-species weather preference aggregates — what conditions correlate with each species appearing'
+  description 'Per-species weather preference aggregates — what conditions correlate with each species appearing',
+  grants (select_ = ['staging_reader', 'domain_reader', 'analyst'])
 );
 
 WITH ranked_seasons AS (

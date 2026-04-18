@@ -1,7 +1,8 @@
 MODEL (
   name ebird_staging.stg_ebird_taxonomy,
   kind VIEW,
-  description 'Staging model for eBird taxonomy reference data'
+  description 'Staging model for eBird taxonomy reference data',
+  grants (select_ = ['staging_reader'])
 );
 
 SELECT

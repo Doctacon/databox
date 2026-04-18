@@ -1,84 +1,75 @@
-"""Databox Explorer — Generic PostgreSQL data explorer."""
+"""Databox Explorer — DuckDB data explorer."""
 
 from __future__ import annotations
 
 import io
 import os
 
+import duckdb
 import pandas as pd
 import plotly.express as px
-import psycopg2
-import psycopg2.extras
 import streamlit as st
 
 PAGE_SIZE = 500
 
 st.set_page_config(page_title="Databox Explorer", page_icon="📦", layout="wide")
 
-_DEFAULT_DATABASE_URL = "postgresql://databox:databox@localhost:5432/databox"
+_DEFAULT_DB_PATH = "data/databox.duckdb"
 
 
-def _get_database_url() -> str:
-    return os.environ.get("DATABASE_URL", _DEFAULT_DATABASE_URL)
+def _get_db_path() -> str:
+    return os.environ.get("DUCKDB_PATH", _DEFAULT_DB_PATH)
 
 
 @st.cache_resource
-def _get_connection(database_url: str) -> psycopg2.extensions.connection:
-    return psycopg2.connect(database_url)
+def _get_connection(db_path: str) -> duckdb.DuckDBPyConnection:
+    return duckdb.connect(db_path, read_only=True)
 
 
-def _get_schemas(con: psycopg2.extensions.connection) -> list[str]:
-    cur = con.cursor()
-    cur.execute(
+def _get_schemas(con: duckdb.DuckDBPyConnection) -> list[str]:
+    rows = con.execute(
         "SELECT DISTINCT table_schema FROM information_schema.tables "
-        "WHERE table_schema NOT IN ('information_schema', 'pg_catalog') "
+        "WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'main') "
         "ORDER BY table_schema"
-    )
-    return [r[0] for r in cur.fetchall()]
+    ).fetchall()
+    return [r[0] for r in rows]
 
 
-def _get_tables(con: psycopg2.extensions.connection, schema: str) -> list[str]:
-    cur = con.cursor()
-    cur.execute(
+def _get_tables(con: duckdb.DuckDBPyConnection, schema: str) -> list[str]:
+    rows = con.execute(
         "SELECT table_name FROM information_schema.tables "
-        "WHERE table_schema = %s ORDER BY table_name",
-        (schema,),
-    )
-    return [r[0] for r in cur.fetchall()]
+        "WHERE table_schema = ? ORDER BY table_name",
+        [schema],
+    ).fetchall()
+    return [r[0] for r in rows]
 
 
-def _get_columns(con: psycopg2.extensions.connection, schema: str, table: str) -> list:
-    cur = con.cursor()
-    cur.execute(
+def _get_columns(con: duckdb.DuckDBPyConnection, schema: str, table: str) -> list:
+    rows = con.execute(
         "SELECT column_name, data_type, is_nullable "
         "FROM information_schema.columns "
-        "WHERE table_schema = %s AND table_name = %s "
+        "WHERE table_schema = ? AND table_name = ? "
         "ORDER BY ordinal_position",
-        (schema, table),
-    )
-    return cur.fetchall()
+        [schema, table],
+    ).fetchall()
+    return rows
 
 
 def _qualified(schema: str, table: str) -> str:
     return f'"{schema}"."{table}"'
 
 
-def _fetchdf(con: psycopg2.extensions.connection, query: str, params=None) -> pd.DataFrame:
-    cur = con.cursor()
-    cur.execute(query, params)
-    cols = [desc[0] for desc in cur.description]
-    return pd.DataFrame(cur.fetchall(), columns=cols)
+def _fetchdf(con: duckdb.DuckDBPyConnection, query: str) -> pd.DataFrame:
+    return con.execute(query).df()
 
 
 st.title("Databox Explorer")
 
-database_url = _get_database_url()
+db_path = _get_db_path()
 try:
-    con = _get_connection(database_url)
+    con = _get_connection(db_path)
 except Exception as e:
-    st.error(
-        f"Could not connect to database: {e}. Check DATABASE_URL and ensure PostgreSQL is running."
-    )
+    st.error(f"Could not connect to DuckDB at {db_path}: {e}")
     st.stop()
 
 schemas = _get_schemas(con)
@@ -95,9 +86,7 @@ with st.sidebar:
 
     if table:
         qname = _qualified(schema, table)
-        cur = con.cursor()
-        cur.execute(f"SELECT COUNT(*) FROM {qname}")
-        row_count = cur.fetchone()[0]
+        row_count = con.execute(f"SELECT COUNT(*) FROM {qname}").fetchone()[0]
         st.metric("Rows", f"{row_count:,}")
 
         st.divider()
@@ -279,7 +268,7 @@ with tab_chart:
 
 with tab_sql:
     st.subheader("SQL Query")
-    st.caption(f"Connected to `{database_url}`")
+    st.caption(f"Connected to `{db_path}`")
 
     default_query = f"SELECT * FROM {qname} LIMIT 100"
     sql = st.text_area("Query", value=default_query, height=200)
@@ -301,5 +290,3 @@ with tab_sql:
             st.caption(f"{len(result_df)} rows")
         except Exception as e:
             st.error(str(e))
-
-con.close()

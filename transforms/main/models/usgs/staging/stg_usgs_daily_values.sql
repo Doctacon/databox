@@ -1,7 +1,8 @@
 MODEL (
   name usgs_staging.stg_usgs_daily_values,
   kind VIEW,
-  description 'Staging model for USGS daily streamflow and gage observations'
+  description 'Staging model for USGS daily streamflow and gage observations',
+  grants (select_ = ['staging_reader'])
 );
 
 SELECT

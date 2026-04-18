@@ -15,7 +15,7 @@ class DataboxSettings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str = "postgresql://databox:databox@localhost:5432/databox"
+    database_path: str = str(DATA_DIR / "databox.duckdb")
     dlt_data_dir: str = str(PROJECT_ROOT / "pipelines" / ".dlt")
     log_level: str = "INFO"
 

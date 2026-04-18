@@ -4,7 +4,7 @@ version = "0.2.0"
 requires-python = ">=3.12"
 dependencies = [
     "databox-config",
-    "dlt[postgres]>=1.14.1",
+    "dlt[duckdb]>=1.14.1",
     "pendulum>=3.0.0",
     "requests>=2.32.3",
 ]

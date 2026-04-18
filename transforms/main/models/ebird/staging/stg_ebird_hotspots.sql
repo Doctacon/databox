@@ -1,7 +1,8 @@
 MODEL (
   name ebird_staging.stg_ebird_hotspots,
   kind VIEW,
-  description 'Staging model for eBird birding hotspots'
+  description 'Staging model for eBird birding hotspots',
+  grants (select_ = ['staging_reader'])
 );
 
 SELECT
