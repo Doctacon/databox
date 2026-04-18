@@ -20,7 +20,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dagster
-    command: dagster dev -f orchestration/definitions.py --host 0.0.0.0 --port 3000
+    command: dagster dev -f packages/databox-orchestration/databox_orchestration/definitions.py --host 0.0.0.0 --port 3000
     depends_on:
       postgres:
         condition: service_healthy

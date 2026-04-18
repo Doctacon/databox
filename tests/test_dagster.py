@@ -16,7 +16,7 @@ class TestDagsterAssetGeneration:
     def test_module_loads_with_configs(self):
         """Verify the module can be imported and generates assets."""
         try:
-            from orchestration import definitions
+            from databox_orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
@@ -29,7 +29,7 @@ class TestDagsterAssetGeneration:
     def test_ebird_dlt_assets_exist(self):
         """Verify fine-grained eBird dlt assets are generated."""
         try:
-            from orchestration import definitions
+            from databox_orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
@@ -51,7 +51,7 @@ class TestDagsterAssetGeneration:
     def test_noaa_dlt_assets_exist(self):
         """Verify fine-grained NOAA dlt assets are generated."""
         try:
-            from orchestration import definitions
+            from databox_orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
@@ -65,7 +65,7 @@ class TestDagsterAssetGeneration:
     @pytest.mark.unit
     def test_transform_assets_for_configured_projects(self):
         try:
-            from orchestration import definitions
+            from databox_orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
@@ -90,12 +90,12 @@ class TestDagsterAssetGeneration:
     @pytest.mark.unit
     def test_jobs_created_per_pipeline(self):
         try:
-            from orchestration import definitions
+            from databox_orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
 
-        from sources.registry import get_registry
+        from databox_sources.registry import get_registry
 
         registry = get_registry()
         job_names = {j.name for j in definitions.jobs}
@@ -106,12 +106,12 @@ class TestDagsterAssetGeneration:
     @pytest.mark.unit
     def test_schedules_for_enabled_pipelines(self):
         try:
-            from orchestration import definitions
+            from databox_orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
 
-        from sources.registry import get_registry
+        from databox_sources.registry import get_registry
 
         registry = get_registry()
         schedule_names = set()
@@ -133,8 +133,7 @@ class TestSqlmeshModelAsset:
     def test_creates_asset_with_correct_key(self):
         try:
             import dagster as dg
-
-            from orchestration.definitions import create_sqlmesh_model_asset
+            from databox_orchestration.definitions import create_sqlmesh_model_asset
         except ImportError:
             pytest.skip("Dagster not installed")
             return
@@ -150,7 +149,7 @@ class TestJobsAndSchedules:
     @pytest.mark.unit
     def test_all_pipelines_job_exists(self):
         try:
-            from orchestration import definitions
+            from databox_orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
@@ -161,7 +160,7 @@ class TestJobsAndSchedules:
     @pytest.mark.unit
     def test_per_source_jobs_exist(self):
         try:
-            from orchestration import definitions
+            from databox_orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return
@@ -174,7 +173,7 @@ class TestJobsAndSchedules:
     def test_total_asset_count(self):
         """Verify we have ~17 fine-grained assets (9 dlt + 8 sqlmesh)."""
         try:
-            from orchestration import definitions
+            from databox_orchestration import definitions
         except ImportError:
             pytest.skip("Dagster not installed")
             return

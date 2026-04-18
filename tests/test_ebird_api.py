@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import pytest
-
-from sources.ebird.source import ebird_source, process_observation
+from databox_sources.ebird.source import ebird_source, process_observation
 
 
 class TestEbirdApiHeaders:
     @pytest.mark.unit
     def test_get_api_headers(self, monkeypatch):
-        from sources.ebird.source import get_api_headers
+        from databox_sources.ebird.source import get_api_headers
 
         monkeypatch.setenv("EBIRD_API_TOKEN", "test_token")
         headers = get_api_headers()
@@ -18,7 +17,7 @@ class TestEbirdApiHeaders:
 
     @pytest.mark.unit
     def test_missing_token(self, monkeypatch):
-        from sources.ebird.source import get_api_headers
+        from databox_sources.ebird.source import get_api_headers
 
         monkeypatch.delenv("EBIRD_API_TOKEN", raising=False)
         with pytest.raises(ValueError, match="EBIRD_API_TOKEN"):
@@ -92,15 +91,15 @@ class TestEbirdIngestion:
     def test_full_load(self, pg_con, mock_settings):
         import os
 
-        from config.pipeline_config import PipelineConfig
-        from sources.ebird.source import EbirdPipelineSource
+        from databox_config.pipeline_config import PipelineConfig
+        from databox_sources.ebird.source import EbirdPipelineSource
 
         if not os.getenv("EBIRD_API_TOKEN"):
             pytest.skip("EBIRD_API_TOKEN not set")
 
         cfg = PipelineConfig(
             name="ebird",
-            source_module="sources.ebird.source",
+            source_module="databox_sources.ebird.source",
             params={"region_code": "US-AZ", "max_results": 10, "days_back": 1},
         )
         EbirdPipelineSource(cfg).load()

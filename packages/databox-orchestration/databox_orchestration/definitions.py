@@ -8,12 +8,11 @@ from pathlib import Path
 import dagster as dg
 import dlt
 from dagster_dlt import DagsterDltResource, dlt_assets
+from databox_config.settings import settings
+from databox_sources.ebird.source import ebird_source
+from databox_sources.noaa.source import noaa_source
 
-from config.settings import settings
-from sources.ebird.source import ebird_source
-from sources.noaa.source import noaa_source
-
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
 MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
 SODA_DIR = PROJECT_ROOT / "soda"

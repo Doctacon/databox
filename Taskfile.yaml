@@ -16,7 +16,7 @@ tasks:
     desc: "Setup development environment"
     cmds:
       - uv venv {{.VENV_DIR}}
-      - uv pip install -e .
+      - uv sync
       - test -f .env || cp .env.example .env
     sources:
       - pyproject.toml
@@ -30,7 +30,7 @@ tasks:
     desc: "Install project dependencies"
     deps: [setup]
     cmds:
-      - uv pip install -e .
+      - uv sync
       - ./scripts/setup_pre_commit.sh
     sources:
       - pyproject.toml
@@ -222,7 +222,7 @@ tasks:
       DAGSTER_HOME: "{{.ROOT_DIR}}/.dagster"
       PYTHONPATH: "{{.ROOT_DIR}}"
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster dev -f orchestration/definitions.py"
+      - "{{.VENV_DIR}}/bin/dagster dev -f packages/databox-orchestration/databox_orchestration/definitions.py"
 
   dagster:materialize:
     desc: "Materialize all Dagster assets (runs all pipelines + transforms sequentially)"
@@ -231,7 +231,7 @@ tasks:
       DAGSTER_HOME: "{{.ROOT_DIR}}/.dagster"
       PYTHONPATH: "{{.ROOT_DIR}}"
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f orchestration/definitions.py"
+      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox-orchestration/databox_orchestration/definitions.py"
 
   verify:
     desc: "Smoke test via Dagster — limited ingest (5 items/resource) + last 3 days of transforms"
@@ -241,7 +241,7 @@ tasks:
       PYTHONPATH: "{{.ROOT_DIR}}"
       DATABOX_SMOKE: "1"
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f orchestration/definitions.py"
+      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox-orchestration/databox_orchestration/definitions.py"
 
   # Streamlit
   streamlit:

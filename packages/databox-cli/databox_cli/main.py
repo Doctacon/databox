@@ -14,10 +14,9 @@ app = typer.Typer(
 @app.command(name="list")
 def list_pipelines():
     """List all registered pipelines."""
+    from databox_sources.registry import get_registry
     from rich.console import Console
     from rich.table import Table
-
-    from sources.registry import get_registry
 
     console = Console()
     registry = get_registry()
@@ -56,7 +55,7 @@ def run(
     ),
 ):
     """Run a registered pipeline by name."""
-    from sources.registry import get_source
+    from databox_sources.registry import get_source
 
     source = get_source(name)
 
@@ -73,7 +72,7 @@ def validate(
     name: str = typer.Argument(..., help="Pipeline name to validate"),
 ):
     """Validate a pipeline's configuration and credentials."""
-    from sources.registry import get_source
+    from databox_sources.registry import get_source
 
     source = get_source(name)
     valid = source.validate_config()
@@ -98,7 +97,7 @@ def transform_plan(
     import subprocess
     import sys
 
-    from config.settings import PROJECT_ROOT
+    from databox_config.settings import PROJECT_ROOT
 
     projects = _resolve_transform_projects(project)
     for proj in projects:
@@ -129,7 +128,7 @@ def transform_run(
     import subprocess
     import sys
 
-    from config.settings import PROJECT_ROOT
+    from databox_config.settings import PROJECT_ROOT
 
     projects = _resolve_transform_projects(project)
     for proj in projects:
@@ -157,7 +156,7 @@ def transform_test(
     import subprocess
     import sys
 
-    from config.settings import PROJECT_ROOT
+    from databox_config.settings import PROJECT_ROOT
 
     projects = _resolve_transform_projects(project)
     for proj in projects:
@@ -186,8 +185,8 @@ def quality_check(
     table: str = typer.Argument(..., help="Table name (schema.table) to check"),
 ):
     """Run data quality checks on a table."""
-    from config.settings import settings
-    from quality.engine import check_table
+    from databox_config.settings import settings
+    from databox_quality.engine import check_table
 
     try:
         result = check_table(table, settings.database_url)
@@ -208,12 +207,11 @@ def quality_check(
 @_quality_app.command("report")
 def quality_report():
     """Run all configured quality rules against loaded data and show a report."""
+    from databox_config.pipeline_config import load_all_pipeline_configs
+    from databox_config.settings import settings
+    from databox_quality.engine import run_report
     from rich.console import Console
     from rich.table import Table
-
-    from config.pipeline_config import load_all_pipeline_configs
-    from config.settings import settings
-    from quality.engine import run_report
 
     console = Console()
 
@@ -263,11 +261,10 @@ def quality_report():
 def status():
     """Show pipeline status and data freshness."""
     import psycopg2
+    from databox_config.settings import settings
+    from databox_sources.registry import get_registry
     from rich.console import Console
     from rich.table import Table
-
-    from config.settings import settings
-    from sources.registry import get_registry
 
     console = Console()
 
@@ -327,7 +324,7 @@ def status():
 
 
 def _resolve_transform_projects(project: str | None) -> list[str]:
-    from config.settings import PROJECT_ROOT
+    from databox_config.settings import PROJECT_ROOT
 
     transforms_dir = PROJECT_ROOT / "transforms"
     if project:

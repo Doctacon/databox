@@ -54,12 +54,12 @@ class TestEbirdE2E:
         if not os.getenv("EBIRD_API_TOKEN"):
             pytest.skip("EBIRD_API_TOKEN not set")
 
-        from config.pipeline_config import PipelineConfig
-        from sources.ebird.source import EbirdPipelineSource
+        from databox_config.pipeline_config import PipelineConfig
+        from databox_sources.ebird.source import EbirdPipelineSource
 
         cfg = PipelineConfig(
             name="ebird",
-            source_module="sources.ebird.source",
+            source_module="databox_sources.ebird.source",
             params={"region_code": "US-AZ", "days_back": 1, "max_results": 25},
         )
         EbirdPipelineSource(cfg).load()
@@ -91,12 +91,12 @@ class TestNoaaE2E:
         if not os.getenv("NOAA_API_TOKEN"):
             pytest.skip("NOAA_API_TOKEN not set")
 
-        from config.pipeline_config import PipelineConfig
-        from sources.noaa.source import NoaaPipelineSource
+        from databox_config.pipeline_config import PipelineConfig
+        from databox_sources.noaa.source import NoaaPipelineSource
 
         cfg = PipelineConfig(
             name="noaa",
-            source_module="sources.noaa.source",
+            source_module="databox_sources.noaa.source",
             params={"location_id": "FIPS:04", "dataset_id": "GHCND", "days_back": 30},
         )
         NoaaPipelineSource(cfg).load()

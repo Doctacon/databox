@@ -1,4 +1,4 @@
-source_module: "sources.noaa.source"
+source_module: "databox_sources.noaa.source"
 description: "NOAA CDO daily weather observations"
 schedule:
   cron: "0 6 * * *"
