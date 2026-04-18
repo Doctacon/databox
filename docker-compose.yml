@@ -31,7 +31,9 @@ services:
       - .env
     volumes:
       - dagster_home:/dagster_home
+      - ./docker/dagster/dagster.yaml:/dagster_home/dagster.yaml:ro
       - .:/app
+
     ports:
       - "3000:3000"
 
@@ -50,7 +52,9 @@ services:
       - .env
     volumes:
       - dagster_home:/dagster_home
+      - ./docker/dagster/dagster.yaml:/dagster_home/dagster.yaml:ro
       - .:/app
+
 
 volumes:
   postgres_data: {}

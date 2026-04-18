@@ -371,6 +371,19 @@ wheels = [
 ]
 
 [[package]]
+name = "dagster-postgres"
+version = "0.28.21"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dagster" },
+    { name = "psycopg2-binary" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bd/01/105d1220e1d15e843dc3d58023b204d61e5e8ed0cae91bbb023ef3738525/dagster_postgres-0.28.21.tar.gz", hash = "sha256:94dd1c3b4bccd200d282ec490cffb1dbd86f75ab720c80d32feb4df24d6a883e", size = 280146, upload-time = "2026-03-26T15:33:12.857Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/2f/fb5cc5a0559a3a8ded708c415e5590fb10878862d6688dc551640b28d3d9/dagster_postgres-0.28.21-py3-none-any.whl", hash = "sha256:0742a2643547c43e1a5455d84cec4c3f2c300632117f25421db3f39c748eb0ca", size = 22393, upload-time = "2026-03-26T15:33:11.483Z" },
+]
+
+[[package]]
 name = "dagster-shared"
 version = "1.12.21"
 source = { registry = "https://pypi.org/simple" }
@@ -499,6 +512,7 @@ source = { editable = "packages/databox-orchestration" }
 dependencies = [
     { name = "dagster" },
     { name = "dagster-dlt" },
+    { name = "dagster-postgres" },
     { name = "dagster-webserver" },
     { name = "databox-config" },
     { name = "databox-sources" },
@@ -510,6 +524,7 @@ dependencies = [
 requires-dist = [
     { name = "dagster", specifier = ">=1.5.0" },
     { name = "dagster-dlt", specifier = ">=0.1.0" },
+    { name = "dagster-postgres", specifier = ">=0.28.21" },
     { name = "dagster-webserver", specifier = ">=1.5.0" },
     { name = "databox-config", editable = "packages/databox-config" },
     { name = "databox-sources", editable = "packages/databox-sources" },

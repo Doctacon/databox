@@ -10,6 +10,7 @@ dependencies = [
     "dagster-dlt>=0.1.0",
     "dlt[postgres]>=1.14.1",
     "sqlmesh>=0.204.0",
+    "dagster-postgres>=0.28.21",
 ]
 
 [build-system]
