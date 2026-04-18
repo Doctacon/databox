@@ -1,0 +1,34 @@
+dataset: databox/ebird/int_ebird_enriched_observations
+
+columns:
+  - name: observation_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: species_code
+    checks:
+      - missing:
+          must_be: 0
+  - name: common_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: scientific_name
+  - name: order_name
+  - name: family_common_name
+  - name: location_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: location_name
+  - name: observed_at
+    checks:
+      - missing:
+          must_be: 0
+  - name: how_many
+  - name: latitude
+  - name: longitude
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

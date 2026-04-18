@@ -1,0 +1,30 @@
+dataset: databox/raw_ebird/taxonomy
+
+columns:
+  - name: sci_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: com_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: spec_code
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: category
+  - name: taxon_order
+  - name: order
+  - name: family_com_name
+  - name: family_sci_name
+  - name: _dlt_load_id
+    checks:
+      - missing:
+          must_be: 0
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

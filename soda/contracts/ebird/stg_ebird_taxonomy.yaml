@@ -1,0 +1,26 @@
+dataset: databox/ebird/stg_ebird_taxonomy
+
+columns:
+  - name: species_code
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: common_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: scientific_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: category
+  - name: taxon_order
+  - name: order_name
+  - name: family_common_name
+  - name: family_scientific_name
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

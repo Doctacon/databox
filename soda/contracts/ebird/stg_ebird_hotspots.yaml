@@ -1,0 +1,23 @@
+dataset: databox/ebird/stg_ebird_hotspots
+
+columns:
+  - name: location_id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: location_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: country_code
+  - name: state_code
+  - name: latitude
+  - name: longitude
+  - name: latest_obs_date
+  - name: num_species_all_time
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

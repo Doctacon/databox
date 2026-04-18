@@ -1,0 +1,20 @@
+dataset: databox/noaa/stg_noaa_daily_weather
+
+columns:
+  - name: station_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: date
+    checks:
+      - missing:
+          must_be: 0
+  - name: datatype
+    checks:
+      - missing:
+          must_be: 0
+  - name: value
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

@@ -1,0 +1,25 @@
+dataset: databox/raw_noaa/daily_weather
+
+columns:
+  - name: station
+    checks:
+      - missing:
+          must_be: 0
+  - name: date
+    checks:
+      - missing:
+          must_be: 0
+  - name: datatype
+    checks:
+      - missing:
+          must_be: 0
+  - name: value
+  - name: attributes
+  - name: _dlt_load_id
+    checks:
+      - missing:
+          must_be: 0
+
+checks:
+  - row_count:
+      must_be_greater_than: 0
