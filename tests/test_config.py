@@ -16,9 +16,11 @@ from config.pipeline_config import (
 class TestDataboxSettings:
     @pytest.mark.unit
     def test_default_database_url(self):
-        from config.settings import settings
+        from config.settings import DataboxSettings
 
-        assert "databox.db" in settings.database_url
+        s = DataboxSettings()
+        assert s.database_url.startswith("postgresql://")
+        assert "databox" in s.database_url
 
     @pytest.mark.unit
     def test_default_log_level(self):
@@ -27,18 +29,11 @@ class TestDataboxSettings:
         assert settings.log_level == "INFO"
 
     @pytest.mark.unit
-    def test_database_path_from_url(self):
+    def test_custom_database_url(self):
         from config.settings import DataboxSettings
 
-        s = DataboxSettings(database_url="duckdb:///tmp/test.db")
-        assert s.database_path.name == "test.db"
-
-    @pytest.mark.unit
-    def test_database_path_fallback(self):
-        from config.settings import DataboxSettings
-
-        s = DataboxSettings(database_url="postgresql://host/db")
-        assert s.database_path.name == "databox.db"
+        s = DataboxSettings(database_url="postgresql://user:pass@host:5432/mydb")
+        assert s.database_url == "postgresql://user:pass@host:5432/mydb"
 
     @pytest.mark.unit
     def test_env_override(self, monkeypatch):

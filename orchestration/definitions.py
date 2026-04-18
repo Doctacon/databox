@@ -8,7 +8,6 @@ from pathlib import Path
 import dagster as dg
 import dlt
 from dagster_dlt import DagsterDltResource, dlt_assets
-from dagster_duckdb import DuckDBResource
 
 from config.settings import settings
 from sources.ebird.source import ebird_source
@@ -39,7 +38,7 @@ class DataboxConfig(dg.ConfigurableResource):
     dlt_source=ebird_source(region_code="US-AZ", max_results=10000, days_back=30),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="ebird_api",
-        destination=dlt.destinations.duckdb(credentials=settings.database_url),
+        destination=dlt.destinations.postgres(credentials=settings.database_url),
         dataset_name="raw_ebird",
         pipelines_dir=settings.dlt_data_dir,
     ),
@@ -66,7 +65,7 @@ def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
     ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="noaa_api",
-        destination=dlt.destinations.duckdb(credentials=settings.database_url),
+        destination=dlt.destinations.postgres(credentials=settings.database_url),
         dataset_name="raw_noaa",
         pipelines_dir=settings.dlt_data_dir,
     ),
@@ -253,7 +252,6 @@ defs = dg.Definitions(
     schedules=schedules,
     sensors=[],
     resources={
-        "duckdb": DuckDBResource(database=settings.database_url),
         "databox_config": DataboxConfig(),
         "dlt": DagsterDltResource(),
     },

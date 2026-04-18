@@ -1,69 +1,86 @@
-"""Databox Explorer — Generic DuckDB data explorer."""
+"""Databox Explorer — Generic PostgreSQL data explorer."""
 
 from __future__ import annotations
 
 import io
-from pathlib import Path
+import os
 
-import duckdb
 import pandas as pd
 import plotly.express as px
+import psycopg2
+import psycopg2.extras
 import streamlit as st
 
 PAGE_SIZE = 500
 
 st.set_page_config(page_title="Databox Explorer", page_icon="📦", layout="wide")
 
+_DEFAULT_DATABASE_URL = "postgresql://databox:databox@localhost:5432/databox"
 
-def _find_db() -> Path:
-    return Path(__file__).resolve().parent.parent / "data" / "databox.db"
+
+def _get_database_url() -> str:
+    return os.environ.get("DATABASE_URL", _DEFAULT_DATABASE_URL)
 
 
 @st.cache_resource
-def _get_connection(db_path: Path) -> duckdb.DuckDBPyConnection:
-    return duckdb.connect(str(db_path), read_only=True)
+def _get_connection(database_url: str) -> psycopg2.extensions.connection:
+    return psycopg2.connect(database_url)
 
 
-def _get_schemas(con: duckdb.DuckDBPyConnection) -> list[str]:
-    rows = con.execute(
+def _get_schemas(con: psycopg2.extensions.connection) -> list[str]:
+    cur = con.cursor()
+    cur.execute(
         "SELECT DISTINCT table_schema FROM information_schema.tables "
         "WHERE table_schema NOT IN ('information_schema', 'pg_catalog') "
         "ORDER BY table_schema"
-    ).fetchall()
-    return [r[0] for r in rows]
+    )
+    return [r[0] for r in cur.fetchall()]
 
 
-def _get_tables(con: duckdb.DuckDBPyConnection, schema: str) -> list[str]:
-    rows = con.execute(
+def _get_tables(con: psycopg2.extensions.connection, schema: str) -> list[str]:
+    cur = con.cursor()
+    cur.execute(
         "SELECT table_name FROM information_schema.tables "
-        "WHERE table_schema = ? ORDER BY table_name",
-        [schema],
-    ).fetchall()
-    return [r[0] for r in rows]
+        "WHERE table_schema = %s ORDER BY table_name",
+        (schema,),
+    )
+    return [r[0] for r in cur.fetchall()]
 
 
-def _get_columns(con: duckdb.DuckDBPyConnection, schema: str, table: str) -> list[dict]:
-    return con.execute(
+def _get_columns(con: psycopg2.extensions.connection, schema: str, table: str) -> list:
+    cur = con.cursor()
+    cur.execute(
         "SELECT column_name, data_type, is_nullable "
         "FROM information_schema.columns "
-        "WHERE table_schema = ? AND table_name = ? "
+        "WHERE table_schema = %s AND table_name = %s "
         "ORDER BY ordinal_position",
-        [schema, table],
-    ).fetchall()
+        (schema, table),
+    )
+    return cur.fetchall()
 
 
 def _qualified(schema: str, table: str) -> str:
     return f'"{schema}"."{table}"'
 
 
+def _fetchdf(con: psycopg2.extensions.connection, query: str, params=None) -> pd.DataFrame:
+    cur = con.cursor()
+    cur.execute(query, params)
+    cols = [desc[0] for desc in cur.description]
+    return pd.DataFrame(cur.fetchall(), columns=cols)
+
+
 st.title("Databox Explorer")
 
-db_path = _find_db()
-if not db_path.exists():
-    st.error(f"Database not found at `{db_path}`. Run `databox run <pipeline>` first.")
+database_url = _get_database_url()
+try:
+    con = _get_connection(database_url)
+except Exception as e:
+    st.error(
+        f"Could not connect to database: {e}. Check DATABASE_URL and ensure PostgreSQL is running."
+    )
     st.stop()
 
-con = _get_connection(db_path)
 schemas = _get_schemas(con)
 
 if not schemas:
@@ -78,7 +95,9 @@ with st.sidebar:
 
     if table:
         qname = _qualified(schema, table)
-        row_count = con.execute(f"SELECT COUNT(*) FROM {qname}").fetchone()[0]
+        cur = con.cursor()
+        cur.execute(f"SELECT COUNT(*) FROM {qname}")
+        row_count = cur.fetchone()[0]
         st.metric("Rows", f"{row_count:,}")
 
         st.divider()
@@ -126,7 +145,7 @@ with tab_data:
     offset = (page - 1) * PAGE_SIZE
     query += f" LIMIT {PAGE_SIZE} OFFSET {offset}"
 
-    df = con.execute(query).fetchdf()
+    df = _fetchdf(con, query)
     st.dataframe(df, use_container_width=True, hide_index=True)
 
     col_dl1, col_dl2 = st.columns(2)
@@ -139,7 +158,7 @@ with tab_data:
         st.download_button("Download Parquet", buf.getvalue(), f"{table}.parquet")
 
 with tab_profile:
-    profile_df = con.execute(f"SELECT * FROM {qname} LIMIT 50000").fetchdf()
+    profile_df = _fetchdf(con, f"SELECT * FROM {qname} LIMIT 50000")
 
     if profile_df.empty:
         st.info("Table is empty.")
@@ -206,7 +225,7 @@ with tab_profile:
                 st.plotly_chart(fig, use_container_width=True)
 
 with tab_chart:
-    chart_df = con.execute(f"SELECT * FROM {qname} LIMIT 50000").fetchdf()
+    chart_df = _fetchdf(con, f"SELECT * FROM {qname} LIMIT 50000")
 
     if chart_df.empty:
         st.info("Table is empty.")
@@ -260,14 +279,14 @@ with tab_chart:
 
 with tab_sql:
     st.subheader("SQL Query")
-    st.caption(f"Connected to `{db_path.name}` (read-only)")
+    st.caption(f"Connected to `{database_url}`")
 
     default_query = f"SELECT * FROM {qname} LIMIT 100"
     sql = st.text_area("Query", value=default_query, height=200)
 
     if st.button("Run Query", type="primary"):
         try:
-            result_df = con.execute(sql).fetchdf()
+            result_df = _fetchdf(con, sql)
             st.dataframe(result_df, use_container_width=True, hide_index=True)
 
             col_dl1, col_dl2 = st.columns(2)

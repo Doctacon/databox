@@ -189,13 +189,8 @@ def quality_check(
     from config.settings import settings
     from quality.engine import check_table
 
-    db_path = settings.database_path
-    if not db_path.exists():
-        typer.echo(f"Database not found at {db_path}", err=True)
-        raise typer.Exit(code=1)
-
     try:
-        result = check_table(table, db_path)
+        result = check_table(table, settings.database_url)
     except Exception as e:
         typer.echo(f"Error checking table: {e}", err=True)
         raise typer.Exit(code=1) from None
@@ -221,14 +216,9 @@ def quality_report():
     from quality.engine import run_report
 
     console = Console()
-    db_path = settings.database_path
-
-    if not db_path.exists():
-        console.print("[yellow]Database not found. Run a pipeline first.[/yellow]")
-        raise typer.Exit(code=1)
 
     configs = load_all_pipeline_configs()
-    results = run_report(db_path, configs)
+    results = run_report(settings.database_url, configs)
 
     tbl = Table(title="Quality Report")
     tbl.add_column("Pipeline", style="cyan")
@@ -272,7 +262,7 @@ def quality_report():
 @app.command()
 def status():
     """Show pipeline status and data freshness."""
-    import duckdb
+    import psycopg2
     from rich.console import Console
     from rich.table import Table
 
@@ -280,19 +270,20 @@ def status():
     from sources.registry import get_registry
 
     console = Console()
-    db_path = settings.database_path
-
-    if not db_path.exists():
-        console.print("[yellow]Database not found. Run a pipeline first.[/yellow]")
-        return
-
-    con = duckdb.connect(str(db_path), read_only=True)
 
     try:
-        schemas = con.execute(
+        con = psycopg2.connect(settings.database_url)
+    except Exception as e:
+        console.print(f"[yellow]Database not found. Run a pipeline first.[/yellow] ({e})")
+        return
+
+    try:
+        cur = con.cursor()
+        cur.execute(
             "SELECT schema_name FROM information_schema.schemata "
             "WHERE schema_name NOT IN ('information_schema', 'pg_catalog')"
-        ).fetchall()
+        )
+        schemas = cur.fetchall()
 
         table = Table(title="Database Status")
         table.add_column("Schema", style="cyan")
@@ -302,19 +293,24 @@ def status():
 
         for (schema,) in schemas:
             try:
-                tables = con.execute(
-                    f"SELECT table_name FROM information_schema.tables "
-                    f"WHERE table_schema = '{schema}'"
-                ).fetchall()
+                cur.execute(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = %s",
+                    (schema,),
+                )
+                tables = cur.fetchall()
                 for (tbl,) in tables:
-                    fqn = f"{schema}.{tbl}"
-                    count = con.execute(f"SELECT COUNT(*) FROM {fqn}").fetchone()[0]
+                    fqn = f'"{schema}"."{tbl}"'
+                    cur.execute(f"SELECT COUNT(*) FROM {fqn}")
+                    count = cur.fetchone()[0]
                     try:
-                        latest = con.execute(f"SELECT MAX(_loaded_at) FROM {fqn}").fetchone()[0]
+                        cur.execute(f"SELECT MAX(_loaded_at) FROM {fqn}")
+                        latest = cur.fetchone()[0]
                     except Exception:
+                        con.rollback()
                         latest = "N/A"
                     table.add_row(schema, tbl, str(count), str(latest) if latest else "N/A")
             except Exception:
+                con.rollback()
                 continue
 
         console.print(table)
