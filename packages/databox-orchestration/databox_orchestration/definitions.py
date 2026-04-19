@@ -53,9 +53,11 @@ class DataboxConfig(dg.ConfigurableResource):
     transforms_dir: str = str(TRANSFORMS_DIR)
 
 
+_gateway = "motherduck" if os.getenv("DATABOX_BACKEND") == "motherduck" else "local"
+
 _sqlmesh_config = DataboxSQLMeshContextConfig(
     path=str(MAIN_TRANSFORM_PROJECT),
-    gateway="duckdb",
+    gateway=_gateway,
 )
 
 
