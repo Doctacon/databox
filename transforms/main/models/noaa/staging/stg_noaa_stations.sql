@@ -1,6 +1,6 @@
 MODEL (
   name noaa_staging.stg_noaa_stations,
-  kind VIEW,
+  kind FULL,
   description 'Staging model for NOAA weather stations',
   grants (select_ = ['staging_reader'])
 );
@@ -17,4 +17,4 @@ SELECT
     datacoverage::DOUBLE AS data_coverage,
     _location_id AS location_id,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_noaa.stations
+FROM raw_noaa.main.stations

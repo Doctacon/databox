@@ -2,7 +2,11 @@ gateways:
   duckdb:
     connection:
       type: duckdb
-      database: "{{ env_var('DUCKDB_PATH', 'data/databox.duckdb') }}"
+      catalogs:
+        databox: "{{ env_var('DUCKDB_PATH', 'data/databox.duckdb') }}"
+        raw_ebird: "{{ env_var('RAW_EBIRD_PATH', 'data/raw_ebird.duckdb') }}"
+        raw_noaa: "{{ env_var('RAW_NOAA_PATH', 'data/raw_noaa.duckdb') }}"
+        raw_usgs: "{{ env_var('RAW_USGS_PATH', 'data/raw_usgs.duckdb') }}"
 
 default_gateway: duckdb
 

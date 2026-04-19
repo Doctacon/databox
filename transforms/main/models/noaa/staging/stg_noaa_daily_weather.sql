@@ -1,6 +1,6 @@
 MODEL (
   name noaa_staging.stg_noaa_daily_weather,
-  kind VIEW,
+  kind FULL,
   description 'Staging model for NOAA daily weather observations',
   grants (select_ = ['staging_reader'])
 );
@@ -17,4 +17,4 @@ SELECT
     source,
     _location_id AS location_id,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_noaa.daily_weather
+FROM raw_noaa.main.daily_weather

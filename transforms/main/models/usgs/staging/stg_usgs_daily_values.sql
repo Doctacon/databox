@@ -1,6 +1,6 @@
 MODEL (
   name usgs_staging.stg_usgs_daily_values,
-  kind VIEW,
+  kind FULL,
   description 'Staging model for USGS daily streamflow and gage observations',
   grants (select_ = ['staging_reader'])
 );
@@ -18,4 +18,4 @@ SELECT
     qualifier,
     _state_cd AS state_cd,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_usgs.daily_values
+FROM raw_usgs.main.daily_values

@@ -1,6 +1,6 @@
 MODEL (
   name ebird.int_ebird_enriched_observations,
-  kind VIEW,
+  kind FULL,
   description 'Intermediate model with enriched bird observations including taxonomy and location details',
   grants (select_ = ['staging_reader', 'domain_reader'])
 );

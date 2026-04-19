@@ -1,6 +1,6 @@
 MODEL (
   name ebird_staging.stg_ebird_hotspots,
-  kind VIEW,
+  kind FULL,
   description 'Staging model for eBird birding hotspots',
   grants (select_ = ['staging_reader'])
 );
@@ -17,4 +17,4 @@ SELECT
     num_species_all_time AS total_species_count,
     _region_code AS region_code,
     _loaded_at::timestamp AS loaded_at
-FROM raw_ebird.hotspots
+FROM raw_ebird.main.hotspots

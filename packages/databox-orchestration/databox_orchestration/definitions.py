@@ -2,7 +2,6 @@
 
 import os
 import typing as t
-from datetime import date, timedelta
 from pathlib import Path
 
 import dagster as dg
@@ -31,6 +30,10 @@ SODA_DIR = PROJECT_ROOT / "soda"
 class DataboxSQLMeshTranslator(SQLMeshDagsterTranslator):
     def get_asset_key_name(self, fqn: str) -> t.Sequence[str]:
         table = exp.to_table(fqn)
+        # Three-part FQN for attached raw catalogs (e.g., raw_ebird.main.table):
+        # catalog IS the meaningful namespace; "main" is just the default schema.
+        if table.catalog and str(table.db) == "main" and str(table.catalog).startswith("raw_"):
+            return ["sqlmesh", str(table.catalog), table.name]
         return ["sqlmesh", table.db, table.name]
 
 
@@ -61,11 +64,15 @@ _sqlmesh_config = DataboxSQLMeshContextConfig(
 # ---------------------------------------------------------------------------
 
 
-class DataboxDltTranslator(DagsterDltTranslator):
-    def get_asset_spec(self, data: DltResourceTranslatorData) -> dg.AssetSpec:
-        default = super().get_asset_spec(data)
-        dataset = data.pipeline.dataset_name  # e.g. "raw_ebird"
-        return default.replace_attributes(key=dg.AssetKey(["sqlmesh", dataset, data.resource.name]))
+def _dlt_translator(raw_schema: str) -> DagsterDltTranslator:
+    class _Translator(DagsterDltTranslator):
+        def get_asset_spec(self, data: DltResourceTranslatorData) -> dg.AssetSpec:
+            default = super().get_asset_spec(data)
+            return default.replace_attributes(
+                key=dg.AssetKey(["sqlmesh", raw_schema, data.resource.name])
+            )
+
+    return _Translator()
 
 
 # ---------------------------------------------------------------------------
@@ -77,12 +84,12 @@ class DataboxDltTranslator(DagsterDltTranslator):
     dlt_source=ebird_source(region_code="US-AZ", max_results=10000, days_back=30),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="ebird_api",
-        destination=dlt.destinations.duckdb(credentials=settings.database_path),
-        dataset_name="raw_ebird",
+        destination=dlt.destinations.duckdb(credentials=settings.raw_ebird_path),
+        dataset_name="main",
         pipelines_dir=settings.dlt_data_dir,
     ),
     group_name="ebird_ingestion",
-    dagster_dlt_translator=DataboxDltTranslator(),
+    dagster_dlt_translator=_dlt_translator("raw_ebird"),
 )
 def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     source = ebird_source(region_code="US-AZ", max_results=10000, days_back=30)
@@ -105,12 +112,12 @@ def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
     ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="noaa_api",
-        destination=dlt.destinations.duckdb(credentials=settings.database_path),
-        dataset_name="raw_noaa",
+        destination=dlt.destinations.duckdb(credentials=settings.raw_noaa_path),
+        dataset_name="main",
         pipelines_dir=settings.dlt_data_dir,
     ),
     group_name="noaa_ingestion",
-    dagster_dlt_translator=DataboxDltTranslator(),
+    dagster_dlt_translator=_dlt_translator("raw_noaa"),
 )
 def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     source = noaa_source(
@@ -133,12 +140,12 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     dlt_source=usgs_source(state_cd="AZ", parameter_cds="00060,00065,00010", days_back=30),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="usgs_api",
-        destination=dlt.destinations.duckdb(credentials=settings.database_path),
-        dataset_name="raw_usgs",
+        destination=dlt.destinations.duckdb(credentials=settings.raw_usgs_path),
+        dataset_name="main",
         pipelines_dir=settings.dlt_data_dir,
     ),
     group_name="usgs_ingestion",
-    dagster_dlt_translator=DataboxDltTranslator(),
+    dagster_dlt_translator=_dlt_translator("raw_usgs"),
 )
 def usgs_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     source = usgs_source(state_cd="AZ", parameter_cds="00060,00065,00010", days_back=30)
@@ -158,8 +165,7 @@ def usgs_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     enabled_subsetting=True,
 )
 def sqlmesh_project(context: dg.AssetExecutionContext, sqlmesh: SQLMeshResource):
-    start = (date.today() - timedelta(days=3)).isoformat() if os.getenv("DATABOX_SMOKE") else None
-    yield from sqlmesh.run(context=context, config=_sqlmesh_config, start=start)
+    yield from sqlmesh.run(context=context, config=_sqlmesh_config, environment="prod")
 
 
 # ---------------------------------------------------------------------------
@@ -365,5 +371,6 @@ defs = dg.Definitions(
         "dlt": DagsterDltResource(),
         "sqlmesh": SQLMeshResource(),
     },
-    executor=dg.in_process_executor,
+    # each dlt pipeline writes to its own raw_*.duckdb — no lock conflicts
+    executor=dg.multiprocess_executor,
 )

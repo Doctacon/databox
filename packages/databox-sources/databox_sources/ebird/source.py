@@ -210,8 +210,8 @@ class EbirdPipelineSource:
         schema_name = self.config.resolve_schema_name()
         pipeline = dlt.pipeline(
             pipeline_name=f"{self.name}_api",
-            destination=dlt.destinations.duckdb(credentials=settings.database_path),
-            dataset_name=schema_name,
+            destination=dlt.destinations.duckdb(credentials=settings.raw_ebird_path),
+            dataset_name="main",
             pipelines_dir=settings.dlt_data_dir,
             progress="log",
         )

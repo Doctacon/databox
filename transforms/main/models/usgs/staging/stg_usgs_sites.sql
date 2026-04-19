@@ -1,6 +1,6 @@
 MODEL (
   name usgs_staging.stg_usgs_sites,
-  kind VIEW,
+  kind FULL,
   description 'Staging model for USGS monitoring site metadata',
   grants (select_ = ['staging_reader'])
 );
@@ -18,4 +18,4 @@ SELECT
     begin_date,
     end_date,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_usgs.sites
+FROM raw_usgs.main.sites

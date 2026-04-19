@@ -1,6 +1,6 @@
 MODEL (
   name ebird_staging.stg_ebird_observations,
-  kind VIEW,
+  kind FULL,
   description 'Staging model for eBird bird observations',
   grants (select_ = ['staging_reader'])
 );
@@ -31,7 +31,7 @@ SELECT
     _region_code AS region_code,
     FALSE AS is_notable,
     _loaded_at::timestamp AS loaded_at
-FROM raw_ebird.recent_observations
+FROM raw_ebird.main.recent_observations
 
 UNION ALL
 
@@ -61,4 +61,4 @@ SELECT
     _region_code AS region_code,
     TRUE AS is_notable,
     _loaded_at::timestamp AS loaded_at
-FROM raw_ebird.notable_observations
+FROM raw_ebird.main.notable_observations

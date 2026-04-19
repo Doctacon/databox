@@ -16,6 +16,9 @@ class DataboxSettings(BaseSettings):
     )
 
     database_path: str = str(DATA_DIR / "databox.duckdb")
+    raw_ebird_path: str = str(DATA_DIR / "raw_ebird.duckdb")
+    raw_noaa_path: str = str(DATA_DIR / "raw_noaa.duckdb")
+    raw_usgs_path: str = str(DATA_DIR / "raw_usgs.duckdb")
     dlt_data_dir: str = str(PROJECT_ROOT / "pipelines" / ".dlt")
     log_level: str = "INFO"
 

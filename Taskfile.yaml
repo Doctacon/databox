@@ -153,7 +153,7 @@ tasks:
   db:reset:
     desc: "Reset the database"
     cmds:
-      - rm -f data/databox.duckdb
+      - rm -f data/databox.duckdb data/raw_ebird.duckdb data/raw_noaa.duckdb data/raw_usgs.duckdb
       - echo "Database reset complete"
 
   # Full refresh
