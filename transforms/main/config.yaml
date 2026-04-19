@@ -1,5 +1,5 @@
 gateways:
-  duckdb:
+  local:
     connection:
       type: duckdb
       catalogs:
@@ -7,8 +7,17 @@ gateways:
         raw_ebird: "{{ env_var('RAW_EBIRD_PATH', 'data/raw_ebird.duckdb') }}"
         raw_noaa: "{{ env_var('RAW_NOAA_PATH', 'data/raw_noaa.duckdb') }}"
         raw_usgs: "{{ env_var('RAW_USGS_PATH', 'data/raw_usgs.duckdb') }}"
+  motherduck:
+    connection:
+      type: motherduck
+      token: "{{ env_var('MOTHERDUCK_TOKEN', '') }}"
+      catalogs:
+        databox: "md:databox"
+        raw_ebird: "md:raw_ebird"
+        raw_noaa: "md:raw_noaa"
+        raw_usgs: "md:raw_usgs"
 
-default_gateway: duckdb
+default_gateway: "{{ env_var('DATABOX_GATEWAY', 'local') }}"
 
 model_defaults:
   dialect: duckdb

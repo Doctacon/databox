@@ -138,6 +138,9 @@ Never commit secrets. Use `.env` for API keys. Pre-commit hooks catch hardcoded 
 - Dagster is a core dependency (not optional)
 - DuckDB file lives at `data/databox.duckdb`; set `DUCKDB_PATH` to override
 - After adding new SQLMesh models, run `sqlmesh plan --auto-apply prod` in `transforms/main/` to create prod virtual views before Soda contracts can query them
+- Backend switching: set `DATABOX_BACKEND=motherduck` (+ `MOTHERDUCK_TOKEN` + `DATABOX_GATEWAY=motherduck`) in `.env` to use MotherDuck cloud. Default is `local` (file-based DuckDB).
+- `settings.database_path` and `settings.raw_*_path` are computed properties — they return `md:*` URIs for MotherDuck or local file paths for local backend.
+- SQLMesh gateways: `local` (DuckDB file-based) and `motherduck` (MotherDuck cloud) are both defined in `transforms/main/config.yaml`. `DATABOX_GATEWAY` env var selects between them.
 
 <!-- rtk-instructions v2 -->
 # RTK (Rust Token Killer) - Token-Optimized Commands

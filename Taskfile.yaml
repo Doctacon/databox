@@ -151,10 +151,10 @@ tasks:
       - rm -rf .dlt_state/
 
   db:reset:
-    desc: "Reset the database"
+    desc: "Reset the database (local files only — MotherDuck databases must be dropped manually)"
     cmds:
       - rm -f data/databox.duckdb data/raw_ebird.duckdb data/raw_noaa.duckdb data/raw_usgs.duckdb
-      - echo "Database reset complete"
+      - echo "Database reset complete (local files only — MotherDuck databases must be dropped manually)"
 
   # Full refresh
   full-refresh:
