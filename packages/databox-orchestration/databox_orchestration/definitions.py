@@ -55,6 +55,13 @@ class DataboxConfig(dg.ConfigurableResource):
 
 _gateway = "motherduck" if os.getenv("DATABOX_BACKEND") == "motherduck" else "local"
 
+
+def _dlt_destination(db_path: str) -> dlt.destinations.duckdb:
+    if os.getenv("DATABOX_BACKEND") == "motherduck":
+        return dlt.destinations.motherduck(credentials=db_path)
+    return dlt.destinations.duckdb(credentials=db_path)
+
+
 _sqlmesh_config = DataboxSQLMeshContextConfig(
     path=str(MAIN_TRANSFORM_PROJECT),
     gateway=_gateway,
@@ -86,7 +93,7 @@ def _dlt_translator(raw_schema: str) -> DagsterDltTranslator:
     dlt_source=ebird_source(region_code="US-AZ", max_results=10000, days_back=30),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="ebird_api",
-        destination=dlt.destinations.duckdb(credentials=settings.raw_ebird_path),
+        destination=_dlt_destination(settings.raw_ebird_path),
         dataset_name="main",
         pipelines_dir=settings.dlt_data_dir,
     ),
@@ -114,7 +121,7 @@ def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
     ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="noaa_api",
-        destination=dlt.destinations.duckdb(credentials=settings.raw_noaa_path),
+        destination=_dlt_destination(settings.raw_noaa_path),
         dataset_name="main",
         pipelines_dir=settings.dlt_data_dir,
     ),
@@ -142,7 +149,7 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     dlt_source=usgs_source(state_cd="AZ", parameter_cds="00060,00065,00010", days_back=30),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="usgs_api",
-        destination=dlt.destinations.duckdb(credentials=settings.raw_usgs_path),
+        destination=_dlt_destination(settings.raw_usgs_path),
         dataset_name="main",
         pipelines_dir=settings.dlt_data_dir,
     ),
