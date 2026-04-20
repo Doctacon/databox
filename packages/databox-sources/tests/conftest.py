@@ -91,6 +91,7 @@ def vcr_config() -> dict[str, Any]:
         "ignore_hosts": ["telemetry.scalevector.ai"],
         "before_record_response": _scrub_response_body,
         "decode_compressed_response": True,
+        "allow_playback_repeats": True,
     }
 
 

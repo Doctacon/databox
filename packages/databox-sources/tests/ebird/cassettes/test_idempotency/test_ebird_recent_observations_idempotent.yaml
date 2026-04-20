@@ -1,0 +1,607 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+      x-ebirdapitoken:
+      - REDACTED
+    method: GET
+    uri: https://api.ebird.org/v2/data/obs/US-DC/recent?back=1&includeProvisional=True&maxResults=50
+  response:
+    body:
+      string: '[{"speciesCode":"ovenbi1","comName":"Ovenbird","sciName":"Seiurus aurocapilla","locId":"L30659777","locName":"Smithsonian
+        Pollinator Garden","obsDt":"2026-04-20 13:35","howMany":1,"lat":38.8913913,"lng":-77.0243178,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324733112"},{"speciesCode":"rocpig","comName":"Rock
+        Pigeon","sciName":"Columba livia","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643","exoticCategory":"N"},{"speciesCode":"ribgul","comName":"Ring-billed
+        Gull","sciName":"Larus delawarensis","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":3,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"eursta","comName":"European
+        Starling","sciName":"Sturnus vulgaris","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643","exoticCategory":"N"},{"speciesCode":"rewbla","comName":"Red-winged
+        Blackbird","sciName":"Agelaius phoeniceus","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":1,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"comgra","comName":"Common
+        Grackle","sciName":"Quiscalus quiscula","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":1,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"mallar3","comName":"Mallard","sciName":"Anas
+        platyrhynchos","locId":"L473521","locName":"Constitution Gardens and Reflecting
+        Pool","obsDt":"2026-04-20 12:31","howMany":2,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"houfin","comName":"House
+        Finch","sciName":"Haemorhous mexicanus","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":1,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643","exoticCategory":"N"},{"speciesCode":"amerob","comName":"American
+        Robin","sciName":"Turdus migratorius","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"nrwswa","comName":"Northern
+        Rough-winged Swallow","sciName":"Stelgidopteryx serripennis","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":4,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"houspa","comName":"House
+        Sparrow","sciName":"Passer domesticus","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643","exoticCategory":"N"},{"speciesCode":"bnhcow","comName":"Brown-headed
+        Cowbird","sciName":"Molothrus ater","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":1,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"naswar","comName":"Nashville
+        Warbler","sciName":"Leiothlypis ruficapilla","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":false,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"blujay","comName":"Blue
+        Jay","sciName":"Cyanocitta cristata","locId":"L10127619","locName":"U. S.
+        Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":3,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"tuftit","comName":"Tufted
+        Titmouse","sciName":"Baeolophus bicolor","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"carwre","comName":"Carolina
+        Wren","sciName":"Thryothorus ludovicianus","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"eastow","comName":"Eastern
+        Towhee","sciName":"Pipilo erythrophthalmus","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":2,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"easpho","comName":"Eastern
+        Phoebe","sciName":"Sayornis phoebe","locId":"L10127619","locName":"U. S. Capitol
+        Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"ruckin","comName":"Ruby-crowned
+        Kinglet","sciName":"Corthylio calendula","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"normoc","comName":"Northern
+        Mockingbird","sciName":"Mimus polyglottos","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":4,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"norcar","comName":"Northern
+        Cardinal","sciName":"Cardinalis cardinalis","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":2,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"fiscro","comName":"Fish
+        Crow","sciName":"Corvus ossifragus","locId":"L10127619","locName":"U. S. Capitol
+        Grounds","obsDt":"2026-04-20 12:29","howMany":8,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"buggna","comName":"Blue-gray
+        Gnatcatcher","sciName":"Polioptila caerulea","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"whtspa","comName":"White-throated
+        Sparrow","sciName":"Zonotrichia albicollis","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":4,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"yerwar","comName":"Yellow-rumped
+        Warbler","sciName":"Setophaga coronata","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":2,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"moudov","comName":"Mourning
+        Dove","sciName":"Zenaida macroura","locId":"L10127619","locName":"U. S. Capitol
+        Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"brnthr","comName":"Brown
+        Thrasher","sciName":"Toxostoma rufum","locId":"L1327532","locName":"The Ellipse","obsDt":"2026-04-20
+        12:03","howMany":1,"lat":38.8941281,"lng":-77.0365387,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324693411"},{"speciesCode":"grycat","comName":"Gray
+        Catbird","sciName":"Dumetella carolinensis","locId":"L1327532","locName":"The
+        Ellipse","obsDt":"2026-04-20 12:03","howMany":1,"lat":38.8941281,"lng":-77.0365387,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324693411"},{"speciesCode":"perfal","comName":"Peregrine
+        Falcon","sciName":"Falco peregrinus","locId":"L55733272","locName":"1201 Constitution
+        Ave NW, Washington US-DC 38.89315, -77.02892","obsDt":"2026-04-20 11:59","howMany":1,"lat":38.893148,"lng":-77.028923,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324690842"},{"speciesCode":"chiswi","comName":"Chimney
+        Swift","sciName":"Chaetura pelagica","locId":"L38902397","locName":"1200 N
+        St NW, Washington US-DC 38.90667, -77.02866","obsDt":"2026-04-20 10:57","howMany":1,"lat":38.906665,"lng":-77.028664,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324663080"},{"speciesCode":"rudduc","comName":"Ruddy
+        Duck","sciName":"Oxyura jamaicensis","locId":"L10127619","locName":"U. S.
+        Capitol Grounds","obsDt":"2026-04-20 10:50","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324666588"},{"speciesCode":"houwre","comName":"Northern
+        House Wren","sciName":"Troglodytes aedon","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":3,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"barswa","comName":"Barn
+        Swallow","sciName":"Hirundo rustica","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":4,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"savspa","comName":"Savannah
+        Sparrow","sciName":"Passerculus sandwichensis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"chispa","comName":"Chipping
+        Sparrow","sciName":"Spizella passerina","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":5,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"caster1","comName":"Caspian
+        Tern","sciName":"Hydroprogne caspia","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":5,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"blkvul","comName":"Black
+        Vulture","sciName":"Coragyps atratus","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"greegr","comName":"Great
+        Egret","sciName":"Ardea alba","locId":"L57871438","locName":"Bolling AFB waterfront","obsDt":"2026-04-20
+        10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"treswa","comName":"Tree
+        Swallow","sciName":"Tachycineta bicolor","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"grbher3","comName":"Great
+        Blue Heron","sciName":"Ardea herodias","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"forter","comName":"Forster''s
+        Tern","sciName":"Sterna forsteri","locId":"L57871438","locName":"Bolling AFB
+        waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":false,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"baleag","comName":"Bald
+        Eagle","sciName":"Haliaeetus leucocephalus","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":3,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"rebwoo","comName":"Red-bellied
+        Woodpecker","sciName":"Melanerpes carolinus","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"cangoo","comName":"Canada
+        Goose","sciName":"Branta canadensis","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"bcnher","comName":"Black-crowned
+        Night Heron","sciName":"Nycticorax nycticorax","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"sonspa","comName":"Song
+        Sparrow","sciName":"Melospiza melodia","locId":"L168994","locName":"East Potomac
+        Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":5,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"doccor","comName":"Double-crested
+        Cormorant","sciName":"Nannopterum auritum","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"osprey","comName":"Osprey","sciName":"Pandion
+        haliaetus","locId":"L57871438","locName":"Bolling AFB waterfront","obsDt":"2026-04-20
+        10:23","howMany":2,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"comyel","comName":"Common
+        Yellowthroat","sciName":"Geothlypis trichas","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"amegfi","comName":"American
+        Goldfinch","sciName":"Spinus tristis","locId":"L168994","locName":"East Potomac
+        Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"}]'
+    headers:
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json;charset=utf-8
+      Date:
+      - Mon, 20 Apr 2026 19:49:57 GMT
+      Expires:
+      - '0'
+      Pragma:
+      - no-cache
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - Access-Control-Request-Method
+      - Access-Control-Request-Headers
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+      X-Xss-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+      x-ebirdapitoken:
+      - REDACTED
+    method: GET
+    uri: https://api.ebird.org/v2/data/obs/US-DC/recent/notable?back=1&maxResults=50
+  response:
+    body:
+      string: '[{"speciesCode":"naswar","comName":"Nashville Warbler","sciName":"Leiothlypis
+        ruficapilla","locId":"L10127619","locName":"U. S. Capitol Grounds","obsDt":"2026-04-20
+        12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":false,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"forter","comName":"Forster''s
+        Tern","sciName":"Sterna forsteri","locId":"L57871438","locName":"Bolling AFB
+        waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":false,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 19:16","howMany":11,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324458175"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 18:42","howMany":11,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324463719"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 18:33","howMany":8,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324417518"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L3347295","locName":"Buzzard
+        Point Park - Matthew Henson Earth Conservation Center","obsDt":"2026-04-19
+        18:15","howMany":4,"lat":38.8647533,"lng":-77.0107525,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324462692"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 18:14","howMany":11,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324416889"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 18:14","howMany":11,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324480782"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 18:14","howMany":11,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324440181"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 18:00","howMany":11,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324425749"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 17:54","howMany":10,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324426878"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 17:18","howMany":11,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324464995"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-19 17:18","howMany":11,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324464993"}]'
+    headers:
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json;charset=utf-8
+      Date:
+      - Mon, 20 Apr 2026 19:49:57 GMT
+      Expires:
+      - '0'
+      Pragma:
+      - no-cache
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - Access-Control-Request-Method
+      - Access-Control-Request-Headers
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+      X-Xss-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+      x-ebirdapitoken:
+      - REDACTED
+    method: GET
+    uri: https://api.ebird.org/v2/product/spplist/US-DC
+  response:
+    body:
+      string: '["bbwduc","snogoo","rosgoo","gragoo","gwfgoo","brant","bargoo","cacgoo1","cangoo","swagoo3","x00758","x00759","x00197","mutswa","blkswa","truswa","tunswa","egygoo","musduc","wooduc","buwtea","norsho","gadwal","amewig","mallar3","mdxmal1","ambduc","x00004","norpin","gnwtea","x00725","canvas","redhea","rinduc","tufduc","gresca","lessca","x00613","sursco","whwsco2","blksco2","lotduc","buffle","comgol","hoomer","commer","rebmer","rudduc","norbob","wiltur","rocpig","cogdov","whwdov","moudov","yebcuc","bkbcuc","comnig","chwwid","easwpw1","chiswi","rthhum","bkchum","rufhum","kinrai4","clarai11","virrai","sora","comgal1","y00475","yelrai","blkrai","sancra","bknsti","ameavo","bkbplo","amgplo","killde","semplo","pipplo","uplsan","whimbr3","hudgod","shbdow","lobdow","amewoo","wilsni1","wilpha","redpha1","renpha","sposan","solsan","lesyel","willet1","greyel","rudtur","redkno","ruff","stisan","bubsan","sander","dunlin","baisan","whrsan","leasan","pecsan","wessan","semsan","lotjae","parjae","litgul","sabgul","bongul","bkhgul","laugul","fragul","ribgul","amhgul1","yelgul1","gbbgul","glagul","x01131","lbbgul","x01134","calgul","y00478","blkski","sooter1","leater1","gubter2","caster1","blkter","forter","arcter","comter","roster","royter1","pibgre","horgre","rengre","eargre","retloo","pacloo","comloo","barpet","anhing","grecor","doccor","whiibi","gloibi","rosspo1","amebit","leabit","ycnher","bcnher","libher","triher","snoegr","grnher","categr1","greegr","grbher3","amwpel","brnpel","blkvul","turvul","osprey","swtkit","goleag","shshaw","coohaw","norgos","norhar2","baleag","miskit","brwhaw","reshaw","rethaw","rolhaw","brnowl","easowl1","snoowl1","grhowl","brdowl","loeowl","sheowl","nswowl","belkin1","yebsap","rehwoo","rebwoo","dowwoo","haiwoo","pilwoo","norfli","amekes","merlin","perfal","prafal","cockat","budger","monpar","olsfly","eawpew","yebfly","acafly","aldfly","wilfly","leafly","easpho","saypho","astfly","grcfly","weskin","easkin","sctfly","whevir","belvir","yetvir","buhvir","phivir","eawvir1","reevir1","logshr","blujay","amecro","fiscro","comrav","carchi","bkcchi","tuftit","horlar","banswa","treswa","purmar","nrwswa","barswa","cliswa","cavswa","ruckin","gockin","whbnut","rebnut","brncre","buggna","houwre","winwre3","sedwre1","marwre","carwre","eursta","grycat","brnthr","normoc","easblu","veery","gycthr","bicthr","swathr","herthr","woothr","amerob","cedwax","houspa","amepip","evegro","houfin","purfin","redpol1","redcro","whwcro","pinsis","amegfi","laplon","snobun","graspa","chispa","clcspa","fiespa","larspa","amtspa","foxspa","daejun","whcspa","whtspa","vesspa","seaspa","nstspa","savspa","henspa","sonspa","linspa","swaspa","gnttow","eastow","yebcha","yehbla","boboli","easmea","orcori","balori","rewbla","bnhcow","rusbla","comgra","ovenbi1","woewar1","louwat","norwat","gowwar","buwwar","x00669","brewar","lawwar","bawwar","prowar","tenwar","orcwar","naswar","conwar","macwar","mouwar","kenwar","comyel","hoowar","amered","camwar","cerwar","norpar","magwar","babwar","bkbwar","yelwar1","chswar","bkpwar","btbwar","palwar","pinwar","yerwar","yetwar","prawar","btywar","btnwar","canwar","wlswar","sumtan","scatan","westan","norcar","robgro","blugrb1","indbun","paibun","dickci"]'
+    headers:
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json;charset=utf-8
+      Date:
+      - Mon, 20 Apr 2026 19:49:57 GMT
+      Expires:
+      - '0'
+      Pragma:
+      - no-cache
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - Access-Control-Request-Method
+      - Access-Control-Request-Headers
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+      X-Xss-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+      x-ebirdapitoken:
+      - REDACTED
+    method: GET
+    uri: https://api.ebird.org/v2/ref/hotspot/US-DC?fmt=json
+  response:
+    body:
+      string: '[{"locId":"L609925","locName":"Alexandria Waterfront (DC waters)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8070755,"lng":-77.0326996,"latestObsDt":"2026-04-13
+        17:14","numSpeciesAllTime":171,"numChecklistsAllTime":588},{"locId":"L451233","locName":"Anacostia
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.87179,"lng":-76.9848474,"latestObsDt":"2026-04-18
+        09:08","numSpeciesAllTime":193,"numChecklistsAllTime":1069},{"locId":"L30332398","locName":"Anacostia
+        Park West - Poplar Point","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8690585,"lng":-77.0017581,"latestObsDt":"2026-04-17
+        15:57","numSpeciesAllTime":128,"numChecklistsAllTime":190},{"locId":"L2325778","locName":"Anacostia
+        Riverwalk Trail--Navy Yard","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8723327,"lng":-76.9970788,"latestObsDt":"2026-04-18
+        07:57","numSpeciesAllTime":88,"numChecklistsAllTime":212},{"locId":"L39070758","locName":"Armed
+        Forces Retirement Home and Golf Course (restricted access)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9349105,"lng":-77.0127439,"latestObsDt":"2026-04-18
+        06:45","numSpeciesAllTime":145,"numChecklistsAllTime":342},{"locId":"L2914688","locName":"Barnard
+        Hill Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.939021,"lng":-76.970839,"latestObsDt":"2026-01-11
+        07:26","numSpeciesAllTime":73,"numChecklistsAllTime":48},{"locId":"L585696","locName":"Battery
+        Kemble Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9271154,"lng":-77.0947981,"latestObsDt":"2026-04-16
+        08:43","numSpeciesAllTime":160,"numChecklistsAllTime":660},{"locId":"L4274232","locName":"Broad
+        Branch Stream Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9581532,"lng":-77.0646662,"latestObsDt":"2026-04-01
+        08:44","numSpeciesAllTime":82,"numChecklistsAllTime":68},{"locId":"L3347295","locName":"Buzzard
+        Point Park - Matthew Henson Earth Conservation Center","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8647533,"lng":-77.0107525,"latestObsDt":"2026-04-18
+        13:24","numSpeciesAllTime":104,"numChecklistsAllTime":280},{"locId":"L452843","locName":"C&O
+        Canal--Chain Bridge","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.930437,"lng":-77.11278,"latestObsDt":"2026-04-18
+        15:43","numSpeciesAllTime":176,"numChecklistsAllTime":923},{"locId":"L490336","locName":"C&O
+        Canal--Fletcher''s Cove (Fletcher''s Boathouse)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9188853,"lng":-77.1022224,"latestObsDt":"2026-04-18
+        12:35","numSpeciesAllTime":208,"numChecklistsAllTime":3092},{"locId":"L4074655","locName":"C&O
+        Canal--Locks 1-4","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9040086,"lng":-77.0573545,"latestObsDt":"2026-04-11
+        11:55","numSpeciesAllTime":74,"numChecklistsAllTime":120},{"locId":"L4137473","locName":"C&O
+        Canal--Potomac Boat Club","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9045112,"lng":-77.0703202,"latestObsDt":"2026-03-18
+        17:44","numSpeciesAllTime":111,"numChecklistsAllTime":152},{"locId":"L2209162","locName":"Cleveland
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9336209,"lng":-77.0571399,"latestObsDt":"2026-01-18
+        13:30","numSpeciesAllTime":96,"numChecklistsAllTime":325},{"locId":"L11322711","locName":"Cmdre.
+        Joshua Barney Dr. marsh","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9238554,"lng":-76.9502575,"latestObsDt":"2026-04-16
+        17:05","numSpeciesAllTime":99,"numChecklistsAllTime":72},{"locId":"L9415209","locName":"Congressional
+        Cemetery","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8811449,"lng":-76.9780254,"latestObsDt":"2026-04-17
+        18:04","numSpeciesAllTime":127,"numChecklistsAllTime":356},{"locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8901142,"lng":-77.043364,"latestObsDt":"2026-04-18
+        14:16","numSpeciesAllTime":208,"numChecklistsAllTime":5481},{"locId":"L11349972","locName":"Crispus
+        Attucks Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9175679,"lng":-77.0105148,"latestObsDt":"2026-04-18
+        18:20","numSpeciesAllTime":84,"numChecklistsAllTime":219},{"locId":"L1103783","locName":"Dalecarlia
+        Reservoir - DC portion","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9413697,"lng":-77.1105051,"latestObsDt":"2026-03-20
+        09:27","numSpeciesAllTime":96,"numChecklistsAllTime":276},{"locId":"L2594573","locName":"District
+        Wharf - Gangplank Marina","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8783052,"lng":-77.0245886,"latestObsDt":"2026-04-14
+        16:28","numSpeciesAllTime":114,"numChecklistsAllTime":487},{"locId":"L1051921","locName":"Dumbarton
+        Oaks Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9164589,"lng":-77.0643711,"latestObsDt":"2026-04-18
+        11:31","numSpeciesAllTime":152,"numChecklistsAllTime":1610},{"locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.87311,"lng":-77.0257888,"latestObsDt":"2026-04-18
+        10:41","numSpeciesAllTime":266,"numChecklistsAllTime":11256},{"locId":"L38663576","locName":"Emery
+        Heights Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9601312,"lng":-77.0273298,"latestObsDt":"2026-04-17
+        06:49","numSpeciesAllTime":4,"numChecklistsAllTime":0},{"locId":"L4444668","locName":"Fort
+        Bayard Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9551353,"lng":-77.0919962,"latestObsDt":"2026-04-12
+        14:27","numSpeciesAllTime":130,"numChecklistsAllTime":739},{"locId":"L2194177","locName":"Fort
+        Bunker Hill Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9356282,"lng":-76.9875446,"latestObsDt":"2026-04-18
+        08:19","numSpeciesAllTime":132,"numChecklistsAllTime":445},{"locId":"L38663652","locName":"Fort
+        Chaplin Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8881595,"lng":-76.944642,"latestObsDt":"2025-04-30
+        08:00","numSpeciesAllTime":20,"numChecklistsAllTime":0},{"locId":"L23360513","locName":"Fort
+        Circle Parks","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.952933,"lng":-76.991163,"latestObsDt":"2026-04-14
+        17:46","numSpeciesAllTime":72,"numChecklistsAllTime":93},{"locId":"L165855","locName":"Fort
+        Dupont Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8791861,"lng":-76.9538602,"latestObsDt":"2026-04-16
+        08:36","numSpeciesAllTime":162,"numChecklistsAllTime":947},{"locId":"L4779089","locName":"Fort
+        Dupont Park--earthworks","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8728761,"lng":-76.9400797,"latestObsDt":"2026-04-18
+        06:38","numSpeciesAllTime":131,"numChecklistsAllTime":198},{"locId":"L38663602","locName":"Fort
+        Mahan Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8956757,"lng":-76.9446158,"latestObsDt":"2025-10-19
+        12:07","numSpeciesAllTime":39,"numChecklistsAllTime":6},{"locId":"L3135779","locName":"Fort
+        Reno","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9528256,"lng":-77.0792627,"latestObsDt":"2026-04-18
+        09:34","numSpeciesAllTime":118,"numChecklistsAllTime":263},{"locId":"L11100202","locName":"Fort
+        Slocum Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.96,"lng":-77.0143,"latestObsDt":"2026-03-29
+        17:40","numSpeciesAllTime":108,"numChecklistsAllTime":124},{"locId":"L38663630","locName":"Fort
+        Stanton Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.859009,"lng":-76.978991,"latestObsDt":"2025-12-20
+        08:02","numSpeciesAllTime":52,"numChecklistsAllTime":5},{"locId":"L751775","locName":"Fort
+        Totten Park ","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9473777,"lng":-77.0045042,"latestObsDt":"2026-04-17
+        07:37","numSpeciesAllTime":143,"numChecklistsAllTime":638},{"locId":"L20477650","locName":"Franciscan
+        Monastery Garden","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9374843,"lng":-76.9834887,"latestObsDt":"2026-04-17
+        10:39","numSpeciesAllTime":90,"numChecklistsAllTime":49},{"locId":"L830884","locName":"Franklin
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9019547,"lng":-77.0304465,"latestObsDt":"2026-04-17
+        18:11","numSpeciesAllTime":67,"numChecklistsAllTime":203},{"locId":"L5408746","locName":"Frederick
+        Douglass National Historic Site","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8632906,"lng":-76.9851977,"latestObsDt":"2025-07-31
+        09:36","numSpeciesAllTime":30,"numChecklistsAllTime":10},{"locId":"L15420485","locName":"Garfield
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.881653,"lng":-77.003725,"latestObsDt":"2026-03-28
+        09:32","numSpeciesAllTime":79,"numChecklistsAllTime":81},{"locId":"L468904","locName":"Georgetown
+        Reservoir","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.912284,"lng":-77.092391,"latestObsDt":"2026-04-12
+        06:45","numSpeciesAllTime":184,"numChecklistsAllTime":2423},{"locId":"L15380602","locName":"Georgetown
+        University","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.907042,"lng":-77.072208,"latestObsDt":"2026-04-05
+        16:25","numSpeciesAllTime":29,"numChecklistsAllTime":9},{"locId":"L2694161","locName":"Georgetown
+        Waterfront Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9025308,"lng":-77.0650068,"latestObsDt":"2026-04-17
+        15:16","numSpeciesAllTime":104,"numChecklistsAllTime":575},{"locId":"L1749509","locName":"Glenwood
+        Cemetery","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9223194,"lng":-77.0064336,"latestObsDt":"2026-03-29
+        17:55","numSpeciesAllTime":110,"numChecklistsAllTime":134},{"locId":"L284272","locName":"Glover
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9189614,"lng":-77.0840345,"latestObsDt":"2026-04-16
+        18:40","numSpeciesAllTime":136,"numChecklistsAllTime":703},{"locId":"L11500688","locName":"Glover
+        Park Community Garden","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9252484,"lng":-77.0819771,"latestObsDt":"2026-04-04
+        08:42","numSpeciesAllTime":81,"numChecklistsAllTime":152},{"locId":"L4280047","locName":"Glover-Archbold
+        Park--North end","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9399844,"lng":-77.0790696,"latestObsDt":"2026-04-14
+        18:06","numSpeciesAllTime":108,"numChecklistsAllTime":537},{"locId":"L610766","locName":"Gravelly
+        Point  (DC waters)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8675134,"lng":-77.0342445,"latestObsDt":"2026-04-09
+        12:35","numSpeciesAllTime":136,"numChecklistsAllTime":384},{"locId":"L1505525","locName":"Hill
+        Center at the Old Naval Hospital","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8829043,"lng":-76.9932157,"latestObsDt":"2026-04-17
+        15:45","numSpeciesAllTime":44,"numChecklistsAllTime":55},{"locId":"L22317541","locName":"Hillwood
+        Estate (entry fee)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.94344,"lng":-77.052816,"latestObsDt":"2026-04-14
+        07:57","numSpeciesAllTime":107,"numChecklistsAllTime":195},{"locId":"L11224800","locName":"Howard
+        University campus","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9233481,"lng":-77.0203263,"latestObsDt":"2026-04-11
+        13:55","numSpeciesAllTime":66,"numChecklistsAllTime":34},{"locId":"L8441474","locName":"Jones
+        Point Park (DC waters)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.7940417,"lng":-77.038305,"latestObsDt":"2026-04-11
+        12:21","numSpeciesAllTime":111,"numChecklistsAllTime":215},{"locId":"L60206403","locName":"Judiciary
+        Square","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8966443,"lng":-77.0175934,"latestObsDt":"2026-04-11
+        11:55","numSpeciesAllTime":18,"numChecklistsAllTime":4},{"locId":"L2572665","locName":"Kalorama
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.920513,"lng":-77.0446622,"latestObsDt":"2026-03-28
+        22:05","numSpeciesAllTime":61,"numChecklistsAllTime":115},{"locId":"L247770","locName":"Kenilworth
+        Park and Aquatic Gardens","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9133204,"lng":-76.9443433,"latestObsDt":"2026-04-18
+        11:44","numSpeciesAllTime":255,"numChecklistsAllTime":17384},{"locId":"L970897","locName":"Kingman
+        Island North - Langston Golf Course","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9046599,"lng":-76.9605761,"latestObsDt":"2026-03-01
+        16:47","numSpeciesAllTime":122,"numChecklistsAllTime":124},{"locId":"L585694","locName":"Kingman
+        Island South - Kingman Lake/Heritage Island","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.893872,"lng":-76.965301,"latestObsDt":"2026-04-18
+        18:00","numSpeciesAllTime":217,"numChecklistsAllTime":4635},{"locId":"L6040055","locName":"Klingle
+        Valley Trail","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.93365,"lng":-77.052335,"latestObsDt":"2026-04-11
+        16:21","numSpeciesAllTime":92,"numChecklistsAllTime":141},{"locId":"L477896","locName":"LBJ
+        Memorial Grove - Columbia Island Marina","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8783386,"lng":-77.0510674,"latestObsDt":"2026-04-17
+        06:06","numSpeciesAllTime":199,"numChecklistsAllTime":2451},{"locId":"L13812585","locName":"Lady
+        Bird Johnson Park/Columbia Island","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8820828,"lng":-77.055532,"latestObsDt":"2026-04-09
+        09:47","numSpeciesAllTime":111,"numChecklistsAllTime":89},{"locId":"L1088366","locName":"Lafayette
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8994874,"lng":-77.036562,"latestObsDt":"2026-04-14
+        14:00","numSpeciesAllTime":94,"numChecklistsAllTime":255},{"locId":"L40002483","locName":"Lincoln
+        Memorial","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8892792,"lng":-77.0501876,"latestObsDt":"2026-04-13
+        19:30","numSpeciesAllTime":71,"numChecklistsAllTime":64},{"locId":"L6675237","locName":"Lincoln
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8897969,"lng":-76.9898915,"latestObsDt":"2026-04-12
+        08:46","numSpeciesAllTime":79,"numChecklistsAllTime":99},{"locId":"L11285366","locName":"Linnean
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9555982,"lng":-77.0648482,"latestObsDt":"2026-02-28
+        13:21","numSpeciesAllTime":82,"numChecklistsAllTime":131},{"locId":"L271349","locName":"McMillan
+        Res. Grasslands","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.925315,"lng":-77.0120803,"latestObsDt":"2026-04-12
+        11:33","numSpeciesAllTime":50,"numChecklistsAllTime":53},{"locId":"L271348","locName":"McMillan
+        Reservoir","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.925292,"lng":-77.0177782,"latestObsDt":"2026-04-17
+        12:56","numSpeciesAllTime":140,"numChecklistsAllTime":1520},{"locId":"L266139","locName":"Meridian
+        Hill Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9223854,"lng":-77.0361748,"latestObsDt":"2026-04-16
+        17:30","numSpeciesAllTime":136,"numChecklistsAllTime":876},{"locId":"L3575674","locName":"Mitchell
+        Park - Spanish Steps","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9142499,"lng":-77.0492806,"latestObsDt":"2026-03-26
+        17:45","numSpeciesAllTime":58,"numChecklistsAllTime":51},{"locId":"L15588906","locName":"Montrose
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9137429,"lng":-77.060661,"latestObsDt":"2026-04-12
+        12:02","numSpeciesAllTime":112,"numChecklistsAllTime":136},{"locId":"L32892913","locName":"Mount
+        Olivet Cemetery","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.910324,"lng":-76.979864,"latestObsDt":"2025-12-20
+        07:30","numSpeciesAllTime":23,"numChecklistsAllTime":6},{"locId":"L210720","locName":"National
+        Arboretum","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.911,"lng":-76.967,"latestObsDt":"2026-04-18
+        14:46","numSpeciesAllTime":209,"numChecklistsAllTime":3604},{"locId":"L149196","locName":"National
+        Arboretum--Asian Collection","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9128647,"lng":-76.9552689,"latestObsDt":"2026-04-11
+        14:58","numSpeciesAllTime":135,"numChecklistsAllTime":258},{"locId":"L520761","locName":"National
+        Arboretum--Azalea Collection and Mt. Hamilton","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.909429,"lng":-76.971967,"latestObsDt":"2026-04-18
+        08:57","numSpeciesAllTime":153,"numChecklistsAllTime":630},{"locId":"L518141","locName":"National
+        Arboretum--Fern Valley","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9093018,"lng":-76.9650865,"latestObsDt":"2026-03-21
+        10:45","numSpeciesAllTime":131,"numChecklistsAllTime":202},{"locId":"L1898354","locName":"National
+        Arboretum--Grove of State Trees","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9075132,"lng":-76.9691819,"latestObsDt":"2026-02-28
+        15:00","numSpeciesAllTime":108,"numChecklistsAllTime":74},{"locId":"L9431078","locName":"National
+        Arboretum--Valley Road","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9115126,"lng":-76.9622447,"latestObsDt":"2026-04-14
+        13:43","numSpeciesAllTime":125,"numChecklistsAllTime":209},{"locId":"L602834","locName":"National
+        Cathedral--Bishop''s Garden & Olmsted Woods","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9293438,"lng":-77.0704409,"latestObsDt":"2026-04-17
+        16:01","numSpeciesAllTime":114,"numChecklistsAllTime":315},{"locId":"L269925","locName":"National
+        Mall","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8891456,"lng":-77.0304876,"latestObsDt":"2026-04-12
+        09:06","numSpeciesAllTime":188,"numChecklistsAllTime":1566},{"locId":"L7319301","locName":"National
+        Museum of the American Indian","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8884391,"lng":-77.0163553,"latestObsDt":"2026-04-18
+        11:48","numSpeciesAllTime":109,"numChecklistsAllTime":333},{"locId":"L219613","locName":"National
+        Zoological Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.929366,"lng":-77.050554,"latestObsDt":"2026-04-18
+        13:37","numSpeciesAllTime":184,"numChecklistsAllTime":2277},{"locId":"L1619241","locName":"Nationals
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8729304,"lng":-77.0076478,"latestObsDt":"2026-04-05
+        13:56","numSpeciesAllTime":48,"numChecklistsAllTime":159},{"locId":"L585699","locName":"Naval
+        Research Lab","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8252323,"lng":-77.0262623,"latestObsDt":"2026-01-31
+        16:33","numSpeciesAllTime":85,"numChecklistsAllTime":36},{"locId":"L34424217","locName":"Newark
+        Street Community Garden","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.935656,"lng":-77.07563,"latestObsDt":"2025-07-26
+        14:44","numSpeciesAllTime":24,"numChecklistsAllTime":5},{"locId":"L41908688","locName":"Oak
+        Hill Cemetery","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9131823,"lng":-77.0575175,"latestObsDt":"2026-04-12
+        13:54","numSpeciesAllTime":53,"numChecklistsAllTime":16},{"locId":"L32001559","locName":"Oxon
+        Run Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.838487,"lng":-76.989573,"latestObsDt":"2026-03-16
+        13:34","numSpeciesAllTime":75,"numChecklistsAllTime":22},{"locId":"L6357106","locName":"Palisades
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9245613,"lng":-77.1047115,"latestObsDt":"2026-02-14
+        13:53","numSpeciesAllTime":91,"numChecklistsAllTime":62},{"locId":"L5864692","locName":"Pinehurst
+        Parkway Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9784778,"lng":-77.0584426,"latestObsDt":"2026-04-07
+        09:13","numSpeciesAllTime":119,"numChecklistsAllTime":234},{"locId":"L11037726","locName":"Piney
+        Branch Trail--Park Rd. - 17th St. NW","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.935789,"lng":-77.0422537,"latestObsDt":"2026-04-18
+        17:15","numSpeciesAllTime":108,"numChecklistsAllTime":176},{"locId":"L17700028","locName":"Pope
+        Branch Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8774384,"lng":-76.9656905,"latestObsDt":"2026-01-02
+        13:00","numSpeciesAllTime":35,"numChecklistsAllTime":9},{"locId":"L7572823","locName":"Potomac
+        River Overlook","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.929371,"lng":-77.110414,"latestObsDt":"2026-03-16
+        16:11","numSpeciesAllTime":122,"numChecklistsAllTime":187},{"locId":"L1266380","locName":"RFK
+        Stadium Parking Lot","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8918595,"lng":-76.9697642,"latestObsDt":"2026-04-18
+        07:47","numSpeciesAllTime":102,"numChecklistsAllTime":214},{"locId":"L3183996","locName":"Reservation
+        630 Park (formerly Melvin Hazen Park)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9395672,"lng":-77.0646286,"latestObsDt":"2026-04-16
+        09:02","numSpeciesAllTime":120,"numChecklistsAllTime":599},{"locId":"L11953985","locName":"River
+        Terrace Park, Anacostia","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8934886,"lng":-76.9613034,"latestObsDt":"2026-03-15
+        10:00","numSpeciesAllTime":99,"numChecklistsAllTime":179},{"locId":"L727106","locName":"Rock
+        Creek Cemetery","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9479576,"lng":-77.0112044,"latestObsDt":"2026-04-18
+        08:29","numSpeciesAllTime":119,"numChecklistsAllTime":734},{"locId":"L1109339","locName":"Rock
+        Creek Golf Course","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9662828,"lng":-77.0402098,"latestObsDt":"2026-04-18
+        06:44","numSpeciesAllTime":168,"numChecklistsAllTime":1314},{"locId":"L599606","locName":"Rock
+        Creek Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.965325,"lng":-77.046756,"latestObsDt":"2026-04-18
+        11:31","numSpeciesAllTime":178,"numChecklistsAllTime":1540},{"locId":"L2575024","locName":"Rock
+        Creek Park -- Conn. Ave. to National Zoo","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9241231,"lng":-77.0481613,"latestObsDt":"2026-04-17
+        10:35","numSpeciesAllTime":124,"numChecklistsAllTime":314},{"locId":"L3874050","locName":"Rock
+        Creek Park Community Garden","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9668834,"lng":-77.0538032,"latestObsDt":"2026-04-18
+        11:23","numSpeciesAllTime":114,"numChecklistsAllTime":144},{"locId":"L7150197","locName":"Rock
+        Creek Park Trail - Q St. NW","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.911464,"lng":-77.0522448,"latestObsDt":"2026-04-17
+        10:25","numSpeciesAllTime":103,"numChecklistsAllTime":133},{"locId":"L636263","locName":"Rock
+        Creek Park--Beach Drive - Park Rd.","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9407522,"lng":-77.0493937,"latestObsDt":"2026-04-15
+        16:04","numSpeciesAllTime":142,"numChecklistsAllTime":271},{"locId":"L11016167","locName":"Rock
+        Creek Park--Carter Barron area","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9502989,"lng":-77.0436875,"latestObsDt":"2026-03-24
+        07:50","numSpeciesAllTime":104,"numChecklistsAllTime":130},{"locId":"L3090381","locName":"Rock
+        Creek Park--Dog Run","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9598059,"lng":-77.0546637,"latestObsDt":"2026-04-12
+        10:20","numSpeciesAllTime":150,"numChecklistsAllTime":1732},{"locId":"L1530764","locName":"Rock
+        Creek Park--Fort DeRussy","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9622925,"lng":-77.0498425,"latestObsDt":"2026-04-10
+        08:17","numSpeciesAllTime":97,"numChecklistsAllTime":71},{"locId":"L761338","locName":"Rock
+        Creek Park--Klingle Mansion","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9361874,"lng":-77.049922,"latestObsDt":"2026-04-12
+        10:20","numSpeciesAllTime":109,"numChecklistsAllTime":130},{"locId":"L1514892","locName":"Rock
+        Creek Park--Maintenance Yard","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9554951,"lng":-77.0493486,"latestObsDt":"2026-04-18
+        11:51","numSpeciesAllTime":183,"numChecklistsAllTime":11324},{"locId":"L2134029","locName":"Rock
+        Creek Park--Mass. Ave. - Conn. Ave.","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9201207,"lng":-77.054286,"latestObsDt":"2026-04-17
+        16:57","numSpeciesAllTime":128,"numChecklistsAllTime":632},{"locId":"L280792","locName":"Rock
+        Creek Park--Nature Center area","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.959402,"lng":-77.051412,"latestObsDt":"2026-04-18
+        10:57","numSpeciesAllTime":185,"numChecklistsAllTime":4429},{"locId":"L881762","locName":"Rock
+        Creek Park--Peirce Mill","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.940123,"lng":-77.0515016,"latestObsDt":"2026-04-18
+        09:50","numSpeciesAllTime":147,"numChecklistsAllTime":1288},{"locId":"L27551735","locName":"Rock
+        Creek Park--Pinehurst Branch Trail","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9721749,"lng":-77.048371,"latestObsDt":"2026-04-16
+        16:07","numSpeciesAllTime":90,"numChecklistsAllTime":41},{"locId":"L11384727","locName":"Rock
+        Creek Park--Rapids Bridge area","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9533184,"lng":-77.0436323,"latestObsDt":"2026-04-17
+        07:25","numSpeciesAllTime":118,"numChecklistsAllTime":211},{"locId":"L2491807","locName":"Rock
+        Creek Park--Reservation 630 (formerly Melvin C. Hazen) Trail","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9388161,"lng":-77.0587707,"latestObsDt":"2026-04-14
+        09:07","numSpeciesAllTime":112,"numChecklistsAllTime":278},{"locId":"L283552","locName":"Rock
+        Creek Park--Ross Drive","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9576568,"lng":-77.0429757,"latestObsDt":"2026-04-16
+        07:38","numSpeciesAllTime":148,"numChecklistsAllTime":291},{"locId":"L1154457","locName":"Rock
+        Creek Park--Sherrill Drive","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9728745,"lng":-77.0404136,"latestObsDt":"2026-04-18
+        10:33","numSpeciesAllTime":150,"numChecklistsAllTime":690},{"locId":"L3877611","locName":"Rock
+        Creek Park--The Ridge","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9515996,"lng":-77.0504344,"latestObsDt":"2026-04-18
+        07:45","numSpeciesAllTime":160,"numChecklistsAllTime":1752},{"locId":"L3742239","locName":"Rock
+        Creek Park--Valley-Pine-Holly loop.","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9768161,"lng":-77.0389137,"latestObsDt":"2026-04-17
+        19:30","numSpeciesAllTime":116,"numChecklistsAllTime":167},{"locId":"L4354964","locName":"Rock
+        Creek Park--West End","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9087909,"lng":-77.0504225,"latestObsDt":"2026-04-16
+        08:55","numSpeciesAllTime":126,"numChecklistsAllTime":541},{"locId":"L14402099","locName":"Rock
+        Creek Park--Western Ridge Trail","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9556941,"lng":-77.0527106,"latestObsDt":"2026-04-11
+        16:17","numSpeciesAllTime":123,"numChecklistsAllTime":195},{"locId":"L1516408","locName":"Rock
+        Creek Park--Western Ridge Trail","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9759011,"lng":-77.0478399,"latestObsDt":"2026-03-29
+        09:51","numSpeciesAllTime":116,"numChecklistsAllTime":144},{"locId":"L742205","locName":"Rock
+        Creek Park--upper Beach Drive","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9858233,"lng":-77.0480737,"latestObsDt":"2026-04-17
+        08:05","numSpeciesAllTime":165,"numChecklistsAllTime":1719},{"locId":"L1273308","locName":"Senate
+        Parks and Taft Memorial","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8943229,"lng":-77.0079803,"latestObsDt":"2026-04-18
+        13:04","numSpeciesAllTime":172,"numChecklistsAllTime":2910},{"locId":"L585697","locName":"Smithsonian
+        Institution","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.888277,"lng":-77.0259297,"latestObsDt":"2026-04-16
+        09:29","numSpeciesAllTime":113,"numChecklistsAllTime":560},{"locId":"L30659777","locName":"Smithsonian
+        Pollinator Garden","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8913913,"lng":-77.0243178,"latestObsDt":"2026-04-04
+        11:16","numSpeciesAllTime":65,"numChecklistsAllTime":85},{"locId":"L457926","locName":"Soapstone
+        Valley Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9462929,"lng":-77.0571613,"latestObsDt":"2026-04-08
+        19:42","numSpeciesAllTime":106,"numChecklistsAllTime":200},{"locId":"L6495444","locName":"South
+        Capitol St. Bridge","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8685826,"lng":-77.0054913,"latestObsDt":"2026-04-17
+        16:11","numSpeciesAllTime":53,"numChecklistsAllTime":63},{"locId":"L18818276","locName":"Southwest
+        Duck Pond","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8787834,"lng":-77.0193511,"latestObsDt":"2026-04-10
+        14:00","numSpeciesAllTime":39,"numChecklistsAllTime":36},{"locId":"L21024976","locName":"Southwest
+        Waterfront Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8734107,"lng":-77.0200181,"latestObsDt":"2026-04-15
+        12:27","numSpeciesAllTime":85,"numChecklistsAllTime":69},{"locId":"L5604218","locName":"Spring
+        Valley Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9377062,"lng":-77.097314,"latestObsDt":"2026-03-29
+        17:17","numSpeciesAllTime":53,"numChecklistsAllTime":23},{"locId":"L13379020","locName":"The
+        Catholic University of America","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9368967,"lng":-76.9987106,"latestObsDt":"2026-03-23
+        12:07","numSpeciesAllTime":72,"numChecklistsAllTime":90},{"locId":"L1327532","locName":"The
+        Ellipse","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8941281,"lng":-77.0365387,"latestObsDt":"2026-04-16
+        09:07","numSpeciesAllTime":104,"numChecklistsAllTime":371},{"locId":"L8389207","locName":"The
+        Field School","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9211724,"lng":-77.0884466,"latestObsDt":"2025-05-24
+        11:00","numSpeciesAllTime":29,"numChecklistsAllTime":9},{"locId":"L43844993","locName":"The
+        Parks Historic Walter Reed","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9771264,"lng":-77.0290518,"latestObsDt":"2026-03-29
+        16:55","numSpeciesAllTime":66,"numChecklistsAllTime":60},{"locId":"L1013541","locName":"The
+        White House","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8975294,"lng":-77.0364976,"latestObsDt":"2026-04-09
+        13:04","numSpeciesAllTime":100,"numChecklistsAllTime":218},{"locId":"L1110001","locName":"The
+        Yards Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8729596,"lng":-77.0020151,"latestObsDt":"2026-04-15
+        11:53","numSpeciesAllTime":106,"numChecklistsAllTime":356},{"locId":"L718768","locName":"Theodore
+        Roosevelt Island","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8964407,"lng":-77.0639175,"latestObsDt":"2026-04-18
+        10:05","numSpeciesAllTime":222,"numChecklistsAllTime":7407},{"locId":"L11709421","locName":"Theodore
+        Roosevelt Island -- Swamp Trail and east side of island","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8947834,"lng":-77.0604244,"latestObsDt":"2026-04-15
+        11:01","numSpeciesAllTime":139,"numChecklistsAllTime":240},{"locId":"L4074649","locName":"Thompson
+        Boat Center","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9001011,"lng":-77.057848,"latestObsDt":"2026-04-05
+        17:26","numSpeciesAllTime":113,"numChecklistsAllTime":292},{"locId":"L2710850","locName":"Three
+        Sisters Islands","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9038038,"lng":-77.080018,"latestObsDt":"2026-04-17
+        14:40","numSpeciesAllTime":97,"numChecklistsAllTime":74},{"locId":"L4912949","locName":"Tide
+        Lock Park (DC waters)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8157845,"lng":-77.0381458,"latestObsDt":"2026-01-26
+        10:35","numSpeciesAllTime":150,"numChecklistsAllTime":420},{"locId":"L1277513","locName":"Tregaron
+        Conservancy","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9321125,"lng":-77.0590818,"latestObsDt":"2026-04-18
+        10:16","numSpeciesAllTime":136,"numChecklistsAllTime":520},{"locId":"L10127619","locName":"U.
+        S. Capitol Grounds","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8897649,"lng":-77.0112222,"latestObsDt":"2026-04-18
+        16:36","numSpeciesAllTime":146,"numChecklistsAllTime":1011},{"locId":"L3529239","locName":"U.S.
+        Botanic Garden and Bartholdi Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8874495,"lng":-77.012892,"latestObsDt":"2026-04-18
+        14:22","numSpeciesAllTime":161,"numChecklistsAllTime":2697},{"locId":"L2572667","locName":"Walter
+        Pierce Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9241732,"lng":-77.0458639,"latestObsDt":"2026-04-14
+        19:32","numSpeciesAllTime":73,"numChecklistsAllTime":210},{"locId":"L11462512","locName":"Wangari
+        Gardens","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9302035,"lng":-77.0173573,"latestObsDt":"2026-04-08
+        14:35","numSpeciesAllTime":46,"numChecklistsAllTime":23},{"locId":"L4855842","locName":"Washington
+        Hilton (NAOC 2016)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9164728,"lng":-77.0451001,"latestObsDt":"2026-03-21
+        11:20","numSpeciesAllTime":59,"numChecklistsAllTime":139},{"locId":"L856324","locName":"Washington
+        Sailing Marina (DC waters)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8342588,"lng":-77.0414543,"latestObsDt":"2026-04-13
+        15:23","numSpeciesAllTime":171,"numChecklistsAllTime":1458},{"locId":"L208382","locName":"West
+        Potomac Park--Tidal Basin","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.8842907,"lng":-77.044711,"latestObsDt":"2026-04-16
+        18:23","numSpeciesAllTime":205,"numChecklistsAllTime":3214},{"locId":"L718975","locName":"Whitehaven
+        Park","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9183844,"lng":-77.0789623,"latestObsDt":"2026-04-17
+        08:33","numSpeciesAllTime":125,"numChecklistsAllTime":1132},{"locId":"L5196820","locName":"stakeout
+        Black-throated Gray Warbler, AU Park (2016-17)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9497201,"lng":-77.0960963,"latestObsDt":"2025-11-27
+        15:22","numSpeciesAllTime":43,"numChecklistsAllTime":75},{"locId":"L11655292","locName":"stakeout
+        Eastern Screech-owl, Chevy Chase (2020)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9664496,"lng":-77.0679116,"latestObsDt":"2025-05-26
+        11:41","numSpeciesAllTime":18,"numChecklistsAllTime":8},{"locId":"L50169943","locName":"stakeout
+        Mississippi Kite, NE DC (2025)","countryCode":"US","subnational1Code":"US-DC","subnational2Code":"US-DC-001","lat":38.9416935,"lng":-76.978332,"latestObsDt":"2026-04-12
+        19:21","numSpeciesAllTime":48,"numChecklistsAllTime":104}]'
+    headers:
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json;charset=utf-8
+      Date:
+      - Mon, 20 Apr 2026 19:49:58 GMT
+      Expires:
+      - '0'
+      Pragma:
+      - no-cache
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - Access-Control-Request-Method
+      - Access-Control-Request-Headers
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+      X-Xss-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+version: 1
