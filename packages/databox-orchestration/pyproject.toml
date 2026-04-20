@@ -20,4 +20,4 @@ build-backend = "setuptools.build_meta"
 [tool.uv.sources]
 databox-config = { workspace = true }
 databox-sources = { workspace = true }
-dagster-sqlmesh = { git = "ssh://git@github.com/Doctacon/dagster-sqlmesh.git" }
+dagster-sqlmesh = { git = "https://github.com/Doctacon/dagster-sqlmesh.git" }

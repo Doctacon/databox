@@ -380,7 +380,7 @@ wheels = [
 [[package]]
 name = "dagster-sqlmesh"
 version = "0.22.0"
-source = { git = "ssh://git@github.com/Doctacon/dagster-sqlmesh.git#cd56c588f1e81c2ef14f25c58b5ef7a4d9e56288" }
+source = { git = "https://github.com/Doctacon/dagster-sqlmesh.git#cd56c588f1e81c2ef14f25c58b5ef7a4d9e56288" }
 dependencies = [
     { name = "dagster" },
     { name = "pyarrow" },
@@ -486,7 +486,7 @@ dependencies = [
 requires-dist = [
     { name = "dagster", specifier = ">=1.5.0" },
     { name = "dagster-dlt", specifier = ">=0.1.0" },
-    { name = "dagster-sqlmesh", git = "ssh://git@github.com/Doctacon/dagster-sqlmesh.git" },
+    { name = "dagster-sqlmesh", git = "https://github.com/Doctacon/dagster-sqlmesh.git" },
     { name = "dagster-webserver", specifier = ">=1.5.0" },
     { name = "databox-config", editable = "packages/databox-config" },
     { name = "databox-sources", editable = "packages/databox-sources" },

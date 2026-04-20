@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Ruff (lint + format)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: ruff check
+        run: uv run ruff check .
+      - name: ruff format --check
+        run: uv run ruff format --check .
+
+  typecheck:
+    name: mypy
+    runs-on: ubuntu-latest
+    # 31 pre-existing errors across noaa/usgs/ebird sources + orchestration.
+    # Soft-fail until a dedicated follow-up ticket lands; job still reports status.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: mypy
+        run: uv run mypy packages/ --ignore-missing-imports
+
+  tests:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: pytest
+        # Exit 5 = "no tests collected". Tolerate until source-test-harness ticket lands.
+        run: |
+          set +e
+          uv run pytest
+          code=$?
+          if [ "$code" -eq 5 ]; then
+            echo "::warning::pytest collected zero tests — source-test-harness ticket pending."
+            exit 0
+          fi
+          exit $code
+
+  sqlmesh-lint:
+    name: SQLMesh lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: sqlmesh lint
+        env:
+          DATABOX_GATEWAY: local
+        run: uv run sqlmesh --paths transforms/main lint
+
+  soda-validate:
+    name: Soda contract structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: Validate Soda contract YAML structure
+        # Soda CLI requires a live data source; no schema-only mode exists.
+        # This job statically validates every contract parses as YAML and has
+        # the two required top-level keys. Live `soda contract verify` runs as
+        # a Dagster asset check after materialization (see observability-pass ticket).
+        run: |
+          uv run python - <<'PY'
+          from pathlib import Path
+          import sys, yaml
+
+          root = Path("soda/contracts")
+          required = ("dataset", "columns")
+          errors: list[str] = []
+          files = sorted(list(root.rglob("*.yaml")) + list(root.rglob("*.yml")))
+          if not files:
+              sys.exit("no Soda contracts found under soda/contracts/")
+          for p in files:
+              try:
+                  doc = yaml.safe_load(p.read_text())
+              except yaml.YAMLError as e:
+                  errors.append(f"{p}: YAML parse error: {e}")
+                  continue
+              if not isinstance(doc, dict):
+                  errors.append(f"{p}: top-level is not a mapping")
+                  continue
+              for key in required:
+                  if key not in doc:
+                      errors.append(f"{p}: missing required top-level key '{key}'")
+          if errors:
+              print("Soda contract validation failed:")
+              for e in errors:
+                  print(f"  - {e}")
+              sys.exit(1)
+          print(f"All {len(files)} Soda contracts have valid structure.")
+          PY
