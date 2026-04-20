@@ -1,9 +1,9 @@
 ---
 id: ticket:source-test-harness
 kind: ticket
-status: review_required
+status: complete_pending_acceptance
 created_at: 2026-04-20T00:00:00Z
-updated_at: 2026-04-20T00:00:00Z
+updated_at: 2026-04-20T19:58:00Z
 scope:
   kind: workspace
 links:
