@@ -1,49 +1,36 @@
 # Databox
 
-A dataset-agnostic data platform for ingestion, transformation, quality checking, and visualization. Zero-infra local mode (file-based DuckDB) with a one-flag switch to MotherDuck cloud.
+A dataset-agnostic data platform for ingestion, transformation, quality checking, and visualization. Zero-infra local mode (file-based DuckDB) with a one-flag switch to MotherDuck cloud. Orchestrated end-to-end by Dagster.
 
 ## Stack
 
 - **dlt** — Python-native data ingestion with auto-schema detection
 - **sqlmesh** — SQL-based transformations with version control and testing
 - **DuckDB** — Embedded analytical database (local) or MotherDuck (cloud)
-- **Dagster** — Orchestration (scheduling, lineage, sensors)
-- **Soda Core** — Contract-based data quality checks
-- **Typer CLI** — Unified `databox` command-line interface
+- **Dagster** — Orchestration + unified entrypoint (assets, schedules, lineage, sensors)
+- **Soda Core** — Contract-based data quality checks (run as asset checks)
+- **Streamlit** — Data explorer app
 
 ## Quick Start
 
 ```bash
 # Setup
 task setup
+task install
 
 # Configure API keys
 cp .env.example .env
-# Edit .env with your keys (EBIRD_API_TOKEN, NOAA_API_TOKEN)
+# Edit .env — set EBIRD_API_TOKEN, NOAA_API_TOKEN
 
-# Run a pipeline
-databox run ebird
+# Launch Dagster UI (http://localhost:3000)
+task dagster:dev
 
-# Transform data
-databox transform plan
-databox transform run
+# Or materialize everything headless (pipelines + transforms + quality checks)
+task full-refresh
 
-# Check status
-databox status
+# Smoke test (limited ingest + last 3 days of transforms)
+task verify
 ```
-
-## CLI Commands
-
-| Command | Description |
-|---------|-------------|
-| `databox list` | List registered pipelines |
-| `databox run <name>` | Run a pipeline |
-| `databox validate <name>` | Check pipeline config and credentials |
-| `databox transform plan` | Preview SQLMesh changes |
-| `databox transform run` | Apply SQLMesh transforms |
-| `databox transform test` | Run SQLMesh tests |
-| `databox quality <schema.table>` | Data quality checks |
-| `databox status` | Show pipeline status and data freshness |
 
 ## Backends
 
@@ -62,12 +49,28 @@ MOTHERDUCK_TOKEN=<your_token>
 
 `settings.database_path` and `settings.raw_*_path` are computed — they return `md:*` URIs for MotherDuck or local file paths otherwise.
 
+## Common Tasks
+
+| Task | Description |
+|------|-------------|
+| `task dagster:dev` | Start Dagster UI (asset graph, run logs, schedules) |
+| `task dagster:materialize` | Materialize every asset (full pipeline + transforms + quality) |
+| `task full-refresh` | Alias for `dagster:materialize` |
+| `task verify` | Smoke test: limited ingest + last 3 days of transforms |
+| `task transform:plan` | `sqlmesh plan --auto-apply` in `transforms/main` |
+| `task transform:run` | `sqlmesh run` |
+| `task transform:test` | `sqlmesh test` |
+| `task transform:ui` | SQLMesh UI |
+| `task streamlit` | Launch Streamlit data explorer |
+| `task db:reset` | Delete local DuckDB files |
+
+Everything else (individual pipeline runs, quality checks, scheduling) happens through Dagster assets — one entrypoint, visible lineage, automatic retries.
+
 ## Project Structure
 
 ```
 databox/
 ├── packages/                        # uv workspace monorepo
-│   ├── databox-cli/                 # `databox` Typer CLI
 │   ├── databox-config/              # Pydantic settings + YAML config loader
 │   ├── databox-sources/             # dlt ingestion + per-source configs
 │   │   └── databox_sources/
@@ -77,7 +80,7 @@ databox/
 │   │       ├── noaa/                # NOAA CDO API
 │   │       └── usgs/                # USGS NWIS Water Services
 │   ├── databox-orchestration/       # Dagster asset definitions
-│   └── databox-quality/             # Data quality engine (Soda)
+│   └── databox-quality/             # Soda contract runner
 ├── transforms/
 │   └── main/                        # Unified SQLMesh project (duckdb dialect)
 │       ├── config.yaml              # local + motherduck gateways
@@ -140,17 +143,17 @@ Raw catalogs are split per-source DuckDB files so dlt can load in parallel.
 
 4. Add secret to `.env`: `<SOURCE>_API_TOKEN=your_key_here`
 
-No changes needed to CLI or orchestration — they auto-discover from the registry.
+No orchestration wiring needed — Dagster auto-discovers from the source registry.
 
 ## Development
 
 ```bash
-task setup          # Setup environment
 task install        # Install dependencies
-task verify         # Smoke test (dlt → SQLMesh → Soda)
-task lint           # Lint code
-task format         # Format code
-task streamlit      # Launch data explorer
+task verify         # Smoke test via Dagster
+task lint           # Ruff lint
+task format         # Ruff format
+task typecheck      # mypy
+task test           # pytest
 ```
 
 ## License
