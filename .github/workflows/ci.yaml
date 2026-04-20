@@ -72,6 +72,33 @@ jobs:
           DATABOX_GATEWAY: local
         run: uv run sqlmesh --paths transforms/main lint
 
+  schema-contract-gate:
+    name: Schema contract gate
+    runs-on: ubuntu-latest
+    # Only meaningful on PRs — pushes to main have no base ref to diff against.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          # Need full history so `origin/main` resolves for the diff base.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: Write PR body to file
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$PR_BODY" > /tmp/pr_body.txt
+      - name: Run schema-contract gate
+        run: |
+          uv run python scripts/schema_gate.py \
+            --base origin/${{ github.base_ref }} \
+            --pr-body-file /tmp/pr_body.txt
+
   soda-validate:
     name: Soda contract structure
     runs-on: ubuntu-latest
