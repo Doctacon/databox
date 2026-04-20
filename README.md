@@ -162,6 +162,10 @@ See [docs/contracts.md](docs/contracts.md) for the schema-contract gate and the
 `accept-breaking-change` escape hatch used on PRs that intentionally break
 downstream consumers.
 
+See [docs/incremental-loading.md](docs/incremental-loading.md) for the
+per-resource write disposition, primary keys, idempotency guarantee, and
+backfill commands.
+
 ## License
 
 MIT

@@ -63,6 +63,21 @@ def _dlt_destination(db_path: str) -> t.Any:
     return dlt.destinations.duckdb(credentials=db_path)
 
 
+def _days_back(source: str, default: int) -> int:
+    """Read per-source days_back override from env.
+
+    Lets operators backfill a wider window without editing this file, e.g.
+    `DATABOX_EBIRD_DAYS_BACK=90 dagster asset materialize ...`.
+    """
+    raw = os.getenv(f"DATABOX_{source.upper()}_DAYS_BACK")
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 _sqlmesh_config = DataboxSQLMeshContextConfig(
     path=str(MAIN_TRANSFORM_PROJECT),
     gateway=_gateway,
@@ -91,7 +106,9 @@ def _dlt_translator(raw_schema: str) -> DagsterDltTranslator:
 
 
 @dlt_assets(
-    dlt_source=ebird_source(region_code="US-AZ", max_results=10000, days_back=30),
+    dlt_source=ebird_source(
+        region_code="US-AZ", max_results=10000, days_back=_days_back("ebird", 30)
+    ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="ebird_api",
         destination=_dlt_destination(settings.raw_ebird_path),
@@ -102,7 +119,7 @@ def _dlt_translator(raw_schema: str) -> DagsterDltTranslator:
     dagster_dlt_translator=_dlt_translator("raw_ebird"),
 )
 def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
-    source = ebird_source(region_code="US-AZ", max_results=10000, days_back=30)
+    source = ebird_source(region_code="US-AZ", max_results=10000, days_back=_days_back("ebird", 30))
     if os.getenv("DATABOX_SMOKE"):
         source.add_limit(max_items=5)
     yield from dlt.run(context=context, dlt_source=source)
@@ -117,7 +134,7 @@ def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
     dlt_source=noaa_source(
         location_id="FIPS:04",
         dataset_id="GHCND",
-        days_back=30,
+        days_back=_days_back("noaa", 30),
         datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
     ),
     dlt_pipeline=dlt.pipeline(
@@ -133,7 +150,7 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     source = noaa_source(
         location_id="FIPS:04",
         dataset_id="GHCND",
-        days_back=30,
+        days_back=_days_back("noaa", 30),
         datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
     )
     if os.getenv("DATABOX_SMOKE"):
@@ -147,7 +164,9 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
 
 
 @dlt_assets(
-    dlt_source=usgs_source(state_cd="AZ", parameter_cds="00060,00065,00010", days_back=30),
+    dlt_source=usgs_source(
+        state_cd="AZ", parameter_cds="00060,00065,00010", days_back=_days_back("usgs", 30)
+    ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="usgs_api",
         destination=_dlt_destination(settings.raw_usgs_path),
@@ -158,7 +177,9 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     dagster_dlt_translator=_dlt_translator("raw_usgs"),
 )
 def usgs_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
-    source = usgs_source(state_cd="AZ", parameter_cds="00060,00065,00010", days_back=30)
+    source = usgs_source(
+        state_cd="AZ", parameter_cds="00060,00065,00010", days_back=_days_back("usgs", 30)
+    )
     if os.getenv("DATABOX_SMOKE"):
         source.add_limit(max_items=5)
     yield from dlt.run(context=context, dlt_source=source)
