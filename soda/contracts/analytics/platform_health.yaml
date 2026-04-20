@@ -1,0 +1,30 @@
+dataset: databox/analytics/platform_health
+
+columns:
+  - name: source
+    checks:
+      - missing:
+          must_be: 0
+      - invalid:
+          valid_values: [ebird, noaa, usgs]
+          must_be: 0
+  - name: load_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: status
+    checks:
+      - missing:
+          must_be: 0
+  - name: status_label
+  - name: schema_name
+  - name: completed_at
+    checks:
+      - missing:
+          must_be: 0
+  - name: rows_loaded
+  - name: age
+
+checks:
+  - row_count:
+      must_be: 3

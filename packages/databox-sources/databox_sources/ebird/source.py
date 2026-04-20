@@ -11,7 +11,11 @@ from databox_config.settings import settings
 from dlt.sources.helpers import requests as dlt_requests
 from dotenv import load_dotenv
 
+from databox_sources._logging import get_logger
+
 load_dotenv()
+
+log = get_logger("databox_sources.ebird")
 
 EBIRD_API_BASE = "https://api.ebird.org/v2"
 
@@ -69,7 +73,13 @@ def ebird_source(
             for obs in response.json():
                 yield process_observation(obs, region)
         except Exception as e:
-            print(f"Error fetching recent observations for {region}: {e}")
+            log.exception(
+                "resource_fetch_failed",
+                source="ebird",
+                resource="recent_observations",
+                region=region,
+                error=str(e),
+            )
 
     @dlt.resource(
         primary_key="subId",
@@ -92,7 +102,13 @@ def ebird_source(
             for obs in response.json():
                 yield process_observation(obs, region, is_notable=True)
         except Exception as e:
-            print(f"Error fetching notable observations for {region}: {e}")
+            log.exception(
+                "resource_fetch_failed",
+                source="ebird",
+                resource="notable_observations",
+                region=region,
+                error=str(e),
+            )
 
     @dlt.resource(primary_key="speciesCode", write_disposition="replace")
     def species_list(region: str = region_code) -> Iterator[dict[str, Any]]:
@@ -110,7 +126,13 @@ def ebird_source(
                     "_loaded_at": loaded_at,
                 }
         except Exception as e:
-            print(f"Error fetching species list for {region}: {e}")
+            log.exception(
+                "resource_fetch_failed",
+                source="ebird",
+                resource="species_list",
+                region=region,
+                error=str(e),
+            )
 
     @dlt.resource(
         primary_key="locId",
@@ -133,7 +155,13 @@ def ebird_source(
                 hotspot["_region_code"] = region
                 yield hotspot
         except Exception as e:
-            print(f"Error fetching hotspots for {region}: {e}")
+            log.exception(
+                "resource_fetch_failed",
+                source="ebird",
+                resource="hotspots",
+                region=region,
+                error=str(e),
+            )
 
     @dlt.resource(primary_key="sciName", write_disposition="replace")
     def taxonomy() -> Iterator[dict[str, Any]]:
@@ -147,7 +175,12 @@ def ebird_source(
                 species["_loaded_at"] = loaded_at
                 yield species
         except Exception as e:
-            print(f"Error fetching taxonomy: {e}")
+            log.exception(
+                "resource_fetch_failed",
+                source="ebird",
+                resource="taxonomy",
+                error=str(e),
+            )
 
     @dlt.resource(primary_key=["regionCode", "year", "month", "day"], write_disposition="merge")
     def region_stats(region: str = region_code, back: int = days_back) -> Iterator[dict[str, Any]]:
@@ -176,7 +209,14 @@ def ebird_source(
                         "_loaded_at": loaded_at,
                     }
             except Exception as e:
-                print(f"Error fetching stats for {region} on {date.date()}: {e}")
+                log.exception(
+                    "resource_fetch_failed",
+                    source="ebird",
+                    resource="region_stats",
+                    region=region,
+                    date=date.date().isoformat(),
+                    error=str(e),
+                )
 
     return [
         recent_observations,
@@ -223,16 +263,27 @@ class EbirdPipelineSource:
         )
         if smoke:
             source.add_limit(max_items=5)
-        print(f"Starting eBird pipeline [{schema_name}]{'  [SMOKE]' if smoke else ''}...")
+
+        run_log = log.bind(
+            pipeline=pipeline.pipeline_name,
+            source="ebird",
+            schema=schema_name,
+            region=self._region,
+            days_back=self._days_back,
+            smoke=smoke,
+        )
+        started = pendulum.now()
+        run_log.info("pipeline_start")
+
         info = pipeline.run(source)
 
-        print("\neBird data loaded successfully!")
-        print(f"  Pipeline: {pipeline.pipeline_name}")
-        print(f"  Schema: {schema_name}")
-        print(f"  Region: {self._region}")
-        print(f"  Days back: {self._days_back}")
-        print(f"\n{info}")
-
+        duration_ms = int((pendulum.now() - started).total_seconds() * 1000)
+        run_log.info(
+            "pipeline_complete",
+            load_id=info.loads_ids[-1] if info.loads_ids else None,
+            duration_ms=duration_ms,
+            has_failed_jobs=info.has_failed_jobs,
+        )
         return pipeline
 
     def validate_config(self) -> bool:

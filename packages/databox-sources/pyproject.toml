@@ -7,6 +7,7 @@ dependencies = [
     "dlt[duckdb]>=1.14.1",
     "pendulum>=3.0.0",
     "requests>=2.32.3",
+    "structlog>=24.1.0",
 ]
 
 [build-system]

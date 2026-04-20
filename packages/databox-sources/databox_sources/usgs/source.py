@@ -21,6 +21,10 @@ from databox_config.pipeline_config import PipelineConfig
 from databox_config.settings import settings
 from dlt.sources.helpers import requests as dlt_requests
 
+from databox_sources._logging import get_logger
+
+log = get_logger("databox_sources.usgs")
+
 USGS_BASE = "https://waterservices.usgs.gov/nwis"
 USGS_SITE_BASE = "https://waterservices.usgs.gov/nwis/site"
 
@@ -235,16 +239,28 @@ class UsgsPipelineSource:
         )
         if smoke:
             source.add_limit(max_items=5)
-        print(f"Starting USGS pipeline [{schema_name}]{'  [SMOKE]' if smoke else ''}...")
+
+        run_log = log.bind(
+            pipeline=pipeline.pipeline_name,
+            source="usgs",
+            schema=schema_name,
+            state=self._state_cd,
+            parameters=self._parameter_cds,
+            days_back=self._days_back,
+            smoke=smoke,
+        )
+        started = pendulum.now()
+        run_log.info("pipeline_start")
+
         info = pipeline.run(source)
 
-        print("\nUSGS data loaded successfully!")
-        print(f"  Pipeline: {pipeline.pipeline_name}")
-        print(f"  Schema: {schema_name}")
-        print(f"  State: {self._state_cd}")
-        print(f"  Parameters: {self._parameter_cds}")
-        print(f"  Days back: {self._days_back}")
-        print(f"\n{info}")
+        duration_ms = int((pendulum.now() - started).total_seconds() * 1000)
+        run_log.info(
+            "pipeline_complete",
+            load_id=info.loads_ids[-1] if info.loads_ids else None,
+            duration_ms=duration_ms,
+            has_failed_jobs=info.has_failed_jobs,
+        )
         return pipeline
 
     def validate_config(self) -> bool:
