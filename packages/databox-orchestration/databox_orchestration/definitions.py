@@ -56,7 +56,7 @@ class DataboxConfig(dg.ConfigurableResource):
 _gateway = "motherduck" if os.getenv("DATABOX_BACKEND") == "motherduck" else "local"
 
 
-def _dlt_destination(db_path: str) -> dlt.destinations.duckdb:
+def _dlt_destination(db_path: str) -> t.Any:
     if os.getenv("DATABOX_BACKEND") == "motherduck":
         return dlt.destinations.motherduck(credentials=db_path)
     return dlt.destinations.duckdb(credentials=db_path)

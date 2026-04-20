@@ -93,8 +93,8 @@ def _chunk_date_range(start: str, end: str, max_days: int = 365) -> list[tuple[s
 
     GHCND (daily) is limited to 1 year per request.
     """
-    start_dt = pendulum.parse(start)
-    end_dt = pendulum.parse(end)
+    start_dt = pendulum.from_format(start, "YYYY-MM-DD")
+    end_dt = pendulum.from_format(end, "YYYY-MM-DD")
     chunks = []
     current = start_dt
 

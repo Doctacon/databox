@@ -204,7 +204,7 @@ class EbirdPipelineSource:
             max_results=self._max_results,
             days_back=self._days_back,
         )
-        return source.resources.values()
+        return list(source.resources.values())
 
     def load(self, smoke: bool = False):
         schema_name = self.config.resolve_schema_name()

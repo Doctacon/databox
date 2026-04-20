@@ -88,8 +88,8 @@ def _parse_daily_value_records(
 
 
 def _chunk_date_range(start: str, end: str, max_days: int = 90) -> list[tuple[str, str]]:
-    start_dt = pendulum.parse(start)
-    end_dt = pendulum.parse(end)
+    start_dt = pendulum.from_format(start, "YYYY-MM-DD")
+    end_dt = pendulum.from_format(end, "YYYY-MM-DD")
     chunks: list[tuple[str, str]] = []
     current = start_dt
     while current < end_dt:
