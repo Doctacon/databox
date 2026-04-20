@@ -31,9 +31,6 @@ jobs:
   typecheck:
     name: mypy
     runs-on: ubuntu-latest
-    # 31 pre-existing errors across noaa/usgs/ebird sources + orchestration.
-    # Soft-fail until a dedicated follow-up ticket lands; job still reports status.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
