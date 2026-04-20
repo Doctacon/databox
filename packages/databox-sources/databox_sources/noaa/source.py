@@ -14,7 +14,11 @@ from databox_config.settings import settings
 from dlt.sources.helpers import requests as dlt_requests
 from dotenv import load_dotenv
 
+from databox_sources._logging import get_logger
+
 load_dotenv()
+
+log = get_logger("databox_sources.noaa")
 
 NOAA_API_BASE = "https://www.ncei.noaa.gov/cdo-web/api/v2"
 
@@ -243,17 +247,28 @@ class NoaaPipelineSource:
         )
         if smoke:
             source.add_limit(max_items=5)
-        print(f"Starting NOAA pipeline [{schema_name}]{'  [SMOKE]' if smoke else ''}...")
+
+        run_log = log.bind(
+            pipeline=pipeline.pipeline_name,
+            source="noaa",
+            schema=schema_name,
+            location=self._location,
+            dataset=self._dataset,
+            days_back=self._days_back,
+            smoke=smoke,
+        )
+        started = pendulum.now()
+        run_log.info("pipeline_start")
+
         info = pipeline.run(source)
 
-        print("\nNOAA data loaded successfully!")
-        print(f"  Pipeline: {pipeline.pipeline_name}")
-        print(f"  Schema: {schema_name}")
-        print(f"  Location: {self._location}")
-        print(f"  Dataset: {self._dataset}")
-        print(f"  Days back: {self._days_back}")
-        print(f"\n{info}")
-
+        duration_ms = int((pendulum.now() - started).total_seconds() * 1000)
+        run_log.info(
+            "pipeline_complete",
+            load_id=info.loads_ids[-1] if info.loads_ids else None,
+            duration_ms=duration_ms,
+            has_failed_jobs=info.has_failed_jobs,
+        )
         return pipeline
 
     def validate_config(self) -> bool:

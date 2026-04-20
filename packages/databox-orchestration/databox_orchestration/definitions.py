@@ -2,6 +2,7 @@
 
 import os
 import typing as t
+from datetime import timedelta
 from pathlib import Path
 
 import dagster as dg
@@ -276,6 +277,10 @@ _soda_checks: list[dg.AssetChecksDefinition] = [
         SODA_DIR / "contracts/analytics/fct_species_weather_preferences.yaml",
     ),
     create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "analytics", "platform_health"]),
+        SODA_DIR / "contracts/analytics/platform_health.yaml",
+    ),
+    create_soda_asset_check(
         dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_daily_values"]),
         SODA_DIR / "contracts/usgs_staging/stg_usgs_daily_values.yaml",
     ),
@@ -319,6 +324,7 @@ _usgs_sqlmesh_keys = [
 _analytics_sqlmesh_keys = [
     dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"]),
     dg.AssetKey(["sqlmesh", "analytics", "fct_species_weather_preferences"]),
+    dg.AssetKey(["sqlmesh", "analytics", "platform_health"]),
 ]
 
 # ---------------------------------------------------------------------------
@@ -366,8 +372,58 @@ schedules = [
 ]
 
 # ---------------------------------------------------------------------------
+# Freshness policies
+# ---------------------------------------------------------------------------
+# deadline_cron fires at 08:00 UTC every day (one hour after the 06:00 UTC
+# ingest schedule). lower_bound_delta per-source reflects real upstream lag:
+# eBird/USGS publish same-day, NOAA GHCND lags several days.
+
+_FRESHNESS_BY_SOURCE: dict[str, dg.FreshnessPolicy] = {
+    "ebird": dg.FreshnessPolicy.cron(
+        deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
+    ),
+    "noaa": dg.FreshnessPolicy.cron(
+        deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
+    ),
+    "usgs": dg.FreshnessPolicy.cron(
+        deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
+    ),
+}
+
+
+def _source_for_key(key: dg.AssetKey) -> str | None:
+    """Infer source slug from asset key path.
+
+    Asset keys follow ["sqlmesh", "<schema>", "<table>"]. Schema prefixes
+    (raw_ebird, ebird_staging, ebird) all carry the source slug. Analytics
+    marts are cross-domain and inherit the slowest upstream policy (noaa).
+    """
+    path = key.path
+    if len(path) < 2:
+        return None
+    schema = path[1]
+    for src in ("ebird", "noaa", "usgs"):
+        if src in schema:
+            return src
+    if schema == "analytics":
+        return "noaa"
+    return None
+
+
+def _apply_freshness(spec: dg.AssetSpec) -> dg.AssetSpec:
+    src = _source_for_key(spec.key)
+    if src is None:
+        return spec
+    return dg.apply_freshness_policy(spec, _FRESHNESS_BY_SOURCE[src])
+
+
+# ---------------------------------------------------------------------------
 # Definitions
 # ---------------------------------------------------------------------------
+#
+# `FreshnessPolicy` (new-style, cron-based) auto-renders state chips in the
+# Dagster UI — no explicit freshness asset check or sensor is required. See
+# https://docs.dagster.io/concepts/assets/asset-freshness.
 
 defs = dg.Definitions(
     assets=[ebird_dlt_assets, noaa_dlt_assets, usgs_dlt_assets, sqlmesh_project],
@@ -383,3 +439,5 @@ defs = dg.Definitions(
     # each dlt pipeline writes to its own raw_*.duckdb — no lock conflicts
     executor=dg.multiprocess_executor,
 )
+
+defs = defs.map_asset_specs(func=_apply_freshness)
