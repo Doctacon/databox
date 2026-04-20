@@ -1,5 +1,7 @@
 # Databox
 
+[![CI](https://github.com/Doctacon/databox/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/Doctacon/databox/actions/workflows/ci.yaml)
+
 A dataset-agnostic data platform for ingestion, transformation, quality checking, and visualization. Zero-infra local mode (file-based DuckDB) with a one-flag switch to MotherDuck cloud. Orchestrated end-to-end by Dagster.
 
 ## Stack
