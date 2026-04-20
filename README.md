@@ -1,12 +1,12 @@
 # Databox
 
-A dataset-agnostic data platform for ingestion, transformation, quality checking, and visualization.
+A dataset-agnostic data platform for ingestion, transformation, quality checking, and visualization. Zero-infra local mode (file-based DuckDB) with a one-flag switch to MotherDuck cloud.
 
 ## Stack
 
 - **dlt** — Python-native data ingestion with auto-schema detection
 - **sqlmesh** — SQL-based transformations with version control and testing
-- **DuckDB** — Embedded analytical database
+- **DuckDB** — Embedded analytical database (local) or MotherDuck (cloud)
 - **Dagster** — Orchestration (scheduling, lineage, sensors)
 - **Soda Core** — Contract-based data quality checks
 - **Typer CLI** — Unified `databox` command-line interface
@@ -19,7 +19,7 @@ task setup
 
 # Configure API keys
 cp .env.example .env
-# Edit .env with your keys
+# Edit .env with your keys (EBIRD_API_TOKEN, NOAA_API_TOKEN)
 
 # Run a pipeline
 databox run ebird
@@ -39,11 +39,28 @@ databox status
 | `databox list` | List registered pipelines |
 | `databox run <name>` | Run a pipeline |
 | `databox validate <name>` | Check pipeline config and credentials |
-| `databox transform plan [project]` | Preview SQLMesh changes |
-| `databox transform run [project]` | Apply SQLMesh transforms |
-| `databox transform test [project]` | Run SQLMesh tests |
+| `databox transform plan` | Preview SQLMesh changes |
+| `databox transform run` | Apply SQLMesh transforms |
+| `databox transform test` | Run SQLMesh tests |
 | `databox quality <schema.table>` | Data quality checks |
 | `databox status` | Show pipeline status and data freshness |
+
+## Backends
+
+Switch between local and cloud via `.env`:
+
+```bash
+# Local (default) — file-based DuckDB, zero-infra
+DATABOX_BACKEND=local
+DATABOX_GATEWAY=local
+
+# MotherDuck cloud
+DATABOX_BACKEND=motherduck
+DATABOX_GATEWAY=motherduck
+MOTHERDUCK_TOKEN=<your_token>
+```
+
+`settings.database_path` and `settings.raw_*_path` are computed — they return `md:*` URIs for MotherDuck or local file paths otherwise.
 
 ## Project Structure
 
@@ -55,52 +72,59 @@ databox/
 │   ├── databox-sources/             # dlt ingestion + per-source configs
 │   │   └── databox_sources/
 │   │       ├── base.py              # PipelineSource protocol
-│   │       ├── registry.py          # Auto-discovers sources from config.yaml files
-│   │       ├── ebird/               # eBird API (6 resources)
-│   │       │   ├── config.yaml
-│   │       │   └── source.py
-│   │       └── noaa/                # NOAA CDO API (3 resources)
-│   │           ├── config.yaml
-│   │           └── source.py
-│   ├── databox-orchestration/       # Dagster asset definitions (auto-generated)
-│   └── databox-quality/             # Data quality engine (check_table, run_report)
+│   │       ├── registry.py          # Auto-discovers sources from config.yaml
+│   │       ├── ebird/               # eBird API
+│   │       ├── noaa/                # NOAA CDO API
+│   │       └── usgs/                # USGS NWIS Water Services
+│   ├── databox-orchestration/       # Dagster asset definitions
+│   └── databox-quality/             # Data quality engine (Soda)
 ├── transforms/
-│   ├── main/                        # Single unified SQLMesh project (Postgres gateway)
-│   │   └── models/
-│   │       ├── ebird/               # staging → intermediate → marts
-│   │       ├── noaa/                # staging → marts
-│   │       └── analytics/           # cross-domain (bird + weather)
-│   └── _shared/                     # Shared macros, audits, seeds
+│   └── main/                        # Unified SQLMesh project (duckdb dialect)
+│       ├── config.yaml              # local + motherduck gateways
+│       └── models/
+│           ├── ebird/               # staging → intermediate → marts
+│           ├── noaa/                # staging → marts
+│           ├── usgs/                # staging → marts
+│           └── analytics/           # cross-domain (bird + weather + streams)
 ├── soda/
-│   ├── datasources/                 # DuckDB connection config
-│   └── contracts/                   # Data quality contracts (raw → staging → marts)
-│       ├── raw_ebird/
-│       ├── ebird_staging/
-│       ├── ebird/
-│       ├── raw_noaa/
-│       ├── noaa_staging/
-│       ├── noaa/
-│       └── analytics/
-├── app/                             # Streamlit DuckDB data explorer
-├── docker/                          # Postgres init SQL
-├── docker-compose.yml               # Postgres + Dagster services
-├── data/                            # DuckDB database (gitignored)
-│   └── databox.db
-├── tests/                           # Test suite (10 files, 70+ tests)
+│   ├── datasources/                 # DuckDB/MotherDuck connection config
+│   └── contracts/                   # Data quality contracts per schema layer
+├── app/                             # Streamlit data explorer
+├── data/                            # DuckDB files (gitignored)
+│   ├── databox.duckdb               # Transformed marts catalog
+│   ├── raw_ebird.duckdb             # dlt landing zone (parallelized per source)
+│   ├── raw_noaa.duckdb
+│   └── raw_usgs.duckdb
 └── scripts/                         # Utility scripts
 ```
+
+### Schema Layering
+
+```
+raw_ebird / raw_noaa / raw_usgs        ← dlt loads (untouched API data)
+ebird_staging / noaa_staging / usgs_staging  ← SQLMesh stg_* views (renames only)
+ebird / noaa / usgs                    ← SQLMesh marts (fct_* / dim_*)
+analytics                              ← cross-domain marts
+```
+
+Raw catalogs are split per-source DuckDB files so dlt can load in parallel.
 
 ## Data Sources
 
 ### eBird
 - **API**: eBird API v2 (free, requires token)
 - **Resources**: recent_observations, notable_observations, species_list, hotspots, taxonomy, region_stats
-- **Transforms**: `raw_ebird` → staging → intermediate → marts + `analytics` cross-domain models
+- **Transforms**: `raw_ebird` → `ebird_staging` → intermediate → `ebird.*` marts + `analytics` cross-domain
 
 ### NOAA CDO
 - **API**: NOAA Climate Data Online v2 (free, requires token)
 - **Resources**: daily_weather (TMAX/TMIN/PRCP/SNOW/AWND), stations, datasets
-- **Transforms**: `raw_noaa` → staging → `noaa.fct_daily_weather`
+- **Transforms**: `raw_noaa` → `noaa_staging` → `noaa.fct_daily_weather`
+
+### USGS Water Services
+- **API**: NWIS Daily Values (no API key required)
+- **Resources**: daily_values (discharge/gage height/water temp), sites
+- **Transforms**: `raw_usgs` → `usgs_staging` → `usgs.fct_daily_streamflow`
 
 ## Adding a New Data Source
 
@@ -109,44 +133,25 @@ databox/
    - `config.yaml` — source module, schedule, params, quality rules
 
 2. Add transform models at `transforms/main/models/<source>/`
-   - Read from `raw_<source>.*` schemas (auto-created by dlt)
-   - Write to `<source>.*` schema
-   - Follow staging → marts layering pattern
+   - Read from `raw_<source>.*` (auto-created by dlt)
+   - Staging → `<source>_staging.*`, marts → `<source>.*`
 
-3. Add secrets to `.env`: `API_KEY_<SOURCE>=your_key_here`
+3. Add Soda contracts at `soda/contracts/<source>_staging/` and `soda/contracts/<source>/`
 
-No changes needed to CLI, orchestration, or Taskfile — they auto-discover from the registry.
+4. Add secret to `.env`: `<SOURCE>_API_TOKEN=your_key_here`
 
-## Docker
-
-```bash
-# Start Postgres + Dagster
-docker-compose up -d
-
-# Dagster UI at http://localhost:3000
-```
-
-SQLMesh uses Postgres as the state gateway (defined in `transforms/main/config.yaml`). Default database is DuckDB at `data/databox.db`.
+No changes needed to CLI or orchestration — they auto-discover from the registry.
 
 ## Development
 
 ```bash
 task setup          # Setup environment
-task test           # Run all tests
-task test:unit      # Unit tests only
-task test:e2e       # End-to-end tests
+task install        # Install dependencies
+task verify         # Smoke test (dlt → SQLMesh → Soda)
 task lint           # Lint code
 task format         # Format code
 task streamlit      # Launch data explorer
 ```
-
-## Testing
-
-Tests are parametrized from the pipeline registry — new sources get coverage automatically.
-
-- 70+ tests covering config, registry, CLI, source protocol, Dagster, e2e
-- Schema-driven fake data factory generates test data from dlt column hints
-- CLI tested via `typer.testing.CliRunner`
 
 ## License
 
