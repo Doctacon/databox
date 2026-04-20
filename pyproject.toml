@@ -21,6 +21,8 @@ dev = [
     "ruff>=0.12.5",
     "mypy>=1.0",
     "types-PyYAML>=6.0",
+    "pytest-recording>=0.13",
+    "syrupy>=4.0",
 ]
 
 [tool.mypy]
@@ -39,7 +41,7 @@ databox-quality = { workspace = true }
 databox-orchestration = { workspace = true }
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "packages"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
