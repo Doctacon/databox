@@ -67,4 +67,7 @@ temp/
 
 # MCP tooling (user-specific, not project config)
 .mcp.json
-*_state/
+j_state/
+
+# Loom
+.loom/memory/user
