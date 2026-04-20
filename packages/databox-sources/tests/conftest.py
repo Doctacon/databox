@@ -100,6 +100,20 @@ def _disable_dlt_telemetry(monkeypatch):
     monkeypatch.setenv("RUNTIME__DLTHUB_TELEMETRY", "false")
 
 
+@pytest.fixture(autouse=True)
+def _fake_api_tokens_when_missing(monkeypatch):
+    """Inject dummy API tokens for CI replay runs.
+
+    Sources raise on missing tokens before any HTTP call, so VCR never gets
+    a chance to replay. Only set when unset — local re-records still use
+    real tokens. Token values leaked into cassettes are filtered via
+    filter_headers/filter_query_parameters on recording.
+    """
+    for var in ("EBIRD_API_TOKEN", "NOAA_API_TOKEN"):
+        if not os.getenv(var):
+            monkeypatch.setenv(var, "test-token-for-vcr-replay")
+
+
 @pytest.fixture
 def normalize_schema():
     return normalize_schema_yaml
