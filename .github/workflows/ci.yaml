@@ -54,16 +54,7 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: pytest
-        # Exit 5 = "no tests collected". Tolerate until source-test-harness ticket lands.
-        run: |
-          set +e
-          uv run pytest
-          code=$?
-          if [ "$code" -eq 5 ]; then
-            echo "::warning::pytest collected zero tests — source-test-harness ticket pending."
-            exit 0
-          fi
-          exit $code
+        run: uv run pytest
 
   sqlmesh-lint:
     name: SQLMesh lint

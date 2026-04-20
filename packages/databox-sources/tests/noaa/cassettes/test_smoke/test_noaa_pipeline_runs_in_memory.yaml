@@ -1,0 +1,151 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+      token:
+      - REDACTED
+    method: GET
+    uri: https://www.ncei.noaa.gov/cdo-web/api/v2/data?datasetid=GHCND&datatypeid=TMAX&enddate=2026-02-15&includemetadata=true&limit=1000&locationid=FIPS%3A11&offset=0&startdate=2026-02-08&units=standard
+  response:
+    body:
+      string: '{"metadata":{"resultset":{"offset":1,"count":8,"limit":1000}},"results":[{"date":"2026-02-08T00:00:00","datatype":"TMAX","station":"GHCND:USC00186350","attributes":",,7,0800","value":35.0},{"date":"2026-02-09T00:00:00","datatype":"TMAX","station":"GHCND:USC00186350","attributes":",,7,0800","value":27.0},{"date":"2026-02-10T00:00:00","datatype":"TMAX","station":"GHCND:USC00186350","attributes":",,7,0800","value":36.0},{"date":"2026-02-11T00:00:00","datatype":"TMAX","station":"GHCND:USC00186350","attributes":",,7,0800","value":51.0},{"date":"2026-02-12T00:00:00","datatype":"TMAX","station":"GHCND:USC00186350","attributes":",,7,0800","value":50.0},{"date":"2026-02-13T00:00:00","datatype":"TMAX","station":"GHCND:USC00186350","attributes":",,7,0800","value":39.0},{"date":"2026-02-14T00:00:00","datatype":"TMAX","station":"GHCND:USC00186350","attributes":",,7,0800","value":40.0},{"date":"2026-02-15T00:00:00","datatype":"TMAX","station":"GHCND:USC00186350","attributes":",,7,0800","value":58.0}]}'
+    headers:
+      Access-Control-Allow-Headers:
+      - token
+      Access-Control-Allow-Methods:
+      - GET
+      Access-Control-Allow-Origin:
+      - '*'
+      Connection:
+      - Keep-Alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 20 Apr 2026 19:50:02 GMT
+      Keep-Alive:
+      - timeout=15, max=100
+      Server:
+      - Apache
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+    status:
+      code: 200
+      message: ''
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+      token:
+      - REDACTED
+    method: GET
+    uri: https://www.ncei.noaa.gov/cdo-web/api/v2/stations?datasetid=GHCND&limit=1000&locationid=FIPS%3A11&offset=0
+  response:
+    body:
+      string: '{"metadata":{"resultset":{"offset":1,"count":23,"limit":1000}},"results":[{"elevation":17.1,"mindate":"2006-05-01","maxdate":"2006-08-31","latitude":38.917137,"name":"WASHINGTON
+        3.0 ENE, DC US","datacoverage":0.9919,"id":"GHCND:US1DCDC0001","elevationUnit":"METERS","longitude":-76.962607},{"elevation":85,"mindate":"2006-05-01","maxdate":"2007-03-17","latitude":38.957388,"name":"WASHINGTON
+        3.7 NNW, DC US","datacoverage":0.3333,"id":"GHCND:US1DCDC0002","elevationUnit":"METERS","longitude":-77.033727},{"elevation":91.1,"mindate":"2006-05-01","maxdate":"2006-08-31","latitude":38.937668,"name":"WASHINGTON
+        5.0 WNW, DC US","datacoverage":0.9024,"id":"GHCND:US1DCDC0003","elevationUnit":"METERS","longitude":-77.099101},{"elevation":21.9,"mindate":"2007-03-01","maxdate":"2007-12-31","latitude":38.892782,"name":"WASHINGTON
+        2.0 ESE, DC US","datacoverage":0.7092,"id":"GHCND:US1DCDC0006","elevationUnit":"METERS","longitude":-76.983381},{"elevation":25,"mindate":"2007-03-05","maxdate":"2007-09-17","latitude":38.8943,"name":"WASHINGTON
+        1.2 SE, DC US","datacoverage":0.7259,"id":"GHCND:US1DCDC0007","elevationUnit":"METERS","longitude":-76.9982},{"elevation":27.1,"mindate":"2007-08-21","maxdate":"2008-10-01","latitude":38.890101,"name":"WASHINGTON
+        2.0 ESE, DC US","datacoverage":0.4216,"id":"GHCND:US1DCDC0008","elevationUnit":"METERS","longitude":-76.985364},{"elevation":3,"mindate":"2008-01-14","maxdate":"2025-01-02","latitude":38.876594,"name":"WASHINGTON
+        2.0 SSW, DC US","datacoverage":0.2639,"id":"GHCND:US1DCDC0009","elevationUnit":"METERS","longitude":-77.022402},{"elevation":88.1,"mindate":"2008-07-21","maxdate":"2018-08-02","latitude":38.97729754,"name":"WASHINGTON
+        5.0 N, DC US","datacoverage":0.0707,"id":"GHCND:US1DCDC0010","elevationUnit":"METERS","longitude":-77.02445991},{"elevation":81.4,"mindate":"2008-10-09","maxdate":"2010-10-22","latitude":38.930277,"name":"WASHINGTON
+        4.0 WNW, DC US","datacoverage":0.1613,"id":"GHCND:US1DCDC0011","elevationUnit":"METERS","longitude":-77.083075},{"elevation":106.4,"mindate":"2011-06-15","maxdate":"2026-04-14","latitude":38.958091,"name":"WASHINGTON
+        5.1 NW, DC US","datacoverage":0.8324,"id":"GHCND:US1DCDC0014","elevationUnit":"METERS","longitude":-77.08173},{"elevation":50.6,"mindate":"2011-09-23","maxdate":"2020-10-21","latitude":38.920341,"name":"WASHINGTON
+        1.9 WNW, DC US","datacoverage":0.1824,"id":"GHCND:US1DCDC0015","elevationUnit":"METERS","longitude":-77.045627},{"elevation":9.1,"mindate":"2015-03-20","maxdate":"2018-11-25","latitude":38.895768,"name":"THE
+        WHITE HOUSE, DC US","datacoverage":0.7209,"id":"GHCND:US1DCDC0019","elevationUnit":"METERS","longitude":-77.036975},{"elevation":43.9,"mindate":"2018-12-27","maxdate":"2026-04-17","latitude":38.932715,"name":"WASHINGTON
+        2.6 NE, DC US","datacoverage":0.6995,"id":"GHCND:US1DCDC0026","elevationUnit":"METERS","longitude":-76.983545},{"elevation":36.9,"mindate":"2020-07-22","maxdate":"2024-12-16","latitude":38.94361,"name":"WASHINGTON
+        3.1 NNE, DC US","datacoverage":0.4748,"id":"GHCND:US1DCDC0031","elevationUnit":"METERS","longitude":-76.98801},{"elevation":57.3,"mindate":"2018-03-25","maxdate":"2023-03-04","latitude":38.925786,"name":"WASHINGTON
+        1.9 NW, DC US","datacoverage":0.1456,"id":"GHCND:US1DCDC0034","elevationUnit":"METERS","longitude":-77.04085},{"elevation":8.2,"mindate":"2022-09-01","maxdate":"2026-04-15","latitude":38.8965206,"name":"WASHINGTON
+        2.2 ESE, DC US","datacoverage":1,"id":"GHCND:US1DCDC0040","elevationUnit":"METERS","longitude":-76.9769113},{"elevation":78.9,"mindate":"1944-11-01","maxdate":"1959-07-31","latitude":38.95,"name":"BRIGHTWOOD
+        DC, DC US","datacoverage":0.648,"id":"GHCND:USC00181135","elevationUnit":"METERS","longitude":-77.01667},{"elevation":45.7,"mindate":"1948-08-01","maxdate":"2026-02-28","latitude":38.9385,"name":"DALECARLIA
+        RESERVOIR, DC US","datacoverage":0.9627,"id":"GHCND:USC00182325","elevationUnit":"METERS","longitude":-77.1134},{"elevation":15.2,"mindate":"1948-08-01","maxdate":"2026-02-28","latitude":38.91329,"name":"NATIONAL
+        ARBORETUM DC, DC US","datacoverage":0.9601,"id":"GHCND:USC00186350","elevationUnit":"METERS","longitude":-76.97009},{"elevation":70.1,"mindate":"1948-08-01","maxdate":"1977-12-31","latitude":38.93333,"name":"U
+        S SOLDIERS HOME DC, DC US","datacoverage":0.998,"id":"GHCND:USC00189035","elevationUnit":"METERS","longitude":-77.01667},{"elevation":18,"mindate":"1947-08-20","maxdate":"1969-09-04","latitude":38.83333,"name":"WASHINGTON
+        DC BOLLING FIELD AFB, DC US","datacoverage":0.4639,"id":"GHCND:USW00013710","elevationUnit":"METERS","longitude":-77.01667},{"elevation":15.8,"mindate":"1945-03-01","maxdate":"1956-12-05","latitude":38.85,"name":"ANACOSTIA
+        NAS, VA US","datacoverage":0.7103,"id":"GHCND:USW00013751","elevationUnit":"METERS","longitude":-77.03333},{"elevation":21.9,"mindate":"1851-03-21","maxdate":"1965-12-31","latitude":38.901111,"name":"WASHINGTON
+        DC WEATHER BUREAU CITY, DC US","datacoverage":0.8762,"id":"GHCND:USW00093725","elevationUnit":"METERS","longitude":-77.050278}]}'
+    headers:
+      Access-Control-Allow-Headers:
+      - token
+      Access-Control-Allow-Methods:
+      - GET
+      Access-Control-Allow-Origin:
+      - '*'
+      Connection:
+      - Keep-Alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 20 Apr 2026 19:50:02 GMT
+      Keep-Alive:
+      - timeout=15, max=100
+      Server:
+      - Apache
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+    status:
+      code: 200
+      message: ''
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+      token:
+      - REDACTED
+    method: GET
+    uri: https://www.ncei.noaa.gov/cdo-web/api/v2/datasets/GHCND
+  response:
+    body:
+      string: '{"mindate":"1763-01-01","maxdate":"2026-04-17","name":"Daily Summaries","datacoverage":1,"id":"GHCND"}'
+    headers:
+      Access-Control-Allow-Headers:
+      - token
+      Access-Control-Allow-Methods:
+      - GET
+      Access-Control-Allow-Origin:
+      - '*'
+      Connection:
+      - Keep-Alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 20 Apr 2026 19:50:02 GMT
+      Keep-Alive:
+      - timeout=15, max=100
+      Server:
+      - Apache
+      Strict-Transport-Security:
+      - max-age=31536000
+      Transfer-Encoding:
+      - chunked
+    status:
+      code: 200
+      message: ''
+version: 1

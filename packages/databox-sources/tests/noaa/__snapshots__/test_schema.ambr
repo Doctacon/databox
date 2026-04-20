@@ -1,0 +1,207 @@
+# serializer version: 1
+# name: test_noaa_schema_snapshot
+  '''
+  name: noaa_source
+  normalizers:
+    json:
+      config:
+        propagation:
+          tables:
+            daily_weather:
+              _dlt_id: _dlt_root_id
+            stations:
+              _dlt_id: _dlt_root_id
+      module: dlt.common.normalizers.json.relational
+    names: snake_case
+  settings:
+    default_hints:
+      not_null:
+      - _dlt_id
+      - _dlt_root_id
+      - _dlt_parent_id
+      - _dlt_list_idx
+      - _dlt_load_id
+      parent_key:
+      - _dlt_parent_id
+      root_key:
+      - _dlt_root_id
+      row_key:
+      - _dlt_id
+      unique:
+      - _dlt_id
+    detections:
+    - iso_timestamp
+  tables:
+    _dlt_loads:
+      columns:
+        inserted_at:
+          data_type: timestamp
+          nullable: false
+        load_id:
+          data_type: text
+          nullable: false
+        schema_name:
+          data_type: text
+          nullable: true
+        schema_version_hash:
+          data_type: text
+          nullable: true
+        status:
+          data_type: bigint
+          nullable: false
+      description: Created by DLT. Tracks completed loads
+      resource: _dlt_loads
+      write_disposition: skip
+    _dlt_pipeline_state:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        created_at:
+          data_type: timestamp
+          nullable: false
+        engine_version:
+          data_type: bigint
+          nullable: false
+        pipeline_name:
+          data_type: text
+          nullable: false
+        state:
+          data_type: text
+          nullable: false
+        version:
+          data_type: bigint
+          nullable: false
+        version_hash:
+          data_type: text
+          nullable: true
+      file_format: preferred
+      resource: _dlt_pipeline_state
+      write_disposition: append
+    _dlt_version:
+      columns:
+        engine_version:
+          data_type: bigint
+          nullable: false
+        inserted_at:
+          data_type: timestamp
+          nullable: false
+        schema:
+          data_type: text
+          nullable: false
+        schema_name:
+          data_type: text
+          nullable: false
+        version:
+          data_type: bigint
+          nullable: false
+        version_hash:
+          data_type: text
+          nullable: false
+      description: Created by DLT. Tracks schema updates
+      resource: _dlt_version
+      write_disposition: skip
+    daily_weather:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        _loaded_at:
+          data_type: timestamp
+        _location_id:
+          data_type: text
+        attributes:
+          data_type: text
+        datatype:
+          data_type: text
+          nullable: false
+          primary_key: true
+        date:
+          data_type: text
+          nullable: false
+          primary_key: true
+        source:
+          data_type: text
+        station:
+          data_type: text
+          nullable: false
+          primary_key: true
+        value:
+          data_type: double
+      resource: daily_weather
+      write_disposition: merge
+    datasets:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        _loaded_at:
+          data_type: timestamp
+        datacoverage:
+          data_type: double
+        id:
+          data_type: text
+          nullable: false
+          primary_key: true
+        maxdate:
+          data_type: text
+        mindate:
+          data_type: text
+        name:
+          data_type: text
+      resource: datasets
+      write_disposition: replace
+    stations:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        _loaded_at:
+          data_type: timestamp
+        _location_id:
+          data_type: text
+        datacoverage:
+          data_type: double
+        elevation:
+          data_type: double
+        elevation_unit:
+          data_type: text
+        id:
+          data_type: text
+          nullable: false
+          primary_key: true
+        latitude:
+          data_type: double
+        longitude:
+          data_type: double
+        maxdate:
+          data_type: text
+        mindate:
+          data_type: text
+        name:
+          data_type: text
+      resource: stations
+      write_disposition: merge
+
+  '''
+# ---

@@ -1,7 +1,7 @@
 ---
 id: ticket:source-test-harness
 kind: ticket
-status: ready
+status: review_required
 created_at: 2026-04-20T00:00:00Z
 updated_at: 2026-04-20T00:00:00Z
 scope:
@@ -57,3 +57,43 @@ dlt sources are the thinnest, most change-prone code in the repo — API schemas
 
 - Link to PR introducing the tests and passing CI run
 - Screenshot or paste of a deliberate schema-drift failure showing the clear diff
+
+# Work Log
+
+## Iter 1 — 2026-04-20
+
+Landed 9 tests (3 sources × {unit, schema, smoke}) with recorded VCR cassettes.
+
+- **Packet**: `.loom/packets/20260420-m6wyjlln-source-test-harness.md` (inline execution; no subagent).
+- **Files created**:
+  - `packages/databox-sources/tests/conftest.py` — `vcr_config`, schema-normalizer, in-memory duckdb pipeline factory, dlt-telemetry kill-switch
+  - `packages/databox-sources/tests/{ebird,noaa,usgs}/test_resources.py` — per-resource unit tests
+  - `packages/databox-sources/tests/{ebird,noaa,usgs}/test_schema.py` — syrupy dlt-schema snapshots
+  - `packages/databox-sources/tests/{ebird,noaa,usgs}/test_smoke.py` — `pipeline.run(source)` into `:memory:` duckdb
+  - `packages/databox-sources/README.md` — test-harness docs + re-record flow
+  - `.loom/evidence/20260420-schema-drift-proof.md` — deliberate-drift diff
+- **Files edited**:
+  - `pyproject.toml` — added `pytest-recording>=0.13`, `syrupy>=4.0`; extended `testpaths` to include `packages`
+  - `.github/workflows/ci.yaml` — removed pytest exit-5 tolerance; `tests` job now hard-fails on zero collected
+- **Cassette scope**:
+  - ebird (US-DC, days_back=1, max_results=50): 4 of 6 resources via `.with_resources(...)`; taxonomy excluded (~5MB response).
+  - noaa (FIPS:11, TMAX, days_back=7) with `@pytest.mark.time_machine("2026-02-15T00:00:00Z")` because the source derives date range from `pendulum.now()`.
+  - usgs (state_cd=RI, parameter_cd=00060, days_back=3) with same frozen clock.
+- **Cassette sizes**: ebird 152K, noaa 28K, usgs 224K (total 404K — above the packet's 100K budget; ebird hotspots + usgs all-RI-sites dominate. Acceptable for a one-time tradeoff; noted in residual risks).
+- **Secret scan**: EBIRD_API_TOKEN, NOAA_API_TOKEN, MOTHERDUCK_TOKEN all grep-clean against cassettes. `vcr_config` redacts headers + query params; `_scrub_response_body` hook strips token echoes from response bodies as belt-and-suspenders.
+- **Telemetry**: dlthub telemetry disabled in tests via `RUNTIME__DLTHUB_TELEMETRY=false` + VCR `ignore_hosts=["telemetry.scalevector.ai"]`.
+- **Deviations**:
+  - Not all 6 ebird resources covered in smoke — `taxonomy` + `region_stats` omitted. Taxonomy cassette size is the blocker; region_stats is per-day and would multiply cassette size. Documented in README.
+  - Support helper lives in `conftest.py` rather than a standalone `support.py` — `tests.support` import path was fragile from project-root pytest invocation. Collapsing into conftest was simpler than adding sys.path munging.
+- **Result**: `uv run pytest packages/databox-sources/ --record-mode=none` → `9 passed in 2.84s`.
+
+## Residual risks / follow-ups
+
+- Cassette size budget exceeded (404K vs 100K target). Revisit if monorepo churns regularly.
+- Taxonomy + region_stats resources untested. Consider a separate nightly sensor test (per ticket's "Out of Scope") or a dedicated tiny-fixture test.
+- Frozen clock in NOAA/USGS tests hides real time-zone / DST issues in date math. Fine for a schema-stability floor; flag if timezone bugs surface.
+- PR + CI verification pending.
+
+## Recommended next state
+
+`review_required` → push branch, open PR, confirm green CI, then `complete_pending_acceptance`.

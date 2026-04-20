@@ -1,0 +1,191 @@
+# serializer version: 1
+# name: test_usgs_schema_snapshot
+  '''
+  name: usgs_source
+  normalizers:
+    json:
+      config:
+        propagation:
+          tables:
+            daily_values:
+              _dlt_id: _dlt_root_id
+            sites:
+              _dlt_id: _dlt_root_id
+      module: dlt.common.normalizers.json.relational
+    names: snake_case
+  settings:
+    default_hints:
+      not_null:
+      - _dlt_id
+      - _dlt_root_id
+      - _dlt_parent_id
+      - _dlt_list_idx
+      - _dlt_load_id
+      parent_key:
+      - _dlt_parent_id
+      root_key:
+      - _dlt_root_id
+      row_key:
+      - _dlt_id
+      unique:
+      - _dlt_id
+    detections:
+    - iso_timestamp
+  tables:
+    _dlt_loads:
+      columns:
+        inserted_at:
+          data_type: timestamp
+          nullable: false
+        load_id:
+          data_type: text
+          nullable: false
+        schema_name:
+          data_type: text
+          nullable: true
+        schema_version_hash:
+          data_type: text
+          nullable: true
+        status:
+          data_type: bigint
+          nullable: false
+      description: Created by DLT. Tracks completed loads
+      resource: _dlt_loads
+      write_disposition: skip
+    _dlt_pipeline_state:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        created_at:
+          data_type: timestamp
+          nullable: false
+        engine_version:
+          data_type: bigint
+          nullable: false
+        pipeline_name:
+          data_type: text
+          nullable: false
+        state:
+          data_type: text
+          nullable: false
+        version:
+          data_type: bigint
+          nullable: false
+        version_hash:
+          data_type: text
+          nullable: true
+      file_format: preferred
+      resource: _dlt_pipeline_state
+      write_disposition: append
+    _dlt_version:
+      columns:
+        engine_version:
+          data_type: bigint
+          nullable: false
+        inserted_at:
+          data_type: timestamp
+          nullable: false
+        schema:
+          data_type: text
+          nullable: false
+        schema_name:
+          data_type: text
+          nullable: false
+        version:
+          data_type: bigint
+          nullable: false
+        version_hash:
+          data_type: text
+          nullable: false
+      description: Created by DLT. Tracks schema updates
+      resource: _dlt_version
+      write_disposition: skip
+    daily_values:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        _loaded_at:
+          data_type: timestamp
+        _state_cd:
+          data_type: text
+        latitude:
+          data_type: double
+        longitude:
+          data_type: double
+        observation_date:
+          data_type: text
+          nullable: false
+          primary_key: true
+        parameter_cd:
+          data_type: text
+          nullable: false
+          primary_key: true
+        parameter_name:
+          data_type: text
+        qualifier:
+          data_type: text
+        site_name:
+          data_type: text
+        site_no:
+          data_type: text
+          nullable: false
+          primary_key: true
+        unit_cd:
+          data_type: text
+        value:
+          data_type: double
+      resource: daily_values
+      write_disposition: merge
+    sites:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        _loaded_at:
+          data_type: timestamp
+        begin_date:
+          data_type: text
+        county_cd:
+          data_type: text
+        drain_area_va:
+          data_type: double
+        end_date:
+          data_type: text
+        huc_cd:
+          data_type: text
+        latitude:
+          data_type: double
+        longitude:
+          data_type: double
+        site_name:
+          data_type: text
+        site_no:
+          data_type: text
+          nullable: false
+          primary_key: true
+        site_type:
+          data_type: text
+        state_cd:
+          data_type: text
+      resource: sites
+      write_disposition: merge
+
+  '''
+# ---

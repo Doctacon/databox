@@ -1,0 +1,246 @@
+# serializer version: 1
+# name: test_ebird_schema_snapshot
+  '''
+  name: ebird_source
+  normalizers:
+    json:
+      config:
+        propagation:
+          tables:
+            hotspots:
+              _dlt_id: _dlt_root_id
+            recent_observations:
+              _dlt_id: _dlt_root_id
+      module: dlt.common.normalizers.json.relational
+    names: snake_case
+  settings:
+    default_hints:
+      not_null:
+      - _dlt_id
+      - _dlt_root_id
+      - _dlt_parent_id
+      - _dlt_list_idx
+      - _dlt_load_id
+      parent_key:
+      - _dlt_parent_id
+      root_key:
+      - _dlt_root_id
+      row_key:
+      - _dlt_id
+      unique:
+      - _dlt_id
+    detections:
+    - iso_timestamp
+  tables:
+    _dlt_loads:
+      columns:
+        inserted_at:
+          data_type: timestamp
+          nullable: false
+        load_id:
+          data_type: text
+          nullable: false
+        schema_name:
+          data_type: text
+          nullable: true
+        schema_version_hash:
+          data_type: text
+          nullable: true
+        status:
+          data_type: bigint
+          nullable: false
+      description: Created by DLT. Tracks completed loads
+      resource: _dlt_loads
+      write_disposition: skip
+    _dlt_pipeline_state:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        created_at:
+          data_type: timestamp
+          nullable: false
+        engine_version:
+          data_type: bigint
+          nullable: false
+        pipeline_name:
+          data_type: text
+          nullable: false
+        state:
+          data_type: text
+          nullable: false
+        version:
+          data_type: bigint
+          nullable: false
+        version_hash:
+          data_type: text
+          nullable: true
+      file_format: preferred
+      resource: _dlt_pipeline_state
+      write_disposition: append
+    _dlt_version:
+      columns:
+        engine_version:
+          data_type: bigint
+          nullable: false
+        inserted_at:
+          data_type: timestamp
+          nullable: false
+        schema:
+          data_type: text
+          nullable: false
+        schema_name:
+          data_type: text
+          nullable: false
+        version:
+          data_type: bigint
+          nullable: false
+        version_hash:
+          data_type: text
+          nullable: false
+      description: Created by DLT. Tracks schema updates
+      resource: _dlt_version
+      write_disposition: skip
+    hotspots:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        _loaded_at:
+          data_type: timestamp
+          nullable: true
+        _region_code:
+          data_type: text
+          nullable: true
+        country_code:
+          data_type: text
+          nullable: true
+        lat:
+          data_type: double
+        latest_obs_dt:
+          data_type: timestamp
+          nullable: true
+        lng:
+          data_type: double
+        loc_id:
+          data_type: text
+          nullable: false
+          primary_key: true
+        loc_name:
+          data_type: text
+          nullable: true
+        num_checklists_all_time:
+          data_type: bigint
+          nullable: true
+        num_species_all_time:
+          data_type: bigint
+        subnational1_code:
+          data_type: text
+          nullable: true
+        subnational2_code:
+          data_type: text
+          nullable: true
+      resource: hotspots
+      write_disposition: merge
+    recent_observations:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        _is_notable:
+          data_type: bool
+          nullable: true
+        _loaded_at:
+          data_type: timestamp
+          nullable: true
+        _observation_date:
+          data_type: timestamp
+          nullable: true
+        _region_code:
+          data_type: text
+          nullable: true
+        com_name:
+          data_type: text
+          nullable: true
+        exotic_category:
+          data_type: text
+          nullable: true
+        how_many:
+          data_type: bigint
+        lat:
+          data_type: double
+        lng:
+          data_type: double
+        loc_id:
+          data_type: text
+          nullable: true
+        loc_name:
+          data_type: text
+          nullable: true
+        location_private:
+          data_type: bool
+          nullable: true
+        obs_dt:
+          data_type: timestamp
+          nullable: true
+        obs_reviewed:
+          data_type: bool
+          nullable: true
+        obs_valid:
+          data_type: bool
+          nullable: true
+        sci_name:
+          data_type: text
+          nullable: true
+        species_code:
+          data_type: text
+          nullable: true
+        sub_id:
+          data_type: text
+          nullable: false
+          primary_key: true
+      resource: recent_observations
+      write_disposition: merge
+    species_list:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        _loaded_at:
+          data_type: timestamp
+          nullable: true
+        order:
+          data_type: bigint
+          nullable: true
+        region:
+          data_type: text
+          nullable: true
+        species_code:
+          data_type: text
+          nullable: false
+          primary_key: true
+      resource: species_list
+      write_disposition: replace
+
+  '''
+# ---

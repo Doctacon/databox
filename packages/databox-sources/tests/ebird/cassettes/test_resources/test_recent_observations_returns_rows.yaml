@@ -1,0 +1,147 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+      x-ebirdapitoken:
+      - REDACTED
+    method: GET
+    uri: https://api.ebird.org/v2/data/obs/US-DC/recent?back=1&includeProvisional=True&maxResults=50
+  response:
+    body:
+      string: '[{"speciesCode":"ovenbi1","comName":"Ovenbird","sciName":"Seiurus aurocapilla","locId":"L30659777","locName":"Smithsonian
+        Pollinator Garden","obsDt":"2026-04-20 13:35","howMany":1,"lat":38.8913913,"lng":-77.0243178,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324733112"},{"speciesCode":"rocpig","comName":"Rock
+        Pigeon","sciName":"Columba livia","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643","exoticCategory":"N"},{"speciesCode":"ribgul","comName":"Ring-billed
+        Gull","sciName":"Larus delawarensis","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":3,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"eursta","comName":"European
+        Starling","sciName":"Sturnus vulgaris","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643","exoticCategory":"N"},{"speciesCode":"rewbla","comName":"Red-winged
+        Blackbird","sciName":"Agelaius phoeniceus","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":1,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"comgra","comName":"Common
+        Grackle","sciName":"Quiscalus quiscula","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":1,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"mallar3","comName":"Mallard","sciName":"Anas
+        platyrhynchos","locId":"L473521","locName":"Constitution Gardens and Reflecting
+        Pool","obsDt":"2026-04-20 12:31","howMany":2,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"houfin","comName":"House
+        Finch","sciName":"Haemorhous mexicanus","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":1,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643","exoticCategory":"N"},{"speciesCode":"amerob","comName":"American
+        Robin","sciName":"Turdus migratorius","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"nrwswa","comName":"Northern
+        Rough-winged Swallow","sciName":"Stelgidopteryx serripennis","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":4,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"houspa","comName":"House
+        Sparrow","sciName":"Passer domesticus","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643","exoticCategory":"N"},{"speciesCode":"bnhcow","comName":"Brown-headed
+        Cowbird","sciName":"Molothrus ater","locId":"L473521","locName":"Constitution
+        Gardens and Reflecting Pool","obsDt":"2026-04-20 12:31","howMany":1,"lat":38.8901142,"lng":-77.043364,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324731643"},{"speciesCode":"naswar","comName":"Nashville
+        Warbler","sciName":"Leiothlypis ruficapilla","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":false,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"blujay","comName":"Blue
+        Jay","sciName":"Cyanocitta cristata","locId":"L10127619","locName":"U. S.
+        Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":3,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"tuftit","comName":"Tufted
+        Titmouse","sciName":"Baeolophus bicolor","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"carwre","comName":"Carolina
+        Wren","sciName":"Thryothorus ludovicianus","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"eastow","comName":"Eastern
+        Towhee","sciName":"Pipilo erythrophthalmus","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":2,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"easpho","comName":"Eastern
+        Phoebe","sciName":"Sayornis phoebe","locId":"L10127619","locName":"U. S. Capitol
+        Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"ruckin","comName":"Ruby-crowned
+        Kinglet","sciName":"Corthylio calendula","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"normoc","comName":"Northern
+        Mockingbird","sciName":"Mimus polyglottos","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":4,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"norcar","comName":"Northern
+        Cardinal","sciName":"Cardinalis cardinalis","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":2,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"fiscro","comName":"Fish
+        Crow","sciName":"Corvus ossifragus","locId":"L10127619","locName":"U. S. Capitol
+        Grounds","obsDt":"2026-04-20 12:29","howMany":8,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"buggna","comName":"Blue-gray
+        Gnatcatcher","sciName":"Polioptila caerulea","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"whtspa","comName":"White-throated
+        Sparrow","sciName":"Zonotrichia albicollis","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":4,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"yerwar","comName":"Yellow-rumped
+        Warbler","sciName":"Setophaga coronata","locId":"L10127619","locName":"U.
+        S. Capitol Grounds","obsDt":"2026-04-20 12:29","howMany":2,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"moudov","comName":"Mourning
+        Dove","sciName":"Zenaida macroura","locId":"L10127619","locName":"U. S. Capitol
+        Grounds","obsDt":"2026-04-20 12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"brnthr","comName":"Brown
+        Thrasher","sciName":"Toxostoma rufum","locId":"L1327532","locName":"The Ellipse","obsDt":"2026-04-20
+        12:03","howMany":1,"lat":38.8941281,"lng":-77.0365387,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324693411"},{"speciesCode":"grycat","comName":"Gray
+        Catbird","sciName":"Dumetella carolinensis","locId":"L1327532","locName":"The
+        Ellipse","obsDt":"2026-04-20 12:03","howMany":1,"lat":38.8941281,"lng":-77.0365387,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324693411"},{"speciesCode":"perfal","comName":"Peregrine
+        Falcon","sciName":"Falco peregrinus","locId":"L55733272","locName":"1201 Constitution
+        Ave NW, Washington US-DC 38.89315, -77.02892","obsDt":"2026-04-20 11:59","howMany":1,"lat":38.893148,"lng":-77.028923,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324690842"},{"speciesCode":"chiswi","comName":"Chimney
+        Swift","sciName":"Chaetura pelagica","locId":"L38902397","locName":"1200 N
+        St NW, Washington US-DC 38.90667, -77.02866","obsDt":"2026-04-20 10:57","howMany":1,"lat":38.906665,"lng":-77.028664,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324663080"},{"speciesCode":"rudduc","comName":"Ruddy
+        Duck","sciName":"Oxyura jamaicensis","locId":"L10127619","locName":"U. S.
+        Capitol Grounds","obsDt":"2026-04-20 10:50","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324666588"},{"speciesCode":"houwre","comName":"Northern
+        House Wren","sciName":"Troglodytes aedon","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":3,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"barswa","comName":"Barn
+        Swallow","sciName":"Hirundo rustica","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":4,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"savspa","comName":"Savannah
+        Sparrow","sciName":"Passerculus sandwichensis","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"chispa","comName":"Chipping
+        Sparrow","sciName":"Spizella passerina","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":5,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"caster1","comName":"Caspian
+        Tern","sciName":"Hydroprogne caspia","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":5,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"blkvul","comName":"Black
+        Vulture","sciName":"Coragyps atratus","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"greegr","comName":"Great
+        Egret","sciName":"Ardea alba","locId":"L57871438","locName":"Bolling AFB waterfront","obsDt":"2026-04-20
+        10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"treswa","comName":"Tree
+        Swallow","sciName":"Tachycineta bicolor","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"grbher3","comName":"Great
+        Blue Heron","sciName":"Ardea herodias","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"forter","comName":"Forster''s
+        Tern","sciName":"Sterna forsteri","locId":"L57871438","locName":"Bolling AFB
+        waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":false,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"baleag","comName":"Bald
+        Eagle","sciName":"Haliaeetus leucocephalus","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":3,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"rebwoo","comName":"Red-bellied
+        Woodpecker","sciName":"Melanerpes carolinus","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"cangoo","comName":"Canada
+        Goose","sciName":"Branta canadensis","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"bcnher","comName":"Black-crowned
+        Night Heron","sciName":"Nycticorax nycticorax","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"sonspa","comName":"Song
+        Sparrow","sciName":"Melospiza melodia","locId":"L168994","locName":"East Potomac
+        Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":5,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"doccor","comName":"Double-crested
+        Cormorant","sciName":"Nannopterum auritum","locId":"L57871438","locName":"Bolling
+        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"osprey","comName":"Osprey","sciName":"Pandion
+        haliaetus","locId":"L57871438","locName":"Bolling AFB waterfront","obsDt":"2026-04-20
+        10:23","howMany":2,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"comyel","comName":"Common
+        Yellowthroat","sciName":"Geothlypis trichas","locId":"L168994","locName":"East
+        Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"amegfi","comName":"American
+        Goldfinch","sciName":"Spinus tristis","locId":"L168994","locName":"East Potomac
+        Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"}]'
+    headers:
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json;charset=utf-8
+      Date:
+      - Mon, 20 Apr 2026 19:49:55 GMT
+      Expires:
+      - '0'
+      Pragma:
+      - no-cache
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - Access-Control-Request-Method
+      - Access-Control-Request-Headers
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+      X-Xss-Protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+version: 1
