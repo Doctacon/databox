@@ -42,7 +42,10 @@ def normalize_schema_yaml(raw: str) -> str:
         columns = table.get("columns", {}) or {}
         for col in columns.values():
             col.pop("x-normalizer", None)
-    return yaml.safe_dump(doc, sort_keys=True, default_flow_style=False)
+    dumped = yaml.safe_dump(doc, sort_keys=True, default_flow_style=False)
+    # Strip trailing whitespace to survive pre-commit trailing-whitespace hooks
+    # that would otherwise mangle the committed snapshot file.
+    return "\n".join(line.rstrip() for line in dumped.splitlines())
 
 
 def _scrub_response_body(response: dict[str, Any]) -> dict[str, Any]:
