@@ -158,6 +158,10 @@ task typecheck      # mypy
 task test           # pytest
 ```
 
+See [docs/contracts.md](docs/contracts.md) for the schema-contract gate and the
+`accept-breaking-change` escape hatch used on PRs that intentionally break
+downstream consumers.
+
 ## License
 
 MIT
