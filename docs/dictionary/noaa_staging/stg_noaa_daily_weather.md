@@ -9,7 +9,7 @@ Staging model for NOAA daily weather observations
 | Schema | `noaa_staging` |
 | Name | `stg_noaa_daily_weather` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/noaa_staging/stg_noaa_daily_weather.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/noaa_staging/stg_noaa_daily_weather.yaml) |
+| Soda contract | [`soda/contracts/noaa_staging/stg_noaa_daily_weather.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/noaa_staging/stg_noaa_daily_weather.yaml) |
 
 ## Columns
 

@@ -10,7 +10,7 @@ Flagship cross-domain mart: bird observations joined to daily weather and stream
 | Name | `fct_species_environment_daily` |
 | Kind | `FULL` |
 | Grain | `(species_code, h3_cell, obs_date)` |
-| Soda contract | [`soda/contracts/analytics/fct_species_environment_daily.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/analytics/fct_species_environment_daily.yaml) |
+| Soda contract | [`soda/contracts/analytics/fct_species_environment_daily.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/analytics/fct_species_environment_daily.yaml) |
 
 ## Columns
 

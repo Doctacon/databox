@@ -9,7 +9,7 @@ Staging model for eBird birding hotspots
 | Schema | `ebird_staging` |
 | Name | `stg_ebird_hotspots` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/ebird_staging/stg_ebird_hotspots.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/ebird_staging/stg_ebird_hotspots.yaml) |
+| Soda contract | [`soda/contracts/ebird_staging/stg_ebird_hotspots.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/ebird_staging/stg_ebird_hotspots.yaml) |
 
 ## Columns
 

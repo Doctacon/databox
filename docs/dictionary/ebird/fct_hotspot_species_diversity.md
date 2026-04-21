@@ -9,7 +9,7 @@ Per-hotspot biodiversity metrics including Shannon diversity index and species r
 | Schema | `ebird` |
 | Name | `fct_hotspot_species_diversity` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/ebird/fct_hotspot_species_diversity.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/ebird/fct_hotspot_species_diversity.yaml) |
+| Soda contract | [`soda/contracts/ebird/fct_hotspot_species_diversity.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/ebird/fct_hotspot_species_diversity.yaml) |
 
 ## Columns
 

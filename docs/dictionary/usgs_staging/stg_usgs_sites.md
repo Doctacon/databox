@@ -9,7 +9,7 @@ Staging model for USGS monitoring site metadata
 | Schema | `usgs_staging` |
 | Name | `stg_usgs_sites` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/usgs_staging/stg_usgs_sites.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/usgs_staging/stg_usgs_sites.yaml) |
+| Soda contract | [`soda/contracts/usgs_staging/stg_usgs_sites.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/usgs_staging/stg_usgs_sites.yaml) |
 
 ## Columns
 

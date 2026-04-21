@@ -9,7 +9,7 @@ Staging model for USGS daily streamflow and gage observations
 | Schema | `usgs_staging` |
 | Name | `stg_usgs_daily_values` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/usgs_staging/stg_usgs_daily_values.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/usgs_staging/stg_usgs_daily_values.yaml) |
+| Soda contract | [`soda/contracts/usgs_staging/stg_usgs_daily_values.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/usgs_staging/stg_usgs_daily_values.yaml) |
 
 ## Columns
 

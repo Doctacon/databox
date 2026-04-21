@@ -9,7 +9,7 @@ Daily streamflow facts pivoted to one row per site per date with key hydrologica
 | Schema | `usgs` |
 | Name | `fct_daily_streamflow` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/usgs/fct_daily_streamflow.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/usgs/fct_daily_streamflow.yaml) |
+| Soda contract | [`soda/contracts/usgs/fct_daily_streamflow.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/usgs/fct_daily_streamflow.yaml) |
 
 ## Columns
 

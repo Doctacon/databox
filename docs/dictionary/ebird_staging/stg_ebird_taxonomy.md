@@ -9,7 +9,7 @@ Staging model for eBird taxonomy reference data
 | Schema | `ebird_staging` |
 | Name | `stg_ebird_taxonomy` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/ebird_staging/stg_ebird_taxonomy.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/ebird_staging/stg_ebird_taxonomy.yaml) |
+| Soda contract | [`soda/contracts/ebird_staging/stg_ebird_taxonomy.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/ebird_staging/stg_ebird_taxonomy.yaml) |
 
 ## Columns
 

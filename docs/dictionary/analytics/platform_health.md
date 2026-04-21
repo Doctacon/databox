@@ -9,7 +9,7 @@ Per-source load observability — most recent dlt load id, completion time, stat
 | Schema | `analytics` |
 | Name | `platform_health` |
 | Kind | `VIEW` |
-| Soda contract | [`soda/contracts/analytics/platform_health.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/analytics/platform_health.yaml) |
+| Soda contract | [`soda/contracts/analytics/platform_health.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/analytics/platform_health.yaml) |
 
 ## Columns
 

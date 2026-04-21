@@ -9,7 +9,7 @@ Staging model for eBird bird observations
 | Schema | `ebird_staging` |
 | Name | `stg_ebird_observations` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/ebird_staging/stg_ebird_observations.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/ebird_staging/stg_ebird_observations.yaml) |
+| Soda contract | [`soda/contracts/ebird_staging/stg_ebird_observations.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/ebird_staging/stg_ebird_observations.yaml) |
 
 ## Columns
 

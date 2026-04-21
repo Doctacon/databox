@@ -1,8 +1,8 @@
 site_name: Databox Data Dictionary
 site_description: Auto-generated data dictionary and lineage for the Databox platform.
-site_url: https://crlough.github.io/databox/
-repo_url: https://github.com/crlough/databox
-repo_name: crlough/databox
+site_url: https://doctacon.github.io/databox/
+repo_url: https://github.com/Doctacon/databox
+repo_name: Doctacon/databox
 edit_uri: ""
 
 docs_dir: docs

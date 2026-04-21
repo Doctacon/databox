@@ -9,7 +9,7 @@ Staging model for NOAA weather stations
 | Schema | `noaa_staging` |
 | Name | `stg_noaa_stations` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/noaa_staging/stg_noaa_stations.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/noaa_staging/stg_noaa_stations.yaml) |
+| Soda contract | [`soda/contracts/noaa_staging/stg_noaa_stations.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/noaa_staging/stg_noaa_stations.yaml) |
 
 ## Columns
 

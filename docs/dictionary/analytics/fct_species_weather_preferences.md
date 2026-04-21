@@ -9,7 +9,7 @@ Per-species weather preference aggregates — what conditions correlate with eac
 | Schema | `analytics` |
 | Name | `fct_species_weather_preferences` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/analytics/fct_species_weather_preferences.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/analytics/fct_species_weather_preferences.yaml) |
+| Soda contract | [`soda/contracts/analytics/fct_species_weather_preferences.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/analytics/fct_species_weather_preferences.yaml) |
 
 ## Columns
 

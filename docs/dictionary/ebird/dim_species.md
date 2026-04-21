@@ -9,7 +9,7 @@ Species dimension from eBird taxonomy — one row per species_code
 | Schema | `ebird` |
 | Name | `dim_species` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/ebird/dim_species.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/ebird/dim_species.yaml) |
+| Soda contract | [`soda/contracts/ebird/dim_species.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/ebird/dim_species.yaml) |
 
 ## Columns
 

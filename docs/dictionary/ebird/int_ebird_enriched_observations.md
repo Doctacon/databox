@@ -9,7 +9,7 @@ Intermediate model with enriched bird observations including taxonomy and locati
 | Schema | `ebird` |
 | Name | `int_ebird_enriched_observations` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/ebird/int_ebird_enriched_observations.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/ebird/int_ebird_enriched_observations.yaml) |
+| Soda contract | [`soda/contracts/ebird/int_ebird_enriched_observations.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/ebird/int_ebird_enriched_observations.yaml) |
 
 ## Columns
 

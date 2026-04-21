@@ -28,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 TRANSFORMS_PATH = REPO_ROOT / "transforms" / "main"
 SODA_ROOT = REPO_ROOT / "soda" / "contracts"
 OUT_ROOT = REPO_ROOT / "docs" / "dictionary"
-REPO_BLOB_URL = "https://github.com/crlough/databox/blob/main"
+REPO_BLOB_URL = "https://github.com/Doctacon/databox/blob/main"
 
 SCHEMA_DESCRIPTIONS = {
     "analytics": "Cross-domain marts that join bird, weather, and streamflow signals.",

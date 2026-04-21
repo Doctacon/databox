@@ -180,7 +180,7 @@ defined once in SQLMesh and queryable by name via
 ## Data dictionary
 
 Auto-generated data dictionary + lineage site published via GitHub Pages:
-**https://crlough.github.io/databox/**
+**https://doctacon.github.io/databox/**
 
 Every SQLMesh model has a page listing its columns, types, Soda-contract
 checks, and direct upstream/downstream dependencies. A global Mermaid

@@ -9,7 +9,7 @@ Daily bird observation facts aggregated by region, date, and species
 | Schema | `ebird` |
 | Name | `fct_daily_bird_observations` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/ebird/fct_daily_bird_observations.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/ebird/fct_daily_bird_observations.yaml) |
+| Soda contract | [`soda/contracts/ebird/fct_daily_bird_observations.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/ebird/fct_daily_bird_observations.yaml) |
 
 ## Columns
 

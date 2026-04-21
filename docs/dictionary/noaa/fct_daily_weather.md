@@ -9,7 +9,7 @@ Daily weather facts pivoted from normalized observations to one row per station 
 | Schema | `noaa` |
 | Name | `fct_daily_weather` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/noaa/fct_daily_weather.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/noaa/fct_daily_weather.yaml) |
+| Soda contract | [`soda/contracts/noaa/fct_daily_weather.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/noaa/fct_daily_weather.yaml) |
 
 ## Columns
 

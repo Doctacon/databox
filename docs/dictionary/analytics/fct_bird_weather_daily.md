@@ -9,7 +9,7 @@ eBird daily observations joined with NOAA weather conditions — one row per reg
 | Schema | `analytics` |
 | Name | `fct_bird_weather_daily` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/analytics/fct_bird_weather_daily.yaml`](https://github.com/crlough/databox/blob/main/soda/contracts/analytics/fct_bird_weather_daily.yaml) |
+| Soda contract | [`soda/contracts/analytics/fct_bird_weather_daily.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/analytics/fct_bird_weather_daily.yaml) |
 
 ## Columns
 
