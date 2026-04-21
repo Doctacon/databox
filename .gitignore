@@ -28,6 +28,9 @@ data/
 *.db
 *.duckdb
 *.parquet
+
+# Logs
+.logs/
 *.csv
 !seeds/*.csv
 

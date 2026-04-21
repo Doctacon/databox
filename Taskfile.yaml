@@ -53,13 +53,13 @@ tasks:
     cmds: ["{{.VENV_DIR}}/bin/python scripts/verify_dev.py"]
 
   full-refresh:
-    desc: "Every dlt source + SQLMesh + Soda via Dagster"
+    desc: "Every dlt source + SQLMesh + Soda via Dagster — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
-    cmds: ["{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"]
+    cmds: ["./scripts/run-logged.sh full-refresh -- {{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"]
   verify:
-    desc: "Smoke full-refresh — DATABOX_SMOKE=1 caps each source to 5 items"
+    desc: "Smoke full-refresh — DATABOX_SMOKE=1 caps each source to 5 items — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_SMOKE: "1" }
-    cmds: ["{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"]
+    cmds: ["./scripts/run-logged.sh verify -- {{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"]
   dagster:dev:
     desc: "Launch Dagster UI with DAGSTER_HOME + definitions path"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
