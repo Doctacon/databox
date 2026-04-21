@@ -1,446 +1,47 @@
-"""Dagster definitions — dlt assets + dagster-sqlmesh integration."""
+"""Dagster definitions — assembles per-domain modules into one Definitions.
 
-import typing as t
-from datetime import timedelta
-from pathlib import Path
+Each domain (ebird, noaa, usgs, analytics) owns its own dlt assets, SQLMesh
+asset key list, Soda checks, job, and schedule. This file only composes them.
+"""
+
+from __future__ import annotations
 
 import dagster as dg
-import dlt
-from dagster_dlt import DagsterDltResource, DagsterDltTranslator, dlt_assets
-from dagster_dlt.translator import DltResourceTranslatorData
-from dagster_sqlmesh import SQLMeshContextConfig, SQLMeshResource, sqlmesh_assets
-from dagster_sqlmesh.translator import SQLMeshDagsterTranslator
-from databox_sources.ebird.source import ebird_source
-from databox_sources.noaa.source import noaa_source
-from databox_sources.usgs.source import usgs_source
-from sqlglot import exp
+from dagster_dlt import DagsterDltResource
+from dagster_sqlmesh import SQLMeshResource
 
-from databox.config.settings import PROJECT_ROOT, settings
-
-TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
-MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
-SODA_DIR = PROJECT_ROOT / "soda"
-
-
-# ---------------------------------------------------------------------------
-# Custom translator — asset keys use ["sqlmesh", schema, table]
-# ---------------------------------------------------------------------------
-
-
-class DataboxSQLMeshTranslator(SQLMeshDagsterTranslator):
-    def get_asset_key_name(self, fqn: str) -> t.Sequence[str]:
-        table = exp.to_table(fqn)
-        # Three-part FQN for attached raw catalogs (e.g., raw_ebird.main.table):
-        # catalog IS the meaningful namespace; "main" is just the default schema.
-        if table.catalog and str(table.db) == "main" and str(table.catalog).startswith("raw_"):
-            return ["sqlmesh", str(table.catalog), table.name]
-        return ["sqlmesh", table.db, table.name]
-
-
-class DataboxSQLMeshContextConfig(SQLMeshContextConfig):
-    def get_translator(self) -> SQLMeshDagsterTranslator:
-        return DataboxSQLMeshTranslator()
-
-
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
-
-
-class DataboxConfig(dg.ConfigurableResource):
-    database_path: str = settings.database_path
-    dlt_data_dir: str = settings.dlt_data_dir
-    transforms_dir: str = str(TRANSFORMS_DIR)
-
-
-def _dlt_destination(db_path: str) -> t.Any:
-    if settings.backend == "motherduck":
-        return dlt.destinations.motherduck(credentials=db_path)
-    return dlt.destinations.duckdb(credentials=db_path)
-
-
-_sqlmesh_config = DataboxSQLMeshContextConfig(
-    path=str(MAIN_TRANSFORM_PROJECT),
-    gateway=settings.gateway,
-)
-
-
-# ---------------------------------------------------------------------------
-# Custom dlt translator — keys match SQLMesh raw table deps
-# ---------------------------------------------------------------------------
-
-
-def _dlt_translator(raw_schema: str) -> DagsterDltTranslator:
-    class _Translator(DagsterDltTranslator):
-        def get_asset_spec(self, data: DltResourceTranslatorData) -> dg.AssetSpec:
-            default = super().get_asset_spec(data)
-            return default.replace_attributes(
-                key=dg.AssetKey(["sqlmesh", raw_schema, data.resource.name])
-            )
-
-    return _Translator()
-
-
-# ---------------------------------------------------------------------------
-# dlt assets — eBird
-# ---------------------------------------------------------------------------
-
-
-@dlt_assets(
-    dlt_source=ebird_source(
-        region_code="US-AZ", max_results=10000, days_back=settings.days_back("ebird")
-    ),
-    dlt_pipeline=dlt.pipeline(
-        pipeline_name="ebird_api",
-        destination=_dlt_destination(settings.raw_ebird_path),
-        dataset_name="main",
-        pipelines_dir=settings.dlt_data_dir,
-    ),
-    group_name="ebird_ingestion",
-    dagster_dlt_translator=_dlt_translator("raw_ebird"),
-)
-def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
-    source = ebird_source(
-        region_code="US-AZ", max_results=10000, days_back=settings.days_back("ebird")
-    )
-    if settings.smoke:
-        source.add_limit(max_items=5)
-    yield from dlt.run(context=context, dlt_source=source)
-
-
-# ---------------------------------------------------------------------------
-# dlt assets — NOAA
-# ---------------------------------------------------------------------------
-
-
-@dlt_assets(
-    dlt_source=noaa_source(
-        location_id="FIPS:04",
-        dataset_id="GHCND",
-        days_back=settings.days_back("noaa"),
-        datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
-    ),
-    dlt_pipeline=dlt.pipeline(
-        pipeline_name="noaa_api",
-        destination=_dlt_destination(settings.raw_noaa_path),
-        dataset_name="main",
-        pipelines_dir=settings.dlt_data_dir,
-    ),
-    group_name="noaa_ingestion",
-    dagster_dlt_translator=_dlt_translator("raw_noaa"),
-)
-def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
-    source = noaa_source(
-        location_id="FIPS:04",
-        dataset_id="GHCND",
-        days_back=settings.days_back("noaa"),
-        datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
-    )
-    if settings.smoke:
-        source.add_limit(max_items=5)
-    yield from dlt.run(context=context, dlt_source=source)
-
-
-# ---------------------------------------------------------------------------
-# dlt assets — USGS
-# ---------------------------------------------------------------------------
-
-
-@dlt_assets(
-    dlt_source=usgs_source(
-        state_cd="AZ", parameter_cds="00060,00065,00010", days_back=settings.days_back("usgs")
-    ),
-    dlt_pipeline=dlt.pipeline(
-        pipeline_name="usgs_api",
-        destination=_dlt_destination(settings.raw_usgs_path),
-        dataset_name="main",
-        pipelines_dir=settings.dlt_data_dir,
-    ),
-    group_name="usgs_ingestion",
-    dagster_dlt_translator=_dlt_translator("raw_usgs"),
-)
-def usgs_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
-    source = usgs_source(
-        state_cd="AZ", parameter_cds="00060,00065,00010", days_back=settings.days_back("usgs")
-    )
-    if settings.smoke:
-        source.add_limit(max_items=5)
-    yield from dlt.run(context=context, dlt_source=source)
-
-
-# ---------------------------------------------------------------------------
-# SQLMesh assets — all models as one multi-asset
-# ---------------------------------------------------------------------------
-
-
-@sqlmesh_assets(
-    environment="prod",
-    config=_sqlmesh_config,
-    enabled_subsetting=True,
-)
-def sqlmesh_project(context: dg.AssetExecutionContext, sqlmesh: SQLMeshResource):
-    yield from sqlmesh.run(context=context, config=_sqlmesh_config, environment="prod")
-
-
-# ---------------------------------------------------------------------------
-# Soda asset check factory
-# ---------------------------------------------------------------------------
-
-
-def _soda_datasource_yaml() -> str:
-    return settings.soda_datasource_yaml
-
-
-def create_soda_asset_check(
-    asset_key: dg.AssetKey,
-    contract_path: Path,
-    check_name: str = "soda_contract",
-) -> dg.AssetChecksDefinition:
-    @dg.asset_check(asset=asset_key, name=check_name)
-    def _check() -> dg.AssetCheckResult:
-        from soda_core.common.yaml import ContractYamlSource, DataSourceYamlSource
-        from soda_core.contracts.contract_verification import ContractVerificationSession
-
-        result = ContractVerificationSession.execute(
-            contract_yaml_sources=[ContractYamlSource.from_str(contract_path.read_text())],
-            data_source_yaml_sources=[DataSourceYamlSource.from_str(_soda_datasource_yaml())],
-        )
-        metadata: dict = {
-            "checks_total": result.number_of_checks,
-            "checks_passed": result.number_of_checks_passed,
-            "checks_failed": result.number_of_checks_failed,
-        }
-        if result.is_failed:
-            return dg.AssetCheckResult(
-                passed=False,
-                description=result.get_errors_str(),
-                metadata=metadata,
-            )
-        return dg.AssetCheckResult(passed=True, metadata=metadata)
-
-    return _check
-
-
-# ---------------------------------------------------------------------------
-# Soda asset checks — one per SQLMesh model
-# ---------------------------------------------------------------------------
-
-_soda_checks: list[dg.AssetChecksDefinition] = [
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_observations"]),
-        SODA_DIR / "contracts/ebird_staging/stg_ebird_observations.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_taxonomy"]),
-        SODA_DIR / "contracts/ebird_staging/stg_ebird_taxonomy.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_hotspots"]),
-        SODA_DIR / "contracts/ebird_staging/stg_ebird_hotspots.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "ebird", "int_ebird_enriched_observations"]),
-        SODA_DIR / "contracts/ebird/int_ebird_enriched_observations.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]),
-        SODA_DIR / "contracts/ebird/fct_daily_bird_observations.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "ebird", "dim_species"]),
-        SODA_DIR / "contracts/ebird/dim_species.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]),
-        SODA_DIR / "contracts/ebird/fct_hotspot_species_diversity.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_daily_weather"]),
-        SODA_DIR / "contracts/noaa_staging/stg_noaa_daily_weather.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_stations"]),
-        SODA_DIR / "contracts/noaa_staging/stg_noaa_stations.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
-        SODA_DIR / "contracts/noaa/fct_daily_weather.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"]),
-        SODA_DIR / "contracts/analytics/fct_bird_weather_daily.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "analytics", "fct_species_weather_preferences"]),
-        SODA_DIR / "contracts/analytics/fct_species_weather_preferences.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "analytics", "platform_health"]),
-        SODA_DIR / "contracts/analytics/platform_health.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "analytics", "fct_species_environment_daily"]),
-        SODA_DIR / "contracts/analytics/fct_species_environment_daily.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_daily_values"]),
-        SODA_DIR / "contracts/usgs_staging/stg_usgs_daily_values.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_sites"]),
-        SODA_DIR / "contracts/usgs_staging/stg_usgs_sites.yaml",
-    ),
-    create_soda_asset_check(
-        dg.AssetKey(["sqlmesh", "usgs", "fct_daily_streamflow"]),
-        SODA_DIR / "contracts/usgs/fct_daily_streamflow.yaml",
-    ),
-]
-
-# ---------------------------------------------------------------------------
-# Asset key constants for jobs
-# ---------------------------------------------------------------------------
-
-_ebird_dlt_keys = [spec.key for spec in ebird_dlt_assets.specs]
-_noaa_dlt_keys = [spec.key for spec in noaa_dlt_assets.specs]
-_usgs_dlt_keys = [spec.key for spec in usgs_dlt_assets.specs]
-
-_ebird_sqlmesh_keys = [
-    dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_observations"]),
-    dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_taxonomy"]),
-    dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_hotspots"]),
-    dg.AssetKey(["sqlmesh", "ebird", "int_ebird_enriched_observations"]),
-    dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]),
-    dg.AssetKey(["sqlmesh", "ebird", "dim_species"]),
-    dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]),
-]
-_noaa_sqlmesh_keys = [
-    dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_daily_weather"]),
-    dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_stations"]),
-    dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
-]
-_usgs_sqlmesh_keys = [
-    dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_daily_values"]),
-    dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_sites"]),
-    dg.AssetKey(["sqlmesh", "usgs", "fct_daily_streamflow"]),
-]
-_analytics_sqlmesh_keys = [
-    dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"]),
-    dg.AssetKey(["sqlmesh", "analytics", "fct_species_weather_preferences"]),
-    dg.AssetKey(["sqlmesh", "analytics", "fct_species_environment_daily"]),
-    dg.AssetKey(["sqlmesh", "analytics", "platform_health"]),
-]
-
-# ---------------------------------------------------------------------------
-# Jobs
-# ---------------------------------------------------------------------------
-
-ebird_daily_pipeline = dg.define_asset_job(
-    name="ebird_daily_pipeline",
-    selection=dg.AssetSelection.assets(*_ebird_dlt_keys, *_ebird_sqlmesh_keys),
-)
-
-noaa_daily_pipeline = dg.define_asset_job(
-    name="noaa_daily_pipeline",
-    selection=dg.AssetSelection.assets(*_noaa_dlt_keys, *_noaa_sqlmesh_keys),
-)
-
-usgs_daily_pipeline = dg.define_asset_job(
-    name="usgs_daily_pipeline",
-    selection=dg.AssetSelection.assets(*_usgs_dlt_keys, *_usgs_sqlmesh_keys),
-)
+from databox.orchestration._factories import DataboxConfig, apply_freshness, sqlmesh_project
+from databox.orchestration.domains import analytics, ebird, noaa, usgs
 
 all_pipelines = dg.define_asset_job(
     name="all_pipelines",
     selection=dg.AssetSelection.assets(
-        *_ebird_dlt_keys,
-        *_noaa_dlt_keys,
-        *_usgs_dlt_keys,
-        *_ebird_sqlmesh_keys,
-        *_noaa_sqlmesh_keys,
-        *_usgs_sqlmesh_keys,
-        *_analytics_sqlmesh_keys,
+        *ebird.dlt_asset_keys,
+        *noaa.dlt_asset_keys,
+        *usgs.dlt_asset_keys,
+        *ebird.sqlmesh_asset_keys,
+        *noaa.sqlmesh_asset_keys,
+        *usgs.sqlmesh_asset_keys,
+        *analytics.sqlmesh_asset_keys,
     ),
 )
 
-jobs = [ebird_daily_pipeline, noaa_daily_pipeline, usgs_daily_pipeline, all_pipelines]
-
-# ---------------------------------------------------------------------------
-# Schedules
-# ---------------------------------------------------------------------------
-
-schedules = [
-    dg.ScheduleDefinition(job=ebird_daily_pipeline, cron_schedule="0 6 * * *"),
-    dg.ScheduleDefinition(job=noaa_daily_pipeline, cron_schedule="0 6 * * *"),
-    dg.ScheduleDefinition(job=usgs_daily_pipeline, cron_schedule="0 6 * * *"),
-]
-
-# ---------------------------------------------------------------------------
-# Freshness policies
-# ---------------------------------------------------------------------------
-# deadline_cron fires at 08:00 UTC every day (one hour after the 06:00 UTC
-# ingest schedule). lower_bound_delta per-source reflects real upstream lag:
-# eBird/USGS publish same-day, NOAA GHCND lags several days.
-
-_FRESHNESS_BY_SOURCE: dict[str, dg.FreshnessPolicy] = {
-    "ebird": dg.FreshnessPolicy.cron(
-        deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
-    ),
-    "noaa": dg.FreshnessPolicy.cron(
-        deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
-    ),
-    "usgs": dg.FreshnessPolicy.cron(
-        deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
-    ),
-}
-
-
-def _source_for_key(key: dg.AssetKey) -> str | None:
-    """Infer source slug from asset key path.
-
-    Asset keys follow ["sqlmesh", "<schema>", "<table>"]. Schema prefixes
-    (raw_ebird, ebird_staging, ebird) all carry the source slug. Analytics
-    marts are cross-domain and inherit the slowest upstream policy (noaa).
-    """
-    path = key.path
-    if len(path) < 2:
-        return None
-    schema = path[1]
-    for src in ("ebird", "noaa", "usgs"):
-        if src in schema:
-            return src
-    if schema == "analytics":
-        return "noaa"
-    return None
-
-
-def _apply_freshness(spec: dg.AssetSpec) -> dg.AssetSpec:
-    src = _source_for_key(spec.key)
-    if src is None:
-        return spec
-    return dg.apply_freshness_policy(spec, _FRESHNESS_BY_SOURCE[src])
-
-
-# ---------------------------------------------------------------------------
-# Definitions
-# ---------------------------------------------------------------------------
-#
-# `FreshnessPolicy` (new-style, cron-based) auto-renders state chips in the
-# Dagster UI — no explicit freshness asset check or sensor is required. See
-# https://docs.dagster.io/concepts/assets/asset-freshness.
-
 defs = dg.Definitions(
-    assets=[ebird_dlt_assets, noaa_dlt_assets, usgs_dlt_assets, sqlmesh_project],
-    asset_checks=_soda_checks,
-    jobs=jobs,
-    schedules=schedules,
-    sensors=[],
+    assets=[ebird.ebird_dlt_assets, noaa.noaa_dlt_assets, usgs.usgs_dlt_assets, sqlmesh_project],
+    asset_checks=[
+        *ebird.asset_checks,
+        *noaa.asset_checks,
+        *usgs.asset_checks,
+        *analytics.asset_checks,
+    ],
+    jobs=[ebird.daily_pipeline, noaa.daily_pipeline, usgs.daily_pipeline, all_pipelines],
+    schedules=[ebird.schedule, noaa.schedule, usgs.schedule],
     resources={
         "databox_config": DataboxConfig(),
         "dlt": DagsterDltResource(),
         "sqlmesh": SQLMeshResource(),
     },
-    # each dlt pipeline writes to its own raw_*.duckdb — no lock conflicts
     executor=dg.multiprocess_executor,
 )
 
-defs = defs.map_asset_specs(func=_apply_freshness)
+defs = defs.map_asset_specs(func=apply_freshness)
