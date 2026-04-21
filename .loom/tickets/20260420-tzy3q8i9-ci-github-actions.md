@@ -1,9 +1,9 @@
 ---
 id: ticket:ci-github-actions
 kind: ticket
-status: review_required
+status: closed
 created_at: 2026-04-20T00:00:00Z
-updated_at: 2026-04-20T00:00:00Z
+updated_at: 2026-04-21T19:20:00Z
 scope:
   kind: workspace
 links:
