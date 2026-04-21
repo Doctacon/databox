@@ -1,9 +1,9 @@
 ---
 id: ticket:flagship-cross-domain-mart
 kind: ticket
-status: ready
+status: complete_pending_acceptance
 created_at: 2026-04-20T00:00:00Z
-updated_at: 2026-04-20T00:00:00Z
+updated_at: 2026-04-21T00:00:00Z
 scope:
   kind: workspace
 links:
@@ -67,3 +67,40 @@ The constitution says cross-domain joins are the point. Today the repo has three
 - `SELECT COUNT(*), MIN(obs_date), MAX(obs_date) FROM analytics.fct_species_environment_daily` in the ticket close notes
 - Screenshot of the Dagster asset graph showing the cross-domain lineage
 - Link to `docs/analytics-examples.md`
+
+# Close Notes
+
+Merged as PR #9 (commit 39bc596, squashed).
+
+**Deliverables:**
+- `ebird.int_observations_by_h3_day` — species × H3 (res 6) × day aggregate
+- `noaa.int_weather_by_h3_day` — nearest-station weather via haversine join
+- `usgs.int_streamflow_by_h3_day` — nearest-gauge streamflow via haversine join
+- `analytics.fct_species_environment_daily` — LEFT-joined mart, unique on `(species_code, h3_cell, obs_date)`, rounds env measures, adds `temp_range_c`, `is_rainy_day`, cell centroid lat/lng, per-source `*_last_loaded_at`, `last_updated_at`
+- `soda/contracts/analytics/fct_species_environment_daily.yaml` — 6 checks, all pass locally
+- Dagster wiring in `definitions.py` (`_analytics_sqlmesh_keys`, `_soda_checks`)
+- `docs/analytics-examples.md` with four example queries
+- h3 community extension added to both SQLMesh gateways (`local`, `motherduck`)
+
+**Evidence (MotherDuck prod):**
+
+```
+SELECT COUNT(*), MIN(obs_date), MAX(obs_date) FROM analytics.fct_species_environment_daily
+-> (2275, 2026-03-19, 2026-04-18)
+```
+
+- 363 distinct species, 395 distinct H3 cells, 31 distinct days
+- 0 duplicates on `(species_code, h3_cell, obs_date)`
+- Soda contract: 6 checks / 6 passed / 0 failed
+- `sqlmesh evaluate analytics.fct_species_environment_daily` re-runs deterministically (FULL kind + same inputs)
+- Weather join coverage ~22% (NOAA GHCND publish latency — cells have a station assigned, but recent dates often lack values yet); streamflow coverage ~85%
+
+**H3 resolution choice:** resolution 6 (~36 km² hex). On current 30-day snapshot this produced 2275 rows — tight enough to be useful, coarse enough to avoid over-fragmenting sparse bird reports. Intermediate models expose `h3_cell` as a reusable join key for future marts.
+
+**Nearest station/gauge:** computed once per cell via haversine CROSS JOIN + `ROW_NUMBER() ... WHERE rn=1`. Skipped DuckDB `spatial` extension's `ST_Distance` to avoid requiring the `GEOGRAPHY` type path; haversine is ~10 loc of SQL and matches within meters at regional scale.
+
+**CI:** all 6 checks green on PR #9 (ruff, mypy, pytest, SQLMesh lint, schema-contract gate, Soda structure).
+
+**Residual notes for acceptance review:**
+- Dagster asset-graph screenshot not captured (headless CI environment); lineage is declarative in `definitions.py` and visible when Dagster webserver is running locally.
+- Weather-join coverage is source-latency-bound, not a bug. If it stays a concern long-term, consider falling back to the second-nearest station when the nearest lacks data for a date.
