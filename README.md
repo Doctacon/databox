@@ -182,6 +182,11 @@ Daily MotherDuck / local usage and cost snapshots land in
 [docs/cost.md](docs/cost.md). See that page for the cost model and how to
 update the hardcoded MotherDuck rate when pricing changes.
 
+Four production-failure scenarios — blown DuckDB file, partial source
+backfill, MotherDuck point-in-time recovery, paused-schedule resumption
+— have copy-pasteable recovery commands in
+[docs/runbook.md](docs/runbook.md).
+
 ## Forking
 
 Databox is designed to be forked. After cloning:
