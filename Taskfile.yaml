@@ -1,19 +1,14 @@
 version: '3'
 
-vars:
-  PROJECT_NAME: databox
-  PYTHON_VERSION: "3.12"
-  VENV_DIR: .venv
-  DATA_DIR: ./data
+# Targets compose / inject env / encode defaults. Raw CLI wrappers → docs/commands.md.
 
-env:
-  PYTHONPATH: .
-
+vars: { VENV_DIR: .venv, DATA_DIR: ./data }
+env: { PYTHONPATH: . }
 output: prefixed
 
 tasks:
   setup:
-    desc: "Create virtual environment (skipped if .venv already exists)"
+    desc: "Create .venv + bootstrap .env from .env.example"
     cmds:
       - uv venv {{.VENV_DIR}}
       - test -f .env || cp .env.example .env
@@ -21,7 +16,7 @@ tasks:
       - test -d {{.VENV_DIR}}
 
   install:
-    desc: "Install project dependencies"
+    desc: "Install deps + pre-commit hook (setup + uv sync + hook install)"
     deps: [setup]
     cmds:
       - uv sync
@@ -31,149 +26,18 @@ tasks:
       - uv.lock
       - scripts/setup_pre_commit.sh
 
-  lint:
-    desc: "Run code linting"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/ruff check . --fix --unsafe-fixes"
-
-  format:
-    desc: "Format code"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/ruff format ."
-      - "{{.VENV_DIR}}/bin/ruff check . --fix"
-
-  typecheck:
-    desc: "Run type checking"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/mypy . --ignore-missing-imports"
-
-  test:
-    desc: "Run all tests"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/pytest"
-
-  test:unit:
-    desc: "Run unit tests only"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/pytest -m unit"
-
-  test:integration:
-    desc: "Run integration tests"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/pytest -m integration"
-
-  test:e2e:
-    desc: "Run end-to-end tests"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/pytest -m e2e"
-
-  test:coverage:
-    desc: "Run tests with coverage"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/pytest --cov=. --cov-report=html"
-
-  check-secrets:
-    desc: "Check for secrets in code"
-    cmds:
-      - python scripts/check_secrets.py {{.CLI_ARGS | default "."}}
-
-  pre-commit:
-    desc: "Run pre-commit hooks"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/pre-commit run --all-files"
-
-  # Transform commands (sqlmesh directly — useful for dev/debugging)
-  transform:plan:
-    desc: "Plan SQLMesh transformations"
-    deps: [install]
-    dir: transforms/main
-    cmds:
-      - "../../{{.VENV_DIR}}/bin/sqlmesh plan --auto-apply {{.CLI_ARGS}}"
-
-  transform:run:
-    desc: "Run SQLMesh transformations"
-    deps: [install]
-    dir: transforms/main
-    cmds:
-      - "../../{{.VENV_DIR}}/bin/sqlmesh run {{.CLI_ARGS}}"
-
-  transform:test:
-    desc: "Run SQLMesh tests"
-    deps: [install]
-    dir: transforms/main
-    cmds:
-      - "../../{{.VENV_DIR}}/bin/sqlmesh test {{.CLI_ARGS}}"
-
-  transform:ui:
-    desc: "Start SQLMesh UI"
-    deps: [install]
-    dir: transforms/main
-    cmds:
-      - "../../{{.VENV_DIR}}/bin/sqlmesh ui"
-
-  # CI/CD
   ci:
-    desc: "Run all CI checks"
-    cmds:
-      - task: lint
-      - task: typecheck
-      - task: test
-      - task: check-secrets
-
-  # Clean
-  clean:
-    desc: "Clean build artifacts"
-    cmds:
-      - rm -rf build/
-      - rm -rf dist/
-      - rm -rf *.egg-info/
-      - rm -rf .pytest_cache/
-      - rm -rf .coverage
-      - rm -rf htmlcov/
-      - find . -type d -name __pycache__ -exec rm -rf {} +
-      - find . -type f -name "*.pyc" -delete
-
-  clean-all:
-    desc: "Clean everything including venv and data"
-    deps: [clean]
-    cmds:
-      - rm -rf {{.VENV_DIR}}
-      - rm -rf {{.DATA_DIR}}
-      - rm -rf .dlt_state/
-
-  db:reset:
-    desc: "Reset the database (local files only — MotherDuck databases must be dropped manually)"
-    cmds:
-      - rm -f data/databox.duckdb data/raw_ebird.duckdb data/raw_noaa.duckdb data/raw_usgs.duckdb
-      - echo "Database reset complete (local files only — MotherDuck databases must be dropped manually)"
-
-  # Full refresh
-  full-refresh:
-    desc: "Full data refresh — all pipelines + transforms + quality checks via Dagster"
-    cmds:
-      - task: dagster:materialize
-
-  # Dagster
-  dagster:dev:
-    desc: "Start Dagster development server"
+    desc: "Compose every CI gate: ruff + mypy + pytest + secret scan"
     deps: [install]
-    env:
-      DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
-      PYTHONPATH: "{{.USER_WORKING_DIR}}"
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster dev -f packages/databox/databox/orchestration/definitions.py"
+      - "{{.VENV_DIR}}/bin/ruff check ."
+      - "{{.VENV_DIR}}/bin/ruff format --check ."
+      - "{{.VENV_DIR}}/bin/mypy . --ignore-missing-imports"
+      - "{{.VENV_DIR}}/bin/pytest"
+      - python scripts/check_secrets.py .
 
-  dagster:materialize:
-    desc: "Materialize all Dagster assets (runs all pipelines + transforms + quality checks)"
+  full-refresh:
+    desc: "Run every dlt source + SQLMesh + every Soda check through Dagster"
     deps: [install]
     env:
       DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
@@ -182,7 +46,7 @@ tasks:
       - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"
 
   verify:
-    desc: "Smoke test via Dagster — limited ingest (5 items/resource) + last 3 days of transforms"
+    desc: "Smoke full-refresh — DATABOX_SMOKE=1 caps each source to 5 items"
     deps: [install]
     env:
       DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
@@ -191,32 +55,40 @@ tasks:
     cmds:
       - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"
 
-  # Streamlit
+  dagster:dev:
+    desc: "Launch Dagster UI with DAGSTER_HOME + PYTHONPATH + definitions path"
+    deps: [install]
+    env:
+      DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
+      PYTHONPATH: "{{.USER_WORKING_DIR}}"
+    cmds:
+      - "{{.VENV_DIR}}/bin/dagster dev -f packages/databox/databox/orchestration/definitions.py"
+
   streamlit:
-    desc: "Start Databox Explorer dashboard"
+    desc: "Launch Databox Explorer (cd app/ + streamlit run main.py)"
     deps: [install]
     dir: app
     cmds:
       - "../{{.VENV_DIR}}/bin/streamlit run main.py"
 
-  # Watch
-  watch:lint:
-    desc: "Watch files and run linting"
-    deps: [install]
-    watch: true
-    sources:
-      - "**/*.py"
+  db:reset:
+    desc: "Delete local DuckDB files (MotherDuck dbs must be dropped manually)"
     cmds:
-      - task: lint
+      - rm -f data/databox.duckdb data/raw_ebird.duckdb data/raw_noaa.duckdb data/raw_usgs.duckdb
+      - echo "Local DBs reset — MotherDuck dbs (if any) must be dropped manually"
 
-  watch:test:
-    desc: "Watch files and run tests"
-    deps: [install]
-    watch: true
-    sources:
-      - "**/*.py"
+  clean:
+    desc: "Remove build + test + cache artifacts"
     cmds:
-      - task: test
+      - rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .coverage htmlcov/
+      - find . -type d -name __pycache__ -exec rm -rf {} +
+      - find . -type f -name "*.pyc" -delete
+
+  clean-all:
+    desc: "Clean + drop .venv + data/ + .dlt_state/"
+    deps: [clean]
+    cmds:
+      - rm -rf {{.VENV_DIR}} {{.DATA_DIR}} .dlt_state/
 
   default:
     desc: "Show available tasks"

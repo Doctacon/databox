@@ -229,13 +229,14 @@ data/                      # DuckDB files (gitignored)
 ## Development
 
 ```bash
-task install         # Install dependencies (uv sync)
-task verify          # Smoke test via Dagster
-task lint            # Ruff lint
-task format          # Ruff format
-task typecheck       # mypy
-task test            # pytest
+task install         # Install dependencies (uv sync + pre-commit hook)
+task verify          # Smoke full-refresh via Dagster (DATABOX_SMOKE=1)
+task ci              # Ruff + mypy + pytest + secret scan
 ```
+
+Raw lint / format / test / SQLMesh / Dagster CLIs are in
+[docs/commands.md](docs/commands.md). `Taskfile.yaml` deliberately
+keeps only targets that compose multiple commands or inject env vars.
 
 ## License
 
