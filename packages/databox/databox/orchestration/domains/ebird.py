@@ -1,5 +1,7 @@
 """eBird domain — dlt ingestion + SQLMesh marts + Soda checks."""
 
+from datetime import timedelta
+
 import dagster as dg
 import dlt
 from dagster import AssetExecutionContext
@@ -11,6 +13,7 @@ from databox.orchestration._factories import (
     SODA_DIR,
     dlt_destination,
     dlt_translator,
+    freshness_checks,
     soda_check,
 )
 
@@ -49,6 +52,12 @@ sqlmesh_asset_keys = [
     dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]),
 ]
 
+FRESHNESS_SLAS: dict[dg.AssetKey, timedelta] = {
+    dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]): timedelta(hours=30),
+    dg.AssetKey(["sqlmesh", "ebird", "dim_species"]): timedelta(days=7),
+    dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]): timedelta(hours=30),
+}
+
 asset_checks: list[dg.AssetChecksDefinition] = [
     soda_check(
         dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_observations"]),
@@ -78,6 +87,7 @@ asset_checks: list[dg.AssetChecksDefinition] = [
         dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]),
         SODA_DIR / "contracts/ebird/fct_hotspot_species_diversity.yaml",
     ),
+    *freshness_checks(FRESHNESS_SLAS),
 ]
 
 daily_pipeline = dg.define_asset_job(

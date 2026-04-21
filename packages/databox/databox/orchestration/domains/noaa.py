@@ -1,5 +1,7 @@
 """NOAA domain — dlt ingestion + SQLMesh marts + Soda checks."""
 
+from datetime import timedelta
+
 import dagster as dg
 import dlt
 from dagster import AssetExecutionContext
@@ -11,6 +13,7 @@ from databox.orchestration._factories import (
     SODA_DIR,
     dlt_destination,
     dlt_translator,
+    freshness_checks,
     soda_check,
 )
 
@@ -51,6 +54,10 @@ sqlmesh_asset_keys = [
     dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
 ]
 
+FRESHNESS_SLAS: dict[dg.AssetKey, timedelta] = {
+    dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]): timedelta(hours=48),
+}
+
 asset_checks: list[dg.AssetChecksDefinition] = [
     soda_check(
         dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_daily_weather"]),
@@ -64,6 +71,7 @@ asset_checks: list[dg.AssetChecksDefinition] = [
         dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
         SODA_DIR / "contracts/noaa/fct_daily_weather.yaml",
     ),
+    *freshness_checks(FRESHNESS_SLAS),
 ]
 
 daily_pipeline = dg.define_asset_job(

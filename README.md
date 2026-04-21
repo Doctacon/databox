@@ -173,6 +173,10 @@ Dagster is the one entrypoint — individual pipeline runs, quality checks,
 schedules, and sensors all happen as assets in the same DAG. See
 [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md).
 
+Per-mart staleness SLAs are declared in each domain module and validated
+by `last_update` asset checks; a sensor emits a structured warning line
+per violation. See [docs/freshness.md](docs/freshness.md).
+
 ## Forking
 
 Databox is designed to be forked. After cloning:
