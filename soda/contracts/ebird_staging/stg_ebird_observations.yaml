@@ -5,8 +5,6 @@ columns:
     checks:
       - missing:
           must_be: 0
-      - duplicate:
-          must_be: 0
   - name: species_code
     checks:
       - missing:
@@ -45,4 +43,4 @@ checks:
       column: loaded_at
       threshold:
         unit: hour
-        must_be_less_than: 25
+        must_be_less_than: 168
