@@ -67,6 +67,14 @@ tasks:
     cmds:
       - python scripts/new_source.py {{.CLI_ARGS}}
 
+  docs:build:
+    desc: "Render notebooks + generate data dictionary + build MkDocs site (strict)"
+    deps: [install]
+    cmds:
+      - "{{.VENV_DIR}}/bin/python scripts/render_notebooks.py"
+      - "{{.VENV_DIR}}/bin/python scripts/generate_docs.py"
+      - "{{.VENV_DIR}}/bin/mkdocs build --strict"
+
   plan:dev:
     desc: "SQLMesh plan against the dev virtual env (interactive)"
     deps: [install]

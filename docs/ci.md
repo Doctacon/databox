@@ -11,6 +11,7 @@ A first job, `Classify changed paths`, runs on every event. It uses [`dorny/path
 | Output | Matches |
 | --- | --- |
 | `docs` | `docs/**`, any root `*.md`, `mkdocs.yml` |
+| `notebooks` | `notebooks/**`, `scripts/render_notebooks.py` |
 | `src_ebird` | `packages/databox-sources/databox_sources/ebird/**`, `packages/databox-sources/tests/ebird/**`, `transforms/main/models/ebird/**`, `soda/contracts/ebird{,_staging}/**`, `domains/ebird.py` |
 | `src_noaa` | same shape, scoped to `noaa` |
 | `src_usgs` | same shape, scoped to `usgs` |
@@ -34,6 +35,7 @@ Two composed outputs are derived from those:
 | `soda-validate` | `needs_full \|\| needs_any_source` |
 | `source-layout-lint` | always (cheap; the layout is the scaling invariant) |
 | `schema-contract-gate` | always on `pull_request` (protects downstream consumers) |
+| `notebooks` | every push to `main` and any PR touching `notebooks/**` or `scripts/render_notebooks.py` |
 
 The always-on jobs are intentional — they cost a fraction of a minute each and enforce invariants that must not drift silently.
 

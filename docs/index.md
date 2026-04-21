@@ -13,6 +13,8 @@ contracts, and orchestrates with Dagster on DuckDB / MotherDuck.
   with Mermaid. Each node links to its dictionary page.
 - **[Metrics](metrics.md)** — semantic metrics layer over the flagship mart
   (`analytics.fct_species_environment_daily`).
+- **[Metrics demo notebook](examples/metrics-demo.md)** — runnable end-to-end
+  example that queries the metrics layer and produces three charts.
 - **[Analytics examples](analytics-examples.md)** — representative queries
   the flagship mart supports.
 - **[Contracts](contracts.md)** — Soda quality contract conventions.
