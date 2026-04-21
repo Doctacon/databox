@@ -1,3 +1,5 @@
+-- Generated from soda/contracts/ebird_staging/stg_ebird_taxonomy.yaml by scripts/generate_staging.py.
+-- DO NOT EDIT by hand — run `task staging:generate` to regenerate.
 MODEL (
   name ebird_staging.stg_ebird_taxonomy,
   kind FULL,
@@ -13,5 +15,5 @@ SELECT
     category AS taxonomic_category,
     family_com_name AS family_common_name,
     family_sci_name AS family_scientific_name,
-    _loaded_at::timestamp AS loaded_at
+    _loaded_at::TIMESTAMP AS loaded_at
 FROM raw_ebird.main.taxonomy

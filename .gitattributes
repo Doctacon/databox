@@ -6,3 +6,6 @@
 *.toml text
 *.txt text
 *.sh text eol=lf
+
+# Generated staging SQL — regenerate via `task staging:generate`.
+transforms/main/models/*/staging/stg_*.sql linguist-generated=true

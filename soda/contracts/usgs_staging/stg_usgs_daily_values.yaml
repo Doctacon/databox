@@ -1,19 +1,33 @@
 dataset: databox/usgs_staging/stg_usgs_daily_values
+source_table: raw_usgs.main.daily_values
+description: Staging model for USGS daily streamflow and gage observations
 
 columns:
   - name: site_no
     checks:
       - missing:
           must_be: 0
-  - name: observation_date
-    checks:
-      - missing:
-          must_be: 0
+  - name: site_name
+  - name: latitude
+  - name: longitude
   - name: parameter_cd
     checks:
       - missing:
           must_be: 0
+  - name: parameter_name
+  - name: unit_cd
+  - name: observation_date
+    data_type: DATE
+    checks:
+      - missing:
+          must_be: 0
   - name: value
+  - name: qualifier
+  - name: state_cd
+    source_column: _state_cd
+  - name: loaded_at
+    source_column: _loaded_at
+    data_type: TIMESTAMP
 
 checks:
   - row_count:

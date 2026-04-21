@@ -1,4 +1,6 @@
 dataset: databox/usgs_staging/stg_usgs_sites
+source_table: raw_usgs.main.sites
+description: Staging model for USGS monitoring site metadata
 
 columns:
   - name: site_no
@@ -6,8 +8,19 @@ columns:
       - missing:
           must_be: 0
   - name: site_name
+  - name: site_type
   - name: latitude
   - name: longitude
+  - name: county_cd
+  - name: state_cd
+  - name: huc_cd
+  - name: drainage_area_sqmi
+    source_column: drain_area_va
+  - name: begin_date
+  - name: end_date
+  - name: loaded_at
+    source_column: _loaded_at
+    data_type: TIMESTAMP
 
 checks:
   - row_count:

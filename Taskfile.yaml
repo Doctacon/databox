@@ -27,7 +27,7 @@ tasks:
       - scripts/setup_pre_commit.sh
 
   ci:
-    desc: "Compose every CI gate: ruff + mypy + pytest + secret scan"
+    desc: "Compose every CI gate: ruff + mypy + pytest + secret scan + staging-codegen drift"
     deps: [install]
     cmds:
       - "{{.VENV_DIR}}/bin/ruff check ."
@@ -35,6 +35,19 @@ tasks:
       - "{{.VENV_DIR}}/bin/mypy . --ignore-missing-imports"
       - "{{.VENV_DIR}}/bin/pytest"
       - python scripts/check_secrets.py .
+      - python scripts/generate_staging.py --check
+
+  staging:generate:
+    desc: "Regenerate trivial-rename staging SQL from Soda contracts"
+    deps: [install]
+    cmds:
+      - python scripts/generate_staging.py
+
+  staging:check:
+    desc: "Fail if committed staging SQL drifts from contracts"
+    deps: [install]
+    cmds:
+      - python scripts/generate_staging.py --check
 
   full-refresh:
     desc: "Run every dlt source + SQLMesh + every Soda check through Dagster"

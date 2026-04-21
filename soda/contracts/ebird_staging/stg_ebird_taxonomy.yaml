@@ -1,4 +1,6 @@
 dataset: databox/ebird_staging/stg_ebird_taxonomy
+source_table: raw_ebird.main.taxonomy
+description: Staging model for eBird taxonomy reference data
 
 columns:
   - name: species_code
@@ -8,17 +10,26 @@ columns:
       - duplicate:
           must_be: 0
   - name: common_name
+    source_column: com_name
     checks:
       - missing:
           must_be: 0
   - name: scientific_name
+    source_column: sci_name
     checks:
       - missing:
           must_be: 0
-  - name: taxonomic_category
   - name: taxonomic_order
+    source_column: taxon_order
+  - name: taxonomic_category
+    source_column: category
   - name: family_common_name
+    source_column: family_com_name
   - name: family_scientific_name
+    source_column: family_sci_name
+  - name: loaded_at
+    source_column: _loaded_at
+    data_type: TIMESTAMP
 
 checks:
   - row_count:

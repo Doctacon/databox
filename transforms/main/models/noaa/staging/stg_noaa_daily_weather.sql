@@ -1,3 +1,5 @@
+-- Generated from soda/contracts/noaa_staging/stg_noaa_daily_weather.yaml by scripts/generate_staging.py.
+-- DO NOT EDIT by hand — run `task staging:generate` to regenerate.
 MODEL (
   name noaa_staging.stg_noaa_daily_weather,
   kind FULL,
@@ -9,10 +11,7 @@ SELECT
     date::DATE AS observation_date,
     datatype,
     station,
-    CASE
-        WHEN value IS NOT NULL THEN CAST(value AS DOUBLE)
-        ELSE NULL
-    END AS value,
+    value::DOUBLE AS value,
     attributes,
     source,
     _location_id AS location_id,

@@ -1,3 +1,4 @@
+-- staging-codegen: skip (UNION ALL across recent + notable, derived date parts)
 MODEL (
   name ebird_staging.stg_ebird_observations,
   kind FULL,
