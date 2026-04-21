@@ -19,11 +19,19 @@ contracts, and orchestrates with Dagster on DuckDB / MotherDuck.
 - **[Incremental loading](incremental-loading.md)** — dlt incremental and
   SQLMesh incremental-by-time notes.
 
-## Case study
+## Architecture decisions
 
-The case-study README (architecture walkthrough and decision record index) is
-tracked in `ticket:architecture-docs` and will be linked from here once
-published.
+Six backfilled ADRs (Nygard format) explain the load-bearing choices:
+
+- [ADR-0001 — DuckDB as the primary warehouse](adr/0001-duckdb-as-primary-warehouse.md)
+- [ADR-0002 — SQLMesh over dbt](adr/0002-sqlmesh-over-dbt.md)
+- [ADR-0003 — Single SQLMesh project across all sources](adr/0003-single-sqlmesh-project.md)
+- [ADR-0004 — Per-source raw DuckDB catalogs](adr/0004-per-source-raw-catalogs.md)
+- [ADR-0005 — Dagster as the sole orchestrator](adr/0005-dagster-as-sole-orchestrator.md)
+- [ADR-0006 — MotherDuck as the cloud path](adr/0006-motherduck-as-cloud-path.md)
+
+The root README frames the platform as a case study with system and
+data-flow diagrams in Mermaid.
 
 ## Regenerate
 
