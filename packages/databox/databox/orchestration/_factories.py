@@ -6,6 +6,7 @@ applier) lives here. Domain modules compose these primitives without
 knowing about each other.
 """
 
+import logging
 import typing as t
 from datetime import timedelta
 from pathlib import Path
@@ -20,6 +21,8 @@ from dagster_sqlmesh.translator import SQLMeshDagsterTranslator
 from sqlglot import exp
 
 from databox.config.settings import PROJECT_ROOT, settings
+
+log = logging.getLogger(__name__)
 
 TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
 MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
@@ -45,6 +48,33 @@ class DataboxConfig(dg.ConfigurableResource):
     database_path: str = settings.database_path
     dlt_data_dir: str = settings.dlt_data_dir
     transforms_dir: str = str(TRANSFORMS_DIR)
+
+
+def ensure_motherduck_databases() -> list[str]:
+    """Create any missing MotherDuck databases this stack references.
+
+    Called at Dagster startup. No-ops when the backend is local or when
+    `MOTHERDUCK_TOKEN` is empty. Returns the list of database names that
+    were ensured (for tests); the DDL itself is idempotent.
+    """
+    if settings.backend != "motherduck":
+        return []
+    if not settings.motherduck_token:
+        log.warning(
+            "ensure_motherduck_databases: MOTHERDUCK_TOKEN is empty, skipping CREATE DATABASE"
+        )
+        return []
+
+    import duckdb
+
+    names = settings.motherduck_database_names
+    con = duckdb.connect(f"md:?motherduck_token={settings.motherduck_token}")
+    try:
+        for db in names:
+            con.execute(f'CREATE DATABASE IF NOT EXISTS "{db}"')
+    finally:
+        con.close()
+    return names
 
 
 def dlt_destination(db_path: str) -> t.Any:

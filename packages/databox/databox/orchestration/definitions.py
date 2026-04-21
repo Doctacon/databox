@@ -13,10 +13,13 @@ from dagster_sqlmesh import SQLMeshResource
 from databox.orchestration._factories import (
     DataboxConfig,
     apply_freshness,
+    ensure_motherduck_databases,
     freshness_violation_sensor,
     sqlmesh_project,
 )
 from databox.orchestration.domains import analytics, ebird, noaa, usgs, usgs_earthquakes
+
+ensure_motherduck_databases()
 
 all_pipelines = dg.define_asset_job(
     name="all_pipelines",

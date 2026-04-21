@@ -76,6 +76,22 @@ class DataboxSettings(BaseSettings):
         return int(getattr(self, f"{source}_days_back"))
 
     @property
+    def motherduck_database_names(self) -> list[str]:
+        """All MotherDuck databases this stack expects to exist.
+
+        Derived by introspecting `raw_*_path` properties on this class plus the
+        primary `databox` database. Used by the startup auto-create routine so
+        adding a new source via `new_source.py` does not require manual
+        `CREATE DATABASE` in MotherDuck.
+        """
+        names = ["databox"]
+        for attr in dir(type(self)):
+            if attr.startswith("raw_") and attr.endswith("_path"):
+                base = attr[len("raw_") : -len("_path")]
+                names.append(f"raw_{base}")
+        return names
+
+    @property
     def soda_datasource_yaml(self) -> str:
         return f"name: databox\ntype: duckdb\nconnection:\n  database: {self.database_path}\n"
 
