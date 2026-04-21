@@ -1,33 +1,23 @@
 version: '3'
 
-# Targets compose / inject env / encode defaults. Raw CLI wrappers → docs/commands.md.
+# Only targets that compose, inject env, or encode a non-obvious default.
+# Pure CLI wrappers (uv/sqlmesh/dagster) live in docs/commands.md.
 
-vars: { VENV_DIR: .venv, DATA_DIR: ./data }
+vars: { VENV_DIR: .venv }
 env: { PYTHONPATH: . }
-output: prefixed
 
 tasks:
-  setup:
-    desc: "Create .venv + bootstrap .env from .env.example"
-    cmds:
-      - uv venv {{.VENV_DIR}}
-      - test -f .env || cp .env.example .env
-    status:
-      - test -d {{.VENV_DIR}}
-
   install:
-    desc: "Install deps + pre-commit hook (setup + uv sync + hook install)"
-    deps: [setup]
+    desc: "Bootstrap .venv, copy .env, uv sync, install pre-commit hook"
     cmds:
+      - test -d {{.VENV_DIR}} || uv venv {{.VENV_DIR}}
+      - test -f .env || cp .env.example .env
       - uv sync
       - ./scripts/setup_pre_commit.sh
-    sources:
-      - pyproject.toml
-      - uv.lock
-      - scripts/setup_pre_commit.sh
+    sources: [pyproject.toml, uv.lock, scripts/setup_pre_commit.sh]
 
   ci:
-    desc: "Compose every CI gate: ruff + mypy + pytest + secret scan + staging-codegen drift"
+    desc: "Every CI gate: ruff + mypy + pytest + secret scan + staging drift"
     deps: [install]
     cmds:
       - "{{.VENV_DIR}}/bin/ruff check ."
@@ -37,38 +27,8 @@ tasks:
       - python scripts/check_secrets.py .
       - python scripts/generate_staging.py --check
 
-  staging:generate:
-    desc: "Regenerate trivial-rename staging SQL from Soda contracts"
-    deps: [install]
-    cmds:
-      - python scripts/generate_staging.py
-
-  staging:check:
-    desc: "Fail if committed staging SQL drifts from contracts"
-    deps: [install]
-    cmds:
-      - python scripts/generate_staging.py --check
-
-  check:layout:
-    desc: "Verify every source follows the standard directory layout"
-    deps: [install]
-    cmds:
-      - python scripts/check_source_layout.py
-
-  init:
-    desc: "Rebrand a fresh fork — rewrite project identity from scaffold.yaml (see docs/template.md)"
-    deps: [install]
-    cmds:
-      - python scripts/bootstrap.py {{.CLI_ARGS}}
-
-  new-source:
-    desc: "Scaffold a new dlt source — passes source-layout-lint on first commit (see docs/new-source.md)"
-    deps: [install]
-    cmds:
-      - python scripts/new_source.py {{.CLI_ARGS}}
-
   docs:build:
-    desc: "Render notebooks + generate data dictionary + build MkDocs site (strict)"
+    desc: "Render notebooks, generate dictionary + cost page, build MkDocs (strict)"
     deps: [install]
     cmds:
       - "{{.VENV_DIR}}/bin/python scripts/render_notebooks.py"
@@ -78,86 +38,53 @@ tasks:
 
   plan:dev:
     desc: "SQLMesh plan against the dev virtual env (interactive)"
-    deps: [install]
     dir: transforms/main
-    cmds:
-      - "../../{{.VENV_DIR}}/bin/sqlmesh plan dev {{.CLI_ARGS}}"
-
+    cmds: ["../../{{.VENV_DIR}}/bin/sqlmesh plan dev {{.CLI_ARGS}}"]
   plan:prod:
     desc: "SQLMesh plan against prod — fails if prod is ahead of dev"
-    deps: [install]
     dir: transforms/main
-    cmds:
-      - "../../{{.VENV_DIR}}/bin/sqlmesh plan prod {{.CLI_ARGS}}"
-
+    cmds: ["../../{{.VENV_DIR}}/bin/sqlmesh plan prod {{.CLI_ARGS}}"]
   promote:
-    desc: "Promote dev → prod (auto-apply; assumes dev already verified)"
-    deps: [install]
+    desc: "Auto-apply dev → prod promotion (assumes dev verified)"
     dir: transforms/main
-    cmds:
-      - "../../{{.VENV_DIR}}/bin/sqlmesh plan prod --auto-apply {{.CLI_ARGS}}"
-
+    cmds: ["../../{{.VENV_DIR}}/bin/sqlmesh plan prod --auto-apply {{.CLI_ARGS}}"]
   verify:dev:
-    desc: "Run every Soda contract against the __dev schemas (see docs/environments.md)"
-    deps: [install]
-    cmds:
-      - "{{.VENV_DIR}}/bin/python scripts/verify_dev.py"
+    desc: "Run every Soda contract against the __dev schemas"
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/verify_dev.py"]
 
   full-refresh:
-    desc: "Run every dlt source + SQLMesh + every Soda check through Dagster"
-    deps: [install]
-    env:
-      DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
-      PYTHONPATH: "{{.USER_WORKING_DIR}}"
-    cmds:
-      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"
-
+    desc: "Every dlt source + SQLMesh + Soda via Dagster"
+    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
+    cmds: ["{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"]
   verify:
     desc: "Smoke full-refresh — DATABOX_SMOKE=1 caps each source to 5 items"
-    deps: [install]
-    env:
-      DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
-      PYTHONPATH: "{{.USER_WORKING_DIR}}"
-      DATABOX_SMOKE: "1"
-    cmds:
-      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"
-
+    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_SMOKE: "1" }
+    cmds: ["{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"]
   dagster:dev:
-    desc: "Launch Dagster UI with DAGSTER_HOME + PYTHONPATH + definitions path"
-    deps: [install]
-    env:
-      DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
-      PYTHONPATH: "{{.USER_WORKING_DIR}}"
-    cmds:
-      - "{{.VENV_DIR}}/bin/dagster dev -f packages/databox/databox/orchestration/definitions.py"
+    desc: "Launch Dagster UI with DAGSTER_HOME + definitions path"
+    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
+    cmds: ["{{.VENV_DIR}}/bin/dagster dev -f packages/databox/databox/orchestration/definitions.py"]
 
   streamlit:
-    desc: "Launch Databox Explorer (cd app/ + streamlit run main.py)"
-    deps: [install]
+    desc: "Launch Databox Explorer"
     dir: app
-    cmds:
-      - "../{{.VENV_DIR}}/bin/streamlit run main.py"
+    cmds: ["../{{.VENV_DIR}}/bin/streamlit run main.py"]
+  init:
+    desc: "Rebrand a fresh fork from scaffold.yaml (see docs/template.md)"
+    cmds: ["python scripts/bootstrap.py {{.CLI_ARGS}}"]
+  new-source:
+    desc: "Scaffold a new dlt source (see docs/new-source.md)"
+    cmds: ["python scripts/new_source.py {{.CLI_ARGS}}"]
 
   db:reset:
     desc: "Delete local DuckDB files (MotherDuck dbs must be dropped manually)"
-    cmds:
-      - rm -f data/databox.duckdb data/raw_ebird.duckdb data/raw_noaa.duckdb data/raw_usgs.duckdb
-      - echo "Local DBs reset — MotherDuck dbs (if any) must be dropped manually"
-
+    cmds: ["rm -f data/databox.duckdb data/raw_ebird.duckdb data/raw_noaa.duckdb data/raw_usgs.duckdb"]
   clean:
     desc: "Remove build + test + cache artifacts"
     cmds:
       - rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .coverage htmlcov/
       - find . -type d -name __pycache__ -exec rm -rf {} +
-      - find . -type f -name "*.pyc" -delete
-
   clean-all:
-    desc: "Clean + drop .venv + data/ + .dlt_state/"
+    desc: "Clean + drop .venv, data/, .dlt_state/"
     deps: [clean]
-    cmds:
-      - rm -rf {{.VENV_DIR}} {{.DATA_DIR}} .dlt_state/
-
-  default:
-    desc: "Show available tasks"
-    cmds:
-      - task --list-all
+    cmds: ["rm -rf {{.VENV_DIR}} data .dlt_state/"]

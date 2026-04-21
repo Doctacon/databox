@@ -1,9 +1,9 @@
 ---
 id: ticket:taskfile-trim
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T20:00:00Z
 scope:
   kind: workspace
 links:
@@ -74,3 +74,13 @@ A forker reading a ≤100-line Taskfile sees: "these are the composed workflows 
 - Remaining work: classify the ~12 targets still present, delete the pure wrappers, push remainder into `docs/commands.md`.
 
 This ticket stays `ready` — strict acceptance not met; real outstanding scaffold-polish deliverable.
+
+# Close Notes
+
+- `wc -l Taskfile.yaml` → **90** (target ≤100, was 163, was 224 originally).
+- Dropped pure wrappers: `setup` (folded into `install`), `staging:generate`, `staging:check`, `check:layout`, `default`. Their underlying commands added to `docs/commands.md`.
+- Remaining 16 targets: all have `desc:` and are either compose, env-setting, or forker-facing defaults (init, new-source).
+- `task --list` output: 16 targets, readable.
+- `task ci` invokes cleanly (install → ruff → ruff format → mypy → pytest → secret scan → staging drift); mypy's 7 pre-existing errors in `scripts/bootstrap.py`, `app/main.py`, `scripts/smoke.py` are out of scope for this ticket (CI workflow treats typecheck as `continue-on-error` per ticket:ci-github-actions residual).
+- Updated references: `CLAUDE.md` Task block drops `task setup`, swaps `task check:layout`/`task staging:generate` to direct script calls. `docs/commands.md` gains a Source layout + staging codegen section.
+- README Quickstart untouched — all commands it references (`task install`, `task full-refresh`, `task dagster:dev`, `task plan:dev`, `task verify:dev`, `task plan:prod`, `task streamlit`, `task init`, `task verify`, `task ci`) still present.
