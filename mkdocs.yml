@@ -61,6 +61,7 @@ nav:
   - Analytics examples: analytics-examples.md
   - Metrics: metrics.md
   - Contracts: contracts.md
+  - Configuration: configuration.md
   - Incremental loading: incremental-loading.md
   - Architecture decisions:
       - Overview: adr/README.md

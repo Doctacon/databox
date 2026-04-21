@@ -3,22 +3,20 @@
 from __future__ import annotations
 
 import io
-import os
 
 import duckdb
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from databox.config.settings import settings
 
 PAGE_SIZE = 500
 
 st.set_page_config(page_title="Databox Explorer", page_icon="📦", layout="wide")
 
-_DEFAULT_DB_PATH = "data/databox.duckdb"
-
 
 def _get_db_path() -> str:
-    return os.environ.get("DUCKDB_PATH", _DEFAULT_DB_PATH)
+    return settings.database_path
 
 
 @st.cache_resource
