@@ -1,0 +1,25 @@
+"""{{ name_title }} domain — scaffolded stub.
+
+This file is wired into `definitions.py` with empty asset lists so Dagster
+loads clean on day one. Fill in as you add resources:
+
+  1. In `databox_sources/{{ name }}/source.py`, define `@dlt.resource`s and a
+     `@dlt.source` that yields them.
+  2. Build `{{ name }}_dlt_assets` here via `@dlt_assets(...)` (see usgs.py
+     for the canonical shape), then populate `dlt_asset_keys`.
+  3. Add SQLMesh models under `transforms/main/models/{{ name }}/`, enumerate
+     their keys in `sqlmesh_asset_keys`.
+  4. Add Soda contracts under `soda/contracts/{{ name }}{,_staging}/`,
+     register them in `asset_checks`.
+  5. Define `daily_pipeline`, `schedule`, and wire them into `definitions.py`.
+
+Until then, the empty splats below are no-ops — Dagster sees the module.
+"""
+
+from __future__ import annotations
+
+import dagster as dg
+
+dlt_asset_keys: list[dg.AssetKey] = []
+sqlmesh_asset_keys: list[dg.AssetKey] = []
+asset_checks: list[dg.AssetChecksDefinition] = []

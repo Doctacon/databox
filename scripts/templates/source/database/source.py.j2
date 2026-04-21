@@ -1,0 +1,37 @@
+# scaffold-lint: skip=scaffolded
+"""{{ name_title }} SQL database source pipeline using dlt.
+
+TODO: describe the upstream database — engine, read model, incremental key.
+
+The `scaffold-lint: skip=scaffolded` marker tells the layout linter to
+tolerate missing staging/mart/contract files while this source is being
+built. Remove it once the full layout is in place.
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Iterator
+from typing import Any
+
+import dlt
+
+# TODO: prefer `dlt.sources.sql_database` when the upstream is a full DB —
+# this stub shows the raw-query shape for simple cases.
+
+
+@dlt.resource(name="{{ name }}_records", write_disposition="append", primary_key="id")
+def {{ name }}_records() -> Iterator[dict[str, Any]]:
+    """TODO: connect, query, yield rows as dicts."""
+    dsn = os.environ.get("DATABASE_URL_{{ name_upper }}")
+    if not dsn:
+        raise RuntimeError(
+            "DATABASE_URL_{{ name_upper }} not set — add it to .env (see .env.example)."
+        )
+    # TODO: use sqlalchemy / psycopg / duckdb / etc. and real incremental logic.
+    yield {"id": "example", "dsn_length": len(dsn)}
+
+
+@dlt.source(name="{{ name }}_source")
+def {{ name }}_source() -> Any:
+    yield {{ name }}_records

@@ -1,0 +1,36 @@
+# scaffold-lint: skip=scaffolded
+"""{{ name_title }} filesystem / S3 source pipeline using dlt.
+
+TODO: describe the source files — location, format (CSV / Parquet / JSON),
+partitioning, and cadence.
+
+The `scaffold-lint: skip=scaffolded` marker tells the layout linter to
+tolerate missing staging/mart/contract files. Remove it once the full layout
+is in place.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
+import dlt
+
+# TODO: for S3 / GCS / Azure, use dlt.sources.filesystem instead of local Path.
+SOURCE_PATH = Path("/path/to/{{ name }}/data")
+
+
+@dlt.resource(name="{{ name }}_records", write_disposition="append", primary_key="id")
+def {{ name }}_records() -> Iterator[dict[str, Any]]:
+    """TODO: iterate files, parse rows, yield dicts."""
+    if not SOURCE_PATH.exists():
+        raise RuntimeError(f"source path does not exist: {SOURCE_PATH}")
+    for path in sorted(SOURCE_PATH.glob("*.csv")):
+        # TODO: replace with real parser (csv / pyarrow / json / etc.)
+        yield {"id": path.stem, "path": str(path)}
+
+
+@dlt.source(name="{{ name }}_source")
+def {{ name }}_source() -> Any:
+    yield {{ name }}_records

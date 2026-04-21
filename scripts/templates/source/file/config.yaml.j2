@@ -1,0 +1,8 @@
+source_module: "databox_sources.{{ name }}.source"
+description: "TODO: describe the {{ name_title }} file source"
+schedule:
+  cron: "0 6 * * *"
+  enabled: false
+params:
+  source_path: "/path/to/{{ name }}/data"
+quality_rules: []

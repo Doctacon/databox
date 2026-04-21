@@ -1,0 +1,51 @@
+# scaffold-lint: skip=scaffolded
+"""{{ name_title }} REST API source pipeline using dlt.
+
+TODO: describe the upstream API, auth model, rate limits, pagination.
+
+The `scaffold-lint: skip=scaffolded` marker above tells
+`scripts/check_source_layout.py` to tolerate the missing staging/mart/contract
+files while this source is being built. Remove the marker once the layout is
+complete.
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Iterator
+from typing import Any
+
+import dlt
+from dlt.sources.helpers import requests as dlt_requests
+
+{{ name_upper }}_BASE = "https://api.example.com/v1"  # TODO: set real base URL
+
+
+@dlt.resource(name="{{ name }}_records", write_disposition="append", primary_key="id")
+def {{ name }}_records() -> Iterator[dict[str, Any]]:
+    """TODO: replace with real resource logic.
+
+    Example flow:
+      1. Read API token from env var (`API_KEY_{{ name_upper }}`).
+      2. Build request URL + params.
+      3. Page through results, yield dicts.
+    """
+    token = os.environ.get("API_KEY_{{ name_upper }}")
+    if not token:
+        raise RuntimeError(
+            "API_KEY_{{ name_upper }} not set — add it to .env (see .env.example)."
+        )
+    # TODO: implement real pagination loop
+    response = dlt_requests.get(
+        f"{{ '{' }}{{ name_upper }}_BASE{{ '}' }}/records",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    response.raise_for_status()
+    for record in response.json().get("items", []):
+        yield record
+
+
+@dlt.source(name="{{ name }}_source")
+def {{ name }}_source() -> Any:
+    """TODO: yield each @dlt.resource defined in this module."""
+    yield {{ name }}_records
