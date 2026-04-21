@@ -97,6 +97,20 @@ jobs:
             --base origin/${{ github.base_ref }} \
             --pr-body-file /tmp/pr_body.txt
 
+  source-layout-lint:
+    name: Source layout lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: Verify every source follows the standard layout
+        run: uv run python scripts/check_source_layout.py
+
   staging-codegen-drift:
     name: Staging codegen drift
     runs-on: ubuntu-latest

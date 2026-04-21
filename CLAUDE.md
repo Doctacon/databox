@@ -98,6 +98,8 @@ Raw SQLMesh / Dagster / pytest invocations: [docs/commands.md](docs/commands.md)
 
 ## Adding a New Data Source
 
+The required on-disk layout is codified in [`docs/source-layout.md`](docs/source-layout.md) and enforced by `task check:layout` (and the `source-layout-lint` CI job). Every new source must satisfy that layout — the lint will flag anything missing.
+
 1. **Create source package**: `packages/databox-sources/databox_sources/<source>/`
    - `source.py`: dlt resources using `@dlt.source` / `@dlt.resource`
    - `config.yaml`: pipeline config
@@ -105,14 +107,16 @@ Raw SQLMesh / Dagster / pytest invocations: [docs/commands.md](docs/commands.md)
 2. **Add transform models**: `transforms/main/models/<source>/`
    - Copy structure from `transforms/main/models/ebird/` as a template
    - Read from `raw_<source>.*` (dlt writes here)
-   - Staging models write to `<source>_staging.*`
+   - Staging models write to `<source>_staging.*` (trivial-rename staging → generated via `task staging:generate`)
    - Mart models write to `<source>.*`
 
 3. **Add Soda contracts**: `soda/contracts/<source>_staging/` and `soda/contracts/<source>/`
 
-4. **Wire Dagster assets** in `packages/databox/databox/orchestration/definitions.py`
+4. **Add a domain file**: `packages/databox/databox/orchestration/domains/<source>.py` — wire assets, asset checks, daily job, schedule
 
 5. **Add secrets to `.env`**: `API_KEY_<SOURCE>=your_key_here`
+
+6. **Verify**: `task check:layout` → should show `✓ <source>`
 
 ## Architecture Decisions
 
