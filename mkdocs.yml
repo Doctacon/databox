@@ -72,6 +72,7 @@ nav:
   - Secrets: secrets.md
   - Environments: environments.md
   - Freshness SLAs: freshness.md
+  - Cost & usage: cost.md
   - Commands: commands.md
   - Incremental loading: incremental-loading.md
   - Architecture decisions:
