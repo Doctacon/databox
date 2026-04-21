@@ -63,6 +63,7 @@ nav:
   - Contracts: contracts.md
   - Staging codegen: staging.md
   - Source layout: source-layout.md
+  - CI routing: ci.md
   - Configuration: configuration.md
   - Commands: commands.md
   - Incremental loading: incremental-loading.md

@@ -1,5 +1,10 @@
 name: CI
 
+# Path-based routing: docs-only + loom-only PRs skip the heavy matrix; source-
+# specific PRs run only that source's tests. Pushes to main always run the full
+# matrix, and any change to `.github/workflows/**` forces the full matrix to
+# prevent routing bugs from hiding regressions. See docs/ci.md for details.
+
 on:
   push:
     branches: [main]
@@ -12,8 +17,86 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Classify changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+      src_ebird: ${{ steps.filter.outputs.src_ebird }}
+      src_noaa: ${{ steps.filter.outputs.src_noaa }}
+      src_usgs: ${{ steps.filter.outputs.src_usgs }}
+      cross_cutting: ${{ steps.filter.outputs.cross_cutting }}
+      ci_config: ${{ steps.filter.outputs.ci_config }}
+      needs_full: ${{ steps.compose.outputs.needs_full }}
+      needs_any_source: ${{ steps.compose.outputs.needs_any_source }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36  # v3.0.2
+        id: filter
+        with:
+          filters: |
+            docs:
+              - 'docs/**'
+              - '*.md'
+              - 'mkdocs.yml'
+            src_ebird:
+              - 'packages/databox-sources/databox_sources/ebird/**'
+              - 'packages/databox-sources/tests/ebird/**'
+              - 'transforms/main/models/ebird/**'
+              - 'soda/contracts/ebird/**'
+              - 'soda/contracts/ebird_staging/**'
+              - 'packages/databox/databox/orchestration/domains/ebird.py'
+            src_noaa:
+              - 'packages/databox-sources/databox_sources/noaa/**'
+              - 'packages/databox-sources/tests/noaa/**'
+              - 'transforms/main/models/noaa/**'
+              - 'soda/contracts/noaa/**'
+              - 'soda/contracts/noaa_staging/**'
+              - 'packages/databox/databox/orchestration/domains/noaa.py'
+            src_usgs:
+              - 'packages/databox-sources/databox_sources/usgs/**'
+              - 'packages/databox-sources/tests/usgs/**'
+              - 'transforms/main/models/usgs/**'
+              - 'soda/contracts/usgs/**'
+              - 'soda/contracts/usgs_staging/**'
+              - 'packages/databox/databox/orchestration/domains/usgs.py'
+            cross_cutting:
+              - 'packages/databox/**'
+              - 'packages/databox-sources/databox_sources/__init__.py'
+              - 'packages/databox-sources/databox_sources/_*.py'
+              - 'packages/databox-sources/databox_sources/base.py'
+              - 'packages/databox-sources/databox_sources/registry.py'
+              - 'scripts/**'
+              - 'tests/**'
+              - 'transforms/main/models/analytics/**'
+              - 'soda/contracts/analytics/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'Taskfile.yaml'
+              - '.pre-commit-config.yaml'
+            ci_config:
+              - '.github/workflows/**'
+      - id: compose
+        run: |
+          if [[ "${{ github.event_name }}" == "push" \
+              || "${{ steps.filter.outputs.cross_cutting }}" == "true" \
+              || "${{ steps.filter.outputs.ci_config }}" == "true" ]]; then
+            echo "needs_full=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_full=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "${{ steps.filter.outputs.src_ebird }}" == "true" \
+              || "${{ steps.filter.outputs.src_noaa }}" == "true" \
+              || "${{ steps.filter.outputs.src_usgs }}" == "true" ]]; then
+            echo "needs_any_source=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_any_source=false" >> "$GITHUB_OUTPUT"
+          fi
+
   lint:
     name: Ruff (lint + format)
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true' || needs.changes.outputs.needs_any_source == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
@@ -30,6 +113,8 @@ jobs:
 
   typecheck:
     name: mypy
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true' || needs.changes.outputs.needs_any_source == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
@@ -42,8 +127,10 @@ jobs:
       - name: mypy
         run: uv run mypy packages/ --ignore-missing-imports
 
-  tests:
-    name: pytest
+  tests-core:
+    name: pytest (core)
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
@@ -53,11 +140,61 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install
         run: uv sync --all-extras --dev
-      - name: pytest
-        run: uv run pytest
+      - name: pytest core (tests/ + packages/databox)
+        run: uv run pytest tests packages/databox --override-ini="testpaths=tests packages/databox"
+
+  tests-ebird:
+    name: pytest (ebird)
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true' || needs.changes.outputs.src_ebird == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: pytest ebird
+        run: uv run pytest packages/databox-sources/tests/ebird --override-ini="testpaths=packages/databox-sources/tests/ebird"
+
+  tests-noaa:
+    name: pytest (noaa)
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true' || needs.changes.outputs.src_noaa == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: pytest noaa
+        run: uv run pytest packages/databox-sources/tests/noaa --override-ini="testpaths=packages/databox-sources/tests/noaa"
+
+  tests-usgs:
+    name: pytest (usgs)
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true' || needs.changes.outputs.src_usgs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: pytest usgs
+        run: uv run pytest packages/databox-sources/tests/usgs --override-ini="testpaths=packages/databox-sources/tests/usgs"
 
   sqlmesh-lint:
     name: SQLMesh lint
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true' || needs.changes.outputs.needs_any_source == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
@@ -70,15 +207,46 @@ jobs:
       - name: sqlmesh lint
         run: uv run sqlmesh --paths transforms/main lint
 
+  source-layout-lint:
+    name: Source layout lint
+    # Always required — cheap, and the layout is the invariant for scaling sources.
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: Verify every source follows the standard layout
+        run: uv run python scripts/check_source_layout.py
+
+  staging-codegen-drift:
+    name: Staging codegen drift
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true' || needs.changes.outputs.needs_any_source == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: Check generated staging SQL matches contracts
+        run: uv run python scripts/generate_staging.py --check
+
   schema-contract-gate:
     name: Schema contract gate
-    runs-on: ubuntu-latest
-    # Only meaningful on PRs — pushes to main have no base ref to diff against.
+    # Always required on PRs — the gate is cheap and protects downstream consumers.
     if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
-          # Need full history so `origin/main` resolves for the diff base.
           fetch-depth: 0
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
         with:
@@ -97,36 +265,10 @@ jobs:
             --base origin/${{ github.base_ref }} \
             --pr-body-file /tmp/pr_body.txt
 
-  source-layout-lint:
-    name: Source layout lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-      - name: Install
-        run: uv sync --all-extras --dev
-      - name: Verify every source follows the standard layout
-        run: uv run python scripts/check_source_layout.py
-
-  staging-codegen-drift:
-    name: Staging codegen drift
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-      - name: Install
-        run: uv sync --all-extras --dev
-      - name: Check generated staging SQL matches contracts
-        run: uv run python scripts/generate_staging.py --check
-
   soda-validate:
     name: Soda contract structure
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true' || needs.changes.outputs.needs_any_source == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
