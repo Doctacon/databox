@@ -32,15 +32,27 @@ all_pipelines = dg.define_asset_job(
 )
 
 defs = dg.Definitions(
-    assets=[ebird.ebird_dlt_assets, noaa.noaa_dlt_assets, usgs.usgs_dlt_assets, sqlmesh_project],
+    assets=[
+        ebird.ebird_dlt_assets,
+        noaa.noaa_dlt_assets,
+        usgs.usgs_dlt_assets,
+        sqlmesh_project,
+        analytics.mart_cost_summary,
+    ],
     asset_checks=[
         *ebird.asset_checks,
         *noaa.asset_checks,
         *usgs.asset_checks,
         *analytics.asset_checks,
     ],
-    jobs=[ebird.daily_pipeline, noaa.daily_pipeline, usgs.daily_pipeline, all_pipelines],
-    schedules=[ebird.schedule, noaa.schedule, usgs.schedule],
+    jobs=[
+        ebird.daily_pipeline,
+        noaa.daily_pipeline,
+        usgs.daily_pipeline,
+        analytics.cost_pipeline,
+        all_pipelines,
+    ],
+    schedules=[ebird.schedule, noaa.schedule, usgs.schedule, analytics.cost_schedule],
     sensors=[freshness_violation_sensor],
     resources={
         "databox_config": DataboxConfig(),

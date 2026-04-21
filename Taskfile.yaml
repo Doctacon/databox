@@ -73,6 +73,7 @@ tasks:
     cmds:
       - "{{.VENV_DIR}}/bin/python scripts/render_notebooks.py"
       - "{{.VENV_DIR}}/bin/python scripts/generate_docs.py"
+      - "{{.VENV_DIR}}/bin/python scripts/render_cost_page.py"
       - "{{.VENV_DIR}}/bin/mkdocs build --strict"
 
   plan:dev:
