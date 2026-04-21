@@ -67,6 +67,7 @@ nav:
   - Forking the scaffold: template.md
   - CI routing: ci.md
   - Configuration: configuration.md
+  - Secrets: secrets.md
   - Commands: commands.md
   - Incremental loading: incremental-loading.md
   - Architecture decisions:
