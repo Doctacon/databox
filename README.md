@@ -168,6 +168,21 @@ Dagster is the one entrypoint — individual pipeline runs, quality checks,
 schedules, and sensors all happen as assets in the same DAG. See
 [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md).
 
+## Forking
+
+Databox is designed to be forked. After cloning:
+
+```bash
+task init -- \
+  --name Weatherbox --slug weatherbox \
+  --org your-org --repo weatherbox \
+  --site-url https://your-org.github.io/weatherbox/
+```
+
+`task init` reads `scaffold.yaml`, rewrites every project-identity reference across README/mkdocs/docs/LICENSE/pyproject, and is a no-op on second run. The three example sources (eBird / NOAA / USGS) stay wired so the whole pipeline is green on day one — delete or replace them at your own pace.
+
+See **[docs/template.md](docs/template.md)** for the full list of what's covered, what stays unchanged (Python package name, external deps), and how to extend the scaffold.
+
 ## Backends
 
 Flip between local and cloud via environment variables; the SQL never

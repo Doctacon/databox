@@ -1,0 +1,34 @@
+# Project identity. `scripts/bootstrap.py` reads this file, then rewrites
+# every include-globbed file by substituting the recorded current values for
+# their replacements. `task init` is the user-facing entry point.
+#
+# After a rename: the values below reflect the *new* identity, and the
+# rewritten files match. Run again with the same values → no diff.
+# See docs/template.md for the full workflow.
+
+project:
+  name: Databox
+  slug: databox
+  description: Databox data platform
+  copyright_holder: Connor Lough
+
+github:
+  org: Doctacon
+  repo: databox
+
+docs:
+  site_url: https://doctacon.github.io/databox/
+
+bootstrap:
+  # Files rewritten by `task init`. Patterns resolve relative to repo root.
+  # Kept narrow on purpose — Python import paths (e.g. `from databox import …`)
+  # must not be touched, since `databox` stays as the Python package name.
+  includes:
+    - README.md
+    - mkdocs.yml
+    - pyproject.toml
+    - LICENSE
+    - CLAUDE.md
+    - docs/*.md
+    - docs/adr/*.md
+    - scripts/generate_docs.py
