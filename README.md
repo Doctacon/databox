@@ -177,6 +177,23 @@ rainfall/discharge anomaly z-scores, raw observation/checklist counts)
 defined once in SQLMesh and queryable by name via
 `databox_orchestration.metrics.resolve_metric_query`.
 
+## Data dictionary
+
+Auto-generated data dictionary + lineage site published via GitHub Pages:
+**https://doctacon.github.io/databox/**
+
+Every SQLMesh model has a page listing its columns, types, Soda-contract
+checks, and direct upstream/downstream dependencies. A global Mermaid
+lineage graph links every node back to its page. Regenerate locally with:
+
+```bash
+uv run python scripts/generate_docs.py
+uv run mkdocs serve   # live preview at localhost:8000
+```
+
+The `.github/workflows/docs.yaml` workflow rebuilds and deploys on every
+push to `main`.
+
 ## License
 
 MIT
