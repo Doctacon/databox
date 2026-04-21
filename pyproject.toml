@@ -23,6 +23,10 @@ dev = [
     "syrupy>=4.0",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
+    "nbconvert>=7.16",
+    "jupyter>=1.1",
+    "matplotlib>=3.9",
+    "nbstripout>=0.7",
 ]
 
 [tool.mypy]
