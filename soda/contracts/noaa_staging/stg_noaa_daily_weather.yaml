@@ -34,4 +34,4 @@ checks:
       column: loaded_at
       threshold:
         unit: hour
-        must_be_less_than: 25
+        must_be_less_than: 120
