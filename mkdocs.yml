@@ -68,6 +68,7 @@ nav:
   - CI routing: ci.md
   - Configuration: configuration.md
   - Secrets: secrets.md
+  - Environments: environments.md
   - Commands: commands.md
   - Incremental loading: incremental-loading.md
   - Architecture decisions:

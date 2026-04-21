@@ -146,7 +146,7 @@ in `examples/secrets/one_password_source.py`.
 - Use `uv` for all package management
 - dlt state lives in `.dlt_state/` at project root (not in `data/`)
 - Dagster is a core dependency (not optional)
-- After adding new SQLMesh models, run `sqlmesh plan --auto-apply prod` in `transforms/main/` to create prod virtual views before Soda contracts can query them
+- For model edits, use the dev → verify → prod loop: `task plan:dev`, `task verify:dev`, `task plan:prod` (see [docs/environments.md](docs/environments.md)). `sqlmesh plan --auto-apply prod` in `transforms/main/` is the escape hatch for first-time setup and one-off backfills, not the default for iterative changes.
 - Backend switching: set `DATABOX_BACKEND=motherduck` (+ `MOTHERDUCK_TOKEN`) in `.env` to use MotherDuck cloud. Default is `local`. The SQLMesh gateway and Soda datasource derive from `DATABOX_BACKEND` — no separate flag.
 - `databox.config.settings` is the single source of truth for runtime config. SQLMesh reads it via `transforms/main/config.py`; Dagster reads it via the `settings` singleton; Soda datasource YAML is rendered from `settings.soda_datasource_yaml`.
 

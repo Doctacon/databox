@@ -160,6 +160,11 @@ task full-refresh
 # Or interactive: Dagster UI at localhost:3000
 task dagster:dev
 
+# Edit a model? Propose in dev, verify, promote to prod
+task plan:dev      # materialize into ebird__dev, noaa__dev, ...
+task verify:dev    # Soda contracts run against __dev schemas
+task plan:prod     # promote verified changes — see docs/environments.md
+
 # Launch the Streamlit data explorer
 task streamlit
 ```
