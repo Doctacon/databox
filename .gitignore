@@ -71,3 +71,6 @@ j_state/
 
 # Loom
 .loom/memory/user
+
+# MkDocs build output
+site/

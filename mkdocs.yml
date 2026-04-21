@@ -1,0 +1,64 @@
+site_name: Databox Data Dictionary
+site_description: Auto-generated data dictionary and lineage for the Databox platform.
+site_url: https://crlough.github.io/databox/
+repo_url: https://github.com/crlough/databox
+repo_name: crlough/databox
+edit_uri: ""
+
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Data dictionary:
+      - Overview: dictionary/index.md
+      - Lineage: dictionary/lineage.md
+  - Analytics examples: analytics-examples.md
+  - Metrics: metrics.md
+  - Contracts: contracts.md
+  - Incremental loading: incremental-loading.md

@@ -2,7 +2,7 @@
 
 Canonical metric definitions over `analytics.fct_species_environment_daily`.
 Every metric below is registered in
-[`transforms/main/metrics/flagship.sql`](../transforms/main/metrics/flagship.sql)
+[`transforms/main/metrics/flagship.sql`](https://github.com/crlough/databox/blob/main/transforms/main/metrics/flagship.sql)
 and is the single source of truth — if you see metric math duplicated
 elsewhere, that duplication is a bug.
 
@@ -86,6 +86,6 @@ print(available_metrics())
 ## Design Decision
 
 See
-[`.loom/research/20260421-semantic-metrics-approach.md`](../.loom/research/20260421-semantic-metrics-approach.md)
+[`.loom/research/20260421-semantic-metrics-approach.md`](https://github.com/crlough/databox/blob/main/.loom/research/20260421-semantic-metrics-approach.md)
 for why SQLMesh native metrics beat MetricFlow and flat `analytics.metric_*`
 views for this project.
