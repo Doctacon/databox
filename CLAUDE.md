@@ -65,8 +65,7 @@ databox status                            # Show pipeline status & freshness
 
 ### Task
 ```bash
-task setup                    # Create .venv + bootstrap .env
-task install                  # uv sync + pre-commit hook install
+task install                  # Bootstrap .venv + copy .env + uv sync + pre-commit
 task full-refresh             # Dagster: all dlt + SQLMesh + Soda
 task verify                   # Smoke full-refresh (DATABOX_SMOKE=1)
 task ci                       # Ruff + mypy + pytest + secret scan
@@ -98,7 +97,7 @@ Raw SQLMesh / Dagster / pytest invocations: [docs/commands.md](docs/commands.md)
 
 ## Adding a New Data Source
 
-The required on-disk layout is codified in [`docs/source-layout.md`](docs/source-layout.md) and enforced by `task check:layout` (and the `source-layout-lint` CI job). Every new source must satisfy that layout — the lint will flag anything missing.
+The required on-disk layout is codified in [`docs/source-layout.md`](docs/source-layout.md) and enforced by `python scripts/check_source_layout.py` (run on every PR via the `source-layout-lint` CI job). Every new source must satisfy that layout — the lint will flag anything missing.
 
 1. **Create source package**: `packages/databox-sources/databox_sources/<source>/`
    - `source.py`: dlt resources using `@dlt.source` / `@dlt.resource`
@@ -107,7 +106,7 @@ The required on-disk layout is codified in [`docs/source-layout.md`](docs/source
 2. **Add transform models**: `transforms/main/models/<source>/`
    - Copy structure from `transforms/main/models/ebird/` as a template
    - Read from `raw_<source>.*` (dlt writes here)
-   - Staging models write to `<source>_staging.*` (trivial-rename staging → generated via `task staging:generate`)
+   - Staging models write to `<source>_staging.*` (trivial-rename staging → generated via `python scripts/generate_staging.py`)
    - Mart models write to `<source>.*`
 
 3. **Add Soda contracts**: `soda/contracts/<source>_staging/` and `soda/contracts/<source>/`
@@ -116,7 +115,7 @@ The required on-disk layout is codified in [`docs/source-layout.md`](docs/source
 
 5. **Add secrets to `.env`**: `API_KEY_<SOURCE>=your_key_here`
 
-6. **Verify**: `task check:layout` → should show `✓ <source>`
+6. **Verify**: `python scripts/check_source_layout.py` → should show `✓ <source>`
 
 ## Architecture Decisions
 

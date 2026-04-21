@@ -72,6 +72,14 @@ python scripts/check_secrets.py      # scan repo root
 python scripts/check_secrets.py path/to/file.py
 ```
 
+## Source layout + staging codegen
+
+```bash
+python scripts/check_source_layout.py        # lint per-source directory layout
+python scripts/generate_staging.py           # regenerate trivial-rename stg_* SQL
+python scripts/generate_staging.py --check   # fail on drift (also runs in task ci)
+```
+
 ## Watching
 
 Task's built-in watch mode works without a dedicated target:
