@@ -73,6 +73,46 @@ defs = dg.Definitions(
 
     env_example = tmp_path / ".env.example"
     env_example.write_text("EBIRD_API_TOKEN=\n")
+
+    settings_dir = tmp_path / "packages/databox/databox/config"
+    settings_dir.mkdir(parents=True)
+    settings_path = settings_dir / "settings.py"
+    settings_path.write_text(
+        '''"""Stub DataboxSettings for tests."""
+
+
+class DataboxSettings:
+    @property
+    def raw_ebird_path(self) -> str:
+        return ""
+
+    def days_back(self, source: str) -> int:
+        return 0
+
+    def sqlmesh_config(self):
+        local_gateway = GatewayConfig(
+            connection=DuckDBConnectionConfig(
+                catalogs={
+                    "databox": str(DATA_DIR / "databox.duckdb"),
+                    "raw_ebird": str(DATA_DIR / "raw_ebird.duckdb"),
+                },
+                extensions=extensions,
+            )
+        )
+
+        motherduck_gateway = GatewayConfig(
+            connection=MotherDuckConnectionConfig(
+                catalogs={
+                    "databox": "md:databox",
+                    "raw_ebird": "md:raw_ebird",
+                },
+                extensions=extensions,
+            )
+        )
+
+        return Config()
+'''
+    )
     return tmp_path
 
 
@@ -83,6 +123,7 @@ def _rebind(gen_module, layout_module, root: Path) -> None:
     gen_module.CONTRACTS_DIR = root / "soda/contracts"
     gen_module.DOMAINS_DIR = root / "packages/databox/databox/orchestration/domains"
     gen_module.DEFINITIONS_PATH = root / "packages/databox/databox/orchestration/definitions.py"
+    gen_module.SETTINGS_PATH = root / "packages/databox/databox/config/settings.py"
     gen_module.ENV_EXAMPLE_PATH = root / ".env.example"
 
     layout_module.SOURCES_DIR = gen_module.SOURCES_PKG_DIR
@@ -137,6 +178,24 @@ def test_definitions_wired_idempotently(env) -> None:
     assert defs2.count("*demo.dlt_asset_keys,") == 1
     assert defs2.count("*demo.sqlmesh_asset_keys,") == 1
     assert defs2.count("*demo.asset_checks,") == 1
+
+
+def test_settings_wired_idempotently(env) -> None:
+    gen, _, root = env
+    settings_path = root / "packages/databox/databox/config/settings.py"
+
+    assert gen.main(["demo"]) == 0
+    settings = settings_path.read_text()
+    assert "def raw_demo_path" in settings
+    assert '"raw_demo": str(DATA_DIR / "raw_demo.duckdb")' in settings
+    assert '"raw_demo": "md:raw_demo"' in settings
+
+    # Second call with --force regenerates; patches stay singular.
+    assert gen.main(["demo", "--force"]) == 0
+    settings2 = settings_path.read_text()
+    assert settings2.count("def raw_demo_path") == 1
+    assert settings2.count('"raw_demo": str(DATA_DIR / "raw_demo.duckdb")') == 1
+    assert settings2.count('"raw_demo": "md:raw_demo"') == 1
 
 
 def test_collision_without_force_refuses(env) -> None:

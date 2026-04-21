@@ -32,6 +32,7 @@ MODELS_DIR = ROOT / "transforms/main/models"
 CONTRACTS_DIR = ROOT / "soda/contracts"
 DOMAINS_DIR = ROOT / "packages/databox/databox/orchestration/domains"
 DEFINITIONS_PATH = ROOT / "packages/databox/databox/orchestration/definitions.py"
+SETTINGS_PATH = ROOT / "packages/databox/databox/config/settings.py"
 ENV_EXAMPLE_PATH = ROOT / ".env.example"
 
 NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -145,6 +146,75 @@ def wire_definitions(name: str, path: Path | None = None) -> bool:
     return changed
 
 
+def wire_settings(name: str, path: Path | None = None) -> bool:
+    """Patch `settings.py` with the three per-source entries.
+
+    Adds (idempotently):
+      - `raw_<name>_path` property on `DataboxSettings`
+      - `"raw_<name>"` entry in `local_gateway` catalogs
+      - `"raw_<name>"` entry in `motherduck_gateway` catalogs
+
+    Returns True if anything changed.
+    """
+    if path is None:
+        path = SETTINGS_PATH
+    text = path.read_text()
+    changed = False
+
+    # 1. Property block — insert before `def days_back`.
+    prop_name = f"raw_{name}_path"
+    if f"def {prop_name}" not in text:
+        anchor = "    def days_back(self, source: str) -> int:"
+        if anchor not in text:
+            raise RuntimeError("could not locate `days_back` anchor in settings.py")
+        md_uri = f"md:raw_{name}"
+        block = (
+            f"    @property\n"
+            f"    def {prop_name}(self) -> str:\n"
+            f"        return (\n"
+            f'            "{md_uri}"\n'
+            f'            if self.backend == "motherduck"\n'
+            f'            else str(DATA_DIR / "raw_{name}.duckdb")\n'
+            f"        )\n\n"
+        )
+        text = text.replace(anchor, f"{block}{anchor}", 1)
+        changed = True
+
+    # 2. local_gateway catalog entry.
+    local_entry = f'                    "raw_{name}": str(DATA_DIR / "raw_{name}.duckdb"),'
+    local_anchor = (
+        "                },\n"
+        "                extensions=extensions,\n"
+        "            )\n"
+        "        )\n\n"
+        "        motherduck_gateway = GatewayConfig("
+    )
+    if local_entry not in text:
+        if local_anchor not in text:
+            raise RuntimeError("could not locate local_gateway catalog closure in settings.py")
+        text = text.replace(local_anchor, f"{local_entry}\n{local_anchor}", 1)
+        changed = True
+
+    # 3. motherduck_gateway catalog entry.
+    md_entry = f'                    "raw_{name}": "md:raw_{name}",'
+    md_anchor = (
+        "                },\n"
+        "                extensions=extensions,\n"
+        "            )\n"
+        "        )\n\n"
+        "        return Config("
+    )
+    if md_entry not in text:
+        if md_anchor not in text:
+            raise RuntimeError("could not locate motherduck_gateway catalog closure in settings.py")
+        text = text.replace(md_anchor, f"{md_entry}\n{md_anchor}", 1)
+        changed = True
+
+    if changed:
+        path.write_text(text)
+    return changed
+
+
 def ensure_env_stub(name: str, path: Path | None = None) -> bool:
     """Append an `API_KEY_<NAME>=` line to `.env.example` if missing.
 
@@ -234,6 +304,7 @@ def main(argv: list[str] | None = None) -> int:
 
     write_files(files)
     wire_definitions(args.name)
+    wire_settings(args.name)
     if args.shape == "rest":
         ensure_env_stub(args.name)
 
