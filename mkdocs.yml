@@ -62,6 +62,7 @@ nav:
   - Metrics: metrics.md
   - Contracts: contracts.md
   - Staging codegen: staging.md
+  - Source layout: source-layout.md
   - Configuration: configuration.md
   - Commands: commands.md
   - Incremental loading: incremental-loading.md

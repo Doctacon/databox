@@ -213,10 +213,14 @@ docs/
 
 scripts/
 ├── generate_docs.py       # Data-dictionary generator
-└── schema_gate.py         # CI breaking-change gate
+├── generate_staging.py    # Staging-SQL codegen from Soda contracts
+├── schema_gate.py         # CI breaking-change gate
+└── check_source_layout.py # Source-layout convention lint
 
 data/                      # DuckDB files (gitignored)
 ```
+
+Adding a source? See [docs/source-layout.md](docs/source-layout.md) for the required on-disk shape (enforced in CI by `source-layout-lint`).
 
 ## Published artifacts
 
