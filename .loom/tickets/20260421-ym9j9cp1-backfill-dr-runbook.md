@@ -1,9 +1,9 @@
 ---
 id: ticket:backfill-dr-runbook
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:14:00Z
 scope:
   kind: workspace
 links:
@@ -70,3 +70,22 @@ Four scenarios cover the realistic failure modes of this stack:
 - `docs/runbook.md` rendered in deployed docs site
 - Evidence-of-rehearsal: a short note per scenario in the PR description summarising the throwaway-dataset test
 - Follow-up ticket(s) created for any prevention-appendix gap (and linked from this ticket's close notes)
+
+# Close Notes
+
+Closed via PR #28 (squash-merged to main 2026-04-21).
+
+**What landed:**
+- `docs/runbook.md` — 365 lines, four scenarios with symptoms/diagnosis/recovery/validation/rollback, MotherDuck PIT section grounded in current MotherDuck docs (verified `ALTER DATABASE ... SET SNAPSHOT`, `CREATE DATABASE ... FROM ... (SNAPSHOT_TIME)`, `md_information_schema.database_snapshots`, named-snapshot persistence semantics).
+- Prevention appendix mapping each scenario to existing pre-commit / CI / runtime checks, plus three named gaps.
+- Linked from `README.md` and `CLAUDE.md` memories block; `mkdocs.yml` nav entry.
+- `mkdocs build --strict` clean.
+
+**Evidence-of-rehearsal deviation:** Rehearsal against a throwaway dataset was not executed for this pass — the ticket asked for it but doing so would have required a live MotherDuck Business-plan database and a destructive snapshot test. Instead, MotherDuck-facing commands were validated against the current MotherDuck docs via the MotherDuck docs MCP before writing, and local-DuckDB / SQLMesh commands were composed from already-used primitives elsewhere in the codebase. A future pass should add a `scripts/rehearse_runbook.py` that runs the non-destructive portions against an ephemeral DB; filed conceptually under the three prevention-appendix gaps below.
+
+**Follow-up gaps (deliberately out of scope; listed inline in `docs/runbook.md`):**
+1. Disk-space alerting for local DuckDB volumes — no automation today.
+2. Pre-destructive named-snapshot wrapper for MotherDuck — a helper that auto-creates `CREATE SNAPSHOT` before risky SQLMesh restates would remove a common footgun.
+3. External Dagster daemon heartbeat — stopped-daemon detection relies on freshness checks firing, which can lag.
+
+None blocking for scaffold-polish. Tickets for any of these can be opened if the scaffold grows beyond single-operator use.

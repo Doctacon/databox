@@ -1,9 +1,9 @@
 ---
 id: ticket:freshness-slas
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:14:00Z
 scope:
   kind: workspace
 links:
