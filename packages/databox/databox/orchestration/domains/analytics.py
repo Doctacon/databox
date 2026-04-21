@@ -6,9 +6,11 @@ rebuilt as part of any upstream source run via `all_pipelines`.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import dagster as dg
 
-from databox.orchestration._factories import SODA_DIR, soda_check
+from databox.orchestration._factories import SODA_DIR, freshness_checks, soda_check
 
 sqlmesh_asset_keys = [
     dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"]),
@@ -16,6 +18,11 @@ sqlmesh_asset_keys = [
     dg.AssetKey(["sqlmesh", "analytics", "fct_species_environment_daily"]),
     dg.AssetKey(["sqlmesh", "analytics", "platform_health"]),
 ]
+
+FRESHNESS_SLAS: dict[dg.AssetKey, timedelta] = {
+    dg.AssetKey(["sqlmesh", "analytics", "fct_species_environment_daily"]): timedelta(hours=48),
+    dg.AssetKey(["sqlmesh", "analytics", "platform_health"]): timedelta(hours=2),
+}
 
 asset_checks: list[dg.AssetChecksDefinition] = [
     soda_check(
@@ -34,4 +41,5 @@ asset_checks: list[dg.AssetChecksDefinition] = [
         dg.AssetKey(["sqlmesh", "analytics", "fct_species_environment_daily"]),
         SODA_DIR / "contracts/analytics/fct_species_environment_daily.yaml",
     ),
+    *freshness_checks(FRESHNESS_SLAS),
 ]

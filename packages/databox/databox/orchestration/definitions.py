@@ -10,7 +10,12 @@ import dagster as dg
 from dagster_dlt import DagsterDltResource
 from dagster_sqlmesh import SQLMeshResource
 
-from databox.orchestration._factories import DataboxConfig, apply_freshness, sqlmesh_project
+from databox.orchestration._factories import (
+    DataboxConfig,
+    apply_freshness,
+    freshness_violation_sensor,
+    sqlmesh_project,
+)
 from databox.orchestration.domains import analytics, ebird, noaa, usgs
 
 all_pipelines = dg.define_asset_job(
@@ -36,6 +41,7 @@ defs = dg.Definitions(
     ],
     jobs=[ebird.daily_pipeline, noaa.daily_pipeline, usgs.daily_pipeline, all_pipelines],
     schedules=[ebird.schedule, noaa.schedule, usgs.schedule],
+    sensors=[freshness_violation_sensor],
     resources={
         "databox_config": DataboxConfig(),
         "dlt": DagsterDltResource(),

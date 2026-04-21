@@ -138,3 +138,68 @@ def apply_freshness(spec: dg.AssetSpec) -> dg.AssetSpec:
     if src is None:
         return spec
     return dg.apply_freshness_policy(spec, FRESHNESS_BY_SOURCE[src])
+
+
+def freshness_checks(
+    slas: dict[dg.AssetKey, timedelta],
+) -> list[dg.AssetChecksDefinition]:
+    """Build `last_update` freshness checks from an SLA map.
+
+    Each entry declares the maximum tolerable staleness. A check fails when
+    the asset's latest materialization timestamp is older than that window.
+    One check per asset keeps the asset-check panel in Dagster readable.
+    """
+    checks: list[dg.AssetChecksDefinition] = []
+    for key, max_lag in slas.items():
+        checks.extend(
+            dg.build_last_update_freshness_checks(
+                assets=[key],
+                lower_bound_delta=max_lag,
+                severity=dg.AssetCheckSeverity.WARN,
+            )
+        )
+    return checks
+
+
+@dg.sensor(
+    name="freshness_violation_sensor",
+    minimum_interval_seconds=300,
+    default_status=dg.DefaultSensorStatus.STOPPED,
+)
+def freshness_violation_sensor(context: dg.SensorEvaluationContext) -> dg.SensorResult:
+    """Emit a structured log line per asset-check failure since last tick.
+
+    Includes freshness checks (built via `freshness_checks(...)`) and any
+    other asset check that failed. Transports (Slack / Email / PagerDuty)
+    are the forker's choice — wire the log line into your alerting channel
+    of choice. See docs/freshness.md.
+
+    Sensor ships disabled by default (DefaultSensorStatus.STOPPED) so a
+    fresh checkout does not spam a forker who has not yet picked a channel.
+    """
+    cursor = int(context.cursor) if context.cursor else 0
+    records = context.instance.get_event_records(
+        dg.EventRecordsFilter(
+            event_type=dg.DagsterEventType.ASSET_CHECK_EVALUATION,
+            after_cursor=cursor,
+        ),
+        limit=500,
+        ascending=True,
+    )
+
+    latest_cursor = cursor
+    for record in records:
+        latest_cursor = max(latest_cursor, record.storage_id)
+        event = record.event_log_entry.dagster_event
+        if event is None:
+            continue
+        evaluation = event.event_specific_data
+        if evaluation is None or evaluation.passed:  # type: ignore[union-attr]
+            continue
+        context.log.warning(
+            "freshness_violation "
+            f"asset={evaluation.asset_check_key.asset_key.to_user_string()} "  # type: ignore[union-attr]
+            f"check={evaluation.asset_check_key.name} "  # type: ignore[union-attr]
+            f"timestamp={record.event_log_entry.timestamp}"
+        )
+    return dg.SensorResult(cursor=str(latest_cursor))
