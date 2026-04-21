@@ -72,6 +72,9 @@ temp/
 .mcp.json
 j_state/
 
+# Claude Code runtime state
+.claude/scheduled_tasks.lock
+
 # Loom
 .loom/memory/user
 
