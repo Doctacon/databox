@@ -42,7 +42,7 @@ The constitution says cross-domain joins are the point. Today the repo has three
 # Out of Scope
 
 - Multi-year backfill validation — daily cadence only, last 90 days is enough for the portfolio
-- A published dashboard (separate ticket:one-command-demo handles that)
+- A published dashboard — mart alone is the deliverable; dashboarding handled in existing Dive/Streamlit surface
 - Species-taxonomy enrichment beyond what `ebird` already provides
 - Rebuilding the `ebird_staging` / `noaa_staging` / `usgs_staging` layers
 

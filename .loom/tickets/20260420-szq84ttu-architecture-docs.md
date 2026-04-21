@@ -30,7 +30,7 @@ A hiring manager reviews dozens of GitHub repos per week. The README is the prod
   - System diagram (Mermaid C4 Container level)
   - Data-flow diagram (Mermaid flowchart: source → raw → staging → marts → analytics)
   - "What this demonstrates" — list of staff-level capabilities with links to the tickets/evidence proving each
-  - Quickstart (`task demo` — see ticket:one-command-demo)
+  - Quickstart (existing `task` targets for Dagster + dashboard)
   - Key architectural decisions (links to ADRs)
   - Links to live docs site, dashboard, data dictionary
 - `docs/adr/` directory with ADRs for:

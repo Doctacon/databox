@@ -43,7 +43,6 @@ Depends on governance so the mart is trustable.
 Lands last. Describes what now exists.
 
 - ticket:architecture-docs — Mermaid C4 + data flow diagrams, ADR backfill, case-study README
-- ticket:one-command-demo — `task demo` brings up full stack locally with seeded data and a working dashboard
 
 # Dependencies
 
