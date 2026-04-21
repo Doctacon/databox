@@ -1,9 +1,9 @@
 ---
 id: ticket:architecture-docs
 kind: ticket
-status: ready
+status: complete_pending_acceptance
 created_at: 2026-04-20T00:00:00Z
-updated_at: 2026-04-20T00:00:00Z
+updated_at: 2026-04-21T00:00:00Z
 scope:
   kind: workspace
 links:
@@ -73,3 +73,31 @@ A hiring manager reviews dozens of GitHub repos per week. The README is the prod
 - Self-review: the README addresses each of the five evaluator questions above
 - Link to rendered Mermaid diagrams on GitHub
 - All six ADRs merged
+
+# Close Notes
+
+Merged as PR #12.
+
+**Deliverables:**
+- Root `README.md` rewritten as a case study — 244 lines (under the 300-line budget):
+  - one-paragraph pitch + "evaluate this repo in ten minutes" checklist
+  - Mermaid C4 Container diagram showing APIs → dlt → raw catalogs → SQLMesh → Dagster → consumers
+  - Mermaid data-flow diagram showing raw → staging → intermediate → marts → analytics → metrics → consumers
+  - "What this demonstrates" table mapping 8 staff-level capabilities to owning tickets and evidence docs
+  - Stack, ADR index, quickstart, backend switch, repo layout, published artifacts, dev loop, license
+  - Badges: CI, Docs, Python 3.12, MIT
+- `docs/adr/` with six ADRs (Nygard format, each <200 lines): DuckDB warehouse, SQLMesh over dbt, single SQLMesh project, per-source raw catalogs, Dagster sole orchestrator, MotherDuck cloud path. `docs/adr/README.md` indexes them.
+- `mkdocs.yml` nav carries Architecture decisions section; strict build clean.
+- `docs/index.md` landing page links ADRs directly.
+- `LICENSE` file (MIT) added — referenced from README license badge.
+
+**Evidence:**
+- PR #12 merged; commit `148fa0a` on main.
+- CI on PR #12: Ruff, mypy, pytest (30 pass), SQLMesh lint, schema-contract gate, Soda contract structure, Build data-dictionary site — all SUCCESS. Deploy correctly SKIPPED on PR (runs only on main push).
+- `uv run mkdocs build --strict` — `Documentation built in 0.39 seconds`, zero warnings.
+- Mermaid diagrams render natively on GitHub (both `graph TB` and `flowchart LR` are GitHub-native fence dialects).
+
+**Residual notes for acceptance review:**
+- Screenshots under `docs/images/` deferred — Dagster asset graph, asset-checks panel, dashboard captures require a live instance running against MotherDuck. Dictionary screenshot is implicitly covered by the live Pages site (https://doctacon.github.io/databox/). Flagship dashboard screenshot depends on the Dive deploy which isn't part of this initiative.
+- `ticket:architecture-docs` originally `depends_on: ticket:observability-pass` — that ticket is separate and not in the staff-portfolio-readiness merge sequence. The ADRs reference the intended observability model (`ADR-0005` covers Dagster asset checks as the quality gate mechanism); if `ticket:observability-pass` later lands changes, the ADRs may need a revision note but not a full rewrite.
+- The five evaluator questions ("what problem", "stack and why", "cross-domain value", "quality enforcement", "run locally") are all answered in the README without jumping to an external file.
