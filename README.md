@@ -166,6 +166,11 @@ See [docs/incremental-loading.md](docs/incremental-loading.md) for the
 per-resource write disposition, primary keys, idempotency guarantee, and
 backfill commands.
 
+See [docs/analytics-examples.md](docs/analytics-examples.md) for example
+queries against the flagship cross-domain mart
+(`analytics.fct_species_environment_daily`) that joins eBird observations
+with NOAA weather and USGS streamflow at species × H3 cell × day grain.
+
 ## License
 
 MIT

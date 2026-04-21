@@ -302,6 +302,10 @@ _soda_checks: list[dg.AssetChecksDefinition] = [
         SODA_DIR / "contracts/analytics/platform_health.yaml",
     ),
     create_soda_asset_check(
+        dg.AssetKey(["sqlmesh", "analytics", "fct_species_environment_daily"]),
+        SODA_DIR / "contracts/analytics/fct_species_environment_daily.yaml",
+    ),
+    create_soda_asset_check(
         dg.AssetKey(["sqlmesh", "usgs_staging", "stg_usgs_daily_values"]),
         SODA_DIR / "contracts/usgs_staging/stg_usgs_daily_values.yaml",
     ),
@@ -345,6 +349,7 @@ _usgs_sqlmesh_keys = [
 _analytics_sqlmesh_keys = [
     dg.AssetKey(["sqlmesh", "analytics", "fct_bird_weather_daily"]),
     dg.AssetKey(["sqlmesh", "analytics", "fct_species_weather_preferences"]),
+    dg.AssetKey(["sqlmesh", "analytics", "fct_species_environment_daily"]),
     dg.AssetKey(["sqlmesh", "analytics", "platform_health"]),
 ]
 

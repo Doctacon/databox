@@ -2,6 +2,9 @@ gateways:
   local:
     connection:
       type: duckdb
+      extensions:
+        - name: h3
+          repository: community
       catalogs:
         databox: "{{ env_var('DUCKDB_PATH', 'data/databox.duckdb') }}"
         raw_ebird: "{{ env_var('RAW_EBIRD_PATH', 'data/raw_ebird.duckdb') }}"
@@ -11,6 +14,9 @@ gateways:
     connection:
       type: motherduck
       token: "{{ env_var('MOTHERDUCK_TOKEN', '') }}"
+      extensions:
+        - name: h3
+          repository: community
       catalogs:
         databox: "md:databox"
         raw_ebird: "md:raw_ebird"
