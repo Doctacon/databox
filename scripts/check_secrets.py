@@ -95,6 +95,13 @@ ALLOWED_VALUES = {
     "os.getenv",
     "settings.",
     "config.",
+    # External secrets-manager reference schemes. These are *pointers* to a
+    # secret, not the secret itself — a 1Password / Vault / AWS / Doppler
+    # backend resolves them at settings-load time. See docs/secrets.md.
+    "op://",
+    "vault://",
+    "aws-secrets://",
+    "doppler://",
 }
 
 

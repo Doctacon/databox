@@ -201,6 +201,7 @@ MOTHERDUCK_TOKEN=<your_token>
 MotherDuck URIs, SQLMesh gateway selection, and the Soda datasource
 are all derived from `DATABOX_BACKEND`. See
 [docs/configuration.md](docs/configuration.md),
+[docs/secrets.md](docs/secrets.md),
 [ADR-0001](docs/adr/0001-duckdb-as-primary-warehouse.md),
 [ADR-0004](docs/adr/0004-per-source-raw-catalogs.md),
 [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md).
