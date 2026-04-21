@@ -176,16 +176,16 @@ changes.
 ```bash
 # Local (default) — file-based DuckDB, zero infra
 DATABOX_BACKEND=local
-DATABOX_GATEWAY=local
 
 # MotherDuck cloud — same SQL, md:* URIs
 DATABOX_BACKEND=motherduck
-DATABOX_GATEWAY=motherduck
 MOTHERDUCK_TOKEN=<your_token>
 ```
 
-`settings.database_path` and `settings.raw_*_path` are computed — they
-resolve to local file paths or `md:` URIs depending on the backend. See
+`databox.config.settings` is the single source of truth: DuckDB paths,
+MotherDuck URIs, SQLMesh gateway selection, and the Soda datasource
+are all derived from `DATABOX_BACKEND`. See
+[docs/configuration.md](docs/configuration.md),
 [ADR-0001](docs/adr/0001-duckdb-as-primary-warehouse.md),
 [ADR-0004](docs/adr/0004-per-source-raw-catalogs.md),
 [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md).

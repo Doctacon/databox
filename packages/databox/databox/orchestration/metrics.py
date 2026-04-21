@@ -21,23 +21,20 @@ all consumers see the new definition immediately.
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
-from pathlib import Path
 
 from sqlmesh import Context
 from sqlmesh.core.metric.rewriter import rewrite as _metric_rewrite
 from sqlmesh.core.reference import ReferenceGraph
 
-TRANSFORMS_PATH = Path(__file__).resolve().parents[4] / "transforms" / "main"
+from databox.config.settings import PROJECT_ROOT, settings
+
+TRANSFORMS_PATH = PROJECT_ROOT / "transforms" / "main"
 
 
 @lru_cache(maxsize=1)
 def _context() -> Context:
-    return Context(
-        paths=[str(TRANSFORMS_PATH)],
-        gateway=os.environ.get("DATABOX_GATEWAY", "local"),
-    )
+    return Context(paths=[str(TRANSFORMS_PATH)], gateway=settings.gateway)
 
 
 def available_metrics() -> list[str]:

@@ -1,6 +1,5 @@
 """Dagster definitions — dlt assets + dagster-sqlmesh integration."""
 
-import os
 import typing as t
 from datetime import timedelta
 from pathlib import Path
@@ -16,9 +15,8 @@ from databox_sources.noaa.source import noaa_source
 from databox_sources.usgs.source import usgs_source
 from sqlglot import exp
 
-from databox.config.settings import settings
+from databox.config.settings import PROJECT_ROOT, settings
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
 MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
 SODA_DIR = PROJECT_ROOT / "soda"
@@ -55,33 +53,15 @@ class DataboxConfig(dg.ConfigurableResource):
     transforms_dir: str = str(TRANSFORMS_DIR)
 
 
-_gateway = "motherduck" if os.getenv("DATABOX_BACKEND") == "motherduck" else "local"
-
-
 def _dlt_destination(db_path: str) -> t.Any:
-    if os.getenv("DATABOX_BACKEND") == "motherduck":
+    if settings.backend == "motherduck":
         return dlt.destinations.motherduck(credentials=db_path)
     return dlt.destinations.duckdb(credentials=db_path)
 
 
-def _days_back(source: str, default: int) -> int:
-    """Read per-source days_back override from env.
-
-    Lets operators backfill a wider window without editing this file, e.g.
-    `DATABOX_EBIRD_DAYS_BACK=90 dagster asset materialize ...`.
-    """
-    raw = os.getenv(f"DATABOX_{source.upper()}_DAYS_BACK")
-    if raw is None:
-        return default
-    try:
-        return int(raw)
-    except ValueError:
-        return default
-
-
 _sqlmesh_config = DataboxSQLMeshContextConfig(
     path=str(MAIN_TRANSFORM_PROJECT),
-    gateway=_gateway,
+    gateway=settings.gateway,
 )
 
 
@@ -108,7 +88,7 @@ def _dlt_translator(raw_schema: str) -> DagsterDltTranslator:
 
 @dlt_assets(
     dlt_source=ebird_source(
-        region_code="US-AZ", max_results=10000, days_back=_days_back("ebird", 30)
+        region_code="US-AZ", max_results=10000, days_back=settings.days_back("ebird")
     ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="ebird_api",
@@ -120,8 +100,10 @@ def _dlt_translator(raw_schema: str) -> DagsterDltTranslator:
     dagster_dlt_translator=_dlt_translator("raw_ebird"),
 )
 def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
-    source = ebird_source(region_code="US-AZ", max_results=10000, days_back=_days_back("ebird", 30))
-    if os.getenv("DATABOX_SMOKE"):
+    source = ebird_source(
+        region_code="US-AZ", max_results=10000, days_back=settings.days_back("ebird")
+    )
+    if settings.smoke:
         source.add_limit(max_items=5)
     yield from dlt.run(context=context, dlt_source=source)
 
@@ -135,7 +117,7 @@ def ebird_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource)
     dlt_source=noaa_source(
         location_id="FIPS:04",
         dataset_id="GHCND",
-        days_back=_days_back("noaa", 30),
+        days_back=settings.days_back("noaa"),
         datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
     ),
     dlt_pipeline=dlt.pipeline(
@@ -151,10 +133,10 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     source = noaa_source(
         location_id="FIPS:04",
         dataset_id="GHCND",
-        days_back=_days_back("noaa", 30),
+        days_back=settings.days_back("noaa"),
         datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
     )
-    if os.getenv("DATABOX_SMOKE"):
+    if settings.smoke:
         source.add_limit(max_items=5)
     yield from dlt.run(context=context, dlt_source=source)
 
@@ -166,7 +148,7 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
 
 @dlt_assets(
     dlt_source=usgs_source(
-        state_cd="AZ", parameter_cds="00060,00065,00010", days_back=_days_back("usgs", 30)
+        state_cd="AZ", parameter_cds="00060,00065,00010", days_back=settings.days_back("usgs")
     ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="usgs_api",
@@ -179,9 +161,9 @@ def noaa_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
 )
 def usgs_dlt_assets(context: dg.AssetExecutionContext, dlt: DagsterDltResource):
     source = usgs_source(
-        state_cd="AZ", parameter_cds="00060,00065,00010", days_back=_days_back("usgs", 30)
+        state_cd="AZ", parameter_cds="00060,00065,00010", days_back=settings.days_back("usgs")
     )
-    if os.getenv("DATABOX_SMOKE"):
+    if settings.smoke:
         source.add_limit(max_items=5)
     yield from dlt.run(context=context, dlt_source=source)
 
@@ -206,13 +188,7 @@ def sqlmesh_project(context: dg.AssetExecutionContext, sqlmesh: SQLMeshResource)
 
 
 def _soda_datasource_yaml() -> str:
-    db_path = os.getenv("DUCKDB_PATH", settings.database_path)
-    return f"""
-name: databox
-type: duckdb
-connection:
-  database: {db_path}
-"""
+    return settings.soda_datasource_yaml
 
 
 def create_soda_asset_check(

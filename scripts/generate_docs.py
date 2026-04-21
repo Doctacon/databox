@@ -117,8 +117,9 @@ def _fmt_check_body(body: Any) -> str:
 
 
 def build_context() -> Context:
-    os.environ.setdefault("DATABOX_GATEWAY", "local")
-    return Context(paths=[str(TRANSFORMS_PATH)], gateway=os.environ["DATABOX_GATEWAY"])
+    from databox.config.settings import settings
+
+    return Context(paths=[str(TRANSFORMS_PATH)], gateway=settings.gateway)
 
 
 def short_name(fqn: str) -> str:

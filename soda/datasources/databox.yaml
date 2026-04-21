@@ -1,7 +1,0 @@
-name: databox
-type: postgres
-host: localhost
-port: 5432
-database: databox
-username: databox
-password: databox

@@ -68,8 +68,6 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: sqlmesh lint
-        env:
-          DATABOX_GATEWAY: local
         run: uv run sqlmesh --paths transforms/main lint
 
   schema-contract-gate:
