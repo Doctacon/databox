@@ -1,199 +1,244 @@
 # Databox
 
 [![CI](https://github.com/Doctacon/databox/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/Doctacon/databox/actions/workflows/ci.yaml)
+[![Docs](https://github.com/Doctacon/databox/actions/workflows/docs.yaml/badge.svg?branch=main)](https://doctacon.github.io/databox/)
+[![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A dataset-agnostic data platform for ingestion, transformation, quality checking, and visualization. Zero-infra local mode (file-based DuckDB) with a one-flag switch to MotherDuck cloud. Orchestrated end-to-end by Dagster.
+A single-operator data platform that ingests three public APIs (eBird,
+NOAA, USGS) into one queryable cross-domain warehouse. Zero always-on
+infra: file-based DuckDB locally, MotherDuck cloud with one environment
+flag. Every layer — ingest, transform, quality, orchestration, semantic
+metrics, data dictionary — is wired end-to-end through the same
+open-source stack.
+
+The project exists to answer one question: *"do species distributions
+shift with same-day weather and streamflow anomalies?"* The platform
+around it exists to answer that question honestly, repeatably, and
+with receipts.
+
+## Evaluate this repo in ten minutes
+
+1. Skim the **System architecture** diagram below.
+2. Skim the **Data flow** diagram below.
+3. Open the **[data dictionary](https://doctacon.github.io/databox/)** —
+   every model, columns, types, Soda checks, lineage.
+4. Read **[ADR-0001 through ADR-0006](docs/adr/)** for the six load-bearing
+   architectural decisions.
+5. Read **[docs/analytics-examples.md](docs/analytics-examples.md)** to see
+   what the cross-domain mart actually answers.
+
+## System architecture
+
+```mermaid
+graph TB
+    subgraph External["External APIs"]
+        ebird_api[eBird API v2]
+        noaa_api[NOAA CDO v2]
+        usgs_api[USGS NWIS]
+    end
+
+    subgraph Ingest["Ingestion · dlt"]
+        ebird_src[ebird source]
+        noaa_src[noaa source]
+        usgs_src[usgs source]
+    end
+
+    subgraph Raw["Raw catalogs · DuckDB / MotherDuck"]
+        raw_ebird[(raw_ebird)]
+        raw_noaa[(raw_noaa)]
+        raw_usgs[(raw_usgs)]
+    end
+
+    subgraph Transform["Transform · SQLMesh"]
+        staging["*_staging views"]
+        marts["ebird / noaa / usgs marts"]
+        analytics["analytics.*  cross-domain marts"]
+        metrics["semantic metrics METRIC()"]
+    end
+
+    subgraph Quality["Quality · Soda Core"]
+        contracts["Soda contracts per model"]
+    end
+
+    subgraph Consumer["Consumers"]
+        dashboard["MotherDuck Dive dashboards"]
+        dict["Data dictionary site (MkDocs)"]
+        notebook["Notebooks via metrics helper"]
+    end
+
+    Orchestrator["Dagster: sole orchestrator<br/>assets · schedules · sensors · asset checks"]
+
+    ebird_api --> ebird_src --> raw_ebird
+    noaa_api --> noaa_src --> raw_noaa
+    usgs_api --> usgs_src --> raw_usgs
+    raw_ebird --> staging
+    raw_noaa --> staging
+    raw_usgs --> staging
+    staging --> marts
+    marts --> analytics
+    analytics --> metrics
+    analytics --> contracts
+    marts --> contracts
+    analytics --> dashboard
+    analytics --> dict
+    metrics --> notebook
+
+    Orchestrator -.materializes.-> ebird_src
+    Orchestrator -.materializes.-> noaa_src
+    Orchestrator -.materializes.-> usgs_src
+    Orchestrator -.materializes.-> staging
+    Orchestrator -.materializes.-> marts
+    Orchestrator -.materializes.-> analytics
+    Orchestrator -.asset-checks.-> contracts
+```
+
+## Data flow
+
+```mermaid
+flowchart LR
+    A[API responses<br/>JSON] -->|dlt incremental| B[raw_*<br/>append-only tables]
+    B -->|SQLMesh stg_* views| C[*_staging<br/>renames + type coercion]
+    C -->|SQLMesh int_* models| D[int_*<br/>H3 cell + day grain]
+    D -->|SQLMesh fct_* / dim_*| E[source marts<br/>ebird / noaa / usgs]
+    E -->|cross-domain joins| F[analytics.fct_species_environment_daily<br/>species × H3 × day]
+    F -->|METRIC DDL| G[semantic metrics<br/>richness · intensity · anomalies]
+    F -->|Soda asset check| H{quality gate}
+    H -->|pass| I[Dive dashboards + notebooks]
+    H -->|fail| J[block downstream · surface in Dagster]
+```
+
+## What this demonstrates
+
+Each claim is backed by a ticket and its evidence, not just prose.
+
+| Capability | How it shows up | Evidence |
+|---|---|---|
+| **Cross-domain modeling** — joining bird, weather, and streamflow at a shared spatial grain | `analytics.fct_species_environment_daily` keyed on `(species_code, h3_cell, obs_date)`, H3 cells resolve spatial joins across domains | [ticket:flagship-cross-domain-mart](.loom/tickets/20260420-7g33iy2i-flagship-cross-domain-mart.md) · [example queries](docs/analytics-examples.md) |
+| **Semantic metrics layer** — one canonical SQL definition per KPI | Seven metrics in `transforms/main/metrics/flagship.sql`, queryable by name via `resolve_metric_query()` | [ticket:semantic-metrics-layer](.loom/tickets/20260420-ah4djnga-semantic-metrics-layer.md) · [metrics docs](docs/metrics.md) · [design record](.loom/research/20260421-semantic-metrics-approach.md) |
+| **Contract-based quality** — every model has a Soda contract gated as a Dagster asset check | `soda/contracts/` + Soda asset checks that block downstream materialization on failure | [ticket:observability-pass](.loom/tickets/20260420-wvp3m9gt-observability-pass.md) · [contracts doc](docs/contracts.md) |
+| **Schema-contract CI gate** — breaking changes to contracts require explicit opt-in | `scripts/schema_gate.py` runs on PRs, blocks column drops / type narrowings without `accept-breaking-change` marker | [ticket:schema-contract-ci](.loom/tickets/20260420-bsha1b91-schema-contract-ci.md) |
+| **Auto-generated data dictionary** — every model's columns, types, checks, and lineage discoverable without cloning | [doctacon.github.io/databox](https://doctacon.github.io/databox/), regenerated from `sqlmesh.Context` + Soda YAML | [ticket:data-dictionary-site](.loom/tickets/20260420-2ikjh1e2-data-dictionary-site.md) |
+| **Idempotent incremental ingest** — reruns do not double-count | `write_disposition='merge'` on the right resources, primary keys declared, documented contract | [ticket:incremental-load-audit](.loom/tickets/20260420-c1ogpdel-incremental-load-audit.md) · [incremental-loading doc](docs/incremental-loading.md) |
+| **Portable local ↔ cloud** — identical SQL, environment-variable switch | `DATABOX_BACKEND=local` vs `=motherduck`; gateways mirror; settings return file paths vs `md:` URIs transparently | [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md) |
+| **Single orchestration surface** — Dagster owns every run, no CLI drift | Every asset (ingest, transform, quality) visible in one DAG; `task` targets are thin wrappers | [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md) |
 
 ## Stack
 
-- **dlt** — Python-native data ingestion with auto-schema detection
-- **sqlmesh** — SQL-based transformations with version control and testing
-- **DuckDB** — Embedded analytical database (local) or MotherDuck (cloud)
-- **Dagster** — Orchestration + unified entrypoint (assets, schedules, lineage, sensors)
-- **Soda Core** — Contract-based data quality checks (run as asset checks)
-- **Streamlit** — Data explorer app
+- **[dlt](https://dlthub.com/)** — Python-native ingestion, auto-schema inference
+- **[SQLMesh](https://sqlmesh.com/)** — SQL transforms with virtual environments, native metrics, column-level change detection (see [ADR-0002](docs/adr/0002-sqlmesh-over-dbt.md))
+- **[DuckDB](https://duckdb.org/)** — embedded analytical warehouse (see [ADR-0001](docs/adr/0001-duckdb-as-primary-warehouse.md))
+- **[MotherDuck](https://motherduck.com/)** — cloud DuckDB for the portfolio deploy (see [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md))
+- **[Dagster](https://dagster.io/)** — sole orchestrator; assets, schedules, sensors, asset checks (see [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md))
+- **[Soda Core](https://www.soda.io/soda-core)** — contract-based quality, run as asset checks
+- **[MkDocs-Material](https://squidfunk.github.io/mkdocs-material/)** — auto-generated data dictionary site
 
-## Quick Start
+## Architectural decisions
+
+Six backfilled ADRs (Nygard format) cover the choices that load-bear on
+the rest of the design. Each one is under 200 lines.
+
+- [ADR-0001](docs/adr/0001-duckdb-as-primary-warehouse.md) — DuckDB as the primary warehouse
+- [ADR-0002](docs/adr/0002-sqlmesh-over-dbt.md) — SQLMesh over dbt
+- [ADR-0003](docs/adr/0003-single-sqlmesh-project.md) — Single SQLMesh project across all sources
+- [ADR-0004](docs/adr/0004-per-source-raw-catalogs.md) — Per-source raw DuckDB catalogs
+- [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md) — Dagster as the sole orchestrator
+- [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md) — MotherDuck as the cloud path
+
+## Quickstart
 
 ```bash
-# Setup
-task setup
+# Install (requires uv)
 task install
 
-# Configure API keys
-cp .env.example .env
-# Edit .env — set EBIRD_API_TOKEN, NOAA_API_TOKEN
+# Configure API keys — EBIRD_API_TOKEN and NOAA_API_TOKEN are free
+cp .env.example .env && $EDITOR .env
 
-# Launch Dagster UI (http://localhost:3000)
-task dagster:dev
-
-# Or materialize everything headless (pipelines + transforms + quality checks)
+# Run everything headlessly (ingest → transform → quality)
 task full-refresh
 
-# Smoke test (limited ingest + last 3 days of transforms)
-task verify
+# Or interactive: Dagster UI at localhost:3000
+task dagster:dev
+
+# Launch the Streamlit data explorer
+task streamlit
 ```
+
+Dagster is the one entrypoint — individual pipeline runs, quality checks,
+schedules, and sensors all happen as assets in the same DAG. See
+[ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md).
 
 ## Backends
 
-Switch between local and cloud via `.env`:
+Flip between local and cloud via environment variables; the SQL never
+changes.
 
 ```bash
-# Local (default) — file-based DuckDB, zero-infra
+# Local (default) — file-based DuckDB, zero infra
 DATABOX_BACKEND=local
 DATABOX_GATEWAY=local
 
-# MotherDuck cloud
+# MotherDuck cloud — same SQL, md:* URIs
 DATABOX_BACKEND=motherduck
 DATABOX_GATEWAY=motherduck
 MOTHERDUCK_TOKEN=<your_token>
 ```
 
-`settings.database_path` and `settings.raw_*_path` are computed — they return `md:*` URIs for MotherDuck or local file paths otherwise.
+`settings.database_path` and `settings.raw_*_path` are computed — they
+resolve to local file paths or `md:` URIs depending on the backend. See
+[ADR-0001](docs/adr/0001-duckdb-as-primary-warehouse.md),
+[ADR-0004](docs/adr/0004-per-source-raw-catalogs.md),
+[ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md).
 
-## Common Tasks
-
-| Task | Description |
-|------|-------------|
-| `task dagster:dev` | Start Dagster UI (asset graph, run logs, schedules) |
-| `task dagster:materialize` | Materialize every asset (full pipeline + transforms + quality) |
-| `task full-refresh` | Alias for `dagster:materialize` |
-| `task verify` | Smoke test: limited ingest + last 3 days of transforms |
-| `task transform:plan` | `sqlmesh plan --auto-apply` in `transforms/main` |
-| `task transform:run` | `sqlmesh run` |
-| `task transform:test` | `sqlmesh test` |
-| `task transform:ui` | SQLMesh UI |
-| `task streamlit` | Launch Streamlit data explorer |
-| `task db:reset` | Delete local DuckDB files |
-
-Everything else (individual pipeline runs, quality checks, scheduling) happens through Dagster assets — one entrypoint, visible lineage, automatic retries.
-
-## Project Structure
+## Repository layout
 
 ```
-databox/
-├── packages/                        # uv workspace monorepo
-│   ├── databox-config/              # Pydantic settings + YAML config loader
-│   ├── databox-sources/             # dlt ingestion + per-source configs
-│   │   └── databox_sources/
-│   │       ├── base.py              # PipelineSource protocol
-│   │       ├── registry.py          # Auto-discovers sources from config.yaml
-│   │       ├── ebird/               # eBird API
-│   │       ├── noaa/                # NOAA CDO API
-│   │       └── usgs/                # USGS NWIS Water Services
-│   ├── databox-orchestration/       # Dagster asset definitions
-│   └── databox-quality/             # Soda contract runner
-├── transforms/
-│   └── main/                        # Unified SQLMesh project (duckdb dialect)
-│       ├── config.yaml              # local + motherduck gateways
-│       └── models/
-│           ├── ebird/               # staging → intermediate → marts
-│           ├── noaa/                # staging → marts
-│           ├── usgs/                # staging → marts
-│           └── analytics/           # cross-domain (bird + weather + streams)
-├── soda/
-│   ├── datasources/                 # DuckDB/MotherDuck connection config
-│   └── contracts/                   # Data quality contracts per schema layer
-├── app/                             # Streamlit data explorer
-├── data/                            # DuckDB files (gitignored)
-│   ├── databox.duckdb               # Transformed marts catalog
-│   ├── raw_ebird.duckdb             # dlt landing zone (parallelized per source)
-│   ├── raw_noaa.duckdb
-│   └── raw_usgs.duckdb
-└── scripts/                         # Utility scripts
+packages/                  # uv workspace
+├── databox-config/        # Pydantic settings, YAML loader
+├── databox-sources/       # dlt ingestion + per-source configs
+├── databox-orchestration/ # Dagster assets + semantic metrics helper
+└── databox-quality/       # Soda contract runner
+
+transforms/main/           # Unified SQLMesh project (ADR-0003)
+├── config.yaml            # local + motherduck gateways
+├── metrics/               # semantic metrics registry
+└── models/
+    ├── ebird/  noaa/  usgs/   # staging → intermediate → marts
+    └── analytics/             # cross-domain marts
+
+soda/contracts/            # One Soda contract per SQLMesh model
+
+docs/
+├── adr/                   # 6 backfilled ADRs
+├── dictionary/            # Auto-generated by scripts/generate_docs.py
+└── {metrics,contracts,...}.md
+
+scripts/
+├── generate_docs.py       # Data-dictionary generator
+└── schema_gate.py         # CI breaking-change gate
+
+data/                      # DuckDB files (gitignored)
 ```
 
-### Schema Layering
+## Published artifacts
 
-```
-raw_ebird / raw_noaa / raw_usgs        ← dlt loads (untouched API data)
-ebird_staging / noaa_staging / usgs_staging  ← SQLMesh stg_* views (renames only)
-ebird / noaa / usgs                    ← SQLMesh marts (fct_* / dim_*)
-analytics                              ← cross-domain marts
-```
-
-Raw catalogs are split per-source DuckDB files so dlt can load in parallel.
-
-## Data Sources
-
-### eBird
-- **API**: eBird API v2 (free, requires token)
-- **Resources**: recent_observations, notable_observations, species_list, hotspots, taxonomy, region_stats
-- **Transforms**: `raw_ebird` → `ebird_staging` → intermediate → `ebird.*` marts + `analytics` cross-domain
-
-### NOAA CDO
-- **API**: NOAA Climate Data Online v2 (free, requires token)
-- **Resources**: daily_weather (TMAX/TMIN/PRCP/SNOW/AWND), stations, datasets
-- **Transforms**: `raw_noaa` → `noaa_staging` → `noaa.fct_daily_weather`
-
-### USGS Water Services
-- **API**: NWIS Daily Values (no API key required)
-- **Resources**: daily_values (discharge/gage height/water temp), sites
-- **Transforms**: `raw_usgs` → `usgs_staging` → `usgs.fct_daily_streamflow`
-
-## Adding a New Data Source
-
-1. Create `packages/databox-sources/databox_sources/<source>/`
-   - `source.py` — dlt source with `@dlt.source`/`@dlt.resource`, implements `PipelineSource`, exposes `create_pipeline(config)` factory
-   - `config.yaml` — source module, schedule, params, quality rules
-
-2. Add transform models at `transforms/main/models/<source>/`
-   - Read from `raw_<source>.*` (auto-created by dlt)
-   - Staging → `<source>_staging.*`, marts → `<source>.*`
-
-3. Add Soda contracts at `soda/contracts/<source>_staging/` and `soda/contracts/<source>/`
-
-4. Add secret to `.env`: `<SOURCE>_API_TOKEN=your_key_here`
-
-No orchestration wiring needed — Dagster auto-discovers from the source registry.
+- **Data dictionary + lineage:** https://doctacon.github.io/databox/ — regenerates on every push to `main`
+- **[docs/metrics.md](docs/metrics.md)** — semantic metrics registry and `resolve_metric_query` helper
+- **[docs/analytics-examples.md](docs/analytics-examples.md)** — representative queries against the flagship mart
+- **[docs/contracts.md](docs/contracts.md)** — Soda contract conventions + schema-contract gate escape hatch
+- **[docs/incremental-loading.md](docs/incremental-loading.md)** — per-resource write disposition, keys, backfill
 
 ## Development
 
 ```bash
-task install        # Install dependencies
-task verify         # Smoke test via Dagster
-task lint           # Ruff lint
-task format         # Ruff format
-task typecheck      # mypy
-task test           # pytest
+task install         # Install dependencies (uv sync)
+task verify          # Smoke test via Dagster
+task lint            # Ruff lint
+task format          # Ruff format
+task typecheck       # mypy
+task test            # pytest
 ```
-
-See [docs/contracts.md](docs/contracts.md) for the schema-contract gate and the
-`accept-breaking-change` escape hatch used on PRs that intentionally break
-downstream consumers.
-
-See [docs/incremental-loading.md](docs/incremental-loading.md) for the
-per-resource write disposition, primary keys, idempotency guarantee, and
-backfill commands.
-
-See [docs/analytics-examples.md](docs/analytics-examples.md) for example
-queries against the flagship cross-domain mart
-(`analytics.fct_species_environment_daily`) that joins eBird observations
-with NOAA weather and USGS streamflow at species × H3 cell × day grain.
-
-See [docs/metrics.md](docs/metrics.md) for the semantic metrics layer —
-seven metrics (species richness, observation intensity, heat-stress index,
-rainfall/discharge anomaly z-scores, raw observation/checklist counts)
-defined once in SQLMesh and queryable by name via
-`databox_orchestration.metrics.resolve_metric_query`.
-
-## Data dictionary
-
-Auto-generated data dictionary + lineage site published via GitHub Pages:
-**https://doctacon.github.io/databox/**
-
-Every SQLMesh model has a page listing its columns, types, Soda-contract
-checks, and direct upstream/downstream dependencies. A global Mermaid
-lineage graph links every node back to its page. Regenerate locally with:
-
-```bash
-uv run python scripts/generate_docs.py
-uv run mkdocs serve   # live preview at localhost:8000
-```
-
-The `.github/workflows/docs.yaml` workflow rebuilds and deploys on every
-push to `main`.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
