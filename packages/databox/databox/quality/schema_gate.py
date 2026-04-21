@@ -43,7 +43,7 @@ class Report:
         return bool(self.breaking)
 
 
-def _parse_type(s: str | None) -> exp.DataType.Type | None:
+def _parse_type(s: str | None) -> Any:
     if not s:
         return None
     try:
