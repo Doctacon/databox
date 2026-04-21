@@ -1,0 +1,8 @@
+source_module: "databox_sources.{{ name }}.source"
+description: "TODO: describe the {{ name_title }} database source"
+schedule:
+  cron: "0 6 * * *"
+  enabled: false
+params:
+  dsn_env: "DATABASE_URL_{{ name_upper }}"
+quality_rules: []
