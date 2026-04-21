@@ -1,0 +1,35 @@
+dataset: databox/usgs_earthquakes/fct_daily_earthquakes
+description: Daily earthquake summary — one row per UTC day, counts and magnitude stats
+
+columns:
+  - name: event_date
+    data_type: DATE
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: event_count
+    data_type: BIGINT
+    checks:
+      - missing:
+          must_be: 0
+  - name: max_magnitude
+    data_type: DOUBLE
+  - name: avg_magnitude
+    data_type: DOUBLE
+  - name: max_significance
+    data_type: BIGINT
+  - name: tsunami_alert_count
+    data_type: BIGINT
+  - name: last_updated_at
+    data_type: TIMESTAMP
+
+checks:
+  - row_count:
+      must_be_greater_than: 0
+  - freshness:
+      column: last_updated_at
+      threshold:
+        unit: hour
+        must_be_less_than: 25

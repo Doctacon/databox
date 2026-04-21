@@ -16,7 +16,7 @@ from databox.orchestration._factories import (
     freshness_violation_sensor,
     sqlmesh_project,
 )
-from databox.orchestration.domains import analytics, ebird, noaa, usgs
+from databox.orchestration.domains import analytics, ebird, noaa, usgs, usgs_earthquakes
 
 all_pipelines = dg.define_asset_job(
     name="all_pipelines",
@@ -24,9 +24,11 @@ all_pipelines = dg.define_asset_job(
         *ebird.dlt_asset_keys,
         *noaa.dlt_asset_keys,
         *usgs.dlt_asset_keys,
+        *usgs_earthquakes.dlt_asset_keys,
         *ebird.sqlmesh_asset_keys,
         *noaa.sqlmesh_asset_keys,
         *usgs.sqlmesh_asset_keys,
+        *usgs_earthquakes.sqlmesh_asset_keys,
         *analytics.sqlmesh_asset_keys,
     ),
 )
@@ -36,6 +38,7 @@ defs = dg.Definitions(
         ebird.ebird_dlt_assets,
         noaa.noaa_dlt_assets,
         usgs.usgs_dlt_assets,
+        usgs_earthquakes.usgs_earthquakes_dlt_assets,
         sqlmesh_project,
         analytics.mart_cost_summary,
     ],
@@ -43,16 +46,24 @@ defs = dg.Definitions(
         *ebird.asset_checks,
         *noaa.asset_checks,
         *usgs.asset_checks,
+        *usgs_earthquakes.asset_checks,
         *analytics.asset_checks,
     ],
     jobs=[
         ebird.daily_pipeline,
         noaa.daily_pipeline,
         usgs.daily_pipeline,
+        usgs_earthquakes.daily_pipeline,
         analytics.cost_pipeline,
         all_pipelines,
     ],
-    schedules=[ebird.schedule, noaa.schedule, usgs.schedule, analytics.cost_schedule],
+    schedules=[
+        ebird.schedule,
+        noaa.schedule,
+        usgs.schedule,
+        usgs_earthquakes.schedule,
+        analytics.cost_schedule,
+    ],
     sensors=[freshness_violation_sensor],
     resources={
         "databox_config": DataboxConfig(),

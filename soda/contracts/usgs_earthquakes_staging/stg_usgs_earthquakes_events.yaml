@@ -1,0 +1,49 @@
+dataset: databox/usgs_earthquakes_staging/stg_usgs_earthquakes_events
+source_table: raw_usgs_earthquakes.main.events
+description: Staging model for USGS earthquake events (rolling 24h feed)
+
+columns:
+  - name: id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: magnitude
+    data_type: DOUBLE
+  - name: magnitude_type
+  - name: place
+  - name: title
+  - name: event_time
+    data_type: TIMESTAMP
+    checks:
+      - missing:
+          must_be: 0
+  - name: event_updated_at
+    data_type: TIMESTAMP
+  - name: longitude
+    data_type: DOUBLE
+  - name: latitude
+    data_type: DOUBLE
+  - name: depth_km
+    data_type: DOUBLE
+  - name: status
+  - name: tsunami_flag
+    data_type: BIGINT
+  - name: significance
+    data_type: BIGINT
+  - name: event_type
+  - name: alert
+  - name: url
+  - name: loaded_at
+    source_column: _loaded_at
+    data_type: TIMESTAMP
+
+checks:
+  - row_count:
+      must_be_greater_than: 0
+  - freshness:
+      column: loaded_at
+      threshold:
+        unit: hour
+        must_be_less_than: 36

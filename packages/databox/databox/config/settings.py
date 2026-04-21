@@ -64,6 +64,14 @@ class DataboxSettings(BaseSettings):
     def raw_usgs_path(self) -> str:
         return "md:raw_usgs" if self.backend == "motherduck" else str(DATA_DIR / "raw_usgs.duckdb")
 
+    @property
+    def raw_usgs_earthquakes_path(self) -> str:
+        return (
+            "md:raw_usgs_earthquakes"
+            if self.backend == "motherduck"
+            else str(DATA_DIR / "raw_usgs_earthquakes.duckdb")
+        )
+
     def days_back(self, source: str) -> int:
         return int(getattr(self, f"{source}_days_back"))
 
@@ -95,6 +103,7 @@ class DataboxSettings(BaseSettings):
                     "raw_ebird": str(DATA_DIR / "raw_ebird.duckdb"),
                     "raw_noaa": str(DATA_DIR / "raw_noaa.duckdb"),
                     "raw_usgs": str(DATA_DIR / "raw_usgs.duckdb"),
+                    "raw_usgs_earthquakes": str(DATA_DIR / "raw_usgs_earthquakes.duckdb"),
                 },
                 extensions=extensions,
             )
@@ -108,6 +117,7 @@ class DataboxSettings(BaseSettings):
                     "raw_ebird": "md:raw_ebird",
                     "raw_noaa": "md:raw_noaa",
                     "raw_usgs": "md:raw_usgs",
+                    "raw_usgs_earthquakes": "md:raw_usgs_earthquakes",
                 },
                 extensions=extensions,
             )

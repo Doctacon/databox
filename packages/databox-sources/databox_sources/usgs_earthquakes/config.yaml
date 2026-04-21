@@ -1,0 +1,7 @@
+source_module: "databox_sources.usgs_earthquakes.source"
+description: "TODO: describe the Usgs_Earthquakes data source"
+schedule:
+  cron: "0 6 * * *"
+  enabled: false
+params: {}
+quality_rules: []
