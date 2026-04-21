@@ -1,0 +1,14 @@
+-- Generated from {{ contract_path }} by scripts/generate_staging.py.
+-- DO NOT EDIT by hand — run `task staging:generate` to regenerate.
+MODEL (
+  name {{ schema }}.{{ table }},
+  kind FULL,
+  description '{{ description }}',
+  grants (select_ = ['staging_reader'])
+);
+
+SELECT
+{%- for c in columns %}
+    {% if c.data_type %}{{ c.source_column }}::{{ c.data_type }} AS {{ c.name }}{% elif c.source_column != c.name %}{{ c.source_column }} AS {{ c.name }}{% else %}{{ c.name }}{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+FROM {{ source_table }}

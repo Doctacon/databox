@@ -1,21 +1,41 @@
 dataset: databox/noaa_staging/stg_noaa_stations
+source_table: raw_noaa.main.stations
+description: Staging model for NOAA weather stations
 
 columns:
   - name: station_id
+    source_column: id
     checks:
       - missing:
           must_be: 0
       - duplicate:
           must_be: 0
   - name: station_name
+    source_column: name
     checks:
       - missing:
           must_be: 0
   - name: latitude
+    data_type: DOUBLE
   - name: longitude
+    data_type: DOUBLE
   - name: elevation
+    data_type: DOUBLE
+  - name: elevation_unit
   - name: min_date
+    source_column: mindate
+    data_type: DATE
   - name: max_date
+    source_column: maxdate
+    data_type: DATE
+  - name: data_coverage
+    source_column: datacoverage
+    data_type: DOUBLE
+  - name: location_id
+    source_column: _location_id
+  - name: loaded_at
+    source_column: _loaded_at
+    data_type: TIMESTAMP
 
 checks:
   - row_count:

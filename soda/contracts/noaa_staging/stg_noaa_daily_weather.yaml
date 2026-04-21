@@ -1,11 +1,11 @@
 dataset: databox/noaa_staging/stg_noaa_daily_weather
+source_table: raw_noaa.main.daily_weather
+description: Staging model for NOAA daily weather observations
 
 columns:
-  - name: station
-    checks:
-      - missing:
-          must_be: 0
   - name: observation_date
+    source_column: date
+    data_type: DATE
     checks:
       - missing:
           must_be: 0
@@ -13,7 +13,19 @@ columns:
     checks:
       - missing:
           must_be: 0
+  - name: station
+    checks:
+      - missing:
+          must_be: 0
   - name: value
+    data_type: DOUBLE
+  - name: attributes
+  - name: source
+  - name: location_id
+    source_column: _location_id
+  - name: loaded_at
+    source_column: _loaded_at
+    data_type: TIMESTAMP
 
 checks:
   - row_count:

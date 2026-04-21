@@ -1,22 +1,41 @@
 dataset: databox/ebird_staging/stg_ebird_hotspots
+source_table: raw_ebird.main.hotspots
+description: Staging model for eBird birding hotspots
 
 columns:
   - name: location_id
+    source_column: loc_id
     checks:
       - missing:
           must_be: 0
       - duplicate:
           must_be: 0
   - name: location_name
+    source_column: loc_name
     checks:
       - missing:
           must_be: 0
   - name: country_code
   - name: state_code
+    source_column: subnational1_code
+  - name: county_code
+    source_column: subnational2_code
   - name: latitude
+    source_column: lat
+    data_type: DOUBLE
   - name: longitude
-  - name: total_species_count
+    source_column: lng
+    data_type: DOUBLE
   - name: latest_observation_datetime
+    source_column: latest_obs_dt
+    data_type: TIMESTAMP
+  - name: total_species_count
+    source_column: num_species_all_time
+  - name: region_code
+    source_column: _region_code
+  - name: loaded_at
+    source_column: _loaded_at
+    data_type: TIMESTAMP
 
 checks:
   - row_count:
