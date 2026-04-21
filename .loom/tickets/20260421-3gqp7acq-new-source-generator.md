@@ -1,9 +1,9 @@
 ---
 id: ticket:new-source-generator
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -79,3 +79,7 @@ At 20 sources, whether the generator exists is the difference between onboarding
 - Demo PR generating a throwaway source, showing green `source-layout-lint` job on a scaffolded-skip PR
 - Screenshot of the printed next-steps list
 - `docs/new-source.md` rendered in deployed docs site
+
+# Close Notes
+
+Verified on main 2026-04-21: `scripts/new_source.py` present, `task new-source` target wired, `docs/new-source.md` published. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.

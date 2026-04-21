@@ -1,9 +1,9 @@
 ---
 id: ticket:schema-gate-library-refactor
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -63,3 +63,7 @@ A 288-line script is also a load-bearing thing that nobody wants to touch. Shrin
 - Before/after line count (288 → ≤80)
 - Three CI runs linked: additive (green), breaking (red), breaking + escape-hatch (green)
 - Unit-test count delta and which edge cases are covered
+
+# Close Notes
+
+Verified on main 2026-04-21: `scripts/schema_gate.py` is 54 lines (target ≤80, met). CI `schema-contract-gate` job active. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.

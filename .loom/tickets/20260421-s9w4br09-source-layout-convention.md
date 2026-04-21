@@ -1,9 +1,9 @@
 ---
 id: ticket:source-layout-convention
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -73,3 +73,7 @@ A lint script gives the convention teeth. It also doubles as the spec for `ticke
 - Lint output on the current tree (clean)
 - Lint output on a deliberately-broken branch (drops a Soda contract — clear error message)
 - `docs/source-layout.md` rendered in deployed docs site
+
+# Close Notes
+
+Verified on main 2026-04-21: `scripts/check_source_layout.py` present, `docs/source-layout.md` published, `task check:layout` wired, CI source-layout-lint job active. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.

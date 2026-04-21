@@ -63,3 +63,14 @@ A forker reading a ≤100-line Taskfile sees: "these are the composed workflows 
 - Before/after line count
 - `task --list` output in PR description
 - `docs/commands.md` rendered in deployed docs site
+
+# Work Log
+
+## 2026-04-21 — Partial progress noted during ledger audit
+
+- Current `Taskfile.yaml`: 163 lines (was 224). Some trim landed incidentally across other scaffold-polish tickets.
+- Target ≤100 still unmet — 63 lines over.
+- `docs/commands.md` exists (81 lines).
+- Remaining work: classify the ~12 targets still present, delete the pure wrappers, push remainder into `docs/commands.md`.
+
+This ticket stays `ready` — strict acceptance not met; real outstanding scaffold-polish deliverable.

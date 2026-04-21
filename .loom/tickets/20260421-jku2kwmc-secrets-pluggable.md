@@ -1,9 +1,9 @@
 ---
 id: ticket:secrets-pluggable
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -63,3 +63,7 @@ The answer is already latent: Pydantic settings classes accept custom secrets so
 - Rendered `docs/secrets.md` in the deployed site
 - Working `examples/secrets/one_password_source.py` that can be wired into `Settings` with minimal modification
 - `scripts/check_secrets.py` passes against a file containing `op://` and `vault://` references (demonstrating allowlist works)
+
+# Close Notes
+
+Verified on main 2026-04-21: `docs/secrets.md` published, `examples/secrets/one_password_source.py` present, README + CLAUDE.md reference it. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.

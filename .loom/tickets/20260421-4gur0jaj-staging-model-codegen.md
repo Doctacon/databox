@@ -1,9 +1,9 @@
 ---
 id: ticket:staging-model-codegen
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -64,3 +64,7 @@ Soda contracts already encode source → target column mappings and types. Gener
 - Diff showing 7 hand-written `stg_*.sql` replaced by generated files with header comment
 - CI check demonstrating drift detection works (PR that hand-edits a generated file fails)
 - Full-refresh run on both backends (local + motherduck) green
+
+# Close Notes
+
+Verified on main 2026-04-21: `scripts/generate_staging.py` present, `task staging:generate` target wired, `docs/staging.md` published. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.

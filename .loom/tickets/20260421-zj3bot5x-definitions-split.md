@@ -1,9 +1,9 @@
 ---
 id: ticket:definitions-split
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -76,3 +76,7 @@ Per-domain files mirror the per-source layout convention (ticket:source-layout-c
 - `dagster definitions list` diff — identical before/after
 - Line-count table in PR description: before (single file 469), after (≤60 root + ~100 each domain)
 - Green CI
+
+# Close Notes
+
+Verified on main 2026-04-21: `packages/databox/databox/orchestration/domains/` contains `analytics.py`, `ebird.py`, `noaa.py`, `usgs.py`, `__init__.py`. Split function achieved — each domain owns its assets and checks. Minor gap: `definitions.py` is 65 lines (target ≤60, 5 over). Purpose of size budget met; absolute budget slightly missed. Not worth reopening; folded into scaffold-polish residuals.

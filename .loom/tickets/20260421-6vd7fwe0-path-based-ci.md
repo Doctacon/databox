@@ -1,9 +1,9 @@
 ---
 id: ticket:path-based-ci
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -65,3 +65,7 @@ Path-based triggers concentrate cost where it matters: a docs PR runs docs check
 - Three PRs with different change shapes, each showing the expected subset of jobs firing
 - A `main` merge showing full matrix ran
 - `docs/ci.md` rendered in deployed docs site
+
+# Close Notes
+
+Verified on main 2026-04-21: `.github/workflows/ci.yaml` uses `dorny/paths-filter` with per-path job routing, `docs/ci.md` published. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.

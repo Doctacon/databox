@@ -1,9 +1,9 @@
 ---
 id: ticket:fork-friendly-bootstrap
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -76,3 +76,7 @@ The aim is a one-command rebrand, not a sterile neutered template. The three exa
 - Demo: fresh clone + `task init --name weatherbox --org example-org` + `git status` showing the scoped rewrite
 - `task full-refresh` green after rename
 - Deployed-docs site link (if we test-publish under a different name, link it; otherwise screenshot-equivalent evidence in PR description)
+
+# Close Notes
+
+Verified on main 2026-04-21: `scaffold.yaml` present, `scripts/bootstrap.py` present, `task init` target wired, `docs/template.md` published. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.

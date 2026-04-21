@@ -1,9 +1,9 @@
 ---
 id: ticket:collapse-packages
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -74,3 +74,7 @@ Collapsing into `databox/{config,quality,orchestration}/` with `databox-sources`
 - `git log --stat` showing file moves, not copy-then-delete
 - CI green on the PR
 - Post-merge: `find packages -name pyproject.toml` shows exactly two (`databox/`, `databox-sources/`)
+
+# Close Notes
+
+Verified on main 2026-04-21: `packages/` contains only `databox/` + `databox-sources/`. No `databox-config/`, `databox-quality/`, `databox-orchestration/` top-level packages. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.

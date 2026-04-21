@@ -1,9 +1,9 @@
 ---
 id: ticket:example-metrics-notebook
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -70,3 +70,7 @@ Also: the deployed dashboard (Dive) is a different class of consumer — a visua
 - Rendered notebook HTML linked from the deployed docs site
 - CI `notebooks` job run showing clean execution on both backends
 - The three charts inline in the ticket close-out (or linked in the PR description)
+
+# Close Notes
+
+Verified on main 2026-04-21: `notebooks/metrics_demo.ipynb` present, `docs/examples/metrics-demo/` rendered, docs site links active. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.

@@ -1,9 +1,9 @@
 ---
 id: ticket:dev-prod-envs
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T19:30:00Z
 scope:
   kind: workspace
 links:
@@ -73,3 +73,7 @@ That flow needs documenting, task targets, and an integration with the schema-co
 - A PR that edits a mart, runs `task plan:dev`, `task verify:dev`, and `task plan:prod` — linked in the ticket close-out
 - `docs/environments.md` rendered in deployed docs site
 - CI run showing the gate correctly uses dev-plan semantics
+
+# Close Notes
+
+Verified on main 2026-04-21: `docs/environments.md` published, `task plan:dev`, `task plan:prod`, `task verify:dev`, `task promote` targets wired. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.
