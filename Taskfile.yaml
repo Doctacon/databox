@@ -55,6 +55,12 @@ tasks:
     cmds:
       - python scripts/check_source_layout.py
 
+  init:
+    desc: "Rebrand a fresh fork — rewrite project identity from scaffold.yaml (see docs/template.md)"
+    deps: [install]
+    cmds:
+      - python scripts/bootstrap.py {{.CLI_ARGS}}
+
   full-refresh:
     desc: "Run every dlt source + SQLMesh + every Soda check through Dagster"
     deps: [install]
