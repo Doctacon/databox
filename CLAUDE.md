@@ -65,15 +65,16 @@ databox status                            # Show pipeline status & freshness
 
 ### Task
 ```bash
-task setup                    # Setup environment
-task install                  # Install dependencies
-task pipeline:list            # List pipelines
-task pipeline:run -- ebird    # Run a pipeline
-task transform:plan           # SQLMesh plan
-task transform:run            # SQLMesh run
-task full-refresh             # Run everything
+task setup                    # Create .venv + bootstrap .env
+task install                  # uv sync + pre-commit hook install
+task full-refresh             # Dagster: all dlt + SQLMesh + Soda
+task verify                   # Smoke full-refresh (DATABOX_SMOKE=1)
+task ci                       # Ruff + mypy + pytest + secret scan
+task dagster:dev              # Launch Dagster UI
 task streamlit                # Launch data explorer
 ```
+
+Raw SQLMesh / Dagster / pytest invocations: [docs/commands.md](docs/commands.md).
 
 ## Data Sources
 
