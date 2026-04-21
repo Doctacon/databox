@@ -1,24 +1,12 @@
-"""Unit tests for scripts/schema_gate.py classifier.
+"""Unit tests for databox.quality.schema_gate classifier.
 
-These tests exercise the diff classifier in isolation — no git, no file I/O.
+Exercises the diff classifier in isolation — no git, no file I/O.
 CI covers the end-to-end path with a real `origin/main` base ref.
 """
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
-
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "schema_gate.py"
-spec = importlib.util.spec_from_file_location("schema_gate", SCRIPT)
-schema_gate = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-assert spec and spec.loader
-sys.modules["schema_gate"] = schema_gate
-spec.loader.exec_module(schema_gate)  # type: ignore[union-attr]
-
-diff = schema_gate.diff
-acknowledgements = schema_gate.acknowledgements
+from databox.quality.schema_gate import acknowledgements, diff, widens
 
 
 def _contract(dataset: str, columns: list[dict[str, object]]) -> str:
@@ -77,6 +65,31 @@ def test_narrow_type_is_breaking() -> None:
     assert report.breaking[0].kind == "type_narrowed"
 
 
+def test_int_to_float_is_additive() -> None:
+    # New edge case — covered by sqlglot's NUMERIC_TYPES superset
+    base = {"c.yaml": _contract("x.y", [{"name": "a", "data_type": "int"}])}
+    head = {"c.yaml": _contract("x.y", [{"name": "a", "data_type": "double"}])}
+    assert not diff(base, head).has_breaking
+
+
+def test_date_to_timestamp_is_additive() -> None:
+    base = {"c.yaml": _contract("x.y", [{"name": "a", "data_type": "date"}])}
+    head = {"c.yaml": _contract("x.y", [{"name": "a", "data_type": "timestamp"}])}
+    assert not diff(base, head).has_breaking
+
+
+def test_timestamp_to_date_is_breaking() -> None:
+    base = {"c.yaml": _contract("x.y", [{"name": "a", "data_type": "timestamp"}])}
+    head = {"c.yaml": _contract("x.y", [{"name": "a", "data_type": "date"}])}
+    assert diff(base, head).has_breaking
+
+
+def test_varchar_to_text_is_additive() -> None:
+    base = {"c.yaml": _contract("x.y", [{"name": "a", "data_type": "varchar"}])}
+    head = {"c.yaml": _contract("x.y", [{"name": "a", "data_type": "text"}])}
+    assert not diff(base, head).has_breaking
+
+
 def test_add_model_is_additive() -> None:
     base: dict[str, str] = {}
     head = {"c.yaml": _contract("x.y", [{"name": "a"}])}
@@ -109,12 +122,28 @@ def test_no_changes_is_clean() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# widens() directly
+# --------------------------------------------------------------------------- #
+
+
+def test_widens_unknown_types_fail_closed() -> None:
+    # Unknown type on either side → treat as narrowing (fail closed)
+    assert not widens("definitely_not_a_type", "int")
+    assert not widens("int", "also_bogus")
+
+
+def test_widens_same_string_is_identity() -> None:
+    assert widens("int", "int")
+    assert widens("INT", "int")  # case-insensitive
+
+
+# --------------------------------------------------------------------------- #
 # acknowledgement parsing
 # --------------------------------------------------------------------------- #
 
 
 def test_ack_from_env_only() -> None:
-    assert acknowledgements(pr_body=None, env_override="a.b, c.d") == {"a.b", "c.d"}
+    assert acknowledgements(pr_body=None, env="a.b, c.d") == {"a.b", "c.d"}
 
 
 def test_ack_from_pr_body_single() -> None:
