@@ -13,10 +13,8 @@ resolution-markers = [
 [manifest]
 members = [
     "databox",
-    "databox-config",
-    "databox-orchestration",
-    "databox-quality",
     "databox-sources",
+    "databox-workspace",
 ]
 
 [[package]]
@@ -431,11 +429,65 @@ wheels = [
 [[package]]
 name = "databox"
 version = "0.2.0"
+source = { editable = "packages/databox" }
+dependencies = [
+    { name = "dagster" },
+    { name = "dagster-dlt" },
+    { name = "dagster-sqlmesh" },
+    { name = "dagster-webserver" },
+    { name = "databox-sources" },
+    { name = "dlt", extra = ["duckdb"] },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "python-dotenv" },
+    { name = "pyyaml" },
+    { name = "soda-duckdb" },
+    { name = "sqlmesh" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dagster", specifier = ">=1.5.0" },
+    { name = "dagster-dlt", specifier = ">=0.1.0" },
+    { name = "dagster-sqlmesh", git = "https://github.com/Doctacon/dagster-sqlmesh.git" },
+    { name = "dagster-webserver", specifier = ">=1.5.0" },
+    { name = "databox-sources", editable = "packages/databox-sources" },
+    { name = "dlt", extras = ["duckdb"], specifier = ">=1.14.1" },
+    { name = "pydantic", specifier = ">=2.10.4" },
+    { name = "pydantic-settings", specifier = ">=2.13.0" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "soda-duckdb", specifier = ">=3.0.0" },
+    { name = "sqlmesh", specifier = ">=0.204.0" },
+]
+
+[[package]]
+name = "databox-sources"
+version = "0.2.0"
+source = { editable = "packages/databox-sources" }
+dependencies = [
+    { name = "databox" },
+    { name = "dlt", extra = ["duckdb"] },
+    { name = "pendulum" },
+    { name = "requests" },
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "databox", editable = "packages/databox" },
+    { name = "dlt", extras = ["duckdb"], specifier = ">=1.14.1" },
+    { name = "pendulum", specifier = ">=3.0.0" },
+    { name = "requests", specifier = ">=2.32.3" },
+    { name = "structlog", specifier = ">=24.1.0" },
+]
+
+[[package]]
+name = "databox-workspace"
+version = "0.2.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "databox-config" },
-    { name = "databox-orchestration" },
-    { name = "databox-quality" },
+    { name = "databox" },
     { name = "databox-sources" },
 ]
 
@@ -458,9 +510,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "databox-config", editable = "packages/databox-config" },
-    { name = "databox-orchestration", editable = "packages/databox-orchestration" },
-    { name = "databox-quality", editable = "packages/databox-quality" },
+    { name = "databox", editable = "packages/databox" },
     { name = "databox-sources", editable = "packages/databox-sources" },
 ]
 
@@ -479,88 +529,6 @@ dev = [
     { name = "ruff", specifier = ">=0.12.5" },
     { name = "syrupy", specifier = ">=4.0" },
     { name = "types-pyyaml", specifier = ">=6.0" },
-]
-
-[[package]]
-name = "databox-config"
-version = "0.2.0"
-source = { editable = "packages/databox-config" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "python-dotenv" },
-    { name = "pyyaml" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pydantic", specifier = ">=2.10.4" },
-    { name = "pydantic-settings", specifier = ">=2.13.0" },
-    { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "pyyaml", specifier = ">=6.0" },
-]
-
-[[package]]
-name = "databox-orchestration"
-version = "0.2.0"
-source = { editable = "packages/databox-orchestration" }
-dependencies = [
-    { name = "dagster" },
-    { name = "dagster-dlt" },
-    { name = "dagster-sqlmesh" },
-    { name = "dagster-webserver" },
-    { name = "databox-config" },
-    { name = "databox-sources" },
-    { name = "dlt", extra = ["duckdb"] },
-    { name = "sqlmesh" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "dagster", specifier = ">=1.5.0" },
-    { name = "dagster-dlt", specifier = ">=0.1.0" },
-    { name = "dagster-sqlmesh", git = "https://github.com/Doctacon/dagster-sqlmesh.git" },
-    { name = "dagster-webserver", specifier = ">=1.5.0" },
-    { name = "databox-config", editable = "packages/databox-config" },
-    { name = "databox-sources", editable = "packages/databox-sources" },
-    { name = "dlt", extras = ["duckdb"], specifier = ">=1.14.1" },
-    { name = "sqlmesh", specifier = ">=0.204.0" },
-]
-
-[[package]]
-name = "databox-quality"
-version = "0.2.0"
-source = { editable = "packages/databox-quality" }
-dependencies = [
-    { name = "databox-config" },
-    { name = "soda-duckdb" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "databox-config", editable = "packages/databox-config" },
-    { name = "soda-duckdb", specifier = ">=3.0.0" },
-]
-
-[[package]]
-name = "databox-sources"
-version = "0.2.0"
-source = { editable = "packages/databox-sources" }
-dependencies = [
-    { name = "databox-config" },
-    { name = "dlt", extra = ["duckdb"] },
-    { name = "pendulum" },
-    { name = "requests" },
-    { name = "structlog" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "databox-config", editable = "packages/databox-config" },
-    { name = "dlt", extras = ["duckdb"], specifier = ">=1.14.1" },
-    { name = "pendulum", specifier = ">=3.0.0" },
-    { name = "requests", specifier = ">=2.32.3" },
-    { name = "structlog", specifier = ">=24.1.0" },
 ]
 
 [[package]]

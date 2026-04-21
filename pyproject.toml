@@ -1,13 +1,11 @@
 [project]
-name = "databox"
+name = "databox-workspace"
 version = "0.2.0"
-description = "Dataset-agnostic data pipeline tool"
+description = "Databox uv workspace root (coordinator, not packaged)"
 requires-python = ">=3.12"
 dependencies = [
-    "databox-config",
+    "databox",
     "databox-sources",
-    "databox-quality",
-    "databox-orchestration",
 ]
 
 [dependency-groups]
@@ -37,10 +35,8 @@ package = false
 members = ["packages/*"]
 
 [tool.uv.sources]
-databox-config = { workspace = true }
+databox = { workspace = true }
 databox-sources = { workspace = true }
-databox-quality = { workspace = true }
-databox-orchestration = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "packages"]

@@ -2,7 +2,7 @@
 
 from typing import Any, Protocol, runtime_checkable
 
-from databox_config.pipeline_config import PipelineConfig
+from databox.config.pipeline_config import PipelineConfig
 
 
 @runtime_checkable

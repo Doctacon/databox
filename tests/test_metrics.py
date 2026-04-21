@@ -23,7 +23,7 @@ REQUIRED_METRICS = {
 
 @pytest.fixture(scope="module")
 def metrics_context():
-    from databox_orchestration.metrics import _context
+    from databox.orchestration.metrics import _context
 
     return _context()
 
@@ -37,7 +37,7 @@ def test_required_metrics_registered(metrics_context) -> None:
 
 def test_metric_query_rewrites_to_valid_sql() -> None:
     """A simple METRIC() query must rewrite into SQL that parses and names the flagship mart."""
-    from databox_orchestration.metrics import resolve_metric_query
+    from databox.orchestration.metrics import resolve_metric_query
 
     sql = resolve_metric_query(
         "SELECT obs_date, METRIC(species_richness) AS sr FROM __semantic.__table GROUP BY obs_date"
@@ -52,7 +52,7 @@ def test_derived_metric_expands_dependencies() -> None:
 
     Both raw aggregates must appear in the rewritten SQL.
     """
-    from databox_orchestration.metrics import resolve_metric_query
+    from databox.orchestration.metrics import resolve_metric_query
 
     sql = resolve_metric_query(
         "SELECT obs_date, METRIC(observation_intensity) AS oi "
@@ -66,7 +66,7 @@ def test_derived_metric_expands_dependencies() -> None:
 
 def test_all_ticket_metrics_resolve() -> None:
     """Every required metric must rewrite without error."""
-    from databox_orchestration.metrics import resolve_metric_query
+    from databox.orchestration.metrics import resolve_metric_query
 
     for metric in REQUIRED_METRICS:
         sql = resolve_metric_query(

@@ -1,4 +1,4 @@
 load_from:
   - python_file:
-      relative_path: packages/databox-orchestration/databox_orchestration/definitions.py
+      relative_path: packages/databox/databox/orchestration/definitions.py
       working_directory: .

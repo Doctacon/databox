@@ -13,11 +13,11 @@ Databox is a dataset-agnostic data platform for a single operator, using zero-co
 ```
 databox/
 ├── packages/                # uv workspace — all Python code lives here
-│   ├── databox-config/      # Pydantic settings, pipeline config loader
-│   ├── databox-sources/     # dlt sources (ebird, noaa, usgs) + registry
-│   ├── databox-quality/     # Data quality engine (Soda integration)
-│   ├── databox-orchestration/ # Dagster definitions (assets, jobs, schedules)
-│   └── databox-cli/         # Typer CLI (`databox` command)
+│   ├── databox/             # Shared library
+│   │   ├── config/          # Pydantic settings, pipeline config loader
+│   │   ├── quality/         # Data quality engine (Soda integration)
+│   │   └── orchestration/   # Dagster definitions (assets, jobs, schedules)
+│   └── databox-sources/     # dlt sources (ebird, noaa, usgs) + registry
 ├── transforms/
 │   └── main/                # Single SQLMesh project for all sources
 │       ├── models/ebird/    # staging → intermediate → marts
@@ -109,7 +109,7 @@ task streamlit                # Launch data explorer
 
 3. **Add Soda contracts**: `soda/contracts/<source>_staging/` and `soda/contracts/<source>/`
 
-4. **Wire Dagster assets** in `packages/databox-orchestration/databox_orchestration/definitions.py`
+4. **Wire Dagster assets** in `packages/databox/databox/orchestration/definitions.py`
 
 5. **Add secrets to `.env`**: `API_KEY_<SOURCE>=your_key_here`
 

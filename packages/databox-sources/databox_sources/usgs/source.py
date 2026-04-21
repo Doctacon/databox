@@ -17,8 +17,8 @@ from typing import Any
 
 import dlt
 import pendulum
-from databox_config.pipeline_config import PipelineConfig
-from databox_config.settings import settings
+from databox.config.pipeline_config import PipelineConfig
+from databox.config.settings import settings
 from dlt.sources.helpers import requests as dlt_requests
 
 from databox_sources._logging import get_logger

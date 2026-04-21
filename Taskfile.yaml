@@ -170,7 +170,7 @@ tasks:
       DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
       PYTHONPATH: "{{.USER_WORKING_DIR}}"
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster dev -f packages/databox-orchestration/databox_orchestration/definitions.py"
+      - "{{.VENV_DIR}}/bin/dagster dev -f packages/databox/databox/orchestration/definitions.py"
 
   dagster:materialize:
     desc: "Materialize all Dagster assets (runs all pipelines + transforms + quality checks)"
@@ -179,7 +179,7 @@ tasks:
       DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster"
       PYTHONPATH: "{{.USER_WORKING_DIR}}"
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox-orchestration/databox_orchestration/definitions.py"
+      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"
 
   verify:
     desc: "Smoke test via Dagster — limited ingest (5 items/resource) + last 3 days of transforms"
@@ -189,7 +189,7 @@ tasks:
       PYTHONPATH: "{{.USER_WORKING_DIR}}"
       DATABOX_SMOKE: "1"
     cmds:
-      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox-orchestration/databox_orchestration/definitions.py"
+      - "{{.VENV_DIR}}/bin/dagster asset materialize --select '*' -f packages/databox/databox/orchestration/definitions.py"
 
   # Streamlit
   streamlit:

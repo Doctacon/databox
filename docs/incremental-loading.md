@@ -49,7 +49,7 @@ asserts the primary-key set and row count are identical.
 
 All three sources read their extract window from a per-source env-var
 override (default `30`) in
-`packages/databox-orchestration/databox_orchestration/definitions.py`:
+`packages/databox/databox/orchestration/definitions.py`:
 
 - `DATABOX_EBIRD_DAYS_BACK`
 - `DATABOX_NOAA_DAYS_BACK`
@@ -62,17 +62,17 @@ and materialize the raw asset group:
 # Pull eBird data for the last 90 days instead of the default 30
 DATABOX_EBIRD_DAYS_BACK=90 uv run dagster asset materialize \
     --select 'group:ebird_ingestion' \
-    -m databox_orchestration.definitions
+    -m databox.orchestration.definitions
 
 # Full-year NOAA backfill (hits multiple 365-day chunks; expect 5-10 min)
 DATABOX_NOAA_DAYS_BACK=365 uv run dagster asset materialize \
     --select 'group:noaa_ingestion' \
-    -m databox_orchestration.definitions
+    -m databox.orchestration.definitions
 
 # USGS daily values for the last year (chunked to 90-day API calls)
 DATABOX_USGS_DAYS_BACK=365 uv run dagster asset materialize \
     --select 'group:usgs_ingestion' \
-    -m databox_orchestration.definitions
+    -m databox.orchestration.definitions
 ```
 
 Or launch the Dagster UI with the env var set and materialize the group
@@ -101,7 +101,7 @@ orchestration layer schedules one daily materialization per source.
 For ad-hoc historical loads, invoke the CLI directly (above) or materialize
 the raw asset via the Dagster UI with a custom `days_back` config override.
 
-See `packages/databox-orchestration/databox_orchestration/definitions.py`
+See `packages/databox/databox/orchestration/definitions.py`
 for the asset definitions that would host a future partition scheme.
 
 ## When to rely on merge vs replace

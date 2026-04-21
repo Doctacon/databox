@@ -194,10 +194,8 @@ resolve to local file paths or `md:` URIs depending on the backend. See
 
 ```
 packages/                  # uv workspace
-├── databox-config/        # Pydantic settings, YAML loader
-├── databox-sources/       # dlt ingestion + per-source configs
-├── databox-orchestration/ # Dagster assets + semantic metrics helper
-└── databox-quality/       # Soda contract runner
+├── databox/               # Shared library (config / quality / orchestration)
+└── databox-sources/       # dlt ingestion + per-source configs
 
 transforms/main/           # Unified SQLMesh project (ADR-0003)
 ├── config.yaml            # local + motherduck gateways
