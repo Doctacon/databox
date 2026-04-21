@@ -1,9 +1,9 @@
 ---
 id: ticket:data-dictionary-site
 kind: ticket
-status: ready
+status: complete_pending_acceptance
 created_at: 2026-04-20T00:00:00Z
-updated_at: 2026-04-20T00:00:00Z
+updated_at: 2026-04-21T00:00:00Z
 scope:
   kind: workspace
 links:
@@ -58,3 +58,27 @@ Data discoverability is a staff-level problem. Showing that a one-operator platf
 
 - Published Pages URL
 - Screenshots of a model page and the lineage page in the case-study README
+
+# Close Notes
+
+Merged as PR #11.
+
+**Deliverables:**
+- `scripts/generate_docs.py` — SQLMesh `Context` + Soda YAML walker. Emits per-model Markdown + global Mermaid lineage + index under `docs/dictionary/`. Deterministic sort. ~1.5s on 20 models (well under 30s budget).
+- `mkdocs.yml` — MkDocs-Material config (Apache 2.0), pymdownx.superfences with mermaid fence, nav covering dictionary + existing docs. Strict build clean.
+- `docs/index.md` — landing page linking dictionary, lineage, metrics, examples, contracts, incremental-loading. Case-study README placeholder kept for `ticket:architecture-docs`.
+- `.github/workflows/docs.yaml` — two-job pipeline: build generates dictionary + runs `mkdocs build --strict`; deploy uploads Pages artifact and runs `actions/deploy-pages` only on `main` push.
+- README — new **Data dictionary** section links https://doctacon.github.io/databox/ with regeneration instructions.
+- `.pre-commit-config.yaml` — `check-yaml` excludes `mkdocs.yml` (pymdownx uses Python-tagged yaml constructor).
+- `.gitignore` — adds `site/` (mkdocs build artifact).
+
+**Evidence:**
+- Generator run: `Generated 20 model pages + lineage + index under docs/dictionary/` — 1.5s wall time on a warm venv.
+- `uv run mkdocs build --strict` → `Documentation built in 0.37 seconds` with zero warnings.
+- CI on PR #11: Ruff, mypy, pytest, SQLMesh lint, schema-contract gate, Soda contract structure, Build data-dictionary site all SUCCESS. Deploy step correctly SKIPPED on PR (runs only on main push).
+
+**Residual notes for acceptance review:**
+- Screenshots of model + lineage page not captured here — evidence is the generated Markdown under `docs/dictionary/` and the live CI build. Will be added to the case-study README in `ticket:architecture-docs`.
+- Published Pages URL goes live after the first `main` push rebuild completes; the deploy workflow targets https://doctacon.github.io/databox/ (requires Pages enabled in repo settings if not already).
+- Column types fall back to Soda-declared types when SQLMesh `columns_to_types` reports `UNKNOWN` (common for raw text/timestamp columns that the SQL parser can't infer without executing against a database). Documented inline in the generator.
+- Lineage uses `model.depends_on` (direct parents) not `ctx.dag.upstream(fqn)` (transitive). The transitive graph is too dense to read. Direct-parent is the conventional lineage view.
