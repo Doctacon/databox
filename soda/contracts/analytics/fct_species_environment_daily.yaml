@@ -1,0 +1,85 @@
+dataset: databox/analytics/fct_species_environment_daily
+
+columns:
+  - name: species_code
+    data_type: text
+    checks:
+      - missing:
+          must_be: 0
+  - name: common_name
+    data_type: text
+  - name: scientific_name
+    data_type: text
+  - name: h3_cell
+    data_type: text
+    checks:
+      - missing:
+          must_be: 0
+  - name: obs_date
+    data_type: date
+    checks:
+      - missing:
+          must_be: 0
+
+  - name: n_observations
+    data_type: bigint
+    checks:
+      - missing:
+          must_be: 0
+  - name: n_checklists
+    data_type: bigint
+  - name: total_birds_counted
+    data_type: bigint
+  - name: n_notable_observations
+    data_type: bigint
+
+  - name: nearest_station_id
+    data_type: text
+  - name: nearest_station_distance_miles
+    data_type: decimal
+  - name: tmax_c
+    data_type: decimal
+  - name: tmin_c
+    data_type: decimal
+  - name: temp_range_c
+    data_type: decimal
+  - name: prcp_mm
+    data_type: decimal
+  - name: snow_mm
+    data_type: decimal
+  - name: wind_ms
+    data_type: decimal
+  - name: is_rainy_day
+    data_type: boolean
+
+  - name: nearest_gauge_id
+    data_type: text
+  - name: nearest_gauge_distance_miles
+    data_type: decimal
+  - name: mean_discharge_cfs
+    data_type: decimal
+  - name: mean_gage_height_ft
+    data_type: decimal
+  - name: mean_water_temp_c
+    data_type: decimal
+
+  - name: cell_center_lat
+    data_type: double
+  - name: cell_center_lng
+    data_type: double
+
+  - name: ebird_last_loaded_at
+    data_type: timestamp
+  - name: noaa_last_loaded_at
+    data_type: timestamp
+  - name: usgs_last_loaded_at
+    data_type: timestamp
+  - name: last_updated_at
+    data_type: timestamp
+
+checks:
+  - duplicate:
+      columns: [species_code, h3_cell, obs_date]
+      must_be: 0
+  - row_count:
+      must_be_greater_than: 0
