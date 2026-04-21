@@ -3,7 +3,7 @@
 import importlib
 import logging
 
-from databox_config.pipeline_config import PipelineConfig, load_all_pipeline_configs
+from databox.config.pipeline_config import PipelineConfig, load_all_pipeline_configs
 
 from databox_sources.base import PipelineSource
 

@@ -11,13 +11,14 @@ from dagster_dlt import DagsterDltResource, DagsterDltTranslator, dlt_assets
 from dagster_dlt.translator import DltResourceTranslatorData
 from dagster_sqlmesh import SQLMeshContextConfig, SQLMeshResource, sqlmesh_assets
 from dagster_sqlmesh.translator import SQLMeshDagsterTranslator
-from databox_config.settings import settings
 from databox_sources.ebird.source import ebird_source
 from databox_sources.noaa.source import noaa_source
 from databox_sources.usgs.source import usgs_source
 from sqlglot import exp
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+from databox.config.settings import settings
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
 MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
 SODA_DIR = PROJECT_ROOT / "soda"

@@ -6,7 +6,7 @@ into executable SQL against the actual mart using SQLMesh's metric rewriter.
 
 Example:
 
-    from databox_orchestration.metrics import resolve_metric_query
+    from databox.orchestration.metrics import resolve_metric_query
 
     sql = resolve_metric_query(
         "SELECT obs_date, METRIC(species_richness) AS sr "
@@ -29,7 +29,7 @@ from sqlmesh import Context
 from sqlmesh.core.metric.rewriter import rewrite as _metric_rewrite
 from sqlmesh.core.reference import ReferenceGraph
 
-TRANSFORMS_PATH = Path(__file__).resolve().parents[3] / "transforms" / "main"
+TRANSFORMS_PATH = Path(__file__).resolve().parents[4] / "transforms" / "main"
 
 
 @lru_cache(maxsize=1)

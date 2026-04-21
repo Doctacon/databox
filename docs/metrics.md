@@ -41,7 +41,7 @@ Consumers request metrics by name, not by copy-pasted SQL.
 ### Python
 
 ```python
-from databox_orchestration.metrics import resolve_metric_query
+from databox.orchestration.metrics import resolve_metric_query
 
 sql = resolve_metric_query(
     """
@@ -61,7 +61,7 @@ sql = resolve_metric_query(
 ### Listing available metrics
 
 ```python
-from databox_orchestration.metrics import available_metrics
+from databox.orchestration.metrics import available_metrics
 print(available_metrics())
 # -> ['discharge_anomaly_7d', 'heat_stress_index', 'observation_intensity',
 #     'rainfall_anomaly_7d', 'species_richness', 'total_checklists',
