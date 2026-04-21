@@ -171,6 +171,12 @@ queries against the flagship cross-domain mart
 (`analytics.fct_species_environment_daily`) that joins eBird observations
 with NOAA weather and USGS streamflow at species × H3 cell × day grain.
 
+See [docs/metrics.md](docs/metrics.md) for the semantic metrics layer —
+seven metrics (species richness, observation intensity, heat-stress index,
+rainfall/discharge anomaly z-scores, raw observation/checklist counts)
+defined once in SQLMesh and queryable by name via
+`databox_orchestration.metrics.resolve_metric_query`.
+
 ## License
 
 MIT
