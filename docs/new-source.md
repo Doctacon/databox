@@ -48,7 +48,7 @@ Pick a short slug — it shows up in table names, dataset names, file paths, and
 task new-source -- weather --shape rest
 
 # 2. Verify the layout lint is happy with the scaffolded-skip marker.
-task check:layout
+python scripts/check_source_layout.py
 # Expect:
 #   ~ weather (skipped: scaffolded)
 
@@ -63,7 +63,7 @@ task check:layout
 #    (name it `stg_weather_*.sql`). If your source is a "trivial rename" of raw
 #    columns, you can let the staging codegen write it — add a Soda contract under
 #    soda/contracts/weather_staging/ with the full column list, then run:
-task staging:generate
+python scripts/generate_staging.py
 
 # 6. Add at least one mart under transforms/main/models/weather/marts/
 #    (`fct_*.sql` or `dim_*.sql`). This is your consumer-facing table.

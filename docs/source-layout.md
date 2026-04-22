@@ -2,7 +2,7 @@
 
 Every registered dlt source in Databox follows the same on-disk shape. Consistency means new sources cost a predictable amount to add, drift is visible to CI, and the [new-source generator](#new-source-generator) has a precise target.
 
-`scripts/check_source_layout.py` enforces the convention — it runs as the `source-layout-lint` CI job on every PR and as `task check:layout` locally.
+`scripts/check_source_layout.py` enforces the convention — it runs as the `source-layout-lint` CI job on every PR and as `python scripts/check_source_layout.py` locally.
 
 ## The shape
 

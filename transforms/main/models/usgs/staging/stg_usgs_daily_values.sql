@@ -1,5 +1,5 @@
 -- Generated from soda/contracts/usgs_staging/stg_usgs_daily_values.yaml by scripts/generate_staging.py.
--- DO NOT EDIT by hand — run `task staging:generate` to regenerate.
+-- DO NOT EDIT by hand — run `python scripts/generate_staging.py` to regenerate.
 MODEL (
   name usgs_staging.stg_usgs_daily_values,
   kind FULL,

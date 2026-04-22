@@ -1,5 +1,5 @@
 -- Generated from soda/contracts/noaa_staging/stg_noaa_stations.yaml by scripts/generate_staging.py.
--- DO NOT EDIT by hand — run `task staging:generate` to regenerate.
+-- DO NOT EDIT by hand — run `python scripts/generate_staging.py` to regenerate.
 MODEL (
   name noaa_staging.stg_noaa_stations,
   kind FULL,

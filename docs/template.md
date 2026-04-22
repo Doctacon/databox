@@ -43,7 +43,7 @@ Auto-generated files under `docs/dictionary/` are *not* rewritten directly — t
 
 - **Python package name.** `packages/databox/` stays `databox`, because `from databox.config import …` imports appear in every source package. Renaming the Python package would cascade through every source, test, and Dagster wiring — far outside the scope of a one-command rebrand.
 - **External dependencies.** `dagster-sqlmesh` continues to pull from the upstream fork. If you fork that too, edit `packages/databox/pyproject.toml` manually.
-- **The three example sources.** eBird, NOAA, USGS stay as working examples. Delete them (or replace them) at your own pace — the layout lint (`task check:layout`) enforces the shape new sources must follow.
+- **The three example sources.** eBird, NOAA, USGS stay as working examples. Delete them (or replace them) at your own pace — the layout lint (`python scripts/check_source_layout.py`) enforces the shape new sources must follow.
 - **`.loom/` history.** The `.loom/` records document how this scaffold was built; they are historical artifacts, not project identity.
 
 ## Verifying the rename
@@ -51,9 +51,9 @@ Auto-generated files under `docs/dictionary/` are *not* rewritten directly — t
 After `task init`, run the full gates:
 
 ```bash
-task ci              # ruff + mypy + pytest + drift check
-task check:layout    # every source still satisfies the layout
-task verify          # smoke full-refresh (DATABOX_SMOKE=1) — all three sources through Dagster
+task ci                                # ruff + mypy + pytest + drift check
+python scripts/check_source_layout.py  # every source still satisfies the layout
+task verify                            # smoke full-refresh (DATABOX_SMOKE=1) — all three sources through Dagster
 ```
 
 Then a sanity grep:
@@ -78,6 +78,6 @@ Out of scope for `task init` — that command only renames. To remove a source:
 4. Delete `soda/contracts/<source>/` and `soda/contracts/<source>_staging/`
 5. Delete `packages/databox/databox/orchestration/domains/<source>.py`
 6. Remove any analytics models or contracts that reference it
-7. Run `task check:layout` — should report no missing layout for the remaining sources
+7. Run `python scripts/check_source_layout.py` — should report no missing layout for the remaining sources
 
 A dedicated `task rm-source <name>` wrapper is planned but not yet shipped.

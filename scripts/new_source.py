@@ -252,7 +252,7 @@ def print_next_steps(name: str) -> None:
         f"  4. Wire the real assets in packages/databox/databox/orchestration/domains/{name}.py"
         f" and `{title.lower()}.daily_pipeline` / `.schedule` into definitions.py."
     )
-    print("  5. Run `task check:layout` and `task ci` to verify.\n")
+    print("  5. Run `python scripts/check_source_layout.py` and `task ci` to verify.\n")
 
 
 def main(argv: list[str] | None = None) -> int:

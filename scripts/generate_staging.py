@@ -28,7 +28,7 @@ def main(argv: list[str] | None = None) -> int:
                 for t in drifted:
                     print(f"  - {t}", file=sys.stderr)
                 print(
-                    "\nRun `task staging:generate` to regenerate, "
+                    "\nRun `python scripts/generate_staging.py` to regenerate, "
                     "or add `-- staging-codegen: skip` to the target SQL if it is hand-maintained.",
                     file=sys.stderr,
                 )

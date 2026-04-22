@@ -7,5 +7,5 @@
 *.txt text
 *.sh text eol=lf
 
-# Generated staging SQL — regenerate via `task staging:generate`.
+# Generated staging SQL — regenerate via `python scripts/generate_staging.py`.
 transforms/main/models/*/staging/stg_*.sql linguist-generated=true

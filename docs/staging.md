@@ -6,8 +6,8 @@ Non-trivial staging (joins, UNION ALL, derived columns, filters) opts out with a
 
 ## How it runs
 
-- `task staging:generate` — regenerate every non-skipped staging SQL in place.
-- `task staging:check` — exit `1` if any committed staging SQL differs from what the generator would emit. Run in CI as the `staging-codegen-drift` job.
+- `python scripts/generate_staging.py` — regenerate every non-skipped staging SQL in place.
+- `python scripts/generate_staging.py --check` — exit `1` if any committed staging SQL differs from what the generator would emit. Run in CI as the `staging-codegen-drift` job.
 
 The generator lives in `databox.quality.staging_codegen`; `scripts/generate_staging.py` is a thin CLI wrapper.
 
