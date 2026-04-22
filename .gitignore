@@ -46,6 +46,7 @@ target/
 
 # Logs
 logs/
+transforms/main/logs
 *.log
 
 # Testing

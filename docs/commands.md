@@ -35,6 +35,8 @@ Test markers are defined in `pyproject.toml` under `[tool.pytest.ini_options]`.
 ## SQLMesh
 
 Run from `transforms/main/` — SQLMesh picks up `config.py` there.
+Logs land in `.logs/sqlmesh/` via the local `transforms/main/logs`
+symlink (gitignored; created by `task install`).
 
 ```bash
 cd transforms/main

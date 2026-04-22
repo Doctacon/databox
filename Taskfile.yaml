@@ -14,6 +14,11 @@ tasks:
       - test -f .env || cp .env.example .env
       - uv sync
       - ./scripts/setup_pre_commit.sh
+      # Route SQLMesh's hard-coded `logs/` dir into `.logs/sqlmesh/` so the
+      # repo keeps one log root. No equivalent env var / config knob exists
+      # in SQLMesh — the symlink is the least-ugly option.
+      - mkdir -p .logs/sqlmesh
+      - test -e transforms/main/logs || ln -s ../../.logs/sqlmesh transforms/main/logs
     sources: [pyproject.toml, uv.lock, scripts/setup_pre_commit.sh]
 
   ci:
