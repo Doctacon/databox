@@ -126,7 +126,7 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: mypy
-        run: uv run mypy packages/ --ignore-missing-imports
+        run: uv run mypy packages/
 
   tests-core:
     name: pytest (core)

@@ -38,7 +38,7 @@ def _daily_values_url(
     parameter_cds: str,
     start_dt: str,
     end_dt: str,
-) -> tuple[str, dict]:
+) -> tuple[str, dict[str, Any]]:
     url = f"{USGS_BASE}/dv/"
     params = {
         "format": "json",
@@ -108,7 +108,7 @@ def usgs_source(
     state_cd: str = DEFAULT_STATE,
     parameter_cds: str = DEFAULT_PARAMETER_CDS,
     days_back: int = 30,
-):
+) -> Any:
     loaded_at = pendulum.now().isoformat()
     end_date = pendulum.now()
     start_date = end_date.subtract(days=days_back)
@@ -215,7 +215,7 @@ class UsgsPipelineSource:
         self._parameter_cds = config.params.get("parameter_cds", DEFAULT_PARAMETER_CDS)
         self._days_back = config.params.get("days_back", 30)
 
-    def resources(self):
+    def resources(self) -> Any:
         source = usgs_source(
             state_cd=self._state_cd,
             parameter_cds=self._parameter_cds,
@@ -223,7 +223,7 @@ class UsgsPipelineSource:
         )
         return source.resources.values()
 
-    def load(self, smoke: bool = False):
+    def load(self, smoke: bool = False) -> Any:
         schema_name = self.config.resolve_schema_name()
         pipeline = dlt.pipeline(
             pipeline_name=f"{self.name}_api",

@@ -51,7 +51,7 @@ def ebird_source(
     region_code: str = "US-AZ",
     max_results: int = 10000,
     days_back: int = 30,
-):
+) -> Any:
     loaded_at = pendulum.now().isoformat()
 
     @dlt.resource(
@@ -240,7 +240,7 @@ class EbirdPipelineSource:
         self._max_results = config.params.get("max_results", 10000)
         self._days_back = config.params.get("days_back", 30)
 
-    def resources(self) -> list:
+    def resources(self) -> list[Any]:
         source = ebird_source(
             region_code=self._region,
             max_results=self._max_results,
@@ -248,7 +248,7 @@ class EbirdPipelineSource:
         )
         return list(source.resources.values())
 
-    def load(self, smoke: bool = False):
+    def load(self, smoke: bool = False) -> Any:
         schema_name = self.config.resolve_schema_name()
         pipeline = dlt.pipeline(
             pipeline_name=f"{self.name}_api",

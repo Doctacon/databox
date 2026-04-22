@@ -45,7 +45,7 @@ class DataboxSQLMeshContextConfig(SQLMeshContextConfig):
         return DataboxSQLMeshTranslator()
 
 
-class DataboxConfig(dg.ConfigurableResource):
+class DataboxConfig(dg.ConfigurableResource):  # type: ignore[type-arg]
     database_path: str = settings.database_path
     dlt_data_dir: str = settings.dlt_data_dir
     transforms_dir: str = str(TRANSFORMS_DIR)
@@ -209,7 +209,7 @@ sqlmesh_config = DataboxSQLMeshContextConfig(
 
 
 @sqlmesh_assets(environment="prod", config=sqlmesh_config, enabled_subsetting=True)
-def sqlmesh_project(context: AssetExecutionContext, sqlmesh: SQLMeshResource):
+def sqlmesh_project(context: AssetExecutionContext, sqlmesh: SQLMeshResource) -> t.Iterator[t.Any]:
     yield from sqlmesh.run(context=context, config=sqlmesh_config, environment="prod")
 
 
@@ -227,7 +227,7 @@ def soda_check(
             contract_yaml_sources=[ContractYamlSource.from_str(contract_path.read_text())],
             data_source_yaml_sources=[DataSourceYamlSource.from_str(settings.soda_datasource_yaml)],
         )
-        metadata: dict = {
+        metadata: dict[str, t.Any] = {
             "checks_total": result.number_of_checks,
             "checks_passed": result.number_of_checks_passed,
             "checks_failed": result.number_of_checks_failed,

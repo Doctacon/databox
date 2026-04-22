@@ -3,6 +3,8 @@
 [![CI](https://github.com/Doctacon/databox/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/Doctacon/databox/actions/workflows/ci.yaml)
 [![Docs](https://github.com/Doctacon/databox/actions/workflows/docs.yaml/badge.svg?branch=main)](https://doctacon.github.io/databox/)
 [![Python](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
+[![mypy: strict](https://img.shields.io/badge/mypy-strict-blue.svg)](pyproject.toml)
+[![coverage: ≥70%](https://img.shields.io/badge/coverage-%E2%89%A570%25-brightgreen.svg)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A single-operator data platform that ingests three public APIs (eBird,

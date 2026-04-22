@@ -8,7 +8,7 @@ updates even on days with no source reloads.
 
 from __future__ import annotations
 
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 
 import dagster as dg
 import duckdb
@@ -60,7 +60,7 @@ MOTHERDUCK_COST_PER_COMPUTE_SECOND = 0.25 / 3600  # $0.25/hour
 LOOKBACK_DAYS = 30
 
 
-def _motherduck_summary(con: duckdb.DuckDBPyConnection, now) -> list[tuple]:
+def _motherduck_summary(con: duckdb.DuckDBPyConnection, now: datetime) -> list[tuple[object, ...]]:
     cutoff = (now - timedelta(days=LOOKBACK_DAYS)).isoformat()
     queries = con.execute(
         f"""
@@ -84,7 +84,7 @@ def _motherduck_summary(con: duckdb.DuckDBPyConnection, now) -> list[tuple]:
             """
         ).fetchall()
     }
-    rows: list[tuple] = []
+    rows: list[tuple[object, ...]] = []
     days = {q[0] for q in queries} | set(storage.keys())
     by_day = {q[0]: (q[1], q[2]) for q in queries}
     for day in sorted(days):
@@ -102,7 +102,7 @@ def _motherduck_summary(con: duckdb.DuckDBPyConnection, now) -> list[tuple]:
     return rows
 
 
-def _local_summary(now) -> list[tuple]:
+def _local_summary(now: datetime) -> list[tuple[object, ...]]:
     import os
 
     from databox.config.settings import DATA_DIR
@@ -128,9 +128,9 @@ def _local_summary(now) -> list[tuple]:
     compute_kind="duckdb",
     group_name="analytics",
 )
-def mart_cost_summary(context) -> dg.MaterializeResult:
-    from datetime import datetime
-
+def mart_cost_summary(
+    context: dg.AssetExecutionContext,
+) -> dg.MaterializeResult:  # type: ignore[type-arg]
     con = duckdb.connect(settings.database_path)
     now = datetime.now(UTC)
     try:

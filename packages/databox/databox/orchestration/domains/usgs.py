@@ -1,5 +1,6 @@
 """USGS domain — dlt ingestion + SQLMesh marts + Soda checks."""
 
+import typing as t
 from datetime import timedelta
 
 import dagster as dg
@@ -31,7 +32,7 @@ from databox.orchestration._factories import (
     group_name="usgs_ingestion",
     dagster_dlt_translator=dlt_translator("raw_usgs"),
 )
-def usgs_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource):
+def usgs_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> t.Iterator[t.Any]:
     source = usgs_source(
         state_cd="AZ", parameter_cds="00060,00065,00010", days_back=settings.days_back("usgs")
     )

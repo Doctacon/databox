@@ -65,8 +65,8 @@ def process_station(station: dict[str, Any], location_id: str) -> dict[str, Any]
 
 
 def _paginate(
-    url: str, headers: dict, params: dict, sleep: float = RATE_LIMIT_SLEEP
-) -> Iterator[dict]:
+    url: str, headers: dict[str, Any], params: dict[str, Any], sleep: float = RATE_LIMIT_SLEEP
+) -> Iterator[dict[str, Any]]:
     """Paginate through NOAA API results, respecting rate limits."""
     params = {**params, "limit": 1000, "offset": 0}
 
@@ -116,7 +116,7 @@ def noaa_source(
     dataset_id: str = DEFAULT_DATASET,
     days_back: int = 30,
     datatypes: str = DEFAULT_DATATYPES,
-):
+) -> Any:
     loaded_at = pendulum.now().isoformat()
     end_date = pendulum.now()
     start_date = end_date.subtract(days=days_back)
@@ -220,7 +220,7 @@ class NoaaPipelineSource:
         self._days_back = config.params.get("days_back", 30)
         self._datatypes = config.params.get("datatypes", DEFAULT_DATATYPES)
 
-    def resources(self):
+    def resources(self) -> Any:
         source = noaa_source(
             location_id=self._location,
             dataset_id=self._dataset,
@@ -229,7 +229,7 @@ class NoaaPipelineSource:
         )
         return source.resources.values()
 
-    def load(self, smoke: bool = False):
+    def load(self, smoke: bool = False) -> Any:
         schema_name = self.config.resolve_schema_name()
         pipeline = dlt.pipeline(
             pipeline_name=f"{self.name}_api",

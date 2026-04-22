@@ -1,5 +1,6 @@
 """USGS Earthquakes domain — dlt ingestion + SQLMesh marts + Soda checks."""
 
+import typing as t
 from datetime import timedelta
 
 import dagster as dg
@@ -29,7 +30,9 @@ from databox.orchestration._factories import (
     group_name="usgs_earthquakes_ingestion",
     dagster_dlt_translator=dlt_translator("raw_usgs_earthquakes"),
 )
-def usgs_earthquakes_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource):
+def usgs_earthquakes_dlt_assets(
+    context: AssetExecutionContext, dlt: DagsterDltResource
+) -> t.Iterator[t.Any]:
     source = usgs_earthquakes_source()
     if settings.smoke:
         source.add_limit(max_items=5)

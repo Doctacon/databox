@@ -31,6 +31,32 @@ dev = [
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["databox.*", "databox_sources.*"]
+disallow_untyped_defs = true
+disallow_any_generics = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+# Third-party packages without stubs or py.typed markers. Targeted allowlist,
+# NOT a global --ignore-missing-imports — anything not listed here will fail
+# strict typecheck if imported from first-party code.
+[[tool.mypy.overrides]]
+module = [
+    "dlt.*",
+    "dagster_dlt.*",
+    "dagster_sqlmesh.*",
+    "sqlmesh.*",
+    "soda_core.*",
+    "psycopg2.*",
+    "responses.*",
+    "streamlit.*",
+    "openlineage.*",
+]
+ignore_missing_imports = true
 
 [tool.uv]
 package = false
@@ -47,12 +73,43 @@ testpaths = ["tests", "packages"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --cov --cov-report=term-missing --cov-fail-under=70"
 markers = [
     "unit: isolated unit tests (no DB, no API)",
     "integration: multi-component tests with real DB",
     "e2e: full stack tests",
     "slow: tests that take >5s",
+]
+
+[tool.coverage.run]
+source = ["databox", "databox_sources"]
+branch = false
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+    # Top-level Dagster wiring; no meaningful branches to exercise.
+    "*/orchestration/definitions.py",
+    # MotherDuck MD_INFORMATION_SCHEMA + live duckdb file I/O; Dagster
+    # asset-check path is exercised by the live full-refresh smoke run,
+    # not unit tests.
+    "*/orchestration/domains/analytics.py",
+    # Legacy PipelineSource/registry layer predating the SOURCES registry;
+    # flagged for removal in ticket:overengineering-trim.
+    "*/quality/engine.py",
+    "*/config/pipeline_config.py",
+    "*/databox_sources/base.py",
+    "*/databox_sources/registry.py",
+]
+
+[tool.coverage.report]
+fail_under = 70
+skip_covered = false
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
 ]
 
 [tool.ruff]

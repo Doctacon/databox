@@ -1,5 +1,6 @@
 """NOAA domain — dlt ingestion + SQLMesh marts + Soda checks."""
 
+import typing as t
 from datetime import timedelta
 
 import dagster as dg
@@ -34,7 +35,7 @@ from databox.orchestration._factories import (
     group_name="noaa_ingestion",
     dagster_dlt_translator=dlt_translator("raw_noaa"),
 )
-def noaa_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource):
+def noaa_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> t.Iterator[t.Any]:
     source = noaa_source(
         location_id="FIPS:04",
         dataset_id="GHCND",

@@ -16,7 +16,7 @@ def _fetchone_value(cur: psycopg2.extensions.cursor) -> Any:
     return row[0]
 
 
-def check_table(table: str, database_url: str) -> dict:
+def check_table(table: str, database_url: str) -> dict[str, Any]:
     """Run basic quality checks on a table.
 
     Returns a dict with row_count, null_counts, and latest_load.
@@ -57,14 +57,14 @@ def check_table(table: str, database_url: str) -> dict:
         con.close()
 
 
-def run_report(database_url: str, configs: dict[str, PipelineConfig]) -> list[dict]:
+def run_report(database_url: str, configs: dict[str, PipelineConfig]) -> list[dict[str, Any]]:
     """Run all configured quality rules against loaded data.
 
     Returns a list of result dicts, each with keys:
       pipeline, table, rows, freshness, rule, status
     """
     con = psycopg2.connect(database_url)
-    results: list[dict] = []
+    results: list[dict[str, Any]] = []
 
     try:
         cur = con.cursor()

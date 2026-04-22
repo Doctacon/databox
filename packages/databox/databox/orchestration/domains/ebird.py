@@ -1,5 +1,6 @@
 """eBird domain — dlt ingestion + SQLMesh marts + Soda checks."""
 
+import typing as t
 from datetime import timedelta
 
 import dagster as dg
@@ -31,7 +32,7 @@ from databox.orchestration._factories import (
     group_name="ebird_ingestion",
     dagster_dlt_translator=dlt_translator("raw_ebird"),
 )
-def ebird_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource):
+def ebird_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> t.Iterator[t.Any]:
     source = ebird_source(
         region_code="US-AZ", max_results=10000, days_back=settings.days_back("ebird")
     )
