@@ -92,14 +92,15 @@ in place.
   reflect the current full snapshot).
 - **downstream SQLMesh marts**: all are declarative views/tables over the raw
   layer. A backfill at the source layer is picked up on the next
-  `databox transform run`.
+  `task full-refresh` (or the next scheduled Dagster run).
 
 ## Dagster backfill
 
 A per-source Dagster partition backfill is not wired yet — the current
 orchestration layer schedules one daily materialization per source.
-For ad-hoc historical loads, invoke the CLI directly (above) or materialize
-the raw asset via the Dagster UI with a custom `days_back` config override.
+For ad-hoc historical loads, invoke `dagster asset materialize` directly
+(see commands above) or materialize the raw asset via the Dagster UI with
+a custom `days_back` config override.
 
 See `packages/databox/databox/orchestration/definitions.py`
 for the asset definitions that would host a future partition scheme.

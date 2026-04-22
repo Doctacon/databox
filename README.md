@@ -64,7 +64,6 @@ graph TB
     subgraph Consumer["Consumers"]
         dashboard["MotherDuck Dive dashboards"]
         dict["Data dictionary site (MkDocs)"]
-        notebook["Notebooks via metrics helper"]
     end
 
     Orchestrator["Dagster: sole orchestrator<br/>assets · schedules · sensors · asset checks"]
@@ -82,7 +81,6 @@ graph TB
     marts --> contracts
     analytics --> dashboard
     analytics --> dict
-    metrics --> notebook
 
     Orchestrator -.materializes.-> ebird_src
     Orchestrator -.materializes.-> noaa_src
@@ -104,7 +102,7 @@ flowchart LR
     E -->|cross-domain joins| F[analytics.fct_species_environment_daily<br/>species × H3 × day]
     F -->|METRIC DDL| G[semantic metrics<br/>richness · intensity · anomalies]
     F -->|Soda asset check| H{quality gate}
-    H -->|pass| I[Dive dashboards + notebooks]
+    H -->|pass| I[Dive dashboards]
     H -->|fail| J[block downstream · surface in Dagster]
 ```
 

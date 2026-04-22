@@ -50,20 +50,8 @@ analytics                   ← cross-domain SQLMesh marts
 
 ## Key Commands
 
-### CLI
-```bash
-databox list                              # List registered pipelines
-databox run ebird                         # Run a pipeline
-databox validate ebird                    # Check pipeline config/credentials
-databox transform plan                    # Preview SQLMesh changes
-databox transform run                     # Apply SQLMesh transforms
-databox transform test                    # Run SQLMesh tests
-databox quality check ebird.stg_ebird_observations  # Table quality checks
-databox quality report                    # Run all configured quality rules
-databox status                            # Show pipeline status & freshness
-```
+Dagster is the orchestration surface; `task` targets are the thin wrappers.
 
-### Task
 ```bash
 task install                  # Bootstrap .venv + copy .env + uv sync + pre-commit
 task full-refresh             # Dagster: all dlt + SQLMesh + Soda

@@ -1,9 +1,9 @@
 ---
 id: ticket:docs-drift-purge
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T21:00:00Z
-updated_at: 2026-04-21T21:00:00Z
+updated_at: 2026-04-21T21:30:00Z
 scope:
   kind: workspace
 links:
@@ -53,3 +53,15 @@ Doc drift is the single cheapest way to blow staff-level credibility. A recruite
 
 - Commit hash showing the purge
 - Fresh `rg` output proving zero residual current-tense references
+
+# Close Notes
+
+Landed 2026-04-21. Summary of changes:
+
+- `CLAUDE.md` lines 53-64: deleted the `### CLI` block. The phantom `databox list` / `databox run ebird` / `databox transform plan` commands are gone. The `### Task` block is retained and renamed to the sole "Key Commands" surface.
+- `transforms/CLAUDE.md`: deleted. Described a multi-project `transformations/<source>/` layout with `_shared/`, `home_team/`, `away_team/` that has not existed since ADR-0003 landed the single-project reality.
+- `README.md` mermaid diagrams: removed the `notebook["Notebooks via metrics helper"]` node, the `metrics --> notebook` edge, and the `Dive dashboards + notebooks` caption is now `Dive dashboards`.
+- `docs/incremental-loading.md`: line 95 `databox transform run` replaced with `task full-refresh (or the next scheduled Dagster run)`. Line 101-102 ambiguous "CLI" reference clarified to point at the `dagster asset materialize` commands in the code block above.
+- ADR-0005 references to `databox run ebird` / `databox transform run` were verified as correctly past-tense ("The CLI exposed...") and retained as historical context per the ticket's Out-of-Scope clause.
+
+Verification: `rg -n 'databox (run|list|validate|transform plan|transform run|transform test|status)' README.md CLAUDE.md docs/` returns only three hits in `docs/adr/0005-dagster-as-sole-orchestrator.md`, all past-tense. `rg -n 'notebook' README.md` returns zero hits. `uv run mkdocs build --strict` succeeds in 0.67s.
