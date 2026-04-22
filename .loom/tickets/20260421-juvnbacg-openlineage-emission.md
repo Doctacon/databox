@@ -1,7 +1,7 @@
 ---
 id: ticket:openlineage-emission
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
 updated_at: 2026-04-21T00:00:00Z
 scope:
@@ -59,3 +59,90 @@ today; lineage lives only in the Dagster UI.
   JobEvent + DatasetEvent.
 - New unit test passes; `task ci` green.
 - README "Observability" section mentions the knob.
+
+# Close notes
+
+Landed as the `lineage` optional extra on `packages/databox` and a custom
+in-tree Dagster sensor at `databox.orchestration._factories`.
+
+Dep-conflict pivot (important)
+
+`openlineage-dagster` pins `dagster <=1.6.9`; we're on Dagster 1.7+ via
+`dagster-sqlmesh` (which floors at 1.7.8). The upstream bundled sensor
+factory is therefore unusable here. Extra ships only
+`openlineage-python>=1.20.0`; the sensor is built in-tree on top of that
+client (~50 LOC, `_openlineage_emit_tick` + `openlineage_sensor_or_none`).
+The in-tree sensor walks `ASSET_MATERIALIZATION` via `EventRecordsFilter`
+(same pattern as `freshness_violation_sensor`) and emits one OpenLineage
+`RunEvent` per materialization — `Run` with a fresh uuid, `Job` keyed on
+the Dagster asset key, one `OutputDataset` matching the asset.
+
+Factory shape
+
+- `OPENLINEAGE_URL` unset → returns `None`, no import cost, no sensor.
+- URL set but `openlineage.client` missing → logs a warning pointing at
+  `uv sync --package databox --extra lineage`, returns `None`.
+- URL set + package present → returns a `SensorDefinition` named
+  `openlineage_sensor` with `DefaultSensorStatus.RUNNING`.
+
+`OpenLineageClient` is wired via `HttpTransport(HttpConfig(...))` rather
+than the deprecated `OpenLineageClient(url=..., options=...)` positional
+shape. `OPENLINEAGE_API_KEY`, if set, becomes an `ApiKeyTokenProvider` in
+the transport auth slot.
+
+Config
+
+`DataboxSettings` gains three env-backed fields (`openlineage_url`,
+`openlineage_namespace`, `openlineage_api_key`) so `.env` stays the one
+place forkers look. `.env.example` ships all three commented-out with
+pointers to `docs/observability.md`.
+
+`openlineage-python` also lives in the root dev-deps group so `task ci`
+can run the sensor tests without forcing every dev install to include the
+lineage extra.
+
+Tests (`tests/test_openlineage_sensor.py`, 6/6 green)
+
+- URL unset → None
+- URL set + import fails → None + warn
+- URL set + installed → `SensorDefinition` with expected name
+- Tick over one fabricated `ASSET_MATERIALIZATION` → exactly one
+  `RunEvent` with expected namespace / job name / output dataset /
+  advanced cursor
+- Tick over three records → cursor tracks max `storage_id`
+- Client `emit` raises on one record → sensor logs a warning and
+  continues with the next record (lineage failures never kill Dagster)
+
+Docs
+
+- `docs/observability.md` (new page, linked from `mkdocs.yml`) covers the
+  Dagster UI + dictionary surfaces and walks through turning on
+  OpenLineage: install command, env vars, Marquez docker-compose snippet,
+  disable path.
+- `README.md` gains an "Observability" section pointing at the new doc.
+
+Incidental fixes required to get `task ci` green (pre-existing breakage
+unrelated to this ticket, but blocking the gate):
+
+- `scripts/smoke.py` was importing `ebird_dlt_assets` / `noaa_dlt_assets`
+  / `usgs_dlt_assets` from `databox.orchestration.definitions` — those
+  symbols moved into `databox.orchestration.domains.*` in the 4-package
+  collapse (commit af325d5). Fixed the imports.
+- `scripts/bootstrap.py` had a variable shadow (`p = ArgumentParser()`
+  then `for p in would_change:` reusing the name as a `Path`). Renamed
+  the loop variable to `drift_path`.
+- `app/main.py` had mypy `Any | None` errors after a `st.stop()` guard;
+  added an `assert` to narrow `schema` and `table` for the type checker.
+- `packages/databox-sources/databox_sources/ebird/models.py` grew an
+  `exotic_category: str | None` field (restores a column the pydantic
+  pilot dropped because `extra="ignore"` had silently dropped it). The
+  committed schema snapshot already had the column.
+
+Follow-ups (not blocking):
+
+- No observed production sensor run yet — acceptance test is the mocked
+  unit test + importable-sensor smoke. A live Marquez round-trip is a
+  forker-side verification step and documented in `docs/observability.md`.
+- If we later want pre-run START events in addition to the single
+  COMPLETE emitted per materialization, extend `_openlineage_emit_tick`
+  to listen on `STEP_START` / `ASSET_CHECK_EVALUATION` too.

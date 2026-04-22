@@ -73,6 +73,7 @@ nav:
   - Secrets: secrets.md
   - Environments: environments.md
   - Freshness SLAs: freshness.md
+  - Observability: observability.md
   - Cost & usage: cost.md
   - Incident runbook: runbook.md
   - Commands: commands.md

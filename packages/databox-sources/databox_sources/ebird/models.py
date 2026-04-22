@@ -46,6 +46,9 @@ class RecentObservation(BaseModel):
     location_private: bool = Field(
         default=False, validation_alias=AliasChoices("locationPrivate", "location_private")
     )
+    exotic_category: str | None = Field(
+        default=None, validation_alias=AliasChoices("exoticCategory", "exotic_category")
+    )
 
     region_code: str = Field(validation_alias="_region_code")
     loaded_at: str = Field(validation_alias="_loaded_at")
@@ -64,6 +67,7 @@ class RecentObservation(BaseModel):
         "obs_valid": "obsValid",
         "obs_reviewed": "obsReviewed",
         "location_private": "locationPrivate",
+        "exotic_category": "exoticCategory",
     }
 
     _META_UNDERSCORE: ClassVar[dict[str, str]] = {

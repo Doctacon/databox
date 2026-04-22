@@ -13,13 +13,10 @@ os.environ["DATABOX_SMOKE"] = "1"
 import dagster as dg
 from dagster_dlt import DagsterDltResource
 from dagster_sqlmesh import SQLMeshResource
-from databox.orchestration.definitions import (
-    DataboxConfig,
-    ebird_dlt_assets,
-    noaa_dlt_assets,
-    sqlmesh_project,
-    usgs_dlt_assets,
-)
+from databox.orchestration._factories import DataboxConfig, sqlmesh_project
+from databox.orchestration.domains.ebird import ebird_dlt_assets
+from databox.orchestration.domains.noaa import noaa_dlt_assets
+from databox.orchestration.domains.usgs import usgs_dlt_assets
 
 defs = dg.Definitions(
     assets=[ebird_dlt_assets, noaa_dlt_assets, usgs_dlt_assets, sqlmesh_project],

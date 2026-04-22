@@ -265,6 +265,20 @@ Adding a source? See [docs/source-layout.md](docs/source-layout.md) for the requ
 - **[docs/contracts.md](docs/contracts.md)** — Soda contract conventions + schema-contract gate escape hatch
 - **[docs/incremental-loading.md](docs/incremental-loading.md)** — per-resource write disposition, keys, backfill
 
+## Observability
+
+Two surfaces ship in-tree: the Dagster UI (asset graph, asset checks,
+freshness panel) and the auto-generated data dictionary at
+https://doctacon.github.io/databox/.
+
+For external lineage catalogs, Dagster attaches an OpenLineage-emitting
+sensor when `OPENLINEAGE_URL` is set in `.env`. Every major catalog
+(Marquez, DataHub, OpenMetadata, Atlan, Astro) speaks OpenLineage, so
+forkers drop whichever URL they already have and restart Dagster — no
+code change. Install with `uv sync --package databox --extra lineage`.
+Full walkthrough + local Marquez docker-compose in
+[docs/observability.md](docs/observability.md).
+
 ## Development
 
 ```bash

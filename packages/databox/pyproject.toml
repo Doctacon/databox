@@ -18,6 +18,15 @@ dependencies = [
     "dagster-sqlmesh",
 ]
 
+[project.optional-dependencies]
+# The upstream `openlineage-dagster` package pins Dagster <=1.6.9, which
+# conflicts with dagster-sqlmesh's Dagster >=1.7.8 floor. Stick with the
+# pure `openlineage-python` client and emit via a small in-tree sensor
+# (see orchestration._factories.openlineage_sensor_or_none).
+lineage = [
+    "openlineage-python>=1.20.0",
+]
+
 [build-system]
 requires = ["setuptools>=70.0.0"]
 build-backend = "setuptools.build_meta"

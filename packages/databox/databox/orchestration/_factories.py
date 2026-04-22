@@ -8,7 +8,7 @@ knowing about each other.
 
 import logging
 import typing as t
-from datetime import timedelta
+from datetime import UTC, timedelta
 from pathlib import Path
 
 import dagster as dg
@@ -48,6 +48,113 @@ class DataboxConfig(dg.ConfigurableResource):
     database_path: str = settings.database_path
     dlt_data_dir: str = settings.dlt_data_dir
     transforms_dir: str = str(TRANSFORMS_DIR)
+
+
+_OPENLINEAGE_PRODUCER = "https://github.com/Doctacon/databox"
+
+
+def _openlineage_emit_tick(
+    context: dg.SensorEvaluationContext,
+    client: t.Any,
+    namespace: str,
+    producer: str = _OPENLINEAGE_PRODUCER,
+) -> dg.SensorResult:
+    """Walk ASSET_MATERIALIZATION events since cursor, emit one OL RunEvent each.
+
+    Pulled out of `openlineage_sensor_or_none()` so the emit logic is testable
+    without instantiating a real Dagster sensor. The sensor closure is thin —
+    it just calls this.
+    """
+    import uuid
+    from datetime import datetime
+
+    from openlineage.client.event_v2 import Job, OutputDataset, Run, RunEvent, RunState
+
+    cursor = int(context.cursor) if context.cursor else 0
+    records = context.instance.get_event_records(
+        dg.EventRecordsFilter(
+            event_type=dg.DagsterEventType.ASSET_MATERIALIZATION,
+            after_cursor=cursor,
+        ),
+        limit=500,
+        ascending=True,
+    )
+    latest_cursor = cursor
+    for record in records:
+        latest_cursor = max(latest_cursor, record.storage_id)
+        event = record.event_log_entry.dagster_event
+        if event is None or event.asset_key is None:
+            continue
+        name = event.asset_key.to_user_string()
+        event_time = datetime.fromtimestamp(record.event_log_entry.timestamp, tz=UTC).isoformat()
+        run_event = RunEvent(
+            eventTime=event_time,
+            producer=producer,
+            run=Run(runId=str(uuid.uuid4())),
+            job=Job(namespace=namespace, name=name),
+            eventType=RunState.COMPLETE,
+            inputs=[],
+            outputs=[OutputDataset(namespace=namespace, name=name)],
+        )
+        try:
+            client.emit(run_event)
+        except Exception as exc:  # noqa: BLE001 — lineage failures must not kill Dagster
+            context.log.warning(f"openlineage emit failed for {name}: {exc}")
+    return dg.SensorResult(cursor=str(latest_cursor))
+
+
+def openlineage_sensor_or_none() -> dg.SensorDefinition | None:
+    """Return an OpenLineage-emitting sensor when OPENLINEAGE_URL is set.
+
+    Walks Dagster's ASSET_MATERIALIZATION events and emits one OpenLineage
+    RunEvent per materialization to whatever backend OPENLINEAGE_URL points
+    at (Marquez / DataHub / OpenMetadata / Atlan / Astro). OPENLINEAGE_URL,
+    OPENLINEAGE_NAMESPACE, and OPENLINEAGE_API_KEY are mirrored in
+    `DataboxSettings` so `.env` is the one place forkers configure them.
+
+    Ships disabled by default: no URL, no sensor, no import cost. Forker
+    drops OPENLINEAGE_URL=http://marquez:5000 in .env, restarts Dagster,
+    lineage starts flowing.
+
+    Installation: `uv sync --package databox --extra lineage`. Missing
+    install returns None with a warning so the stack stays bootable.
+
+    The upstream `openlineage-dagster` package is not used — it pins
+    Dagster <=1.6.9, which conflicts with dagster-sqlmesh's >=1.7.8 floor.
+    We emit via `openlineage-python` directly.
+    """
+    if not settings.openlineage_url:
+        return None
+    try:
+        from openlineage.client import OpenLineageClient
+        from openlineage.client.transport.http import (
+            ApiKeyTokenProvider,
+            HttpConfig,
+            HttpTransport,
+        )
+    except ImportError:
+        log.warning(
+            "OPENLINEAGE_URL is set but openlineage-python is not installed. "
+            "Run `uv sync --package databox --extra lineage` to enable "
+            "lineage emission."
+        )
+        return None
+
+    http_kwargs: dict[str, t.Any] = {"url": settings.openlineage_url}
+    if settings.openlineage_api_key:
+        http_kwargs["auth"] = ApiKeyTokenProvider({"apiKey": settings.openlineage_api_key})
+    client = OpenLineageClient(transport=HttpTransport(HttpConfig(**http_kwargs)))
+    namespace = settings.openlineage_namespace or "databox"
+
+    @dg.sensor(
+        name="openlineage_sensor",
+        minimum_interval_seconds=60,
+        default_status=dg.DefaultSensorStatus.RUNNING,
+    )
+    def _openlineage_sensor(context: dg.SensorEvaluationContext) -> dg.SensorResult:
+        return _openlineage_emit_tick(context, client, namespace)
+
+    return _openlineage_sensor
 
 
 def ensure_motherduck_databases() -> list[str]:

@@ -68,6 +68,7 @@ def test_record_preserves_legacy_wire_shape() -> None:
         "obsValid",
         "obsReviewed",
         "locationPrivate",
+        "exoticCategory",
         "_region_code",
         "_loaded_at",
         "_observation_date",

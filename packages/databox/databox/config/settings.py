@@ -42,6 +42,15 @@ class DataboxSettings(BaseSettings):
 
     smoke: bool = Field(default=False, alias="DATABOX_SMOKE")
 
+    # OpenLineage — unset by default. When OPENLINEAGE_URL is set, Dagster
+    # attaches an OpenLineage sensor at startup; it emits RunEvent / JobEvent /
+    # DatasetEvent per asset materialization and asset check. Point the URL at
+    # Marquez / DataHub / OpenMetadata / Atlan / Astro — every major lineage
+    # catalog speaks OpenLineage. See docs/observability.md.
+    openlineage_url: str = Field(default="", alias="OPENLINEAGE_URL")
+    openlineage_namespace: str = Field(default="databox", alias="OPENLINEAGE_NAMESPACE")
+    openlineage_api_key: str = Field(default="", alias="OPENLINEAGE_API_KEY")
+
     @property
     def gateway(self) -> str:
         return "motherduck" if self.backend == "motherduck" else "local"

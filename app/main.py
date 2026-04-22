@@ -100,6 +100,7 @@ if not table:
     st.info("Select a schema and table from the sidebar.")
     st.stop()
 
+assert schema is not None and table is not None  # narrowed after st.stop()
 qname = _qualified(schema, table)
 tab_data, tab_profile, tab_chart, tab_sql = st.tabs(["Data", "Profile", "Chart", "SQL"])
 

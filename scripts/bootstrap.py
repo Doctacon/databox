@@ -195,8 +195,8 @@ def main(argv: list[str] | None = None) -> int:
                     break
         if would_change:
             print("scaffold: drift detected in:", file=sys.stderr)
-            for p in would_change:
-                print(f"  - {p.relative_to(ROOT)}", file=sys.stderr)
+            for drift_path in would_change:
+                print(f"  - {drift_path.relative_to(ROOT)}", file=sys.stderr)
             return 1
         return 0
 

@@ -693,6 +693,11 @@ dependencies = [
     { name = "sqlmesh" },
 ]
 
+[package.optional-dependencies]
+lineage = [
+    { name = "openlineage-python" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "dagster", specifier = ">=1.5.0" },
@@ -701,6 +706,7 @@ requires-dist = [
     { name = "dagster-webserver", specifier = ">=1.5.0" },
     { name = "databox-sources", editable = "packages/databox-sources" },
     { name = "dlt", extras = ["duckdb"], specifier = ">=1.14.1" },
+    { name = "openlineage-python", marker = "extra == 'lineage'", specifier = ">=1.20.0" },
     { name = "pydantic", specifier = ">=2.10.4" },
     { name = "pydantic-settings", specifier = ">=2.13.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
@@ -708,6 +714,7 @@ requires-dist = [
     { name = "soda-duckdb", specifier = ">=3.0.0" },
     { name = "sqlmesh", specifier = ">=0.204.0" },
 ]
+provides-extras = ["lineage"]
 
 [[package]]
 name = "databox-sources"
@@ -751,6 +758,7 @@ dev = [
     { name = "mypy" },
     { name = "nbconvert" },
     { name = "nbstripout" },
+    { name = "openlineage-python" },
     { name = "pre-commit" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -778,6 +786,7 @@ dev = [
     { name = "mypy", specifier = ">=1.0" },
     { name = "nbconvert", specifier = ">=7.16" },
     { name = "nbstripout", specifier = ">=0.7" },
+    { name = "openlineage-python", specifier = ">=1.20.0" },
     { name = "pre-commit", specifier = ">=4.0" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-cov", specifier = ">=5.0" },
@@ -2446,6 +2455,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ed/ad/483d9e262f4b831000062e5d8a45e342166ec8aaa1195264982bca267e62/numpy-2.4.4-cp314-cp314t-win32.whl", hash = "sha256:dddbbd259598d7240b18c9d87c56a9d2fb3b02fe266f49a7c101532e78c1d871", size = 6155500, upload-time = "2026-03-29T13:21:28.205Z" },
     { url = "https://files.pythonhosted.org/packages/c7/03/2fc4e14c7bd4ff2964b74ba90ecb8552540b6315f201df70f137faa5c589/numpy-2.4.4-cp314-cp314t-win_amd64.whl", hash = "sha256:a7164afb23be6e37ad90b2f10426149fd75aee07ca55653d2aa41e66c4ef697e", size = 12637755, upload-time = "2026-03-29T13:21:31.107Z" },
     { url = "https://files.pythonhosted.org/packages/58/78/548fb8e07b1a341746bfbecb32f2c268470f45fa028aacdbd10d9bc73aab/numpy-2.4.4-cp314-cp314t-win_arm64.whl", hash = "sha256:ba203255017337d39f89bdd58417f03c4426f12beed0440cfd933cb15f8669c7", size = 10566643, upload-time = "2026-03-29T13:21:34.339Z" },
+]
+
+[[package]]
+name = "openlineage-python"
+version = "1.46.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "httpx" },
+    { name = "packaging" },
+    { name = "python-dateutil" },
+    { name = "pyyaml" },
+    { name = "requests" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/97/f5614980b5d43884ce7e71568239555b4e959bdf7098d9734e22c32ef5c6/openlineage_python-1.46.0-py3-none-any.whl", hash = "sha256:f6228a01d34990e76ede5b55b3f99169e54e2e624814c4493f064b9cb1bfba37", size = 112669, upload-time = "2026-04-08T13:20:20.024Z" },
 ]
 
 [[package]]

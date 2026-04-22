@@ -15,11 +15,14 @@ from databox.orchestration._factories import (
     apply_freshness,
     ensure_motherduck_databases,
     freshness_violation_sensor,
+    openlineage_sensor_or_none,
     sqlmesh_project,
 )
 from databox.orchestration.domains import analytics, ebird, noaa, usgs, usgs_earthquakes
 
 ensure_motherduck_databases()
+
+_openlineage_sensor = openlineage_sensor_or_none()
 
 all_pipelines = dg.define_asset_job(
     name="all_pipelines",
@@ -67,7 +70,7 @@ defs = dg.Definitions(
         usgs_earthquakes.schedule,
         analytics.cost_schedule,
     ],
-    sensors=[freshness_violation_sensor],
+    sensors=[freshness_violation_sensor, *([_openlineage_sensor] if _openlineage_sensor else [])],
     resources={
         "databox_config": DataboxConfig(),
         "dlt": DagsterDltResource(),
