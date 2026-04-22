@@ -55,7 +55,7 @@ def validate_name(name: str) -> None:
         raise ValueError(f"source name {name!r} is reserved; pick another")
 
 
-def render(shape: str, name: str) -> dict[Path, str]:
+def render(shape: str, name: str, no_auth: bool = False) -> dict[Path, str]:
     """Return the planned file tree for a new source: {relative_path: content}."""
     env = Environment(
         loader=FileSystemLoader([str(TEMPLATES_DIR / "common"), str(TEMPLATES_DIR / shape)]),
@@ -63,7 +63,12 @@ def render(shape: str, name: str) -> dict[Path, str]:
         undefined=StrictUndefined,
         autoescape=False,
     )
-    ctx = {"name": name, "name_upper": name.upper(), "name_title": name.title()}
+    ctx = {
+        "name": name,
+        "name_upper": name.upper(),
+        "name_title": name.title(),
+        "no_auth": no_auth,
+    }
 
     files: dict[Path, str] = {
         SOURCES_PKG_DIR / name / "__init__.py": env.get_template("__init__.py.j2").render(**ctx),
@@ -274,7 +279,17 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="overwrite files that already exist on disk",
     )
+    p.add_argument(
+        "--no-auth",
+        action="store_true",
+        help="emit a REST stub with no API-key guard and skip the .env.example append "
+        "(only valid with --shape rest)",
+    )
     args = p.parse_args(argv)
+
+    if args.no_auth and args.shape != "rest":
+        print("error: --no-auth is only valid with --shape rest", file=sys.stderr)
+        return 2
 
     try:
         validate_name(args.name)
@@ -282,7 +297,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
 
-    files = render(args.shape, args.name)
+    files = render(args.shape, args.name, no_auth=args.no_auth)
 
     if args.dry_run:
         print(f"Would create {len(files)} file(s) for source '{args.name}' (shape={args.shape}):")
@@ -305,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
     write_files(files)
     wire_definitions(args.name)
     wire_settings(args.name)
-    if args.shape == "rest":
+    if args.shape == "rest" and not args.no_auth:
         ensure_env_stub(args.name)
 
     print_next_steps(args.name)

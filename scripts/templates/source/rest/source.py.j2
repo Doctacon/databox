@@ -11,7 +11,9 @@ complete.
 
 from __future__ import annotations
 
+{% if not no_auth -%}
 import os
+{% endif -%}
 from collections.abc import Iterator
 from typing import Any
 
@@ -26,10 +28,22 @@ def {{ name }}_records() -> Iterator[dict[str, Any]]:
     """TODO: replace with real resource logic.
 
     Example flow:
+{%- if no_auth %}
+      1. Build request URL + params (public endpoint, no auth).
+      2. Page through results, yield dicts.
+{%- else %}
       1. Read API token from env var (`API_KEY_{{ name_upper }}`).
       2. Build request URL + params.
       3. Page through results, yield dicts.
+{%- endif %}
     """
+{%- if no_auth %}
+    # TODO: implement real pagination loop
+    response = dlt_requests.get(f"{{ '{' }}{{ name_upper }}_BASE{{ '}' }}/records")
+    response.raise_for_status()
+    for record in response.json().get("items", []):
+        yield record
+{%- else %}
     token = os.environ.get("API_KEY_{{ name_upper }}")
     if not token:
         raise RuntimeError(
@@ -43,6 +57,7 @@ def {{ name }}_records() -> Iterator[dict[str, Any]]:
     response.raise_for_status()
     for record in response.json().get("items", []):
         yield record
+{%- endif %}
 
 
 @dlt.source(name="{{ name }}_source")

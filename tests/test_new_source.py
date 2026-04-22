@@ -222,6 +222,29 @@ def test_rest_shape_adds_env_stub(env) -> None:
     assert "API_KEY_DEMO=" in env_text
 
 
+def test_no_auth_flag_skips_api_key_guard(env) -> None:
+    gen, _, root = env
+    assert gen.main(["demo", "--shape", "rest", "--no-auth"]) == 0
+    src_py = (root / "packages/databox-sources/databox_sources/demo/source.py").read_text()
+    assert "API_KEY_DEMO" not in src_py
+    assert "os.environ.get" not in src_py
+    assert "public endpoint" in src_py
+    env_text = (root / ".env.example").read_text()
+    assert "API_KEY_DEMO=" not in env_text
+
+
+def test_no_auth_flag_requires_rest_shape(env) -> None:
+    gen, _, _ = env
+    assert gen.main(["demo", "--shape", "file", "--no-auth"]) == 2
+
+
+def test_generated_no_auth_source_is_valid_python(env) -> None:
+    gen, _, root = env
+    assert gen.main(["demo", "--shape", "rest", "--no-auth"]) == 0
+    src_py = (root / "packages/databox-sources/databox_sources/demo/source.py").read_text()
+    compile(src_py, "demo_source.py", "exec")
+
+
 def test_file_shape_does_not_touch_env_example(env) -> None:
     gen, _, root = env
     assert gen.main(["demo", "--shape", "file"]) == 0
