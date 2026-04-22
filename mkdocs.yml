@@ -60,8 +60,6 @@ nav:
       - Lineage: dictionary/lineage.md
   - Analytics examples: analytics-examples.md
   - Metrics: metrics.md
-  - Examples:
-      - Metrics demo: examples/metrics-demo.md
   - Contracts: contracts.md
   - Staging codegen: staging.md
   - Source layout: source-layout.md

@@ -1,9 +1,9 @@
 ---
 id: ticket:example-metrics-notebook
 kind: ticket
-status: closed
+status: superseded
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T19:30:00Z
+updated_at: 2026-04-21T20:30:00Z
 scope:
   kind: workspace
 links:
@@ -74,3 +74,11 @@ Also: the deployed dashboard (Dive) is a different class of consumer — a visua
 # Close Notes
 
 Verified on main 2026-04-21: `notebooks/metrics_demo.ipynb` present, `docs/examples/metrics-demo/` rendered, docs site links active. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.
+
+# Reverted 2026-04-21
+
+Deliverable removed in same-day cleanup pass. Rationale: the shipped notebook bypassed the actual metrics API (raw SQL + matplotlib on `analytics.fct_species_environment_daily`) rather than demonstrating `resolve_metric_query()` over the `METRIC` definitions in `transforms/main/metrics/flagship.sql`. It was a mislabelled dashboard, not a metrics-layer onboarding surface — so it taught the wrong mental model.
+
+Removed artifacts: `notebooks/`, `scripts/render_notebooks.py`, `docs/examples/`, MkDocs nav `Examples` entry, CI `notebooks` job + paths-filter, docs-build render step, `nbconvert`/`jupyter`/`nbstripout` dev deps, `nbstripout` pre-commit hook.
+
+If future work wants a metrics onboarding surface, it should consume the metrics API directly and ship as a plain Python script or a docs snippet — not a notebook.

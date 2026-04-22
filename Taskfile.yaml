@@ -28,10 +28,9 @@ tasks:
       - python scripts/generate_staging.py --check
 
   docs:build:
-    desc: "Render notebooks, generate dictionary + cost page, build MkDocs (strict)"
+    desc: "Generate dictionary + cost page, build MkDocs (strict)"
     deps: [install]
     cmds:
-      - "{{.VENV_DIR}}/bin/python scripts/render_notebooks.py"
       - "{{.VENV_DIR}}/bin/python scripts/generate_docs.py"
       - "{{.VENV_DIR}}/bin/python scripts/render_cost_page.py"
       - "{{.VENV_DIR}}/bin/mkdocs build --strict"

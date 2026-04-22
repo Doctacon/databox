@@ -6,10 +6,6 @@ Every metric below is registered in
 and is the single source of truth — if you see metric math duplicated
 elsewhere, that duplication is a bug.
 
-See the [metrics demo notebook](examples/metrics-demo.md) for a runnable
-end-to-end example that queries three of these metrics and charts the
-results.
-
 ## Registry
 
 | Metric | Grain | Units | Definition |
