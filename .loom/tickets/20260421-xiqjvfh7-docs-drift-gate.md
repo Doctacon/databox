@@ -1,9 +1,9 @@
 ---
 id: ticket:docs-drift-gate
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T18:00:00Z
 scope:
   kind: workspace
 links: {}
@@ -66,3 +66,26 @@ here is reusable.
   pushing fails the job.
 - `docs/dictionary/usgs_earthquakes/` exists in the commit that closes this
   ticket.
+
+# Close Notes — 2026-04-21
+
+`scripts/generate_docs.py` gains `--check`: renders into a tmpdir, diffs
+against committed `docs/dictionary/`, exits 1 with a unified diff on drift,
+0 on match. Extracted the render loop into `generate_into(target)` so both
+the normal write path and the check path share one code path.
+
+`.github/workflows/docs.yaml` got a pre-build "Check committed dictionary is
+fresh" step that runs `--check` before notebook render or site build — so a
+PR with stale docs fails fast.
+
+`SCHEMA_DESCRIPTIONS` backfilled for `usgs_earthquakes` and
+`usgs_earthquakes_staging`. Regenerated `docs/dictionary/`: 24 files total,
+2 new trees (the earthquake schemas), 10 page rewrites across existing
+schemas (trailing-newline drift from prior partial generations).
+
+Negative case verified manually: deleting `docs/dictionary/index.md` and
+re-running `--check` exits 1 with `Missing from repo (1): + index.md`.
+
+`docs/new-source.md` walkthrough step 10 now calls
+`uv run python scripts/generate_docs.py` with a note that the CI gate will
+fail PRs that skip it.

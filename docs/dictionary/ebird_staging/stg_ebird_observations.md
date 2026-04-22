@@ -36,12 +36,12 @@ Staging model for eBird bird observations
 | `region_code` | `UNKNOWN` | missing (must_be=0) | — |
 | `scientific_name` | `UNKNOWN` | — | — |
 | `species_code` | `UNKNOWN` | missing (must_be=0) | — |
-| `submission_id` | `UNKNOWN` | missing (must_be=0), duplicate (must_be=0) | — |
+| `submission_id` | `UNKNOWN` | missing (must_be=0) | — |
 
 ## Table-level checks
 
 - **row_count** — must_be_greater_than=0
-- **freshness** — column=loaded_at, threshold={'unit': 'hour', 'must_be_less_than': 25}
+- **freshness** — column=loaded_at, threshold={'unit': 'hour', 'must_be_less_than': 168}
 
 ## Lineage
 

@@ -2,8 +2,8 @@
 
 Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/generate_docs.py`.
 
-- **Models:** 20
-- **Soda contracts:** 24
+- **Models:** 22
+- **Soda contracts:** 27
 - **Lineage:** [browse the dependency graph](lineage.md)
 
 ## `analytics`
@@ -65,6 +65,22 @@ USGS streamflow domain — intermediate and mart models.
 | --- | --- | --- |
 | [`usgs.fct_daily_streamflow`](usgs/fct_daily_streamflow.md) | yes | Daily streamflow facts pivoted to one row per site per date with key hydrological metrics |
 | [`usgs.int_streamflow_by_h3_day`](usgs/int_streamflow_by_h3_day.md) | — | Daily USGS streamflow assigned to each H3 cell in the bird-observation universe via nearest-gauge join |
+
+## `usgs_earthquakes`
+
+USGS earthquakes domain — intermediate and mart models.
+
+| Model | Contract | Description |
+| --- | --- | --- |
+| [`usgs_earthquakes.fct_daily_earthquakes`](usgs_earthquakes/fct_daily_earthquakes.md) | yes | Daily earthquake summary — one row per UTC day, counts and magnitude stats |
+
+## `usgs_earthquakes_staging`
+
+USGS earthquakes staging views — raw dlt loads with column renames only.
+
+| Model | Contract | Description |
+| --- | --- | --- |
+| [`usgs_earthquakes_staging.stg_usgs_earthquakes_events`](usgs_earthquakes_staging/stg_usgs_earthquakes_events.md) | yes | Staging model for USGS earthquake events (rolling 24h feed) |
 
 ## `usgs_staging`
 

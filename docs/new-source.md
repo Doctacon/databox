@@ -76,6 +76,11 @@ python scripts/generate_staging.py
 
 # 9. Full run.
 task full-refresh
+
+# 10. Regenerate the data dictionary so the site picks up the new models.
+#     CI enforces this via `generate_docs.py --check`; skipping it means
+#     your PR will fail the `docs-drift-check` gate.
+uv run python scripts/generate_docs.py
 ```
 
 ## What the empty domain stub looks like

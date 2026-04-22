@@ -22,8 +22,10 @@ graph LR
     n15["noaa_staging.stg_noaa_stations"]
     n16["usgs.fct_daily_streamflow"]
     n17["usgs.int_streamflow_by_h3_day"]
-    n18["usgs_staging.stg_usgs_daily_values"]
-    n19["usgs_staging.stg_usgs_sites"]
+    n18["usgs_earthquakes.fct_daily_earthquakes"]
+    n19["usgs_earthquakes_staging.stg_usgs_earthquakes_events"]
+    n20["usgs_staging.stg_usgs_daily_values"]
+    n21["usgs_staging.stg_usgs_sites"]
     n5 --> n0
     n12 --> n0
     n8 --> n1
@@ -41,11 +43,12 @@ graph LR
     n8 --> n13
     n12 --> n13
     n15 --> n13
-    n18 --> n16
-    n19 --> n16
+    n20 --> n16
+    n21 --> n16
     n8 --> n17
     n16 --> n17
-    n19 --> n17
+    n21 --> n17
+    n19 --> n18
 
     click n0 "analytics/fct_bird_weather_daily.md"
     click n1 "analytics/fct_species_environment_daily.md"
@@ -65,6 +68,8 @@ graph LR
     click n15 "noaa_staging/stg_noaa_stations.md"
     click n16 "usgs/fct_daily_streamflow.md"
     click n17 "usgs/int_streamflow_by_h3_day.md"
-    click n18 "usgs_staging/stg_usgs_daily_values.md"
-    click n19 "usgs_staging/stg_usgs_sites.md"
+    click n18 "usgs_earthquakes/fct_daily_earthquakes.md"
+    click n19 "usgs_earthquakes_staging/stg_usgs_earthquakes_events.md"
+    click n20 "usgs_staging/stg_usgs_daily_values.md"
+    click n21 "usgs_staging/stg_usgs_sites.md"
 ```

@@ -10,13 +10,17 @@ everywhere, idempotent re-writes, no network calls. Intended to run in
 
 Usage:
     uv run python scripts/generate_docs.py
+    uv run python scripts/generate_docs.py --check
 """
 
 from __future__ import annotations
 
+import argparse
+import difflib
 import os
 import shutil
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -38,6 +42,10 @@ SCHEMA_DESCRIPTIONS = {
     "noaa_staging": "NOAA staging views — raw dlt loads with column renames only.",
     "usgs": "USGS streamflow domain — intermediate and mart models.",
     "usgs_staging": "USGS staging views — raw dlt loads with column renames only.",
+    "usgs_earthquakes": "USGS earthquakes domain — intermediate and mart models.",
+    "usgs_earthquakes_staging": (
+        "USGS earthquakes staging views — raw dlt loads with column renames only."
+    ),
 }
 
 
@@ -335,10 +343,11 @@ def write_file(path: Path, content: str) -> None:
     path.write_text(content)
 
 
-def main() -> int:
-    if OUT_ROOT.exists():
-        shutil.rmtree(OUT_ROOT)
-    OUT_ROOT.mkdir(parents=True)
+def generate_into(target: Path) -> int:
+    """Render the dictionary tree under ``target``. Returns page count."""
+    if target.exists():
+        shutil.rmtree(target)
+    target.mkdir(parents=True)
 
     ctx = build_context()
     contracts = load_soda_contracts()
@@ -346,12 +355,84 @@ def main() -> int:
     n_pages = 0
     for fqn in sorted(ctx.models):
         page = render_model_page(ctx, fqn, contracts)
-        write_file(page_path_for(fqn), page)
+        rel = page_path_for(fqn).relative_to(OUT_ROOT)
+        write_file(target / rel, page)
         n_pages += 1
 
-    write_file(OUT_ROOT / "lineage.md", render_lineage_page(ctx))
-    write_file(OUT_ROOT / "index.md", render_index_page(ctx, contracts))
+    write_file(target / "lineage.md", render_lineage_page(ctx))
+    write_file(target / "index.md", render_index_page(ctx, contracts))
+    return n_pages
 
+
+def _tree_file_map(root: Path) -> dict[Path, str]:
+    """Return {relpath: content} for every file under ``root``. Empty if absent."""
+    out: dict[Path, str] = {}
+    if not root.exists():
+        return out
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        out[path.relative_to(root)] = path.read_text()
+    return out
+
+
+def run_check() -> int:
+    """Diff committed docs/dictionary/ vs fresh generator output. Exit 1 on drift."""
+    with tempfile.TemporaryDirectory() as td:
+        fresh = Path(td) / "dictionary"
+        generate_into(fresh)
+        committed_map = _tree_file_map(OUT_ROOT)
+        fresh_map = _tree_file_map(fresh)
+
+    if committed_map == fresh_map:
+        print(f"docs/dictionary/ is in sync ({len(fresh_map)} files).")
+        return 0
+
+    committed_keys = set(committed_map)
+    fresh_keys = set(fresh_map)
+    missing = sorted(fresh_keys - committed_keys)
+    extra = sorted(committed_keys - fresh_keys)
+    changed = sorted(p for p in (fresh_keys & committed_keys) if committed_map[p] != fresh_map[p])
+
+    print("docs/dictionary/ is stale. Run `uv run python scripts/generate_docs.py`.\n")
+    if missing:
+        print(f"Missing from repo ({len(missing)}):")
+        for p in missing:
+            print(f"  + {p}")
+        print()
+    if extra:
+        print(f"Stale in repo ({len(extra)}):")
+        for p in extra:
+            print(f"  - {p}")
+        print()
+    if changed:
+        print(f"Changed ({len(changed)}):")
+        for p in changed:
+            diff = difflib.unified_diff(
+                committed_map[p].splitlines(keepends=True),
+                fresh_map[p].splitlines(keepends=True),
+                fromfile=f"a/docs/dictionary/{p}",
+                tofile=f"b/docs/dictionary/{p}",
+                n=2,
+            )
+            sys.stdout.writelines(diff)
+            print()
+    return 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else "")
+    p.add_argument(
+        "--check",
+        action="store_true",
+        help="fail with a diff if committed docs/dictionary/ is out of sync",
+    )
+    args = p.parse_args(argv)
+
+    if args.check:
+        return run_check()
+
+    n_pages = generate_into(OUT_ROOT)
     print(
         f"Generated {n_pages} model pages + lineage + index "
         f"under {OUT_ROOT.relative_to(REPO_ROOT)}/"

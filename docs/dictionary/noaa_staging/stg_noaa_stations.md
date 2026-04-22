@@ -30,7 +30,7 @@ Staging model for NOAA weather stations
 ## Table-level checks
 
 - **row_count** — must_be_greater_than=0
-- **freshness** — column=loaded_at, threshold={'unit': 'hour', 'must_be_less_than': 25}
+- **freshness** — column=loaded_at, threshold={'unit': 'hour', 'must_be_less_than': 120}
 
 ## Lineage
 
