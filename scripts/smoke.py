@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Smoke test: run all pipeline assets in-process with DATABOX_SMOKE=1 limits.
+"""Smoke test: run every registered source's dlt assets + SQLMesh in-process.
 
-Bypasses dagster CLI infrastructure (which spawns subprocesses that lose env vars)
-and runs assets directly via execute_in_process().
+Iterates `databox.config.sources.SOURCES` so a new source added to the
+registry is exercised automatically — no edits here required. Bypasses the
+dagster CLI (which spawns subprocesses that lose env vars) and runs assets
+via `execute_in_process()`.
 """
 
+import importlib
 import os
 import sys
 
@@ -13,13 +16,19 @@ os.environ["DATABOX_SMOKE"] = "1"
 import dagster as dg
 from dagster_dlt import DagsterDltResource
 from dagster_sqlmesh import SQLMeshResource
+from databox.config.sources import SOURCES
 from databox.orchestration._factories import DataboxConfig, sqlmesh_project
-from databox.orchestration.domains.ebird import ebird_dlt_assets
-from databox.orchestration.domains.noaa import noaa_dlt_assets
-from databox.orchestration.domains.usgs import usgs_dlt_assets
+
+
+def _dlt_assets_for(source_name: str) -> dg.AssetsDefinition:
+    module = importlib.import_module(f"databox.orchestration.domains.{source_name}")
+    return getattr(module, f"{source_name}_dlt_assets")
+
+
+dlt_assets = [_dlt_assets_for(src.name) for src in SOURCES]
 
 defs = dg.Definitions(
-    assets=[ebird_dlt_assets, noaa_dlt_assets, usgs_dlt_assets, sqlmesh_project],
+    assets=[*dlt_assets, sqlmesh_project],
     resources={
         "databox_config": DataboxConfig(),
         "dlt": DagsterDltResource(),

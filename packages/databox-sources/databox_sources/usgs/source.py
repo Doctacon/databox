@@ -227,7 +227,7 @@ class UsgsPipelineSource:
         schema_name = self.config.resolve_schema_name()
         pipeline = dlt.pipeline(
             pipeline_name=f"{self.name}_api",
-            destination=dlt.destinations.duckdb(credentials=settings.raw_usgs_path),
+            destination=dlt.destinations.duckdb(credentials=settings.raw_catalog_path("usgs")),
             dataset_name="main",
             pipelines_dir=settings.dlt_data_dir,
             progress="log",

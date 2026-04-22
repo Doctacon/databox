@@ -1,3 +1,4 @@
+-- platform-health-codegen: generated — edit packages/databox/databox/quality/platform_health_codegen.py
 MODEL (
   name analytics.platform_health,
   kind VIEW,
@@ -16,7 +17,7 @@ WITH ebird_loads AS (
 ),
 noaa_loads AS (
   SELECT
-    'noaa'              AS source,
+    'noaa'             AS source,
     load_id,
     schema_name,
     status,
@@ -25,17 +26,27 @@ noaa_loads AS (
 ),
 usgs_loads AS (
   SELECT
-    'usgs'              AS source,
+    'usgs'             AS source,
     load_id,
     schema_name,
     status,
     inserted_at::TIMESTAMP AS completed_at
   FROM raw_usgs.main._dlt_loads
 ),
+usgs_earthquakes_loads AS (
+  SELECT
+    'usgs_earthquakes'             AS source,
+    load_id,
+    schema_name,
+    status,
+    inserted_at::TIMESTAMP AS completed_at
+  FROM raw_usgs_earthquakes.main._dlt_loads
+),
 all_loads AS (
   SELECT * FROM ebird_loads
   UNION ALL SELECT * FROM noaa_loads
   UNION ALL SELECT * FROM usgs_loads
+  UNION ALL SELECT * FROM usgs_earthquakes_loads
 ),
 ebird_rows AS (
   SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
@@ -57,10 +68,16 @@ usgs_rows AS (
     UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_usgs.main.sites GROUP BY 1
   ) t GROUP BY 1
 ),
+usgs_earthquakes_rows AS (
+  SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
+    SELECT _dlt_load_id, COUNT(*) AS n FROM raw_usgs_earthquakes.main.events GROUP BY 1
+  ) t GROUP BY 1
+),
 all_rows AS (
   SELECT 'ebird' AS source, load_id, rows FROM ebird_rows
-  UNION ALL SELECT 'noaa', load_id, rows FROM noaa_rows
-  UNION ALL SELECT 'usgs', load_id, rows FROM usgs_rows
+  UNION ALL SELECT 'noaa' AS source, load_id, rows FROM noaa_rows
+  UNION ALL SELECT 'usgs' AS source, load_id, rows FROM usgs_rows
+  UNION ALL SELECT 'usgs_earthquakes' AS source, load_id, rows FROM usgs_earthquakes_rows
 ),
 latest_per_source AS (
   SELECT

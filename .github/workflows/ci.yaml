@@ -239,6 +239,8 @@ jobs:
         run: uv sync --all-extras --dev
       - name: Check generated staging SQL matches contracts
         run: uv run python scripts/generate_staging.py --check
+      - name: Check generated platform_health.sql matches source registry
+        run: uv run python scripts/generate_platform_health.py --check
 
   schema-contract-gate:
     name: Schema contract gate

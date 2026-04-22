@@ -21,6 +21,7 @@ from dagster_sqlmesh.translator import SQLMeshDagsterTranslator
 from sqlglot import exp
 
 from databox.config.settings import PROJECT_ROOT, settings
+from databox.config.sources import SOURCES, raw_catalogs
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class DataboxSQLMeshTranslator(SQLMeshDagsterTranslator):
         table = exp.to_table(fqn)
         # Three-part FQN for attached raw catalogs (e.g., raw_ebird.main.table):
         # catalog IS the meaningful namespace; "main" is just the default schema.
-        if table.catalog and str(table.db) == "main" and str(table.catalog).startswith("raw_"):
+        if table.catalog and str(table.db) == "main" and str(table.catalog) in raw_catalogs():
             return ["sqlmesh", str(table.catalog), table.name]
         return ["sqlmesh", table.db, table.name]
 
@@ -242,19 +243,13 @@ def soda_check(
     return _check
 
 
-# Freshness policies are per-source. Analytics marts are cross-domain and
-# inherit the slowest upstream policy (NOAA GHCND, which lags several days).
+# Freshness policies are derived from the source registry. Analytics marts are
+# cross-domain and inherit the slowest `analytics_anchor=True` upstream policy.
 FRESHNESS_BY_SOURCE: dict[str, dg.FreshnessPolicy] = {
-    "ebird": dg.FreshnessPolicy.cron(
-        deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
-    ),
-    "noaa": dg.FreshnessPolicy.cron(
-        deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
-    ),
-    "usgs": dg.FreshnessPolicy.cron(
-        deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
-    ),
+    src.name: src.freshness_policy for src in SOURCES
 }
+
+_ANALYTICS_ANCHOR = next((src.name for src in SOURCES if src.analytics_anchor), None)
 
 
 def _source_for_key(key: dg.AssetKey) -> str | None:
@@ -262,11 +257,12 @@ def _source_for_key(key: dg.AssetKey) -> str | None:
     if len(path) < 2:
         return None
     schema = path[1]
-    for src in ("ebird", "noaa", "usgs"):
+    # Longest match first so e.g. "usgs_earthquakes_staging" doesn't collapse to "usgs".
+    for src in sorted((s.name for s in SOURCES), key=len, reverse=True):
         if src in schema:
             return src
     if schema == "analytics":
-        return "noaa"
+        return _ANALYTICS_ANCHOR
     return None
 
 

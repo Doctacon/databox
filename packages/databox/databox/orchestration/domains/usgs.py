@@ -24,7 +24,7 @@ from databox.orchestration._factories import (
     ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="usgs_api",
-        destination=dlt_destination(settings.raw_usgs_path),
+        destination=dlt_destination(settings.raw_catalog_path("usgs")),
         dataset_name="main",
         pipelines_dir=settings.dlt_data_dir,
     ),

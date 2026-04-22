@@ -27,16 +27,15 @@ consumers read them, nothing sets them directly.
 |---|---|
 | `settings.gateway` | `"motherduck" if backend == "motherduck" else "local"` |
 | `settings.database_path` | `"md:databox"` on motherduck, `data/databox.duckdb` otherwise |
-| `settings.raw_ebird_path` | `"md:raw_ebird"` on motherduck, `data/raw_ebird.duckdb` otherwise |
-| `settings.raw_noaa_path` | `"md:raw_noaa"` on motherduck, `data/raw_noaa.duckdb` otherwise |
-| `settings.raw_usgs_path` | `"md:raw_usgs"` on motherduck, `data/raw_usgs.duckdb` otherwise |
+| `settings.raw_catalog_path(name)` | `"md:raw_<name>"` on motherduck, `data/raw_<name>.duckdb` otherwise — pass a source name from `databox.config.sources.SOURCES` |
+| `settings.motherduck_database_names` | List of every MotherDuck database the stack expects (derived from the source registry) |
 | `settings.soda_datasource_yaml` | Rendered Soda datasource YAML using `database_path` |
 | `settings.sqlmesh_config()` | A `sqlmesh.core.config.Config` with both gateways and `default_gateway` = current backend |
 
 ## Where it's read
 
 - **SQLMesh** — `transforms/main/config.py` returns `settings.sqlmesh_config()`; SQLMesh auto-discovers this Python config file in place of a `config.yaml`.
-- **Dagster** — `packages/databox/databox/orchestration/definitions.py` reads `settings.backend`, `settings.gateway`, `settings.raw_*_path`, `settings.dlt_data_dir`, `settings.days_back(...)`, and `settings.soda_datasource_yaml`.
+- **Dagster** — `packages/databox/databox/orchestration/definitions.py` reads `settings.backend`, `settings.gateway`, `settings.raw_catalog_path(...)`, `settings.dlt_data_dir`, `settings.days_back(...)`, and `settings.soda_datasource_yaml`.
 - **Streamlit explorer** — `app/main.py` uses `settings.database_path`.
 - **Data-dictionary generator** — `scripts/generate_docs.py` uses `settings.gateway`.
 

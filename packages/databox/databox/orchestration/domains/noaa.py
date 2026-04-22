@@ -27,7 +27,7 @@ from databox.orchestration._factories import (
     ),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="noaa_api",
-        destination=dlt_destination(settings.raw_noaa_path),
+        destination=dlt_destination(settings.raw_catalog_path("noaa")),
         dataset_name="main",
         pipelines_dir=settings.dlt_data_dir,
     ),

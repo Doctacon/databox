@@ -22,7 +22,7 @@ from databox.orchestration._factories import (
     dlt_source=usgs_earthquakes_source(),
     dlt_pipeline=dlt.pipeline(
         pipeline_name="usgs_earthquakes_api",
-        destination=dlt_destination(settings.raw_usgs_earthquakes_path),
+        destination=dlt_destination(settings.raw_catalog_path("usgs_earthquakes")),
         dataset_name="main",
         pipelines_dir=settings.dlt_data_dir,
     ),

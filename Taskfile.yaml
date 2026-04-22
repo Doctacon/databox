@@ -26,6 +26,7 @@ tasks:
       - "{{.VENV_DIR}}/bin/pytest"
       - python scripts/check_secrets.py .
       - python scripts/generate_staging.py --check
+      - python scripts/generate_platform_health.py --check
 
   docs:build:
     desc: "Generate dictionary + cost page, build MkDocs (strict)"

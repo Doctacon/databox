@@ -16,6 +16,8 @@ from typing import Any
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from databox.config.sources import SOURCES
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 
@@ -59,27 +61,17 @@ class DataboxSettings(BaseSettings):
     def database_path(self) -> str:
         return "md:databox" if self.backend == "motherduck" else str(DATA_DIR / "databox.duckdb")
 
-    @property
-    def raw_ebird_path(self) -> str:
-        return (
-            "md:raw_ebird" if self.backend == "motherduck" else str(DATA_DIR / "raw_ebird.duckdb")
-        )
+    def raw_catalog_path(self, name: str) -> str:
+        """DuckDB connection string for the raw catalog of `name`.
 
-    @property
-    def raw_noaa_path(self) -> str:
-        return "md:raw_noaa" if self.backend == "motherduck" else str(DATA_DIR / "raw_noaa.duckdb")
-
-    @property
-    def raw_usgs_path(self) -> str:
-        return "md:raw_usgs" if self.backend == "motherduck" else str(DATA_DIR / "raw_usgs.duckdb")
-
-    @property
-    def raw_usgs_earthquakes_path(self) -> str:
-        return (
-            "md:raw_usgs_earthquakes"
-            if self.backend == "motherduck"
-            else str(DATA_DIR / "raw_usgs_earthquakes.duckdb")
-        )
+        Resolves to `md:raw_<name>` under MotherDuck and the on-disk
+        `data/raw_<name>.duckdb` file under local mode. Callers pass the source
+        name from the registry (`databox.config.sources.SOURCES`); this is the
+        only place the backend branch lives for raw catalog paths.
+        """
+        if self.backend == "motherduck":
+            return f"md:raw_{name}"
+        return str(DATA_DIR / f"raw_{name}.duckdb")
 
     def days_back(self, source: str) -> int:
         return int(getattr(self, f"{source}_days_back"))
@@ -88,17 +80,11 @@ class DataboxSettings(BaseSettings):
     def motherduck_database_names(self) -> list[str]:
         """All MotherDuck databases this stack expects to exist.
 
-        Derived by introspecting `raw_*_path` properties on this class plus the
-        primary `databox` database. Used by the startup auto-create routine so
-        adding a new source via `new_source.py` does not require manual
-        `CREATE DATABASE` in MotherDuck.
+        Derived from the source registry plus the primary `databox` database.
+        The startup auto-create routine consumes this so adding a source via
+        `new_source.py` does not require manual `CREATE DATABASE` in MotherDuck.
         """
-        names = ["databox"]
-        for attr in dir(type(self)):
-            if attr.startswith("raw_") and attr.endswith("_path"):
-                base = attr[len("raw_") : -len("_path")]
-                names.append(f"raw_{base}")
-        return names
+        return ["databox", *(src.raw_catalog for src in SOURCES)]
 
     @property
     def soda_datasource_yaml(self) -> str:
@@ -121,29 +107,21 @@ class DataboxSettings(BaseSettings):
 
         extensions = [{"name": "h3", "repository": "community"}]
 
+        local_catalogs = {"databox": str(DATA_DIR / "databox.duckdb")} | {
+            src.raw_catalog: str(DATA_DIR / f"{src.raw_catalog}.duckdb") for src in SOURCES
+        }
+        motherduck_catalogs = {"databox": "md:databox"} | {
+            src.raw_catalog: f"md:{src.raw_catalog}" for src in SOURCES
+        }
+
         local_gateway = GatewayConfig(
-            connection=DuckDBConnectionConfig(
-                catalogs={
-                    "databox": str(DATA_DIR / "databox.duckdb"),
-                    "raw_ebird": str(DATA_DIR / "raw_ebird.duckdb"),
-                    "raw_noaa": str(DATA_DIR / "raw_noaa.duckdb"),
-                    "raw_usgs": str(DATA_DIR / "raw_usgs.duckdb"),
-                    "raw_usgs_earthquakes": str(DATA_DIR / "raw_usgs_earthquakes.duckdb"),
-                },
-                extensions=extensions,
-            )
+            connection=DuckDBConnectionConfig(catalogs=local_catalogs, extensions=extensions)
         )
 
         motherduck_gateway = GatewayConfig(
             connection=MotherDuckConnectionConfig(
                 token=self.motherduck_token,
-                catalogs={
-                    "databox": "md:databox",
-                    "raw_ebird": "md:raw_ebird",
-                    "raw_noaa": "md:raw_noaa",
-                    "raw_usgs": "md:raw_usgs",
-                    "raw_usgs_earthquakes": "md:raw_usgs_earthquakes",
-                },
+                catalogs=motherduck_catalogs,
                 extensions=extensions,
             )
         )
