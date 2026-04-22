@@ -79,3 +79,10 @@ Dropping any of these creates a source that half-works. The lint makes that stat
 `ticket:new-source-generator` (Phase 2) will scaffold this layout given just the source name. Whatever the linter requires is what the generator creates — the two stay in lockstep.
 
 Until that ticket lands, adding a source by hand means copying the shape above. See `CLAUDE.md` for the current manual checklist.
+
+## Typing the resource boundary
+
+Sources that hit external APIs should validate each yielded record through a
+Pydantic model so upstream schema drift fails closed at extract. See
+[`source-typing.md`](source-typing.md) for the convention and the eBird
+`RecentObservation` pilot.

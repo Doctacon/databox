@@ -12,6 +12,7 @@ from dlt.sources.helpers import requests as dlt_requests
 from dotenv import load_dotenv
 
 from databox_sources._logging import get_logger
+from databox_sources.ebird.models import RecentObservation
 
 load_dotenv()
 
@@ -30,18 +31,19 @@ def get_api_headers() -> dict[str, str]:
 def process_observation(
     obs: dict[str, Any], region: str, is_notable: bool = False
 ) -> dict[str, Any]:
-    obs["_region_code"] = region
-    obs["_loaded_at"] = pendulum.now().isoformat()
-    obs["_observation_date"] = obs.get("obsDt")
-    obs["_is_notable"] = is_notable
+    """Validate one raw API observation through the RecentObservation contract.
 
-    if obs.get("howMany"):
-        try:
-            obs["howMany"] = int(obs["howMany"])
-        except (ValueError, TypeError):
-            obs["howMany"] = None
+    Raises `pydantic.ValidationError` on upstream schema drift (renamed fields,
+    flipped types, missing required fields). Returns the dict that dlt writes
+    to DuckDB in the same shape the legacy resource produced.
+    """
+    enriched = dict(obs)
+    enriched["_region_code"] = region
+    enriched["_loaded_at"] = pendulum.now().isoformat()
+    enriched["_observation_date"] = obs.get("obsDt")
+    enriched["_is_notable"] = is_notable
 
-    return obs
+    return RecentObservation.model_validate(enriched).to_record()
 
 
 @dlt.source

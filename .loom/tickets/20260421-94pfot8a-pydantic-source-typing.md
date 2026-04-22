@@ -1,9 +1,9 @@
 ---
 id: ticket:pydantic-source-typing
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T00:00:00Z
+updated_at: 2026-04-21T18:30:00Z
 scope:
   kind: workspace
 links: {}
@@ -86,3 +86,30 @@ resource in the project.
 - `task ci` green.
 - `docs/source-layout.md` (or `docs/source-typing.md`) documents the
   pattern with an eBird example.
+
+# Close Notes — 2026-04-21
+
+`packages/databox-sources/databox_sources/ebird/models.py` defines
+`RecentObservation` — a Pydantic v2 model with `AliasChoices` for input
+(camelCase API or snake_case Python) and an explicit `to_record()` that
+emits the legacy wire shape. `extra="ignore"` keeps the resource
+forward-compatible.
+
+`process_observation` in `ebird/source.py` now runs every record through
+`RecentObservation.model_validate(...).to_record()`. Drift (missing
+required field, type flip, coercion failure) raises `ValidationError` at
+extract time — before dlt writes. The explicit `columns={...}` hint on
+the resource stays; `columns=RecentObservation` is deferred because the
+Python field names don't round-trip 1:1 to the legacy underscore-prefixed
+metadata columns. Validation catches the drift cases the ticket targeted;
+schema-pinning via `columns=` is a refinement for a follow-up.
+
+Added `pydantic>=2.10.4` as an explicit dep on `databox-sources` (was
+transitive). `tests/test_ebird_models.py` covers 7 cases: good payload
+round-trip, wire-shape preservation, missing-required drift, type-flip
+drift, optional `howMany=None`, unknown-field tolerance, notable flag.
+7/7 green. Combined with scaffold / motherduck-autocreate suites: 28/28.
+
+Documentation: new `docs/source-typing.md` page captures the convention.
+`docs/source-layout.md` gets a short "Typing the resource boundary"
+pointer. `mkdocs.yml` nav updated so the page ships with the site.

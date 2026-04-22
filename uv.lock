@@ -717,6 +717,7 @@ dependencies = [
     { name = "databox" },
     { name = "dlt", extra = ["duckdb"] },
     { name = "pendulum" },
+    { name = "pydantic" },
     { name = "requests" },
     { name = "structlog" },
 ]
@@ -726,6 +727,7 @@ requires-dist = [
     { name = "databox", editable = "packages/databox" },
     { name = "dlt", extras = ["duckdb"], specifier = ">=1.14.1" },
     { name = "pendulum", specifier = ">=3.0.0" },
+    { name = "pydantic", specifier = ">=2.10.4" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "structlog", specifier = ">=24.1.0" },
 ]

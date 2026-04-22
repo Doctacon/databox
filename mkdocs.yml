@@ -65,6 +65,7 @@ nav:
   - Contracts: contracts.md
   - Staging codegen: staging.md
   - Source layout: source-layout.md
+  - Source typing: source-typing.md
   - New source generator: new-source.md
   - Forking the scaffold: template.md
   - CI routing: ci.md
