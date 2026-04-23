@@ -126,8 +126,7 @@ Never commit secrets. Use `.env` for API keys. Pre-commit hooks catch hardcoded 
 
 For external secret managers (1Password, Vault, AWS Secrets Manager, Doppler),
 see [docs/secrets.md](docs/secrets.md) — Pydantic `settings_customise_sources`
-lets you override env/dotenv without forking `DataboxSettings`. Worked example
-in `examples/secrets/one_password_source.py`.
+lets you override env/dotenv without forking `DataboxSettings`.
 
 ## Memories
 - Use `uv` for all package management

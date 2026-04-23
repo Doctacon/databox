@@ -3,7 +3,7 @@ id: ticket:secrets-pluggable
 kind: ticket
 status: closed
 created_at: 2026-04-21T00:00:00Z
-updated_at: 2026-04-21T19:30:00Z
+updated_at: 2026-04-22T16:58:00Z
 scope:
   kind: workspace
 links:
@@ -67,3 +67,5 @@ The answer is already latent: Pydantic settings classes accept custom secrets so
 # Close Notes
 
 Verified on main 2026-04-21: `docs/secrets.md` published, `examples/secrets/one_password_source.py` present, README + CLAUDE.md reference it. Deliverable landed during earlier scaffold-polish work; ledger reconciled during status audit.
+
+**Follow-up 2026-04-22**: `examples/` directory removed as an over-engineered top-level for a single 37-line snippet. The `OnePasswordSource` implementation was inlined into `docs/secrets.md` (same "copy-adapt" intent, one fewer directory). CLAUDE.md reference dropped. No behavior change — the pluggable `settings_customise_sources` contract is unaffected.
