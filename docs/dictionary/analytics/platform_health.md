@@ -43,6 +43,8 @@ Per-source load observability — most recent dlt load id, completion time, stat
 - `main._dlt_loads` (external)
 - `main.daily_values` (external)
 - `main.sites` (external)
+- `main._dlt_loads` (external)
+- `main.events` (external)
 
 ## Example query
 

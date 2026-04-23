@@ -102,7 +102,12 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 70
+# The 70% floor is enforced by the `tests-all` CI job via
+# `--cov-fail-under=70` (inherited from `[tool.pytest.ini_options]
+# addopts`). It is intentionally NOT set here because coverage.py's
+# `fail_under` is read during `coverage.report()` whether or not
+# pytest-cov's CLI flag is passed — which means shard jobs would keep
+# failing even after overriding `addopts` to drop `--cov-fail-under`.
 skip_covered = false
 show_missing = true
 exclude_lines = [
