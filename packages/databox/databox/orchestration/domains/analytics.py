@@ -6,12 +6,11 @@ rebuilt as part of any upstream source run via `all_pipelines`. The
 updates even on days with no source reloads.
 """
 
-from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
 
 import dagster as dg
 import duckdb
+from dagster import AssetExecutionContext
 
 from databox.config.settings import settings
 from databox.orchestration._factories import SODA_DIR, freshness_checks, soda_check
@@ -129,7 +128,7 @@ def _local_summary(now: datetime) -> list[tuple[object, ...]]:
     group_name="analytics",
 )
 def mart_cost_summary(
-    context: dg.AssetExecutionContext,
+    context: AssetExecutionContext,
 ) -> dg.MaterializeResult:  # type: ignore[type-arg]
     con = duckdb.connect(settings.database_path)
     now = datetime.now(UTC)
