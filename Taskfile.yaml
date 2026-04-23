@@ -83,7 +83,7 @@ tasks:
 
   db:reset:
     desc: "Delete local DuckDB files (MotherDuck dbs must be dropped manually)"
-    cmds: ["rm -f data/databox.duckdb data/raw_ebird.duckdb data/raw_noaa.duckdb data/raw_usgs.duckdb"]
+    cmds: ["rm -f data/databox.duckdb data/sqlmesh_state.duckdb data/raw_ebird.duckdb data/raw_noaa.duckdb data/raw_usgs.duckdb"]
   clean:
     desc: "Remove build + test + cache artifacts"
     cmds:

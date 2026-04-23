@@ -105,8 +105,6 @@ class DataboxSettings(BaseSettings):
         )
         from sqlmesh.core.config.connection import MotherDuckConnectionConfig
 
-        extensions = [{"name": "h3", "repository": "community"}]
-
         local_catalogs = {"databox": str(DATA_DIR / "databox.duckdb")} | {
             src.raw_catalog: str(DATA_DIR / f"{src.raw_catalog}.duckdb") for src in SOURCES
         }
@@ -114,20 +112,53 @@ class DataboxSettings(BaseSettings):
             src.raw_catalog: f"md:{src.raw_catalog}" for src in SOURCES
         }
 
-        local_gateway = GatewayConfig(
-            connection=DuckDBConnectionConfig(catalogs=local_catalogs, extensions=extensions)
-        )
+        # SQLMesh state lives in its own DuckDB file, not in `databox.duckdb`.
+        # Two reasons: (1) the state pool would otherwise re-open the data
+        # catalog with a different config than the data pool — DuckDB refuses
+        # with "Can't open a connection to same database file with a different
+        # configuration"; (2) SQLMesh explicitly warns against MotherDuck as a
+        # state backend for production. A local file satisfies both gateways.
+        state_connection = DuckDBConnectionConfig(database=str(DATA_DIR / "sqlmesh_state.duckdb"))
 
-        motherduck_gateway = GatewayConfig(
-            connection=MotherDuckConnectionConfig(
-                token=self.motherduck_token,
-                catalogs=motherduck_catalogs,
-                extensions=extensions,
-            )
-        )
+        # Only register the gateway matching the current backend. SQLMesh's
+        # Context eagerly builds an `EngineAdapter` for every gateway in
+        # `Config.gateways` the first time a snapshot operation is evaluated
+        # (see `Context.engine_adapters`), which means registering both would
+        # open a MotherDuck connection even under `DATABOX_BACKEND=local`. That
+        # crashes here because the process already holds a DuckDB handle to a
+        # different backend, triggering the "different configuration than
+        # existing connections" error. Gating the dict on `self.backend` keeps
+        # each run single-gateway.
+        #
+        # h3 community extension is installed only on the local DuckDB gateway.
+        # On MotherDuck, the `motherduck` extension auto-loads on `md:` connect
+        # and DuckDB refuses to load `h3` afterwards:
+        #   "Cannot load extension 'h3' after the MotherDuck extension."
+        # MotherDuck provides h3 functions server-side, so omitting the
+        # client-side extension there is both required and correct.
+        if self.backend == "motherduck":
+            gateways = {
+                "motherduck": GatewayConfig(
+                    connection=MotherDuckConnectionConfig(
+                        token=self.motherduck_token,
+                        catalogs=motherduck_catalogs,
+                    ),
+                    state_connection=state_connection,
+                )
+            }
+        else:
+            gateways = {
+                "local": GatewayConfig(
+                    connection=DuckDBConnectionConfig(
+                        catalogs=local_catalogs,
+                        extensions=[{"name": "h3", "repository": "community"}],
+                    ),
+                    state_connection=state_connection,
+                )
+            }
 
         return Config(
-            gateways={"local": local_gateway, "motherduck": motherduck_gateway},
+            gateways=gateways,
             default_gateway=self.gateway,
             model_defaults=ModelDefaultsConfig(dialect="duckdb", start="2025-07-25", cron="@daily"),
             linter=LinterConfig(
