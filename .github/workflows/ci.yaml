@@ -196,12 +196,13 @@ jobs:
         run: uv run pytest packages/databox-sources/tests/usgs -o "testpaths=packages/databox-sources/tests/usgs" -o "addopts=-v --tb=short --cov --cov-report=term-missing"
 
   tests-all:
-    # Monolithic whole-workspace pytest. This is the one job that enforces
-    # `--cov-fail-under=70` (inherited from `[tool.pytest.ini_options]` in
-    # pyproject.toml). Shards above keep giving fast, scoped signal on
-    # source-specific failures; this job guarantees the coverage floor is
-    # measured across the full surface (where every source is actually
-    # exercised), not against a shard's blind spot.
+    # Coverage-floor gate. Runs each shard sequentially under `coverage run
+    # --append` so per-source VCR cassettes do not collide (pytest-recording
+    # matches requests globally in-process, so running ebird+noaa+usgs in
+    # one pytest session produces cross-source cassette mismatches). The
+    # accumulated .coverage file is then reported with `--fail-under=70`.
+    # This is the one place the 70% floor is enforced; shard jobs above
+    # skip enforcement but still give fast per-source failure signal.
     name: pytest (all, coverage floor)
     needs: changes
     if: needs.changes.outputs.needs_full == 'true'
@@ -214,8 +215,18 @@ jobs:
           cache-dependency-glob: uv.lock
       - name: Install
         run: uv sync --all-extras --dev
-      - name: pytest (whole workspace, --cov-fail-under=70)
-        run: uv run pytest
+      - name: Erase previous coverage
+        run: uv run coverage erase
+      - name: Coverage — core (tests/ + packages/databox)
+        run: uv run coverage run --append -m pytest tests packages/databox -o "testpaths=tests packages/databox" -o "addopts=-v --tb=short"
+      - name: Coverage — ebird
+        run: uv run coverage run --append -m pytest packages/databox-sources/tests/ebird -o "testpaths=packages/databox-sources/tests/ebird" -o "addopts=-v --tb=short"
+      - name: Coverage — noaa
+        run: uv run coverage run --append -m pytest packages/databox-sources/tests/noaa -o "testpaths=packages/databox-sources/tests/noaa" -o "addopts=-v --tb=short"
+      - name: Coverage — usgs
+        run: uv run coverage run --append -m pytest packages/databox-sources/tests/usgs -o "testpaths=packages/databox-sources/tests/usgs" -o "addopts=-v --tb=short"
+      - name: Coverage report (fail under 70%)
+        run: uv run coverage report --fail-under=70 --show-missing
 
   sqlmesh-lint:
     name: SQLMesh lint
