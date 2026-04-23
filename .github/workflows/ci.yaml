@@ -142,7 +142,10 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: pytest core (tests/ + packages/databox)
-        run: uv run pytest tests packages/databox --override-ini="testpaths=tests packages/databox"
+        # Shard runs drop --cov-fail-under; the monolithic `tests-all` job
+        # enforces the 70% floor against the whole workspace (where each
+        # source package is actually exercised).
+        run: uv run pytest tests packages/databox -o "testpaths=tests packages/databox" -o "addopts=-v --tb=short --cov --cov-report=term-missing"
 
   tests-ebird:
     name: pytest (ebird)
@@ -158,7 +161,7 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: pytest ebird
-        run: uv run pytest packages/databox-sources/tests/ebird --override-ini="testpaths=packages/databox-sources/tests/ebird"
+        run: uv run pytest packages/databox-sources/tests/ebird -o "testpaths=packages/databox-sources/tests/ebird" -o "addopts=-v --tb=short --cov --cov-report=term-missing"
 
   tests-noaa:
     name: pytest (noaa)
@@ -174,7 +177,7 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: pytest noaa
-        run: uv run pytest packages/databox-sources/tests/noaa --override-ini="testpaths=packages/databox-sources/tests/noaa"
+        run: uv run pytest packages/databox-sources/tests/noaa -o "testpaths=packages/databox-sources/tests/noaa" -o "addopts=-v --tb=short --cov --cov-report=term-missing"
 
   tests-usgs:
     name: pytest (usgs)
@@ -190,7 +193,40 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: pytest usgs
-        run: uv run pytest packages/databox-sources/tests/usgs --override-ini="testpaths=packages/databox-sources/tests/usgs"
+        run: uv run pytest packages/databox-sources/tests/usgs -o "testpaths=packages/databox-sources/tests/usgs" -o "addopts=-v --tb=short --cov --cov-report=term-missing"
+
+  tests-all:
+    # Coverage-floor gate. Runs each shard sequentially under `coverage run
+    # --append` so per-source VCR cassettes do not collide (pytest-recording
+    # matches requests globally in-process, so running ebird+noaa+usgs in
+    # one pytest session produces cross-source cassette mismatches). The
+    # accumulated .coverage file is then reported with `--fail-under=70`.
+    # This is the one place the 70% floor is enforced; shard jobs above
+    # skip enforcement but still give fast per-source failure signal.
+    name: pytest (all, coverage floor)
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: Erase previous coverage
+        run: uv run coverage erase
+      - name: Coverage — core (tests/ + packages/databox)
+        run: uv run coverage run --append -m pytest tests packages/databox -o "testpaths=tests packages/databox" -o "addopts=-v --tb=short"
+      - name: Coverage — ebird
+        run: uv run coverage run --append -m pytest packages/databox-sources/tests/ebird -o "testpaths=packages/databox-sources/tests/ebird" -o "addopts=-v --tb=short"
+      - name: Coverage — noaa
+        run: uv run coverage run --append -m pytest packages/databox-sources/tests/noaa -o "testpaths=packages/databox-sources/tests/noaa" -o "addopts=-v --tb=short"
+      - name: Coverage — usgs
+        run: uv run coverage run --append -m pytest packages/databox-sources/tests/usgs -o "testpaths=packages/databox-sources/tests/usgs" -o "addopts=-v --tb=short"
+      - name: Coverage report (fail under 70%)
+        run: uv run coverage report --fail-under=70 --show-missing
 
   sqlmesh-lint:
     name: SQLMesh lint
