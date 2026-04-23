@@ -55,7 +55,7 @@ Opened 2026-04-21 after a staff-lens self-review surfaced drift, scaffold leaks,
 - ticket:loom-ledger-audit — reconcile status-field drift across initiatives/plans/tickets, add a CI validator that enforces cross-layer state coherence
 - ticket:mypy-strict-gate — drop `--ignore-missing-imports`, adopt per-package strict mypy, add a 70% coverage floor in CI
 - ticket:overengineering-trim — write ADR-0007 documenting the explicit keep/cut decisions for OpenLineage, the freshness violation sensor, Dive preview, and the Streamlit explorer
-- ticket:cost-rate-dynamic — move `MOTHERDUCK_COST_PER_COMPUTE_SECOND` out of `analytics.py` into a staleness-aware config with a warning asset check when `last_verified > 90d`
+- ~~ticket:cost-rate-dynamic~~ — closed 2026-04-22 without implementation; operator runs on MotherDuck free tier, so per-compute-second rate staleness warnings would track a number nobody pays
 - ticket:dual-consumer-surface — pick Streamlit, Dive, or both-with-explicit-roles as the canonical consumer surface and document the decision (+ ADR if Dive is kept, since it overrides the open-source-first principle)
 
 # Dependencies

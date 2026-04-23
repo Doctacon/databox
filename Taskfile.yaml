@@ -34,11 +34,10 @@ tasks:
       - python scripts/generate_platform_health.py --check
 
   docs:build:
-    desc: "Generate dictionary + cost page, build MkDocs (strict)"
+    desc: "Generate dictionary, build MkDocs (strict)"
     deps: [install]
     cmds:
       - "{{.VENV_DIR}}/bin/python scripts/generate_docs.py"
-      - "{{.VENV_DIR}}/bin/python scripts/render_cost_page.py"
       - "{{.VENV_DIR}}/bin/mkdocs build --strict"
 
   plan:dev:

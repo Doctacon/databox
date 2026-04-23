@@ -46,7 +46,6 @@ defs = dg.Definitions(
         usgs.usgs_dlt_assets,
         usgs_earthquakes.usgs_earthquakes_dlt_assets,
         sqlmesh_project,
-        analytics.mart_cost_summary,
     ],
     asset_checks=[
         *ebird.asset_checks,
@@ -60,7 +59,6 @@ defs = dg.Definitions(
         noaa.daily_pipeline,
         usgs.daily_pipeline,
         usgs_earthquakes.daily_pipeline,
-        analytics.cost_pipeline,
         all_pipelines,
     ],
     schedules=[
@@ -68,7 +66,6 @@ defs = dg.Definitions(
         noaa.schedule,
         usgs.schedule,
         usgs_earthquakes.schedule,
-        analytics.cost_schedule,
     ],
     sensors=[freshness_violation_sensor, *([_openlineage_sensor] if _openlineage_sensor else [])],
     resources={

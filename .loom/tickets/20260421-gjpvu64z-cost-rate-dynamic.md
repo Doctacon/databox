@@ -1,9 +1,9 @@
 ---
 id: ticket:cost-rate-dynamic
 kind: ticket
-status: ready
+status: closed
 created_at: 2026-04-21T21:00:00Z
-updated_at: 2026-04-21T21:00:00Z
+updated_at: 2026-04-22T00:00:00Z
 scope:
   kind: workspace
 links:
@@ -62,3 +62,11 @@ Comment says "Forkers must update when MotherDuck's published per-compute-second
 - Commit moving the rate into the config module
 - CI run showing the stale-rate test passing
 - Rendered `docs/cost.md` showing the visible "rate verified on YYYY-MM-DD" line
+
+# Closure — 2026-04-22
+
+Closed without implementation. Operator confirmed this workspace runs on MotherDuck's free tier, where no per-compute-second charge applies. The `motherduck_cost_usd` column in `mart_cost_summary` is therefore always $0 or meaningless regardless of the hardcoded rate, and the staleness-warning machinery this ticket would introduce would be tracking a number that does not bill the operator.
+
+Premise of the ticket (rate must stay truthful for the cost chart to be useful) no longer holds for the actual deployment. Implementing it would add a dataclass, asset check, and doc scaffolding to support a warning about a number nobody pays.
+
+Follow-up question still open: whether the `mart_cost_summary` asset itself should be removed or explicitly relabeled as free-tier. Tracked separately — this ticket closes rather than morphing into a different scope.

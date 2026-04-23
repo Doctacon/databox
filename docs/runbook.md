@@ -101,7 +101,6 @@ the run logs in `.dagster/`.
 - One source had a bad ingest window (API returned 500s,
   upstream corrected a prior day, your code had a bug for one run).
 - Mart values for those dates are wrong; every other source is fine.
-- `analytics.mart_cost_summary` shows a spike or gap for the window.
 
 ### Diagnosis
 
@@ -235,8 +234,8 @@ task verify
 task verify:dev
 ```
 
-Confirm Dagster freshness checks pass and `mart_cost_summary` looks
-sane post-restore (no synthetic gap beyond the restore point).
+Confirm Dagster freshness checks pass post-restore (no synthetic gap
+beyond the restore point).
 
 ### Rollback
 
@@ -270,7 +269,6 @@ CREATE SNAPSHOT 'pre_mart_rewrite_20260421' OF databox;
 
 - Dagster daemon was stopped for hours / days.
 - Freshness checks red across every source.
-- `analytics.mart_cost_summary` missing recent rows.
 
 ### Diagnosis
 
@@ -301,15 +299,6 @@ uv run dagster job backfill \
   --job all_pipelines \
   --partition-set-name '*' \
   --from 2026-04-18 --to 2026-04-20 \
-  -f packages/databox/databox/orchestration/definitions.py
-```
-
-For non-partitioned assets (`mart_cost_summary`), just materialize
-once — the per-day upsert is idempotent:
-
-```bash
-uv run dagster asset materialize \
-  --select 'analytics/mart_cost_summary' \
   -f packages/databox/databox/orchestration/definitions.py
 ```
 
@@ -351,9 +340,6 @@ would catch (or have caught) its underlying class of error.
 
 ### Known gaps (follow-up tickets)
 
-- **Disk-space alerting**: no automation; a `df -h` cron writing to
-  `analytics.mart_cost_summary` would close this. Low priority for
-  a single-operator scaffold.
 - **Pre-destructive named snapshot**: a wrapper around risky SQLMesh
   restates that auto-creates `CREATE SNAPSHOT` on MotherDuck would
   remove a common footgun.

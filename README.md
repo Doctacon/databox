@@ -177,11 +177,6 @@ Per-mart staleness SLAs are declared in each domain module and validated
 by `last_update` asset checks; a sensor emits a structured warning line
 per violation. See [docs/freshness.md](docs/freshness.md).
 
-Daily MotherDuck / local usage and cost snapshots land in
-`analytics.mart_cost_summary` and auto-render to
-[docs/cost.md](docs/cost.md). See that page for the cost model and how to
-update the hardcoded MotherDuck rate when pricing changes.
-
 Four production-failure scenarios — blown DuckDB file, partial source
 backfill, MotherDuck point-in-time recovery, paused-schedule resumption
 — have copy-pasteable recovery commands in

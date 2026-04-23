@@ -23,7 +23,6 @@ dev = [
     "syrupy>=4.0",
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
-    "matplotlib>=3.9",
     # openlineage-python is also the `lineage` extra on the databox package; keep
     # it in dev so CI can execute the OL sensor tests without the extra.
     "openlineage-python>=1.20.0",
@@ -89,10 +88,6 @@ omit = [
     "*/__init__.py",
     # Top-level Dagster wiring; no meaningful branches to exercise.
     "*/orchestration/definitions.py",
-    # MotherDuck MD_INFORMATION_SCHEMA + live duckdb file I/O; Dagster
-    # asset-check path is exercised by the live full-refresh smoke run,
-    # not unit tests.
-    "*/orchestration/domains/analytics.py",
     # Legacy PipelineSource/registry layer predating the SOURCES registry;
     # flagged for removal in ticket:overengineering-trim.
     "*/quality/engine.py",
