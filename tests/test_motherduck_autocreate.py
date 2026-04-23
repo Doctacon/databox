@@ -33,7 +33,13 @@ def test_issues_create_database_for_each_name() -> None:
         result = _factories.ensure_motherduck_databases()
 
     assert result == names
-    connect.assert_called_once_with("md:?motherduck_token=tok123")
+    # Must pass SQLMesh's custom_user_agent config so the md: URL matches
+    # SQLMesh's later open — DuckDB refuses mismatched configs on the same
+    # process-global handle. See comment in `ensure_motherduck_databases`.
+    connect.assert_called_once()
+    kwargs = connect.call_args.kwargs
+    assert kwargs["database"] == "md:?motherduck_token=tok123"
+    assert kwargs["config"]["custom_user_agent"].startswith("SQLMesh/")
     executed = [call.args[0] for call in fake_con.execute.call_args_list]
     assert executed == [
         'CREATE DATABASE IF NOT EXISTS "databox"',

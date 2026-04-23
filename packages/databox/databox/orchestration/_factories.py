@@ -164,6 +164,13 @@ def ensure_motherduck_databases() -> list[str]:
     Called at Dagster startup. No-ops when the backend is local or when
     `MOTHERDUCK_TOKEN` is empty. Returns the list of database names that
     were ensured (for tests); the DDL itself is idempotent.
+
+    The connection must match the config SQLMesh later uses
+    (`{"custom_user_agent": f"SQLMesh/{__version__}"}`) — DuckDB caches a
+    process-global handle per `md:?motherduck_token=...` URL and rejects
+    subsequent opens with different config kwargs ("Can't open a connection
+    to same database file with a different configuration than existing
+    connections").
     """
     if settings.backend != "motherduck":
         return []
@@ -174,9 +181,13 @@ def ensure_motherduck_databases() -> list[str]:
         return []
 
     import duckdb
+    from sqlmesh import __version__ as _sqlmesh_version
 
     names = settings.motherduck_database_names
-    con = duckdb.connect(f"md:?motherduck_token={settings.motherduck_token}")
+    con = duckdb.connect(
+        database=f"md:?motherduck_token={settings.motherduck_token}",
+        config={"custom_user_agent": f"SQLMesh/{_sqlmesh_version}"},
+    )
     try:
         for db in names:
             con.execute(f'CREATE DATABASE IF NOT EXISTS "{db}"')

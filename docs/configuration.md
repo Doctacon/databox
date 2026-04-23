@@ -46,6 +46,26 @@ Two classes of config live outside `DataboxSettings` on purpose:
 - **Per-source API tokens** (`EBIRD_API_TOKEN`, `NOAA_API_TOKEN`) are read at call time in `databox_sources/*/source.py`. Leaving them on `os.getenv` lets dlt's own config system and pytest's `monkeypatch.setenv` work cleanly. Migrating secrets off `.env` is tracked by `ticket:secrets-pluggable`.
 - **Build metadata in `pyproject.toml`** (package names, deps, Ruff/mypy config) is not runtime config.
 
+## SQLMesh state
+
+`sqlmesh_config()` points SQLMesh at a dedicated state DB
+(`data/sqlmesh_state.duckdb`) via `GatewayConfig.state_connection`, separate
+from the data catalogs. Both the local and MotherDuck gateways use this local
+file for state.
+
+Why it's split out:
+
+- The data-catalog connection loads the `h3` DuckDB extension. SQLMesh's state
+  pool opens the same file without extensions, which DuckDB refuses with
+  *"Can't open a connection to same database file with a different
+  configuration than existing connections."*
+- SQLMesh explicitly warns against using MotherDuck as the state backend for
+  production deployments. Keeping state on a local file satisfies that guidance
+  without adding infrastructure (e.g., a Postgres state store).
+
+`task db:reset` removes `data/sqlmesh_state.duckdb` alongside the catalog files
+so a reset leaves no orphan state.
+
 ## Switching backends
 
 ```bash
