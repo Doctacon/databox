@@ -3,7 +3,7 @@
 Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/generate_docs.py`.
 
 - **Models:** 22
-- **Soda contracts:** 27
+- **Soda contracts:** 26
 - **Lineage:** [browse the dependency graph](lineage.md)
 
 ## `analytics`
