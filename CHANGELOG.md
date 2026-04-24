@@ -1,0 +1,98 @@
+# Changelog
+
+## [0.3.0](https://github.com/Doctacon/databox/compare/v0.2.0...v0.3.0) (2026-04-24)
+
+
+### Features
+
+* **analytics:** add mart_cost_summary + docs/cost.md ([#27](https://github.com/Doctacon/databox/issues/27)) ([071fc04](https://github.com/Doctacon/databox/commit/071fc040186e8ca2e2882849f56297443e679f4a))
+* **analytics:** add species, hotspot diversity, and bird-weather models ([f59b689](https://github.com/Doctacon/databox/commit/f59b68989cf7d9a5d75c67785d33fcf11a9bcc01))
+* **analytics:** flagship cross-domain mart ([#9](https://github.com/Doctacon/databox/issues/9)) ([f8e0259](https://github.com/Doctacon/databox/commit/f8e02592f15fcb1819b219baff1bfba6c1ee62db))
+* **analytics:** remove mart_cost_summary and cost reporting surface ([26ba217](https://github.com/Doctacon/databox/commit/26ba21776ed5396c0902b5146bdae7dc3e399d3c))
+* **analytics:** semantic metrics layer on flagship mart ([#10](https://github.com/Doctacon/databox/issues/10)) ([5484d12](https://github.com/Doctacon/databox/commit/5484d120eb94157583527496a894dedf3a816694))
+* **backend:** add DATABOX_BACKEND env var to switch between local DuckDB and MotherDuck ([4ea5509](https://github.com/Doctacon/databox/commit/4ea5509a75f06338b023f9bf6a866f738af3e102))
+* **ci:** strict mypy per-package + 70% coverage floor ([7e37296](https://github.com/Doctacon/databox/commit/7e37296bd413d9a8973953c632b5fee721ce023f))
+* **db:** migrate from DuckDB to PostgreSQL ([13433b5](https://github.com/Doctacon/databox/commit/13433b5180c7512fb1d07cd9027ac60e7cabf350))
+* **dive:** add local vite preview environment for dashboards ([8e7b8c0](https://github.com/Doctacon/databox/commit/8e7b8c0f7804b1de1a7a84c1447b1edb89d45bfe))
+* **docs:** add --check gate + backfill usgs_earthquakes dictionary ([008fe01](https://github.com/Doctacon/databox/commit/008fe0172838cb67474252a7e5f2f94f7a18ae4a))
+* **docs:** auto-generated data dictionary + MkDocs site ([#11](https://github.com/Doctacon/databox/issues/11)) ([a29d90a](https://github.com/Doctacon/databox/commit/a29d90aa5b2f5540dec6a74162e5de779fcb95a4))
+* **docs:** recruiter-oriented README + 6 backfilled ADRs ([#12](https://github.com/Doctacon/databox/issues/12)) ([148fa0a](https://github.com/Doctacon/databox/commit/148fa0af0b03b796813630610904421a78b353ba))
+* **docs:** runnable metrics demo notebook + rendered docs page ([#25](https://github.com/Doctacon/databox/issues/25)) ([306781a](https://github.com/Doctacon/databox/commit/306781aca5d6ed8d98fc5d6d4cc2e273e4dcc2cf))
+* **duckdb:** migrate database backend from PostgreSQL to DuckDB ([1f26aaa](https://github.com/Doctacon/databox/commit/1f26aaaf5f3c936e4e679c4d648c187bd02f238c))
+* **ebird:** validate recent observations through Pydantic contract ([6b623f3](https://github.com/Doctacon/databox/commit/6b623f3daceefd5a0962f7e40d43b33224ea8929))
+* **envs:** dev → verify → prod SQLMesh virtual-env workflow ([#24](https://github.com/Doctacon/databox/issues/24)) ([5b86ed2](https://github.com/Doctacon/databox/commit/5b86ed285e648f959c6fffafb9888ba4556ef7aa))
+* **explorer:** introduce generic duckdb data explorer ([31b1f35](https://github.com/Doctacon/databox/commit/31b1f35a2b42725fbf635a0a988d7b61f6fe8d5e))
+* **freshness:** per-mart SLAs + violation sensor ([#26](https://github.com/Doctacon/databox/issues/26)) ([9668f5e](https://github.com/Doctacon/databox/commit/9668f5ed918b5ce497401ad7eeb8dd65f208603f))
+* **infra:** add Docker Compose infrastructure for PostgreSQL + Dagster ([ef8427b](https://github.com/Doctacon/databox/commit/ef8427bc79d67f679b870a9f601f160b374c4d5e))
+* iron out Dagster orchestration ([886fa19](https://github.com/Doctacon/databox/commit/886fa1960daa6992ae731a8121d15e7020bc009c))
+* **lint:** enforce per-source directory layout in CI ([#19](https://github.com/Doctacon/databox/issues/19)) ([8374b86](https://github.com/Doctacon/databox/commit/8374b865f14c220d51556bb2a868272c7a7287eb))
+* **mcp:** add initial mcp server configurations ([d5f55c7](https://github.com/Doctacon/databox/commit/d5f55c70c09777bfbb7e5aed14107dee208000a3))
+* **observability:** freshness policies, structured logs, platform_health mart ([#6](https://github.com/Doctacon/databox/issues/6)) ([710cff3](https://github.com/Doctacon/databox/commit/710cff3f28a1d683220cb44b238ce5b0e4757206))
+* **orchestration:** add aggregate job for all pipelines ([c6d13ae](https://github.com/Doctacon/databox/commit/c6d13aec991d68e6674ed5621c27f9ade75c0443))
+* **orchestration:** add Soda asset checks for all SQLMesh models ([3a5ed91](https://github.com/Doctacon/databox/commit/3a5ed91aa8d7f431115db288c1c7e95732867dc0))
+* **orchestration:** auto-create MotherDuck databases on Dagster startup ([caccc12](https://github.com/Doctacon/databox/commit/caccc1221f1a4b692c8cd1a49dbf3dcb326e61ea))
+* **orchestration:** consolidate transforms and add smoke testing support ([3e27c62](https://github.com/Doctacon/databox/commit/3e27c6240f42dc90af981caf7cbb38dfb2590600))
+* **orchestration:** emit OpenLineage events when OPENLINEAGE_URL is set ([a19d120](https://github.com/Doctacon/databox/commit/a19d120b1398c669020e4defe75cb2a504623c69))
+* **orchestration:** fine-grained dagster assets per dlt resource and sqlmesh model ([856b58d](https://github.com/Doctacon/databox/commit/856b58db048814c69709ddd52c4821dcf348fed0))
+* **orchestration:** implement smoke test support via environment variable ([d63f984](https://github.com/Doctacon/databox/commit/d63f9847880cf36e2d2d1f59da2f3119484a8d05))
+* **parallelism:** split raw DuckDB files per source for parallel dlt ingestion ([f9bc3e2](https://github.com/Doctacon/databox/commit/f9bc3e2b60b05b8efbdafe780dc4815db2069122))
+* **quality:** add freshness checks to all Soda contracts ([523bfa5](https://github.com/Doctacon/databox/commit/523bfa5a223776cd4f5e6494233ca441892503d8))
+* **quality:** add Soda Core data contracts for all tables ([f7afa41](https://github.com/Doctacon/databox/commit/f7afa4183c2a2a3370347a7f41f8d8661b6b25ce))
+* **rtk:** introduce token killer filtering and docs ([3e42a8b](https://github.com/Doctacon/databox/commit/3e42a8b3aa89e66dc49b9e7fa09ef5c2c8c70341))
+* **scaffold:** add --no-auth flag for public REST sources ([a562c96](https://github.com/Doctacon/databox/commit/a562c96c0d117a4f97240e9631ca4dace011d0c4))
+* **scaffold:** add new-source generator via `task new-source -- <name>` ([#22](https://github.com/Doctacon/databox/issues/22)) ([9609e62](https://github.com/Doctacon/databox/commit/9609e6205ea82cc355f67123cc1caca02e04f79e))
+* **scaffold:** auto-patch settings.py with raw_&lt;source&gt;_path + catalogs ([f3d2ebb](https://github.com/Doctacon/databox/commit/f3d2ebb923cf556195cdf813f4e9d70000ad8bd0))
+* **scaffold:** one-command fork rebrand via scaffold.yaml + task init ([#21](https://github.com/Doctacon/databox/issues/21)) ([34f1a14](https://github.com/Doctacon/databox/commit/34f1a1411b3dfa90bfa8b40ade55364082f9f700))
+* **secrets:** pluggable settings sources for external managers ([#23](https://github.com/Doctacon/databox/issues/23)) ([b0fde9f](https://github.com/Doctacon/databox/commit/b0fde9fcdb0adcad02222a7dc9e636ef92e395c6))
+* **sources:** add USGS Earthquake Hazards Program as 4th data source ([94dd984](https://github.com/Doctacon/databox/commit/94dd9840df8bf528bcc947723644ae1d97c7c10f))
+* **sources:** idempotency tests + days_back env overrides + docs ([#8](https://github.com/Doctacon/databox/issues/8)) ([0384b05](https://github.com/Doctacon/databox/commit/0384b057c6df32966d4169abb3f576f2aa4b9d42))
+* **sqlmesh:** add role-based access grants to all 15 models ([4c605bc](https://github.com/Doctacon/databox/commit/4c605bc227690da33de2919e0f1219f0421ed1d0))
+* **staging:** generate trivial-rename staging SQL from Soda contracts ([#18](https://github.com/Doctacon/databox/issues/18)) ([2885a6b](https://github.com/Doctacon/databox/commit/2885a6bdbfa005618dec90422aaabebfec48669f))
+* state filter for streamlit dash ([0138018](https://github.com/Doctacon/databox/commit/01380185915064281ff4999142a69c44f423e9ce))
+* **taskfile:** redirect full-refresh + verify output to .logs/ ([b82290c](https://github.com/Doctacon/databox/commit/b82290cfcecf7b819383143a85691a00911b47b4))
+* **usgs:** add water services data source and pipeline ([9c3000d](https://github.com/Doctacon/databox/commit/9c3000d7893e22e687f46cd036b216c9ce088b6f))
+
+
+### Bug Fixes
+
+* **dlt:** use motherduck destination for motherduck backend ([e37a5cd](https://github.com/Doctacon/databox/commit/e37a5cd77c73fa90ce4ef968b5ecb8ed99f2417d))
+* **quality:** resolve Pyright None-subscript errors in engine.py ([71da45f](https://github.com/Doctacon/databox/commit/71da45ff6cfa420b844e7bf0e257d59672f451a0))
+* **run-logged:** single-line progress spinner — kill grep fallback bug ([609c575](https://github.com/Doctacon/databox/commit/609c575a675be565a5144ecb0e3888b9e39cdb44))
+* **smoke:** correct Soda contracts, SQLMesh config, and Postgres SQL compat ([ae860d4](https://github.com/Doctacon/databox/commit/ae860d40f99bdd102d63ae34fd223782747baf43))
+* **smoke:** pass start date to sqlmesh.run() + add verify:docker task ([7c9ec8d](https://github.com/Doctacon/databox/commit/7c9ec8d28efc7141bb0003a69823ff5a8e977247))
+* **smoke:** run tests in-process and enable ssh for docker builds ([e19fdb9](https://github.com/Doctacon/databox/commit/e19fdb910917a99598ae0d3974b537010feb73ce))
+* **soda:** align freshness thresholds with per-source publish cadence ([495daf5](https://github.com/Doctacon/databox/commit/495daf564242894fa8cff403f16553bbb17a667e))
+* **soda:** remove invalid submission_id uniqueness check on ebird observations ([f68ed15](https://github.com/Doctacon/databox/commit/f68ed15c2d7dc88666dc631321336634fae988e0))
+* **sqlmesh:** resolve DuckDB connection-config conflict blocking state init ([#32](https://github.com/Doctacon/databox/issues/32)) ([3b328c2](https://github.com/Doctacon/databox/commit/3b328c234fda322281bee08cb40ee39e9104789d))
+* **types:** clean up 31 pre-existing mypy errors and enforce typecheck in CI ([#4](https://github.com/Doctacon/databox/issues/4)) ([8a3b11d](https://github.com/Doctacon/databox/commit/8a3b11d7141958597dc4516f26718ba1a5844df2))
+* **workspace:** add pre-commit, ruff, mypy to dev dependencies ([dfc91c5](https://github.com/Doctacon/databox/commit/dfc91c5ad61563ed7e7c0eb24c9fd2e9b757fb52))
+* **workspace:** resolve uv sync and test issues post-WS5 ([b8d6b9b](https://github.com/Doctacon/databox/commit/b8d6b9b02e5e72fa074fbf8a41435d51d335b730))
+
+
+### Documentation
+
+* **constitution:** add project vision and architectural principles ([e73b39a](https://github.com/Doctacon/databox/commit/e73b39ae413e8ec3965179e997f8978fcce55864))
+* **dictionary:** drop soda contract count after mart_cost_summary removal ([c80a880](https://github.com/Doctacon/databox/commit/c80a8805c361c5724e4f7cb9d23c0efcfe1399bc))
+* **loom:** open 3 tickets from OSS data engineering gap analysis ([e7d27f5](https://github.com/Doctacon/databox/commit/e7d27f59405cb9fcfbd19c81415b9e4cf8acdc30))
+* **loom:** open 9 Phase 5 hardening tickets from staff-lens self-review ([6dee717](https://github.com/Doctacon/databox/commit/6dee7173c4c407a33ebe38d923f36ec2199284bb))
+* **readme:** update for dagster-centric orchestration and cli removal ([23f5e7b](https://github.com/Doctacon/databox/commit/23f5e7b946bcb1e2fb90613b201eb2e77b7a5c3e))
+* **readme:** update for motherduck cloud and multi-db architecture ([2d21a0a](https://github.com/Doctacon/databox/commit/2d21a0a67d114b34c4316df6e7a2c692fa0960f1))
+* **runbook:** add incident recovery runbook ([#28](https://github.com/Doctacon/databox/issues/28)) ([0256f11](https://github.com/Doctacon/databox/commit/0256f11c84ba56ed108f746255c054557448252b))
+* **scaffold:** replace removed task:* refs with direct script calls ([65106ed](https://github.com/Doctacon/databox/commit/65106ed8ac99e288247165d43cfbb2afc9b524c5))
+* update README to reflect monorepo structure ([0999f39](https://github.com/Doctacon/databox/commit/0999f394382fb05001ccaab86033e10556355fea))
+
+
+### Refactoring
+
+* collapse 4 packages into databox + databox-sources ([#13](https://github.com/Doctacon/databox/issues/13)) ([af325d5](https://github.com/Doctacon/databox/commit/af325d5e73c255f6935d06d00e9bb98a2439fba8))
+* **config:** make DataboxSettings single source of truth ([#14](https://github.com/Doctacon/databox/issues/14)) ([0f08a40](https://github.com/Doctacon/databox/commit/0f08a4053e9d69593b7ed8e15d578c01cd294aa4))
+* **orchestration:** align dlt asset keys with sqlmesh dependencies ([4804ba4](https://github.com/Doctacon/databox/commit/4804ba4783c591fc690c517c4a60f5147e9723e2))
+* **orchestration:** make source list registry-driven ([3903443](https://github.com/Doctacon/databox/commit/39034438d266137b6d0d67b74e131b761d2b20ce))
+* **orchestration:** replace manual sqlmesh asset factory with dagster-sqlmesh ([af95128](https://github.com/Doctacon/databox/commit/af95128085a12212dceb7b4d6e01590cd4a3c669))
+* **orchestration:** split definitions.py into per-domain modules ([#15](https://github.com/Doctacon/databox/issues/15)) ([356b66e](https://github.com/Doctacon/databox/commit/356b66eb6510a9c1bfaf63c0b89ac016208f650d))
+* **schema-gate:** move classifier to library, delegate type widening to sqlglot ([#17](https://github.com/Doctacon/databox/issues/17)) ([a132528](https://github.com/Doctacon/databox/commit/a132528b9f539459cbe0af770be812e7370bb997))
+* **schemas:** rename home_team → analytics ([5da4f92](https://github.com/Doctacon/databox/commit/5da4f92d4d3b8cb2ddf3e4405b1e1dcafb824d06))
+* **schemas:** separate staging layer into ebird_staging/noaa_staging schemas ([7439ca2](https://github.com/Doctacon/databox/commit/7439ca276c8a58aa2f71e654ead88c96779f1b50))
+* **taskfile:** trim Taskfile from 224→96 lines, document raw CLIs ([#16](https://github.com/Doctacon/databox/issues/16)) ([70775da](https://github.com/Doctacon/databox/commit/70775da20b160a990511c9366d7e41b3ec58b85e))
+* **transforms:** unify sqlmesh projects ([e735cf0](https://github.com/Doctacon/databox/commit/e735cf08b16a8fcec9ee2ad091db412e05059df8))
+* **workspace:** restructure into uv workspace packages ([c217adc](https://github.com/Doctacon/databox/commit/c217adc1b4c09344c50a459b90e05bb5fab9e095))

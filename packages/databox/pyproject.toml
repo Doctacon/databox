@@ -1,6 +1,6 @@
 [project]
 name = "databox"
-version = "0.2.0"
+version = "0.3.0"
 description = "Databox shared library — config, quality engine, and Dagster orchestration."
 requires-python = ">=3.12"
 dependencies = [
