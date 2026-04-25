@@ -1,0 +1,118 @@
+test_fct_daily_streamflow_pivots_parameters_and_converts_temp:
+  # USGS NWIS DV pivots from (site, date, parameter_cd) rows into one row per
+  # (site, date) with discharge (00060) / gage_height (00065) / water_temp
+  # (00010) as columns. Asserts:
+  #  - 3 parameter rows collapse into 1 fct row
+  #  - water_temp_f = water_temp_c * 9/5 + 32 → 25C → 77F
+  #  - 7d rolling avg of discharge over a single observation = same value
+  model: usgs.fct_daily_streamflow
+  inputs:
+    usgs_staging.stg_usgs_daily_values:
+      rows:
+        - site_no: "09379025"
+          observation_date: "2025-07-20"
+          state_cd: "AZ"
+          parameter_cd: "00060"
+          value: 100.0
+          loaded_at: "2025-07-20 10:00:00"
+        - site_no: "09379025"
+          observation_date: "2025-07-20"
+          state_cd: "AZ"
+          parameter_cd: "00065"
+          value: 5.0
+          loaded_at: "2025-07-20 10:00:00"
+        - site_no: "09379025"
+          observation_date: "2025-07-20"
+          state_cd: "AZ"
+          parameter_cd: "00010"
+          value: 25.0
+          loaded_at: "2025-07-20 10:00:00"
+    usgs_staging.stg_usgs_sites:
+      rows:
+        - site_no: "09379025"
+          site_name: "Test Gauge"
+          latitude: 33.45
+          longitude: -112.07
+          state_cd: "AZ"
+          huc_cd: "15010001"
+          drainage_area_sqmi: 100.5
+          loaded_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - site_no: "09379025"
+          observation_date: "2025-07-20"
+          discharge_cfs: 100.0
+          gage_height_ft: 5.0
+          water_temp_c: 25.0
+          water_temp_f: 77.0
+          drainage_area_sqmi: 100.5
+          parameter_count: 3
+          discharge_7d_avg_cfs: 100.0
+
+test_int_streamflow_by_h3_day_nearest_gauge:
+  # Asserts nearest-gauge cross-join + ROW_NUMBER() picks the closer of two
+  # gauges for each H3 cell. Uses one cell with a near gauge (co-located) and
+  # a far gauge to make the choice unambiguous.
+  model: usgs.int_streamflow_by_h3_day
+  inputs:
+    ebird.int_observations_by_h3_day:
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          n_observations: 1
+          n_checklists: 1
+          total_birds_counted: 1
+          n_notable_observations: 0
+          last_loaded_at: "2025-07-20 10:00:00"
+    usgs_staging.stg_usgs_sites:
+      rows:
+        - site_no: "GAUGE_NEAR"
+          site_name: "Near"
+          latitude: 33.4533963108203
+          longitude: -112.0550516994838
+          state_cd: "AZ"
+          huc_cd: "15010001"
+          drainage_area_sqmi: 100.0
+          loaded_at: "2025-07-20 10:00:00"
+        - site_no: "GAUGE_FAR"
+          site_name: "Far"
+          latitude: 40.0
+          longitude: -100.0
+          state_cd: "AZ"
+          huc_cd: "15010002"
+          drainage_area_sqmi: 50.0
+          loaded_at: "2025-07-20 10:00:00"
+    usgs.fct_daily_streamflow:
+      rows:
+        - site_no: "GAUGE_NEAR"
+          site_name: "Near"
+          observation_date: "2025-07-20"
+          state_cd: "AZ"
+          latitude: 33.4533963108203
+          longitude: -112.0550516994838
+          huc_cd: "15010001"
+          drainage_area_sqmi: 100.0
+          discharge_cfs: 250.0
+          gage_height_ft: 6.0
+          water_temp_c: 18.0
+          water_temp_f: 64.4
+          discharge_7d_avg_cfs: 250.0
+          parameter_count: 3
+          first_loaded_at: "2025-07-20 10:00:00"
+          last_loaded_at: "2025-07-20 10:00:00"
+          last_updated_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          nearest_gauge_id: "GAUGE_NEAR"
+          mean_discharge_cfs: 250.0
+          mean_gage_height_ft: 6.0
+          mean_water_temp_c: 18.0

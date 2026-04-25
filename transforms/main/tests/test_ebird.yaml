@@ -1,0 +1,415 @@
+test_dim_species_picks_latest_loaded_taxonomy:
+  # DISTINCT ON (species_code) ORDER BY species_code, loaded_at DESC.
+  # Two rows for the same species: the later loaded_at wins.
+  model: ebird.dim_species
+  inputs:
+    ebird_staging.stg_ebird_taxonomy:
+      rows:
+        - species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          taxonomic_order: 1001
+          taxonomic_category: "species"
+          family_common_name: "Cardinals and Allies"
+          family_scientific_name: "Cardinalidae"
+          loaded_at: "2025-07-19 10:00:00"
+        - species_code: "norcar"
+          common_name: "Northern Cardinal — REVISED"
+          scientific_name: "Cardinalis cardinalis"
+          taxonomic_order: 1001
+          taxonomic_category: "species"
+          family_common_name: "Cardinals and Allies"
+          family_scientific_name: "Cardinalidae"
+          loaded_at: "2025-07-20 10:00:00"
+        - species_code: "blujay"
+          common_name: "Blue Jay"
+          scientific_name: "Cyanocitta cristata"
+          taxonomic_order: 1002
+          taxonomic_category: "species"
+          family_common_name: "Crows, Jays, and Magpies"
+          family_scientific_name: "Corvidae"
+          loaded_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      rows:
+        - species_code: "blujay"
+          common_name: "Blue Jay"
+          scientific_name: "Cyanocitta cristata"
+          taxonomic_order: 1002
+          taxonomic_category: "species"
+          family_common_name: "Crows, Jays, and Magpies"
+          family_scientific_name: "Corvidae"
+          loaded_at: "2025-07-20 10:00:00"
+        - species_code: "norcar"
+          common_name: "Northern Cardinal — REVISED"
+          scientific_name: "Cardinalis cardinalis"
+          taxonomic_order: 1001
+          taxonomic_category: "species"
+          family_common_name: "Cardinals and Allies"
+          family_scientific_name: "Cardinalidae"
+          loaded_at: "2025-07-20 10:00:00"
+
+test_int_ebird_enriched_observations_joins_and_buckets:
+  # Asserts time-of-day + season bucketing, is_flock derivation, taxonomy and
+  # hotspot LEFT JOIN behavior (matched + unmatched), and that haversine
+  # distance is NULL when the hotspot row is missing. obs1 and its hotspot
+  # share lat/lng, so distance_from_hotspot_miles = 0 — avoids hand-deriving
+  # haversine values.
+  model: ebird.int_ebird_enriched_observations
+  inputs:
+    ebird_staging.stg_ebird_observations:
+      rows:
+        - submission_id: "S001"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          location_id: "L123"
+          location_name: "Test Park"
+          observation_datetime: "2025-07-20 08:30:00"
+          observation_date: "2025-07-20"
+          observation_year: 2025
+          observation_month: 7
+          observation_day: 20
+          observation_hour: 8
+          count: 3
+          count_display: "3"
+          latitude: 33.45
+          longitude: -112.07
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
+          region_code: "US-AZ"
+          is_notable: false
+          loaded_at: "2025-07-20 10:00:00"
+        - submission_id: "S002"
+          species_code: "unknwn"
+          common_name: "Unknown Species"
+          scientific_name: "Unknown sp."
+          location_id: "L_NO_HOTSPOT"
+          location_name: "Random Spot"
+          observation_datetime: "2025-12-21 14:00:00"
+          observation_date: "2025-12-21"
+          observation_year: 2025
+          observation_month: 12
+          observation_day: 21
+          observation_hour: 14
+          count: 1
+          count_display: "1"
+          latitude: 40.00
+          longitude: -100.00
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
+          region_code: "US-XX"
+          is_notable: false
+          loaded_at: "2025-12-21 10:00:00"
+    ebird_staging.stg_ebird_taxonomy:
+      rows:
+        - species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          taxonomic_order: 1001
+          taxonomic_category: "species"
+          family_common_name: "Cardinals and Allies"
+          family_scientific_name: "Cardinalidae"
+          loaded_at: "2025-07-20 10:00:00"
+    ebird_staging.stg_ebird_hotspots:
+      rows:
+        - location_id: "L123"
+          location_name: "Test Park"
+          country_code: "US"
+          state_code: "US-AZ"
+          county_code: "US-AZ-013"
+          latitude: 33.45
+          longitude: -112.07
+          latest_observation_datetime: "2025-07-19 00:00:00"
+          total_species_count: 280
+          region_code: "US-AZ"
+          loaded_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - submission_id: "S001"
+          species_code: "norcar"
+          time_of_day: "Morning"
+          season: "Summer"
+          is_flock: true
+          taxonomic_order: 1001
+          family_common_name: "Cardinals and Allies"
+          country_code: "US"
+          state_code: "US-AZ"
+          hotspot_total_species: 280
+          distance_from_hotspot_miles: 0.0
+        - submission_id: "S002"
+          species_code: "unknwn"
+          time_of_day: "Afternoon"
+          season: "Winter"
+          is_flock: false
+          taxonomic_order:
+          family_common_name:
+          country_code:
+          state_code:
+          hotspot_total_species:
+          distance_from_hotspot_miles:
+
+test_int_observations_by_h3_day_groups_and_counts:
+  # Asserts H3 cell rollup: 3 observations from same species at same lat/lng
+  # on same day collapse into one row. n_checklists is DISTINCT submission_id,
+  # n_notable_observations counts is_notable=true, total_birds_counted sums.
+  model: ebird.int_observations_by_h3_day
+  inputs:
+    ebird_staging.stg_ebird_observations:
+      rows:
+        - submission_id: "S001"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          location_id: "L1"
+          location_name: "Loc1"
+          observation_datetime: "2025-07-20 08:30:00"
+          observation_date: "2025-07-20"
+          observation_year: 2025
+          observation_month: 7
+          observation_day: 20
+          observation_hour: 8
+          count: 3
+          count_display: "3"
+          latitude: 33.45
+          longitude: -112.07
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
+          region_code: "US-AZ"
+          is_notable: false
+          loaded_at: "2025-07-20 10:00:00"
+        - submission_id: "S001"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          location_id: "L1"
+          location_name: "Loc1"
+          observation_datetime: "2025-07-20 08:35:00"
+          observation_date: "2025-07-20"
+          observation_year: 2025
+          observation_month: 7
+          observation_day: 20
+          observation_hour: 8
+          count: 2
+          count_display: "2"
+          latitude: 33.45
+          longitude: -112.07
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
+          region_code: "US-AZ"
+          is_notable: true
+          loaded_at: "2025-07-20 10:00:00"
+        - submission_id: "S002"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          location_id: "L2"
+          location_name: "Loc2"
+          observation_datetime: "2025-07-20 09:00:00"
+          observation_date: "2025-07-20"
+          observation_year: 2025
+          observation_month: 7
+          observation_day: 20
+          observation_hour: 9
+          count: 5
+          count_display: "5"
+          latitude: 33.45
+          longitude: -112.07
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
+          region_code: "US-AZ"
+          is_notable: false
+          loaded_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - species_code: "norcar"
+          observation_date: "2025-07-20"
+          n_observations: 3
+          n_checklists: 2
+          total_birds_counted: 10
+          n_notable_observations: 1
+
+test_fct_daily_bird_observations_aggregates_per_region_date_species:
+  # Asserts per (region, date, species) aggregation: counts of submissions /
+  # locations / observations / counted vs presence-only / time-of-day buckets,
+  # and the popularity_score formula log(obs+1)*log(loc+1).
+  model: ebird.fct_daily_bird_observations
+  inputs:
+    ebird.int_ebird_enriched_observations:
+      rows:
+        - submission_id: "S001"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          family_common_name: "Cardinals and Allies"
+          taxonomic_category: "species"
+          season: "Summer"
+          time_of_day: "Morning"
+          region_code: "US-AZ"
+          location_id: "L1"
+          observation_date: "2025-07-20"
+          count: 3
+          latitude: 33.45
+          longitude: -112.07
+          is_valid: true
+          is_reviewed: false
+          is_notable: false
+          is_flock: true
+          loaded_at: "2025-07-20 10:00:00"
+        - submission_id: "S002"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          family_common_name: "Cardinals and Allies"
+          taxonomic_category: "species"
+          season: "Summer"
+          time_of_day: "Afternoon"
+          region_code: "US-AZ"
+          location_id: "L2"
+          observation_date: "2025-07-20"
+          count:
+          latitude: 33.46
+          longitude: -112.08
+          is_valid: true
+          is_reviewed: true
+          is_notable: true
+          is_flock: false
+          loaded_at: "2025-07-20 10:00:00"
+        - submission_id: "S003"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          family_common_name: "Cardinals and Allies"
+          taxonomic_category: "species"
+          season: "Summer"
+          time_of_day: "Morning"
+          region_code: "US-AZ"
+          location_id: "L1"
+          observation_date: "2025-07-20"
+          count: 1
+          latitude: 33.45
+          longitude: -112.07
+          is_valid: false
+          is_reviewed: false
+          is_notable: false
+          is_flock: false
+          loaded_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - region_code: "US-AZ"
+          observation_date: "2025-07-20"
+          species_code: "norcar"
+          submission_count: 3
+          location_count: 2
+          observation_count: 3
+          total_birds_counted: 4
+          counted_observations: 2
+          presence_only_observations: 1
+          morning_observations: 2
+          afternoon_observations: 1
+          notable_observations: 1
+          flock_observations: 1
+          valid_observations: 2
+          reviewed_observations: 1
+          pct_counted_observations: 66.7
+          pct_valid_observations: 66.7
+          # DuckDB LOG() = log10. log10(3+1) * log10(2+1) ≈ 0.602 * 0.477 ≈ 0.29.
+          popularity_score: 0.29
+
+test_fct_hotspot_species_diversity_shannon_index:
+  # Shannon = -SUM(p_i * ln(p_i)). Two species with equal counts at one
+  # hotspot → p_i = 0.5 each → H = -2 * 0.5 * ln(0.5) = ln(2) ≈ 0.6931.
+  # Single-species hotspot → p = 1 → H = -1 * ln(1) = 0.
+  model: ebird.fct_hotspot_species_diversity
+  inputs:
+    ebird.int_ebird_enriched_observations:
+      rows:
+        - &int_row
+          submission_id: "S001"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          location_id: "L_DIVERSE"
+          location_name: "Diverse Spot"
+          observation_datetime: "2025-07-20 08:30:00"
+          observation_date: "2025-07-20"
+          observation_year: 2025
+          observation_month: 7
+          observation_day: 20
+          observation_hour: 8
+          count: 1
+          count_display: "1"
+          latitude: 33.45
+          longitude: -112.07
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
+          region_code: "US-AZ"
+          is_notable: false
+          taxonomic_order: 1001
+          taxonomic_category: "species"
+          family_common_name: "Cardinals and Allies"
+          family_scientific_name: "Cardinalidae"
+          country_code: "US"
+          state_code: "US-AZ"
+          county_code: "US-AZ-013"
+          hotspot_total_species: 2
+          hotspot_latest_observation: "2025-07-21 00:00:00"
+          time_of_day: "Morning"
+          season: "Summer"
+          is_flock: false
+          distance_from_hotspot_miles: 0.0
+          loaded_at: "2025-07-20 10:00:00"
+        - <<: *int_row
+          submission_id: "S002"
+          species_code: "blujay"
+          common_name: "Blue Jay"
+          scientific_name: "Cyanocitta cristata"
+          observation_date: "2025-07-21"
+          is_notable: true
+        - <<: *int_row
+          submission_id: "S003"
+          location_id: "L_MONO"
+          location_name: "Monoculture Spot"
+          observation_date: "2025-07-22"
+          latitude: 33.50
+          longitude: -112.10
+          hotspot_total_species: 1
+        - <<: *int_row
+          submission_id: "S004"
+          species_code: "blujay"
+          common_name: "Blue Jay"
+          scientific_name: "Cyanocitta cristata"
+          observation_date: "2025-07-23"
+          is_notable: false
+  outputs:
+    query:
+      partial: true
+      rows:
+        - location_id: "L_DIVERSE"
+          total_species_count: 2
+          total_observations: 3
+          # blujay 2 obs, norcar 1 obs at L_DIVERSE → p = 2/3, 1/3.
+          # H = -(2/3*ln(2/3) + 1/3*ln(1/3)) ≈ 0.6365 → ROUND(..,4) = 0.637.
+          shannon_diversity_index: 0.637
+          most_common_species_code: "blujay"
+          peak_season: "Summer"
+          pct_notable_observations: 33.3
+        - location_id: "L_MONO"
+          total_species_count: 1
+          total_observations: 1
+          shannon_diversity_index: 0.0
+          most_common_species_code: "norcar"
+          peak_season: "Summer"
+          pct_notable_observations: 0.0

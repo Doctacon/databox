@@ -1,15 +1,16 @@
 ---
 id: ticket:sqlmesh-test-depth
 kind: ticket
-status: ready
+status: complete_pending_acceptance
 created_at: 2026-04-21T21:00:00Z
-updated_at: 2026-04-21T21:00:00Z
+updated_at: 2026-04-25T00:00:00Z
 scope:
   kind: workspace
 links:
   initiative: initiative:staff-portfolio-readiness
   plan: plan:staff-portfolio-readiness
   phase: 5
+  evidence: evidence:sqlmesh-test-depth
 depends_on: []
 ---
 

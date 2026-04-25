@@ -136,6 +136,18 @@ class DataboxSettings(BaseSettings):
         #   "Cannot load extension 'h3' after the MotherDuck extension."
         # MotherDuck provides h3 functions server-side, so omitting the
         # client-side extension there is both required and correct.
+        # The test connection is a fresh in-process DuckDB built per
+        # `sqlmesh test` invocation. It does not inherit the prod gateway's
+        # extensions or community-extension permissions, so H3-using models
+        # (`int_*_by_h3_day`, `fct_species_environment_daily`) need the h3
+        # extension declared here too — otherwise their tests fail with
+        # "Scalar Function h3_latlng_to_cell_string does not exist". Applied
+        # to both gateways so `sqlmesh test` works regardless of which backend
+        # the operator runs locally.
+        test_connection = DuckDBConnectionConfig(
+            extensions=[{"name": "h3", "repository": "community"}],
+        )
+
         if self.backend == "motherduck":
             gateways = {
                 "motherduck": GatewayConfig(
@@ -144,6 +156,7 @@ class DataboxSettings(BaseSettings):
                         catalogs=motherduck_catalogs,
                     ),
                     state_connection=state_connection,
+                    test_connection=test_connection,
                 )
             }
         else:
@@ -154,6 +167,7 @@ class DataboxSettings(BaseSettings):
                         extensions=[{"name": "h3", "repository": "community"}],
                     ),
                     state_connection=state_connection,
+                    test_connection=test_connection,
                 )
             }
 

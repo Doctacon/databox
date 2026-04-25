@@ -50,7 +50,7 @@ Opened 2026-04-21 after a staff-lens self-review surfaced drift, scaffold leaks,
 
 - ticket:docs-drift-purge — eliminate stale CLI references in CLAUDE.md, delete phantom `transforms/CLAUDE.md`, fix README mermaid diagrams to remove deleted notebook nodes
 - ticket:scaffold-hardcoded-source-list — replace hardcoded `("ebird","noaa","usgs")` tuples across `_factories.py` / `settings.py` / `smoke.py` / `platform_health.sql` with a single source registry so the 4th source (usgs_earthquakes) actually participates in every code path that claims to be dataset-agnostic
-- ticket:sqlmesh-test-depth — bring SQLMesh unit-test count from 5 to ≥20, with special-case coverage for the flagship cross-domain mart's windowed anomaly math
+- ~~ticket:sqlmesh-test-depth~~ — landed 2026-04-25 at 22 tests (was 5); flagship windowed z-score, LEFT-JOIN nulls, and hot/rainy boundary special-cases included. See `evidence:sqlmesh-test-depth`.
 - ticket:dagster-deploy-live — stand up a live Dagster deployment (Dagster Cloud Serverless / Fly / Render) and link its URL from the README
 - ticket:loom-ledger-audit — reconcile status-field drift across initiatives/plans/tickets, add a CI validator that enforces cross-layer state coherence
 - ticket:mypy-strict-gate — drop `--ignore-missing-imports`, adopt per-package strict mypy, add a 70% coverage floor in CI

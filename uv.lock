@@ -440,7 +440,7 @@ wheels = [
 
 [[package]]
 name = "databox"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "packages/databox" }
 dependencies = [
     { name = "dagster" },
@@ -482,7 +482,7 @@ provides-extras = ["lineage"]
 
 [[package]]
 name = "databox-sources"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "packages/databox-sources" }
 dependencies = [
     { name = "databox" },
@@ -505,7 +505,7 @@ requires-dist = [
 
 [[package]]
 name = "databox-workspace"
-version = "0.2.0"
+version = "0.3.0"
 source = { virtual = "." }
 dependencies = [
     { name = "databox" },

@@ -22,13 +22,14 @@ tasks:
     sources: [pyproject.toml, uv.lock, scripts/setup_pre_commit.sh]
 
   ci:
-    desc: "Every CI gate: ruff + mypy + pytest + secret scan + staging drift"
+    desc: "Every CI gate: ruff + mypy + pytest + sqlmesh test + secret scan + staging drift"
     deps: [install]
     cmds:
       - "{{.VENV_DIR}}/bin/ruff check ."
       - "{{.VENV_DIR}}/bin/ruff format --check ."
       - "{{.VENV_DIR}}/bin/mypy packages/"
       - "{{.VENV_DIR}}/bin/pytest"
+      - cd transforms/main && ../../{{.VENV_DIR}}/bin/sqlmesh test
       - python scripts/check_secrets.py .
       - python scripts/generate_staging.py --check
       - python scripts/generate_platform_health.py --check

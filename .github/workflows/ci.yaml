@@ -244,6 +244,24 @@ jobs:
       - name: sqlmesh lint
         run: uv run sqlmesh --paths transforms/main lint
 
+  sqlmesh-test:
+    name: SQLMesh unit tests
+    needs: changes
+    if: needs.changes.outputs.needs_full == 'true' || needs.changes.outputs.needs_any_source == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev
+      - name: sqlmesh test
+        # Must run from transforms/main so SQLMesh discovers config.py + tests/.
+        working-directory: transforms/main
+        run: uv run sqlmesh test
+
   source-layout-lint:
     name: Source layout lint
     # Always required — cheap, and the layout is the invariant for scaling sources.

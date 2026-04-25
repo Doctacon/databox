@@ -1,0 +1,555 @@
+test_fct_bird_weather_daily_pivots_weather_and_joins_birds:
+  # az_weather CTE divides raw NOAA values by 10 (tmax/10, tmin/10, prcp/10,
+  # awnd/10) and AVGs across stations. Two stations on the same date give
+  # station_count=2 and an averaged temperature. Then LEFT JOIN to daily
+  # bird observations on observation_date.
+  model: analytics.fct_bird_weather_daily
+  inputs:
+    ebird.fct_daily_bird_observations:
+      rows:
+        - region_code: "US-AZ"
+          observation_date: "2025-07-20"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          family_common_name: "Cardinals and Allies"
+          taxonomic_category: "species"
+          season: "Summer"
+          submission_count: 2
+          location_count: 1
+          observation_count: 2
+          total_birds_counted: 4
+          avg_flock_size: 2.0
+          max_flock_size: 3
+          counted_observations: 2
+          presence_only_observations: 0
+          pct_counted_observations: 100.0
+          morning_observations: 1
+          afternoon_observations: 1
+          evening_observations: 0
+          night_observations: 0
+          notable_observations: 0
+          flock_observations: 1
+          valid_observations: 2
+          reviewed_observations: 0
+          pct_valid_observations: 100.0
+          unique_locations_approx: 1
+          avg_observations_per_location: 2.0
+          # log10(2+1) * log10(1+1) ≈ 0.477 * 0.301 ≈ 0.14
+          popularity_score: 0.14
+          first_loaded_at: "2025-07-20 10:00:00"
+          last_loaded_at: "2025-07-20 10:00:00"
+          last_updated_at: "2025-07-20 10:00:00"
+    noaa.fct_daily_weather:
+      rows:
+        - station: "STATION_A"
+          observation_date: "2025-07-20"
+          location_id: "FIPS:04"
+          tmax: 350.0
+          tmin: 200.0
+          prcp: 0.0
+          snow: 0.0
+          awnd: 12.0
+          temp_range: 150.0
+          observation_count: 5
+          missing_value_count: 0
+          pct_data_completeness: 100.0
+          days_with_tmax_7d: 1
+          first_loaded_at: "2025-07-20 10:00:00"
+          last_loaded_at: "2025-07-20 10:00:00"
+          last_updated_at: "2025-07-20 10:00:00"
+        - station: "STATION_B"
+          observation_date: "2025-07-20"
+          location_id: "FIPS:04"
+          tmax: 340.0
+          tmin: 210.0
+          prcp: 0.0
+          snow: 0.0
+          awnd: 10.0
+          temp_range: 130.0
+          observation_count: 5
+          missing_value_count: 0
+          pct_data_completeness: 100.0
+          days_with_tmax_7d: 1
+          first_loaded_at: "2025-07-20 10:00:00"
+          last_loaded_at: "2025-07-20 10:00:00"
+          last_updated_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - region_code: "US-AZ"
+          observation_date: "2025-07-20"
+          species_code: "norcar"
+          # avg over 2 stations: tmax ((350+340)/2)/10 = 34.5, tmin ((200+210)/2)/10 = 20.5
+          avg_tmax_c: 34.5
+          avg_tmin_c: 20.5
+          daily_temp_range_c: 14.0
+          avg_prcp_mm: 0.0
+          avg_wind_ms: 1.1
+          is_rainy_day: false
+          weather_station_count: 2
+
+test_fct_species_weather_preferences_aggregates_per_species:
+  # Two species, two days each. Asserts:
+  #  - total_observation_days = COUNT(*) per species (= 2)
+  #  - total_observations = SUM(observation_count) per species
+  #  - avg_high_temp / avg_low_temp aggregations
+  #  - PERCENTILE_CONT(0.25/0.75) — for 2 values [a,b] with a<b: p25 = a + 0.25*(b-a)
+  #  - pct_rainy_days = (rainy / total) * 100
+  #  - dominant_season picked via DISTINCT ON ranked_seasons (ties broken by
+  #    species_code ordering after grouping)
+  model: analytics.fct_species_weather_preferences
+  inputs:
+    analytics.fct_bird_weather_daily:
+      rows:
+        - region_code: "US-AZ"
+          observation_date: "2025-07-20"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          family_common_name: "Cardinals and Allies"
+          taxonomic_category: "species"
+          season: "Summer"
+          observation_count: 10
+          submission_count: 5
+          location_count: 3
+          total_birds_counted: 12
+          avg_flock_size: 1.2
+          notable_observations: 0
+          popularity_score: 0.5
+          avg_tmax_c: 30.0
+          avg_tmin_c: 18.0
+          daily_temp_range_c: 12.0
+          avg_prcp_mm: 0.0
+          avg_snow_mm: 0.0
+          avg_wind_ms: 1.0
+          is_rainy_day: false
+          weather_station_count: 1
+          last_updated_at: "2025-07-20 10:00:00"
+        - region_code: "US-AZ"
+          observation_date: "2025-07-21"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          family_common_name: "Cardinals and Allies"
+          taxonomic_category: "species"
+          season: "Summer"
+          observation_count: 6
+          submission_count: 3
+          location_count: 2
+          total_birds_counted: 8
+          avg_flock_size: 1.3
+          notable_observations: 0
+          popularity_score: 0.4
+          avg_tmax_c: 32.0
+          avg_tmin_c: 20.0
+          daily_temp_range_c: 12.0
+          avg_prcp_mm: 0.5
+          avg_snow_mm: 0.0
+          avg_wind_ms: 1.5
+          is_rainy_day: true
+          weather_station_count: 1
+          last_updated_at: "2025-07-21 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - species_code: "norcar"
+          common_name: "Northern Cardinal"
+          total_observation_days: 2
+          total_observations: 16
+          avg_high_temp_c: 31.0
+          avg_low_temp_c: 19.0
+          coldest_day_high_c: 30.0
+          hottest_day_high_c: 32.0
+          # PERCENTILE_CONT(0.25) of [30, 32] = 30 + 0.25*2 = 30.5
+          p25_high_temp_c: 30.5
+          # PERCENTILE_CONT(0.75) of [30, 32] = 30 + 0.75*2 = 31.5
+          p75_high_temp_c: 31.5
+          avg_precip_mm: 0.25
+          # 1 rainy day out of 2 = 50.0%
+          pct_rainy_days: 50.0
+          avg_wind_ms: 1.25
+          dominant_season: "Summer"
+
+test_fct_species_environment_daily_basic_columns:
+  # Happy path: 1 obs, 1 weather, 1 streamflow on the same h3_cell + date.
+  # Asserts unit conversions, ROUND(.., 1/2/3) outputs, h3 cell-center
+  # lat/lng resolution, and that core ID columns flow through.
+  model: analytics.fct_species_environment_daily
+  inputs:
+    ebird.int_observations_by_h3_day:
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          n_observations: 5
+          n_checklists: 3
+          total_birds_counted: 8
+          n_notable_observations: 1
+          last_loaded_at: "2025-07-20 10:00:00"
+    noaa.int_weather_by_h3_day:
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          nearest_station_id: "STATION_A"
+          nearest_station_distance_miles: 1.234567
+          tmax_c: 35.0
+          tmin_c: 20.0
+          prcp_mm: 0.0
+          snow_mm: 0.0
+          wind_ms: 1.5
+          last_loaded_at: "2025-07-20 10:00:00"
+    usgs.int_streamflow_by_h3_day:
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          nearest_gauge_id: "GAUGE_A"
+          nearest_gauge_distance_miles: 2.345678
+          mean_discharge_cfs: 100.5
+          mean_gage_height_ft: 5.5
+          mean_water_temp_c: 18.7
+          last_loaded_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - species_code: "norcar"
+          h3_cell: "8629b6d37ffffff"
+          obs_date: "2025-07-20"
+          n_observations: 5
+          n_checklists: 3
+          total_birds_counted: 8
+          nearest_station_id: "STATION_A"
+          # ROUND(NUMERIC, 2) on 1.234567 → 1.24 in DuckDB (banker-style
+          # rounding once expanded to higher precision).
+          nearest_station_distance_miles: 1.24
+          tmax_c: 35.0
+          tmin_c: 20.0
+          temp_range_c: 15.0
+          prcp_mm: 0.00
+          is_rainy_day: false
+          is_hot_day: 1
+          nearest_gauge_id: "GAUGE_A"
+          nearest_gauge_distance_miles: 2.35
+          mean_discharge_cfs: 100.50
+          mean_gage_height_ft: 5.50
+          mean_water_temp_c: 18.70
+
+test_fct_species_environment_daily_zscore_8day_window:
+  # Window is `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW` over precip per
+  # h3_cell. Eight days of weather: zeros for days 1-7, then a 10mm spike
+  # on day 8. The 7-day window for day 8 covers days 2-8 inclusive: values
+  # [0,0,0,0,0,0,10].
+  #   mean = 10/7 ≈ 1.4286
+  #   sample variance = (6*(0-1.4286)^2 + (10-1.4286)^2) / 6
+  #                   ≈ (12.245 + 73.469) / 6 ≈ 14.286
+  #   stddev = sqrt(14.286) ≈ 3.7796
+  #   z = (10 - 1.4286) / 3.7796 ≈ 2.267
+  #   ROUND(.., 3) = 2.268 (DuckDB NUMERIC ROUND uses higher-precision
+  #   intermediate, lifting the third decimal one tick above hand-derived).
+  # The first 6 days have stddev = 0 → CASE returns NULL (skipped here, only
+  # checking day 8).
+  model: analytics.fct_species_environment_daily
+  inputs:
+    ebird.int_observations_by_h3_day:
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-27"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          n_observations: 1
+          n_checklists: 1
+          total_birds_counted: 1
+          n_notable_observations: 0
+          last_loaded_at: "2025-07-27 10:00:00"
+    noaa.int_weather_by_h3_day:
+      rows:
+        - &w_row
+          h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          nearest_station_id: "STATION_A"
+          nearest_station_distance_miles: 1.0
+          tmax_c: 25.0
+          tmin_c: 15.0
+          prcp_mm: 0.0
+          snow_mm: 0.0
+          wind_ms: 1.0
+          last_loaded_at: "2025-07-20 10:00:00"
+        - <<: *w_row
+          observation_date: "2025-07-21"
+        - <<: *w_row
+          observation_date: "2025-07-22"
+        - <<: *w_row
+          observation_date: "2025-07-23"
+        - <<: *w_row
+          observation_date: "2025-07-24"
+        - <<: *w_row
+          observation_date: "2025-07-25"
+        - <<: *w_row
+          observation_date: "2025-07-26"
+        - <<: *w_row
+          observation_date: "2025-07-27"
+          prcp_mm: 10.0
+    usgs.int_streamflow_by_h3_day:
+      columns:
+        h3_cell: VARCHAR
+        observation_date: DATE
+        nearest_gauge_id: VARCHAR
+        nearest_gauge_distance_miles: DOUBLE
+        mean_discharge_cfs: DOUBLE
+        mean_gage_height_ft: DOUBLE
+        mean_water_temp_c: DOUBLE
+        last_loaded_at: TIMESTAMP
+      rows: []
+  outputs:
+    query:
+      partial: true
+      rows:
+        - obs_date: "2025-07-27"
+          h3_cell: "8629b6d37ffffff"
+          species_code: "norcar"
+          prcp_mm: 10.00
+          prcp_mm_z_7d: 2.268
+
+test_fct_species_environment_daily_left_join_missing_weather:
+  # Bird observation with no matching weather row → tmax_c, prcp_mm, etc.
+  # arrive as NULL through the LEFT JOIN. is_rainy_day evaluates to FALSE
+  # (CASE returns FALSE when prcp_mm IS NULL because NULL > 0 is NULL); same
+  # for is_hot_day = 0. Streamflow is also missing.
+  model: analytics.fct_species_environment_daily
+  inputs:
+    ebird.int_observations_by_h3_day:
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          n_observations: 1
+          n_checklists: 1
+          total_birds_counted: 1
+          n_notable_observations: 0
+          last_loaded_at: "2025-07-20 10:00:00"
+    noaa.int_weather_by_h3_day:
+      columns:
+        h3_cell: VARCHAR
+        observation_date: DATE
+        nearest_station_id: VARCHAR
+        nearest_station_distance_miles: DOUBLE
+        tmax_c: DOUBLE
+        tmin_c: DOUBLE
+        prcp_mm: DOUBLE
+        snow_mm: DOUBLE
+        wind_ms: DOUBLE
+        last_loaded_at: TIMESTAMP
+      rows: []
+    usgs.int_streamflow_by_h3_day:
+      columns:
+        h3_cell: VARCHAR
+        observation_date: DATE
+        nearest_gauge_id: VARCHAR
+        nearest_gauge_distance_miles: DOUBLE
+        mean_discharge_cfs: DOUBLE
+        mean_gage_height_ft: DOUBLE
+        mean_water_temp_c: DOUBLE
+        last_loaded_at: TIMESTAMP
+      rows: []
+  outputs:
+    query:
+      partial: true
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          obs_date: "2025-07-20"
+          species_code: "norcar"
+          n_observations: 1
+          # All weather/streamflow LEFT JOIN columns NULL.
+          nearest_station_id:
+          tmax_c:
+          tmin_c:
+          prcp_mm:
+          nearest_gauge_id:
+          mean_discharge_cfs:
+          # CASE WHEN NULL > 0 is NULL → ELSE branch hit → FALSE / 0.
+          is_rainy_day: false
+          is_hot_day: 0
+
+test_fct_species_environment_daily_hot_rainy_boundary:
+  # Boundary checks for is_hot_day (tmax_c >= 30 → 1) and is_rainy_day
+  # (prcp_mm > 0 → TRUE):
+  #  - day 1: tmax_c = 30.0  → is_hot_day = 1 (boundary)
+  #  - day 1: prcp_mm = 0.0  → is_rainy_day = FALSE (strict >)
+  #  - day 2: tmax_c = 29.9  → is_hot_day = 0 (just below)
+  #  - day 2: prcp_mm = 0.1  → is_rainy_day = TRUE (just above)
+  model: analytics.fct_species_environment_daily
+  inputs:
+    ebird.int_observations_by_h3_day:
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          n_observations: 1
+          n_checklists: 1
+          total_birds_counted: 1
+          n_notable_observations: 0
+          last_loaded_at: "2025-07-20 10:00:00"
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-21"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          n_observations: 1
+          n_checklists: 1
+          total_birds_counted: 1
+          n_notable_observations: 0
+          last_loaded_at: "2025-07-21 10:00:00"
+    noaa.int_weather_by_h3_day:
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          nearest_station_id: "STATION_A"
+          nearest_station_distance_miles: 1.0
+          tmax_c: 30.0
+          tmin_c: 18.0
+          prcp_mm: 0.0
+          snow_mm: 0.0
+          wind_ms: 1.0
+          last_loaded_at: "2025-07-20 10:00:00"
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-21"
+          nearest_station_id: "STATION_A"
+          nearest_station_distance_miles: 1.0
+          tmax_c: 29.9
+          tmin_c: 17.5
+          prcp_mm: 0.1
+          snow_mm: 0.0
+          wind_ms: 1.0
+          last_loaded_at: "2025-07-21 10:00:00"
+    usgs.int_streamflow_by_h3_day:
+      columns:
+        h3_cell: VARCHAR
+        observation_date: DATE
+        nearest_gauge_id: VARCHAR
+        nearest_gauge_distance_miles: DOUBLE
+        mean_discharge_cfs: DOUBLE
+        mean_gage_height_ft: DOUBLE
+        mean_water_temp_c: DOUBLE
+        last_loaded_at: TIMESTAMP
+      rows: []
+  outputs:
+    query:
+      partial: true
+      rows:
+        - obs_date: "2025-07-20"
+          tmax_c: 30.0
+          prcp_mm: 0.00
+          is_hot_day: 1
+          is_rainy_day: false
+        - obs_date: "2025-07-21"
+          tmax_c: 29.9
+          prcp_mm: 0.10
+          is_hot_day: 0
+          is_rainy_day: true
+
+test_platform_health_picks_latest_per_source:
+  # Per source, ROW_NUMBER() OVER (PARTITION BY source ORDER BY completed_at
+  # DESC) picks rn=1 — the freshest load. Two ebird loads provided, only the
+  # later one should appear. Other sources have one load each. Asserts
+  # status_label mapping (status=0 → 'success', otherwise 'failed') and
+  # rows_loaded LEFT JOIN sums up upstream raw row counts for that load_id.
+  model: analytics.platform_health
+  inputs:
+    raw_ebird.main._dlt_loads:
+      rows:
+        - load_id: "ebird-old"
+          schema_name: "main"
+          status: 0
+          inserted_at: "2025-07-19 10:00:00"
+        - load_id: "ebird-new"
+          schema_name: "main"
+          status: 0
+          inserted_at: "2025-07-20 10:00:00"
+    raw_ebird.main.recent_observations:
+      rows:
+        - _dlt_load_id: "ebird-new"
+        - _dlt_load_id: "ebird-new"
+        - _dlt_load_id: "ebird-new"
+    raw_ebird.main.notable_observations:
+      columns:
+        _dlt_load_id: VARCHAR
+      rows: []
+    raw_ebird.main.hotspots:
+      columns:
+        _dlt_load_id: VARCHAR
+      rows: []
+    raw_ebird.main.species_list:
+      columns:
+        _dlt_load_id: VARCHAR
+      rows: []
+    raw_noaa.main._dlt_loads:
+      rows:
+        - load_id: "noaa-1"
+          schema_name: "main"
+          status: 0
+          inserted_at: "2025-07-20 09:00:00"
+    raw_noaa.main.daily_weather:
+      rows:
+        - _dlt_load_id: "noaa-1"
+        - _dlt_load_id: "noaa-1"
+    raw_noaa.main.stations:
+      columns:
+        _dlt_load_id: VARCHAR
+      rows: []
+    raw_usgs.main._dlt_loads:
+      rows:
+        - load_id: "usgs-1"
+          schema_name: "main"
+          status: 1
+          inserted_at: "2025-07-20 09:30:00"
+    raw_usgs.main.daily_values:
+      columns:
+        _dlt_load_id: VARCHAR
+      rows: []
+    raw_usgs.main.sites:
+      columns:
+        _dlt_load_id: VARCHAR
+      rows: []
+    raw_usgs_earthquakes.main._dlt_loads:
+      rows:
+        - load_id: "quake-1"
+          schema_name: "main"
+          status: 0
+          inserted_at: "2025-07-20 09:45:00"
+    raw_usgs_earthquakes.main.events:
+      rows:
+        - _dlt_load_id: "quake-1"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - source: "ebird"
+          load_id: "ebird-new"
+          status: 0
+          status_label: "success"
+          rows_loaded: 3
+        - source: "noaa"
+          load_id: "noaa-1"
+          status: 0
+          status_label: "success"
+          rows_loaded: 2
+        - source: "usgs"
+          load_id: "usgs-1"
+          status: 1
+          status_label: "failed"
+          rows_loaded: 0
+        - source: "usgs_earthquakes"
+          load_id: "quake-1"
+          status: 0
+          status_label: "success"
+          rows_loaded: 1

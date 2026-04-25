@@ -1,0 +1,43 @@
+test_fct_daily_earthquakes_aggregates_per_day:
+  # Three events across two UTC days. Asserts grouping by CAST(event_time
+  # AS DATE), max/avg magnitude, max significance, and the tsunami_alert
+  # count (only flag=1 contributes).
+  model: usgs_earthquakes.fct_daily_earthquakes
+  inputs:
+    usgs_earthquakes_staging.stg_usgs_earthquakes_events:
+      rows:
+        - event_id: "us7000001"
+          event_time: "2025-07-20 03:14:00"
+          magnitude: 4.5
+          significance: 312
+          tsunami_flag: 0
+          loaded_at: "2025-07-20 10:00:00"
+        - event_id: "us7000002"
+          event_time: "2025-07-20 18:30:00"
+          magnitude: 5.5
+          significance: 465
+          tsunami_flag: 1
+          loaded_at: "2025-07-20 10:00:00"
+        - event_id: "us7000003"
+          event_time: "2025-07-21 09:00:00"
+          magnitude: 3.0
+          significance: 138
+          tsunami_flag: 0
+          loaded_at: "2025-07-21 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - event_date: "2025-07-20"
+          event_count: 2
+          max_magnitude: 5.5
+          # AVG(4.5, 5.5) = 5.0 → ROUND(..., 3) = 5.0
+          avg_magnitude: 5.0
+          max_significance: 465
+          tsunami_alert_count: 1
+        - event_date: "2025-07-21"
+          event_count: 1
+          max_magnitude: 3.0
+          avg_magnitude: 3.0
+          max_significance: 138
+          tsunami_alert_count: 0

@@ -1,0 +1,139 @@
+test_fct_daily_weather_pivots_datatypes_per_station_date:
+  # The fct pivots from one row per (station, date, datatype) into one row
+  # per (station, date) with TMAX/TMIN/PRCP/SNOW/AWND as separate columns.
+  # Asserts: pivot collapses 4 datatype rows into 1 fct row, temp_range =
+  # tmax - tmin, pct_data_completeness = (count - nulls) / count * 100,
+  # and the 7d "days_with_tmax" rolling count window.
+  model: noaa.fct_daily_weather
+  inputs:
+    noaa_staging.stg_noaa_daily_weather:
+      rows:
+        - station: "GHCND:USC0001"
+          observation_date: "2025-07-20"
+          location_id: "FIPS:04"
+          datatype: "TMAX"
+          value: 350.0
+          attributes: ",,S,"
+          source: ""
+          loaded_at: "2025-07-20 10:00:00"
+        - station: "GHCND:USC0001"
+          observation_date: "2025-07-20"
+          location_id: "FIPS:04"
+          datatype: "TMIN"
+          value: 200.0
+          attributes: ",,S,"
+          source: ""
+          loaded_at: "2025-07-20 10:00:00"
+        - station: "GHCND:USC0001"
+          observation_date: "2025-07-20"
+          location_id: "FIPS:04"
+          datatype: "PRCP"
+          value: 25.0
+          attributes: ",,S,"
+          source: ""
+          loaded_at: "2025-07-20 10:00:00"
+        - station: "GHCND:USC0001"
+          observation_date: "2025-07-20"
+          location_id: "FIPS:04"
+          datatype: "AWND"
+          value:
+          attributes: ",,S,"
+          source: ""
+          loaded_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - station: "GHCND:USC0001"
+          observation_date: "2025-07-20"
+          location_id: "FIPS:04"
+          tmax: 350.0
+          tmin: 200.0
+          prcp: 25.0
+          snow:
+          awnd:
+          temp_range: 150.0
+          observation_count: 4
+          missing_value_count: 1
+          # (4 - 1) / 4 * 100 = 75.0
+          pct_data_completeness: 75.0
+          # Single observation_date so 7d count of TMAX rows = 1
+          days_with_tmax_7d: 1
+
+test_int_weather_by_h3_day_nearest_station_and_unit_conversion:
+  # Two stations, one H3 cell. Closer station wins. Asserts:
+  #  - tmax/10.0 unit conversion (NOAA reports TMAX in tenths of °C)
+  #  - prcp/10.0 (tenths of mm)
+  #  - awnd/10.0 (tenths of m/s)
+  #  - snow stays raw (already mm)
+  #  - nearest_station_distance_miles is 0 when station coords match cell
+  #    center exactly (we co-locate one station with the cell center).
+  model: noaa.int_weather_by_h3_day
+  inputs:
+    ebird.int_observations_by_h3_day:
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          n_observations: 1
+          n_checklists: 1
+          total_birds_counted: 1
+          n_notable_observations: 0
+          last_loaded_at: "2025-07-20 10:00:00"
+    noaa_staging.stg_noaa_stations:
+      rows:
+        - station_id: "STATION_NEAR"
+          station_name: "Near"
+          # Sit exactly at the h3 cell center for cell 8629b6d37ffffff.
+          latitude: 33.4533963108203
+          longitude: -112.0550516994838
+          elevation:
+          elevation_unit: "METERS"
+          min_date:
+          max_date:
+          data_coverage:
+          location_id: "FIPS:04"
+          loaded_at: "2025-07-20 10:00:00"
+        - station_id: "STATION_FAR"
+          station_name: "Far"
+          latitude: 40.0
+          longitude: -100.0
+          elevation:
+          elevation_unit: "METERS"
+          min_date:
+          max_date:
+          data_coverage:
+          location_id: "FIPS:04"
+          loaded_at: "2025-07-20 10:00:00"
+    noaa.fct_daily_weather:
+      rows:
+        - station: "STATION_NEAR"
+          observation_date: "2025-07-20"
+          location_id: "FIPS:04"
+          tmax: 350.0
+          tmin: 200.0
+          prcp: 25.0
+          snow: 0.0
+          awnd: 12.0
+          temp_range: 150.0
+          observation_count: 5
+          missing_value_count: 0
+          pct_data_completeness: 100.0
+          days_with_tmax_7d: 1
+          first_loaded_at: "2025-07-20 10:00:00"
+          last_loaded_at: "2025-07-20 10:00:00"
+          last_updated_at: "2025-07-20 10:00:00"
+  outputs:
+    query:
+      partial: true
+      rows:
+        - h3_cell: "8629b6d37ffffff"
+          observation_date: "2025-07-20"
+          nearest_station_id: "STATION_NEAR"
+          tmax_c: 35.0
+          tmin_c: 20.0
+          prcp_mm: 2.5
+          snow_mm: 0.0
+          wind_ms: 1.2
