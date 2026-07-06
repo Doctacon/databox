@@ -14,6 +14,7 @@ dependencies = [
     "dagster-webserver>=1.5.0",
     "dagster-dlt>=0.1.0",
     "dlt[duckdb]>=1.14.1",
+    "duckdb>=1.5.3",
     "sqlmesh>=0.204.0",
     "dagster-sqlmesh",
 ]

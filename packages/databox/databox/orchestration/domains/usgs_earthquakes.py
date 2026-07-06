@@ -4,15 +4,14 @@ import typing as t
 from datetime import timedelta
 
 import dagster as dg
-import dlt
 from dagster import AssetExecutionContext
 from dagster_dlt import DagsterDltResource, dlt_assets
 from databox_sources.usgs_earthquakes.source import usgs_earthquakes_source
 
 from databox.config.settings import settings
+from databox.destinations import dlt_destination, dlt_pipeline, prepare_dlt_source
 from databox.orchestration._factories import (
     SODA_DIR,
-    dlt_destination,
     dlt_translator,
     freshness_checks,
     soda_check,
@@ -21,10 +20,10 @@ from databox.orchestration._factories import (
 
 @dlt_assets(
     dlt_source=usgs_earthquakes_source(),
-    dlt_pipeline=dlt.pipeline(
+    dlt_pipeline=dlt_pipeline(
         pipeline_name="usgs_earthquakes_api",
         destination=dlt_destination(settings.raw_catalog_path("usgs_earthquakes")),
-        dataset_name="main",
+        dataset_name=settings.raw_dataset_name("usgs_earthquakes"),
         pipelines_dir=settings.dlt_data_dir,
     ),
     group_name="usgs_earthquakes_ingestion",
@@ -36,7 +35,7 @@ def usgs_earthquakes_dlt_assets(
     source = usgs_earthquakes_source()
     if settings.smoke:
         source.add_limit(max_items=5)
-    yield from dlt.run(context=context, dlt_source=source)
+    yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
 dlt_asset_keys = [spec.key for spec in usgs_earthquakes_dlt_assets.specs]

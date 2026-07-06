@@ -13,6 +13,7 @@ to be wrong would be marked **Superseded** and keep its number.
 | [ADR-0001](0001-duckdb-as-primary-warehouse.md) | DuckDB as the primary warehouse | Accepted |
 | [ADR-0002](0002-sqlmesh-over-dbt.md) | SQLMesh over dbt | Accepted |
 | [ADR-0003](0003-single-sqlmesh-project.md) | Single SQLMesh project across all sources | Accepted |
-| [ADR-0004](0004-per-source-raw-catalogs.md) | Per-source raw DuckDB catalogs | Accepted |
+| [ADR-0004](0004-per-source-raw-catalogs.md) | Per-source raw DuckDB catalogs | Superseded by ADR-0007 for default local ingest |
 | [ADR-0005](0005-dagster-as-sole-orchestrator.md) | Dagster as the sole orchestrator | Accepted |
 | [ADR-0006](0006-motherduck-as-cloud-path.md) | MotherDuck as the cloud path | Accepted |
+| [ADR-0007](0007-quack-single-file-local-ingest.md) | Quack single-file local ingest | Accepted |

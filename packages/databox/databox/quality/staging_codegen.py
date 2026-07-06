@@ -8,7 +8,7 @@ Non-trivial staging (joins, derivations, UNION, filters) opts out with a
 Contract extensions (additive — does not break schema-contract-gate):
 
     dataset: databox/<schema>/<table>
-    source_table: raw_<source>.main.<table>
+    source_table: raw_<source>.<table>
     description: <free text>
     columns:
       - name: target_col

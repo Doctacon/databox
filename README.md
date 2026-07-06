@@ -7,9 +7,9 @@
 [![coverage: ≥70%](https://img.shields.io/badge/coverage-%E2%89%A570%25-brightgreen.svg)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A single-operator data platform that ingests three public APIs (eBird,
+A single-operator data platform that ingests public APIs (eBird,
 NOAA, USGS) into one queryable cross-domain warehouse. Zero always-on
-infra: file-based DuckDB locally, MotherDuck cloud with one environment
+infra: Quack-backed DuckDB locally, MotherDuck cloud with one environment
 flag. Every layer — ingest, transform, quality, orchestration, semantic
 metrics, data dictionary — is wired end-to-end through the same
 open-source stack.
@@ -119,8 +119,8 @@ Each claim is backed by a ticket and its evidence, not just prose.
 | **Contract-based quality** — every model has a Soda contract gated as a Dagster asset check | `soda/contracts/` + Soda asset checks that block downstream materialization on failure | [ticket:observability-pass](.loom/tickets/20260420-wvp3m9gt-observability-pass.md) · [contracts doc](docs/contracts.md) |
 | **Schema-contract CI gate** — breaking changes to contracts require explicit opt-in | `scripts/schema_gate.py` runs on PRs, blocks column drops / type narrowings without `accept-breaking-change` marker | [ticket:schema-contract-ci](.loom/tickets/20260420-bsha1b91-schema-contract-ci.md) |
 | **Auto-generated data dictionary** — every model's columns, types, checks, and lineage discoverable without cloning | [doctacon.github.io/databox](https://doctacon.github.io/databox/), regenerated from `sqlmesh.Context` + Soda YAML | [ticket:data-dictionary-site](.loom/tickets/20260420-2ikjh1e2-data-dictionary-site.md) |
-| **Idempotent incremental ingest** — reruns do not double-count | `write_disposition='merge'` on the right resources, primary keys declared, documented contract | [ticket:incremental-load-audit](.loom/tickets/20260420-c1ogpdel-incremental-load-audit.md) · [incremental-loading doc](docs/incremental-loading.md) |
-| **Portable local ↔ cloud** — identical SQL, environment-variable switch | `DATABOX_BACKEND=local` vs `=motherduck`; gateways mirror; settings return file paths vs `md:` URIs transparently | [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md) |
+| **Idempotent incremental ingest** — reruns do not double-count | Merge keys are declared; Quack append-loads are deduplicated post-load by the same keys | [ticket:incremental-load-audit](.loom/tickets/20260420-c1ogpdel-incremental-load-audit.md) · [incremental-loading doc](docs/incremental-loading.md) |
+| **Portable local ↔ cloud** — identical SQL, environment-variable switch | `DATABOX_BACKEND=quack` vs `=motherduck`; settings route local dlt through Quack and cloud through `md:` URIs | [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md) · [ADR-0007](docs/adr/0007-quack-single-file-local-ingest.md) |
 | **Single orchestration surface** — Dagster owns every run, no CLI drift | Every asset (ingest, transform, quality) visible in one DAG; `task` targets are thin wrappers | [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md) |
 
 ## Stack
@@ -141,9 +141,10 @@ the rest of the design. Each one is under 200 lines.
 - [ADR-0001](docs/adr/0001-duckdb-as-primary-warehouse.md) — DuckDB as the primary warehouse
 - [ADR-0002](docs/adr/0002-sqlmesh-over-dbt.md) — SQLMesh over dbt
 - [ADR-0003](docs/adr/0003-single-sqlmesh-project.md) — Single SQLMesh project across all sources
-- [ADR-0004](docs/adr/0004-per-source-raw-catalogs.md) — Per-source raw DuckDB catalogs
+- [ADR-0004](docs/adr/0004-per-source-raw-catalogs.md) — Per-source raw DuckDB catalogs (legacy local fallback)
 - [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md) — Dagster as the sole orchestrator
 - [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md) — MotherDuck as the cloud path
+- [ADR-0007](docs/adr/0007-quack-single-file-local-ingest.md) — Quack single-file local ingest
 
 ## Quickstart
 
@@ -203,7 +204,10 @@ Flip between local and cloud via environment variables; the SQL never
 changes.
 
 ```bash
-# Local (default) — file-based DuckDB, zero infra
+# Local (default) — Quack server, one data/databox.duckdb file, zero infra
+DATABOX_BACKEND=quack
+
+# Legacy local — pre-Quack per-source raw_*.duckdb files
 DATABOX_BACKEND=local
 
 # MotherDuck cloud — same SQL, md:* URIs

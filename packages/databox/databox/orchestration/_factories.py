@@ -12,7 +12,6 @@ from datetime import UTC, timedelta
 from pathlib import Path
 
 import dagster as dg
-import dlt
 from dagster import AssetExecutionContext
 from dagster_dlt import DagsterDltTranslator
 from dagster_dlt.translator import DltResourceTranslatorData
@@ -33,8 +32,9 @@ SODA_DIR = PROJECT_ROOT / "soda"
 class DataboxSQLMeshTranslator(SQLMeshDagsterTranslator):
     def get_asset_key_name(self, fqn: str) -> t.Sequence[str]:
         table = exp.to_table(fqn)
-        # Three-part FQN for attached raw catalogs (e.g., raw_ebird.main.table):
+        # Legacy three-part FQNs for attached raw catalogs (raw_ebird.main.table):
         # catalog IS the meaningful namespace; "main" is just the default schema.
+        # Quack-backed raw schemas use two-part names and fall through below.
         if table.catalog and str(table.db) == "main" and str(table.catalog) in raw_catalogs():
             return ["sqlmesh", str(table.catalog), table.name]
         return ["sqlmesh", table.db, table.name]
@@ -194,12 +194,6 @@ def ensure_motherduck_databases() -> list[str]:
     finally:
         con.close()
     return names
-
-
-def dlt_destination(db_path: str) -> t.Any:
-    if settings.backend == "motherduck":
-        return dlt.destinations.motherduck(credentials=db_path)
-    return dlt.destinations.duckdb(credentials=db_path)
 
 
 def dlt_translator(raw_schema: str) -> DagsterDltTranslator:

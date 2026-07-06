@@ -16,4 +16,4 @@ SELECT
     source,
     _location_id AS location_id,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_noaa.main.daily_weather
+FROM raw_noaa.daily_weather

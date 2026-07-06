@@ -1,6 +1,6 @@
 # Incremental Loading
 
-Every dlt source in Databox writes to DuckDB (local or MotherDuck) using a
+Every dlt source in Databox writes to DuckDB (local Quack or MotherDuck) using a
 declared primary key and write disposition. This page documents, per resource:
 
 - **write disposition** — how new rows land: `merge`, `replace`, or `append`
@@ -29,8 +29,10 @@ declared primary key and write disposition. This page documents, per resource:
 ## Idempotency model
 
 No resource uses dlt's `dlt.sources.incremental` cursor. Instead, every
-resource re-fetches a bounded window on each run and relies on the merge
-primary key to deduplicate. Consequences:
+resource re-fetches a bounded window on each run. MotherDuck and legacy local
+rely on dlt merge keys; the Quack local path append-loads during concurrent
+writes and then deduplicates known raw tables directly after the server stops.
+Consequences:
 
 - **merge-disposition resources** are fully idempotent: re-running with the
   same API responses leaves the final table untouched.
@@ -40,10 +42,11 @@ primary key to deduplicate. Consequences:
 - No resource uses `append` — we accept the rate-limit cost of re-fetching
   over the complexity of durable cursor state.
 
-The idempotency guarantee is validated in CI by
+The merge-disposition guarantee is validated in CI by
 `packages/databox-sources/tests/<source>/test_idempotency.py`: each test
 runs the merge-backed resource twice against the same VCR cassette and
-asserts the primary-key set and row count are identical.
+asserts the primary-key set and row count are identical. The Quack loader's
+post-load dedupe uses the same primary keys for the current source set.
 
 ## Backfill procedure
 
@@ -55,28 +58,19 @@ override (default `30`) in
 - `DATABOX_NOAA_DAYS_BACK`
 - `DATABOX_USGS_DAYS_BACK`
 
-To widen the window for one run, set the env var before launching Dagster
-and materialize the raw asset group:
+To widen the window for one local run, set the env var before launching the
+Quack dlt loader:
 
 ```bash
 # Pull eBird data for the last 90 days instead of the default 30
-DATABOX_EBIRD_DAYS_BACK=90 uv run dagster asset materialize \
-    --select 'group:ebird_ingestion' \
-    -m databox.orchestration.definitions
+DATABOX_EBIRD_DAYS_BACK=90 uv run python scripts/load_dlt_quack.py
 
 # Full-year NOAA backfill (hits multiple 365-day chunks; expect 5-10 min)
-DATABOX_NOAA_DAYS_BACK=365 uv run dagster asset materialize \
-    --select 'group:noaa_ingestion' \
-    -m databox.orchestration.definitions
+DATABOX_NOAA_DAYS_BACK=365 uv run python scripts/load_dlt_quack.py
 
 # USGS daily values for the last year (chunked to 90-day API calls)
-DATABOX_USGS_DAYS_BACK=365 uv run dagster asset materialize \
-    --select 'group:usgs_ingestion' \
-    -m databox.orchestration.definitions
+DATABOX_USGS_DAYS_BACK=365 uv run python scripts/load_dlt_quack.py
 ```
-
-Or launch the Dagster UI with the env var set and materialize the group
-interactively — the UI-driven path is what the operator uses day-to-day.
 
 The merge disposition means a backfill never duplicates rows already present
 at the narrower window — it only fills in older dates. If the API has
@@ -96,14 +90,10 @@ in place.
 
 ## Dagster backfill
 
-A per-source Dagster partition backfill is not wired yet — the current
-orchestration layer schedules one daily materialization per source.
-For ad-hoc historical loads, invoke `dagster asset materialize` directly
-(see commands above) or materialize the raw asset via the Dagster UI with
-a custom `days_back` config override.
-
-See `packages/databox/databox/orchestration/definitions.py`
-for the asset definitions that would host a future partition scheme.
+A per-source Dagster partition backfill is not wired yet. The local raw-load
+path is `scripts/load_dlt_quack.py`; after it completes, run `task full-refresh`
+or materialize the SQLMesh assets to rebuild modeled tables from the refreshed
+raw schemas.
 
 ## When to rely on merge vs replace
 

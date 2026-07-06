@@ -1,5 +1,5 @@
 dataset: databox/ebird_staging/stg_ebird_taxonomy
-source_table: raw_ebird.main.taxonomy
+source_table: raw_ebird.taxonomy
 description: Staging model for eBird taxonomy reference data
 
 columns:

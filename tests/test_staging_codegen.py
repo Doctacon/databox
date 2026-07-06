@@ -36,7 +36,7 @@ def test_parse_full_contract(tmp_path: Path) -> None:
         tmp_path / "soda/contracts/foo_staging/stg_foo_bar.yaml",
         """
 dataset: databox/foo_staging/stg_foo_bar
-source_table: raw_foo.main.bar
+source_table: raw_foo.bar
 description: Hello
 columns:
   - name: id
@@ -51,7 +51,7 @@ columns:
     assert model is not None
     assert model.schema == "foo_staging"
     assert model.table == "stg_foo_bar"
-    assert model.source_table == "raw_foo.main.bar"
+    assert model.source_table == "raw_foo.bar"
     assert model.description == "Hello"
     assert [c.name for c in model.columns] == ["id", "created_at", "latitude"]
     assert model.columns[0].source_column == "id"
@@ -89,7 +89,7 @@ def _model(columns: list[Column]) -> StagingModel:
         schema="foo_staging",
         table="stg_foo",
         description="Foo staging",
-        source_table="raw_foo.main.bar",
+        source_table="raw_foo.bar",
         columns=columns,
     )
 
@@ -97,7 +97,7 @@ def _model(columns: list[Column]) -> StagingModel:
 def test_render_identity_column() -> None:
     sql = render(_model([Column("id", "id", None)]))
     assert "    id\n" in sql
-    assert "FROM raw_foo.main.bar" in sql
+    assert "FROM raw_foo.bar" in sql
 
 
 def test_render_rename_only() -> None:
@@ -171,7 +171,7 @@ def test_check_drift_clean_after_write(tmp_path: Path, monkeypatch: pytest.Monke
         contracts_root / "foo_staging" / "stg_foo.yaml",
         """
 dataset: databox/foo_staging/stg_foo
-source_table: raw_foo.main.bar
+source_table: raw_foo.bar
 description: Foo
 columns:
   - name: id

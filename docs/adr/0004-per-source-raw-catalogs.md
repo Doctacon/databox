@@ -1,6 +1,6 @@
 # ADR-0004: Per-source raw DuckDB catalogs
 
-**Status:** Accepted · 2026-03
+**Status:** Superseded for default local ingest by [ADR-0007](0007-quack-single-file-local-ingest.md) · 2026-07
 
 ## Context
 

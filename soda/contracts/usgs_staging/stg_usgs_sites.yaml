@@ -1,5 +1,5 @@
 dataset: databox/usgs_staging/stg_usgs_sites
-source_table: raw_usgs.main.sites
+source_table: raw_usgs.sites
 description: Staging model for USGS monitoring site metadata
 
 columns:

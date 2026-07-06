@@ -57,13 +57,15 @@ tasks:
     cmds: ["{{.VENV_DIR}}/bin/python scripts/verify_dev.py"]
 
   full-refresh:
-    desc: "Every dlt source + SQLMesh + Soda via Dagster — logs to .logs/"
-    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
-    cmds: ["./scripts/run-logged.sh full-refresh -- {{.VENV_DIR}}/bin/dagster asset materialize --select '*' -m databox.orchestration.definitions"]
+    desc: "Quack dlt load to one DuckDB file, then SQLMesh + Soda via Dagster — logs to .logs/"
+    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_BACKEND: "quack" }
+    cmds:
+      - "./scripts/run-logged.sh full-refresh -- bash -lc '{{.VENV_DIR}}/bin/python scripts/load_dlt_quack.py && {{.VENV_DIR}}/bin/dagster asset materialize --select sqlmesh* -m databox.orchestration.definitions'"
   verify:
-    desc: "Smoke full-refresh — DATABOX_SMOKE=1 caps each source to 5 items — logs to .logs/"
-    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_SMOKE: "1" }
-    cmds: ["./scripts/run-logged.sh verify -- {{.VENV_DIR}}/bin/dagster asset materialize --select '*' -m databox.orchestration.definitions"]
+    desc: "Smoke Quack full-refresh — DATABOX_SMOKE=1 caps each source to 5 items — logs to .logs/"
+    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_BACKEND: "quack", DATABOX_SMOKE: "1" }
+    cmds:
+      - "./scripts/run-logged.sh verify -- bash -lc '{{.VENV_DIR}}/bin/python scripts/load_dlt_quack.py && {{.VENV_DIR}}/bin/dagster asset materialize --select sqlmesh* -m databox.orchestration.definitions'"
   dagster:dev:
     desc: "Launch Dagster UI — discovers workspace.yaml at repo root"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
@@ -82,7 +84,7 @@ tasks:
 
   db:reset:
     desc: "Delete local DuckDB files (MotherDuck dbs must be dropped manually)"
-    cmds: ["rm -f data/databox.duckdb data/sqlmesh_state.duckdb data/raw_ebird.duckdb data/raw_noaa.duckdb data/raw_usgs.duckdb"]
+    cmds: ["rm -rf data/*.duckdb data/*.duckdb.wal data/.quack-clients"]
   clean:
     desc: "Remove build + test + cache artifacts"
     cmds:

@@ -1,5 +1,5 @@
 dataset: databox/noaa_staging/stg_noaa_stations
-source_table: raw_noaa.main.stations
+source_table: raw_noaa.stations
 description: Staging model for NOAA weather stations
 
 columns:

@@ -17,7 +17,7 @@ A codegen-driven staging contract adds two keys on top of the standard Soda layo
 
 ```yaml
 dataset: databox/ebird_staging/stg_ebird_hotspots
-source_table: raw_ebird.main.hotspots
+source_table: raw_ebird.hotspots
 description: Staging model for eBird birding hotspots
 
 columns:

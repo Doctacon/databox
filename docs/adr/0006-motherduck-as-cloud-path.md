@@ -27,9 +27,10 @@ The candidate cloud paths considered:
 
 Use **MotherDuck** as the cloud path. Keep the local path as default.
 
-Architecture is gateway-based: `DATABOX_BACKEND=local` or `=motherduck`
-switches `settings.database_path` and `settings.raw_*_path` between
-file paths and `md:` URIs. SQLMesh gateways (`local`, `motherduck`)
+Architecture is gateway-based: `DATABOX_BACKEND=quack`, `=local`, or
+`=motherduck` switches `settings.database_path`, raw dlt destinations,
+and raw dataset naming between the Quack/default local path, legacy file paths,
+and `md:` URIs. SQLMesh gateways (`local`, `motherduck`)
 mirror the same split. No SQL changes between modes.
 
 ## Consequences

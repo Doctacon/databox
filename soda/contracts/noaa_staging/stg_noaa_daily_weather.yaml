@@ -1,5 +1,5 @@
 dataset: databox/noaa_staging/stg_noaa_daily_weather
-source_table: raw_noaa.main.daily_weather
+source_table: raw_noaa.daily_weather
 description: Staging model for NOAA daily weather observations
 
 columns:

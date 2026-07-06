@@ -8,6 +8,7 @@ import dlt
 import pendulum
 from databox.config.pipeline_config import PipelineConfig
 from databox.config.settings import settings
+from databox.destinations import dlt_destination, dlt_pipeline, prepare_dlt_source
 from dlt.sources.helpers import requests as dlt_requests
 from dotenv import load_dotenv
 
@@ -250,10 +251,10 @@ class EbirdPipelineSource:
 
     def load(self, smoke: bool = False) -> Any:
         schema_name = self.config.resolve_schema_name()
-        pipeline = dlt.pipeline(
+        pipeline = dlt_pipeline(
             pipeline_name=f"{self.name}_api",
-            destination=dlt.destinations.duckdb(credentials=settings.raw_catalog_path("ebird")),
-            dataset_name="main",
+            destination=dlt_destination(settings.raw_catalog_path("ebird")),
+            dataset_name=settings.raw_dataset_name("ebird"),
             pipelines_dir=settings.dlt_data_dir,
             progress="log",
         )
@@ -265,6 +266,7 @@ class EbirdPipelineSource:
         )
         if smoke:
             source.add_limit(max_items=5)
+        source = prepare_dlt_source(source)
 
         run_log = log.bind(
             pipeline=pipeline.pipeline_name,

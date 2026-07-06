@@ -19,4 +19,4 @@ SELECT
     datacoverage::DOUBLE AS data_coverage,
     _location_id AS location_id,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_noaa.main.stations
+FROM raw_noaa.stations

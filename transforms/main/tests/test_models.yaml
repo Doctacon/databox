@@ -1,7 +1,7 @@
 test_stg_ebird_observations:
   model: ebird_staging.stg_ebird_observations
   inputs:
-    raw_ebird.main.recent_observations:
+    raw_ebird.recent_observations:
       rows:
         - sub_id: "S001"
           species_code: "norcar"
@@ -18,7 +18,7 @@ test_stg_ebird_observations:
           location_private: false
           _region_code: "US-AZ"
           _loaded_at: "2025-07-20T10:00:00+00:00"
-    raw_ebird.main.notable_observations:
+    raw_ebird.notable_observations:
       rows:
         - sub_id: "S002"
           species_code: "blujay"
@@ -86,7 +86,7 @@ test_stg_ebird_observations:
 test_stg_ebird_taxonomy:
   model: ebird_staging.stg_ebird_taxonomy
   inputs:
-    raw_ebird.main.taxonomy:
+    raw_ebird.taxonomy:
       rows:
         - species_code: "norcar"
           com_name: "Northern Cardinal"
@@ -111,7 +111,7 @@ test_stg_ebird_taxonomy:
 test_stg_ebird_hotspots:
   model: ebird_staging.stg_ebird_hotspots
   inputs:
-    raw_ebird.main.hotspots:
+    raw_ebird.hotspots:
       rows:
         - loc_id: "L999"
           loc_name: "Gilbert Water Ranch"
@@ -141,7 +141,7 @@ test_stg_ebird_hotspots:
 test_stg_noaa_daily_weather:
   model: noaa_staging.stg_noaa_daily_weather
   inputs:
-    raw_noaa.main.daily_weather:
+    raw_noaa.daily_weather:
       rows:
         - date: "2025-07-20"
           datatype: "TMAX"
@@ -182,7 +182,7 @@ test_stg_noaa_daily_weather:
 test_stg_noaa_stations:
   model: noaa_staging.stg_noaa_stations
   inputs:
-    raw_noaa.main.stations:
+    raw_noaa.stations:
       rows:
         - id: "GHCND:USC00010008"
           name: "PHOENIX"

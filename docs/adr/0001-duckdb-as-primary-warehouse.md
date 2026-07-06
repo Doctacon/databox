@@ -38,8 +38,8 @@ DuckDB; all marts live in DuckDB files under `data/`.
 - Open source (MIT). No vendor lock-in.
 
 **Negative:**
-- No concurrent writes. Not an issue at single-operator scale; would be a
-  real problem at team scale.
+- Direct multi-process writes to the same `.duckdb` file are still not the
+  local model; concurrent local ingest goes through Quack (ADR-0007).
 - No row-level security, no fine-grained access control. Out of scope
   for this project; would be disqualifying at enterprise scale.
 - The `.duckdb` file is binary and doesn't diff cleanly — source of

@@ -20,4 +20,4 @@ SELECT
     qualifier,
     _state_cd AS state_cd,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_usgs.main.daily_values
+FROM raw_usgs.daily_values

@@ -20,4 +20,4 @@ SELECT
     begin_date,
     end_date,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_usgs.main.sites
+FROM raw_usgs.sites

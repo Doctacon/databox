@@ -4,15 +4,14 @@ import typing as t
 from datetime import timedelta
 
 import dagster as dg
-import dlt
 from dagster import AssetExecutionContext
 from dagster_dlt import DagsterDltResource, dlt_assets
 from databox_sources.usgs.source import usgs_source
 
 from databox.config.settings import settings
+from databox.destinations import dlt_destination, dlt_pipeline, prepare_dlt_source
 from databox.orchestration._factories import (
     SODA_DIR,
-    dlt_destination,
     dlt_translator,
     freshness_checks,
     soda_check,
@@ -23,10 +22,10 @@ from databox.orchestration._factories import (
     dlt_source=usgs_source(
         state_cd="AZ", parameter_cds="00060,00065,00010", days_back=settings.days_back("usgs")
     ),
-    dlt_pipeline=dlt.pipeline(
+    dlt_pipeline=dlt_pipeline(
         pipeline_name="usgs_api",
         destination=dlt_destination(settings.raw_catalog_path("usgs")),
-        dataset_name="main",
+        dataset_name=settings.raw_dataset_name("usgs"),
         pipelines_dir=settings.dlt_data_dir,
     ),
     group_name="usgs_ingestion",
@@ -38,7 +37,7 @@ def usgs_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> 
     )
     if settings.smoke:
         source.add_limit(max_items=5)
-    yield from dlt.run(context=context, dlt_source=source)
+    yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
 dlt_asset_keys = [spec.key for spec in usgs_dlt_assets.specs]

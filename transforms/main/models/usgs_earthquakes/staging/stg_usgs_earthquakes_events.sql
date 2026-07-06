@@ -25,4 +25,4 @@ SELECT
     alert,
     url,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_usgs_earthquakes.main.events
+FROM raw_usgs_earthquakes.events

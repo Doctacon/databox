@@ -1,5 +1,5 @@
 dataset: databox/usgs_staging/stg_usgs_daily_values
-source_table: raw_usgs.main.daily_values
+source_table: raw_usgs.daily_values
 description: Staging model for USGS daily streamflow and gage observations
 
 columns:

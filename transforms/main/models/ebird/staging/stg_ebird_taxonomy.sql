@@ -16,4 +16,4 @@ SELECT
     family_com_name AS family_common_name,
     family_sci_name AS family_scientific_name,
     _loaded_at::TIMESTAMP AS loaded_at
-FROM raw_ebird.main.taxonomy
+FROM raw_ebird.taxonomy

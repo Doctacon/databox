@@ -30,9 +30,13 @@ class DataboxSettings(BaseSettings):
         populate_by_name=True,
     )
 
-    backend: str = Field(default="local", alias="DATABOX_BACKEND")
+    backend: str = Field(default="quack", alias="DATABOX_BACKEND")
     motherduck_token: str = Field(default="", alias="MOTHERDUCK_TOKEN")
-    dlt_data_dir: str = str(PROJECT_ROOT / "pipelines" / ".dlt")
+    quack_uri: str = Field(default="quack:localhost:9494", alias="DATABOX_QUACK_URI")
+    quack_token: str = Field(default="databox_quack_token", alias="DATABOX_QUACK_TOKEN")
+    dlt_data_dir: str = Field(
+        default=str(PROJECT_ROOT / "pipelines" / ".dlt"), alias="DATABOX_DLT_DATA_DIR"
+    )
     log_level: str = "INFO"
 
     # Per-source API tokens live in env via dlt's config pipeline and remain
@@ -64,14 +68,19 @@ class DataboxSettings(BaseSettings):
     def raw_catalog_path(self, name: str) -> str:
         """DuckDB connection string for the raw catalog of `name`.
 
-        Resolves to `md:raw_<name>` under MotherDuck and the on-disk
-        `data/raw_<name>.duckdb` file under local mode. Callers pass the source
-        name from the registry (`databox.config.sources.SOURCES`); this is the
-        only place the backend branch lives for raw catalog paths.
+        Quack writes every raw schema into the primary local Databox file.
+        The old `local` backend keeps per-source files as an escape hatch;
+        MotherDuck keeps one database per raw source.
         """
         if self.backend == "motherduck":
             return f"md:raw_{name}"
+        if self.backend == "quack":
+            return self.database_path
         return str(DATA_DIR / f"raw_{name}.duckdb")
+
+    def raw_dataset_name(self, name: str) -> str:
+        """dlt dataset/schema name for a raw source."""
+        return "main"
 
     def days_back(self, source: str) -> int:
         return int(getattr(self, f"{source}_days_back"))
@@ -105,9 +114,12 @@ class DataboxSettings(BaseSettings):
         )
         from sqlmesh.core.config.connection import MotherDuckConnectionConfig
 
-        local_catalogs = {"databox": str(DATA_DIR / "databox.duckdb")} | {
-            src.raw_catalog: str(DATA_DIR / f"{src.raw_catalog}.duckdb") for src in SOURCES
-        }
+        if self.backend == "quack":
+            local_catalogs = {"databox": str(DATA_DIR / "databox.duckdb")}
+        else:
+            local_catalogs = {"databox": str(DATA_DIR / "databox.duckdb")} | {
+                src.raw_catalog: str(DATA_DIR / f"{src.raw_catalog}.duckdb") for src in SOURCES
+            }
         motherduck_catalogs = {"databox": "md:databox"} | {
             src.raw_catalog: f"md:{src.raw_catalog}" for src in SOURCES
         }
@@ -124,7 +136,7 @@ class DataboxSettings(BaseSettings):
         # Context eagerly builds an `EngineAdapter` for every gateway in
         # `Config.gateways` the first time a snapshot operation is evaluated
         # (see `Context.engine_adapters`), which means registering both would
-        # open a MotherDuck connection even under `DATABOX_BACKEND=local`. That
+        # open a MotherDuck connection even under `DATABOX_BACKEND=quack`. That
         # crashes here because the process already holds a DuckDB handle to a
         # different backend, triggering the "different configuration than
         # existing connections" error. Gating the dict on `self.backend` keeps

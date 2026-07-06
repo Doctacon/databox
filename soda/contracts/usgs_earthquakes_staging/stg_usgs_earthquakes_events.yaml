@@ -1,5 +1,5 @@
 dataset: databox/usgs_earthquakes_staging/stg_usgs_earthquakes_events
-source_table: raw_usgs_earthquakes.main.events
+source_table: raw_usgs_earthquakes.events
 description: Staging model for USGS earthquake events (rolling 24h feed)
 
 columns:
