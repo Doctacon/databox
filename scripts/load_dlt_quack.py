@@ -18,10 +18,12 @@ from dataclasses import dataclass
 # Force the new local path even if a stale .env still says local.
 os.environ["DATABOX_BACKEND"] = "quack"
 os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
+os.environ.setdefault("RUNTIME__DLTHUB_TELEMETRY", "false")
+os.environ.setdefault("SQLMESH__DISABLE_ANONYMIZED_ANALYTICS", "true")
 
 from databox.config.settings import settings
 from databox.config.sources import SOURCES
-from databox.destinations import QuackServer, dedupe_quack_raw_tables
+from databox.destinations import QuackServer, cleanup_quack_clients, dedupe_quack_raw_tables
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,8 @@ class LoadResult:
 def _load_source(source_name: str) -> LoadResult:
     os.environ["DATABOX_BACKEND"] = "quack"
     os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
+    os.environ.setdefault("RUNTIME__DLTHUB_TELEMETRY", "false")
+    os.environ.setdefault("SQLMESH__DISABLE_ANONYMIZED_ANALYTICS", "true")
     try:
         from databox_sources.registry import get_source
 
@@ -79,9 +83,12 @@ def main() -> int:
         f"Starting Quack server {settings.quack_uri} over {args.database}; "
         f"loading {len(names)} source(s) with {max_workers} worker(s)."
     )
-    with QuackServer(db_path=args.database):
-        with futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-            results = list(executor.map(_load_source, names))
+    try:
+        with QuackServer(db_path=args.database):
+            with futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+                results = list(executor.map(_load_source, names))
+    finally:
+        cleanup_quack_clients()
 
     deduped = dedupe_quack_raw_tables(args.database)
     for line in deduped:

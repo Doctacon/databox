@@ -9,7 +9,12 @@ from dagster_dlt import DagsterDltResource, dlt_assets
 from databox_sources.usgs_earthquakes.source import usgs_earthquakes_source
 
 from databox.config.settings import settings
-from databox.destinations import dlt_destination, dlt_pipeline, prepare_dlt_source
+from databox.destinations import (
+    dlt_destination,
+    dlt_pipeline,
+    prepare_dlt_source,
+    quack_ingest_session,
+)
 from databox.orchestration._factories import (
     SODA_DIR,
     dlt_translator,
@@ -35,7 +40,8 @@ def usgs_earthquakes_dlt_assets(
     source = usgs_earthquakes_source()
     if settings.smoke:
         source.add_limit(max_items=5)
-    yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
+    with quack_ingest_session():
+        yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
 dlt_asset_keys = [spec.key for spec in usgs_earthquakes_dlt_assets.specs]
@@ -61,9 +67,16 @@ asset_checks: list[dg.AssetChecksDefinition] = [
     *freshness_checks(FRESHNESS_SLAS),
 ]
 
+ingest_job = dg.define_asset_job(
+    name="usgs_earthquakes_ingest",
+    selection=dg.AssetSelection.assets(*dlt_asset_keys),
+    executor_def=dg.in_process_executor,
+)
+
 daily_pipeline = dg.define_asset_job(
     name="usgs_earthquakes_daily_pipeline",
     selection=dg.AssetSelection.assets(*dlt_asset_keys, *sqlmesh_asset_keys),
+    executor_def=dg.in_process_executor,
 )
 
 schedule = dg.ScheduleDefinition(job=daily_pipeline, cron_schedule="0 6 * * *")

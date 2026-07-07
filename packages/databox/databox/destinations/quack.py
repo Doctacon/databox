@@ -1,13 +1,14 @@
 """DuckDB / Quack destination helpers.
 
-Quack is the local default: one server owns ``data/databox.duckdb`` while
-multiple dlt worker processes attach to it as clients. Raw source schemas are
-published as views after concurrent dlt loading completes.
+Quack is the local default: one server owns ``data/databox.duckdb`` while dlt
+attaches as a client. Raw source schemas are published as views after Quack
+loads complete.
 """
 
 from __future__ import annotations
 
 import os
+import shutil
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -142,8 +143,8 @@ def prepare_dlt_source(source: Any) -> Any:
 
     Quack's beta attached-catalog path currently handles INSERT/DDL but not the
     DELETE statements dlt emits for merge loads. For the personal local Quack
-    path, force raw loads to append during concurrent ingest; the loader runs a
-    direct post-load dedupe once the Quack server stops. MotherDuck and legacy
+    path, force raw loads to append during ingest; the Dagster source asset runs
+    a direct post-load dedupe once its Quack server stops. MotherDuck and legacy
     local keep declared dispositions.
     """
     if settings.backend != "quack":
@@ -151,6 +152,28 @@ def prepare_dlt_source(source: Any) -> Any:
     for resource in source.resources.values():
         resource.apply_hints(write_disposition="append")
     return source
+
+
+def cleanup_quack_clients() -> None:
+    """Remove local Quack client DuckDB files after a client/server ingest run."""
+    shutil.rmtree(DATA_DIR / ".quack-clients", ignore_errors=True)
+
+
+@contextmanager
+def quack_ingest_session(db_path: str | None = None) -> Iterator[None]:
+    """Own Quack lifecycle around one hermetic dlt source asset run."""
+    if settings.backend != "quack":
+        yield
+        return
+
+    target = db_path or settings.database_path
+    try:
+        with QuackServer(db_path=target):
+            yield
+    except BaseException:
+        raise
+    else:
+        dedupe_quack_raw_tables(target)
 
 
 def _table_exists(con: Any, schema: str, table: str) -> bool:
@@ -231,7 +254,9 @@ def dedupe_quack_raw_tables(db_path: str) -> list[str]:
             if not set(keys).issubset(cols):
                 continue
             order_cols = [col for col in ("_dlt_load_id", "_dlt_id") if col in cols]
-            order_sql = f" ORDER BY {', '.join(order_cols)} DESC" if order_cols else ""
+            order_sql = (
+                " ORDER BY " + ", ".join(f"{col} DESC" for col in order_cols) if order_cols else ""
+            )
             key_sql = ", ".join(keys)
             tmp_table = f"__dedupe_main_{table}"
             qualified = f"main.{table}"

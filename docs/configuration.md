@@ -33,12 +33,12 @@ consumers read them, nothing sets them directly.
 | `settings.raw_dataset_name(name)` | `main` for dlt loads; Quack publishes `raw_<name>` schema views post-load |
 | `settings.motherduck_database_names` | List of every MotherDuck database the stack expects (derived from the source registry) |
 | `settings.soda_datasource_yaml` | Rendered Soda datasource YAML using `database_path` |
-| `settings.sqlmesh_config()` | A `sqlmesh.core.config.Config` with both gateways and `default_gateway` = current backend |
+| `settings.sqlmesh_config()` | A `sqlmesh.core.config.Config` with the active gateway and `default_gateway` = current backend |
 
 ## Where it's read
 
 - **SQLMesh** — `transforms/main/config.py` returns `settings.sqlmesh_config()`; SQLMesh auto-discovers this Python config file in place of a `config.yaml`.
-- **Quack dlt load** — `scripts/load_dlt_quack.py` starts a local Quack server over `settings.database_path`, loads every registered source concurrently, deduplicates append-loaded raw tables, and publishes `raw_<source>` schema views.
+- **Dagster dlt ingest assets** — each source ingest job starts a local Quack server over `settings.database_path`, runs that one dlt source, stops Quack, deduplicates append-loaded raw tables, and publishes `raw_<source>` schema views.
 - **Dagster** — `packages/databox/databox/orchestration/definitions.py` reads `settings.backend`, `settings.gateway`, `settings.raw_catalog_path(...)`, `settings.raw_dataset_name(...)`, `settings.dlt_data_dir`, `settings.days_back(...)`, and `settings.soda_datasource_yaml`.
 - **Streamlit explorer** — `app/main.py` uses `settings.database_path`.
 - **Data-dictionary generator** — `scripts/generate_docs.py` uses `settings.gateway`.
@@ -87,4 +87,5 @@ MOTHERDUCK_TOKEN=<token>
 Flipping `DATABOX_BACKEND` flips SQLMesh's gateway, dlt destinations,
 raw dataset naming, and Soda's datasource connection without touching any
 other file. `task full-refresh` and `task verify` force `DATABOX_BACKEND=quack`
-so stale local `.env` files do not silently take the old path.
+for both Dagster ingest jobs and the native SQLMesh prod restatement so stale
+local `.env` files do not silently take the old path.

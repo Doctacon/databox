@@ -12,7 +12,6 @@ from dagster_sqlmesh import SQLMeshResource
 
 from databox.orchestration._factories import (
     DataboxConfig,
-    apply_freshness,
     ensure_motherduck_databases,
     freshness_violation_sensor,
     openlineage_sensor_or_none,
@@ -24,6 +23,14 @@ ensure_motherduck_databases()
 
 _openlineage_sensor = openlineage_sensor_or_none()
 
+sqlmesh_asset_selection = dg.AssetSelection.assets(
+    *ebird.sqlmesh_asset_keys,
+    *noaa.sqlmesh_asset_keys,
+    *usgs.sqlmesh_asset_keys,
+    *usgs_earthquakes.sqlmesh_asset_keys,
+    *analytics.sqlmesh_asset_keys,
+)
+
 all_pipelines = dg.define_asset_job(
     name="all_pipelines",
     selection=dg.AssetSelection.assets(
@@ -31,12 +38,9 @@ all_pipelines = dg.define_asset_job(
         *noaa.dlt_asset_keys,
         *usgs.dlt_asset_keys,
         *usgs_earthquakes.dlt_asset_keys,
-        *ebird.sqlmesh_asset_keys,
-        *noaa.sqlmesh_asset_keys,
-        *usgs.sqlmesh_asset_keys,
-        *usgs_earthquakes.sqlmesh_asset_keys,
-        *analytics.sqlmesh_asset_keys,
-    ),
+    )
+    | sqlmesh_asset_selection,
+    executor_def=dg.in_process_executor,
 )
 
 defs = dg.Definitions(
@@ -55,6 +59,10 @@ defs = dg.Definitions(
         *analytics.asset_checks,
     ],
     jobs=[
+        ebird.ingest_job,
+        noaa.ingest_job,
+        usgs.ingest_job,
+        usgs_earthquakes.ingest_job,
         ebird.daily_pipeline,
         noaa.daily_pipeline,
         usgs.daily_pipeline,
@@ -73,7 +81,5 @@ defs = dg.Definitions(
         "dlt": DagsterDltResource(),
         "sqlmesh": SQLMeshResource(),
     },
-    executor=dg.multiprocess_executor,
+    executor=dg.in_process_executor,
 )
-
-defs = defs.map_asset_specs(func=apply_freshness)

@@ -26,6 +26,7 @@ dev = [
     # openlineage-python is also the `lineage` extra on the databox package; keep
     # it in dev so CI can execute the OL sensor tests without the extra.
     "openlineage-python>=1.20.0",
+    "dagster-dg-cli>=1.13.12",
 ]
 
 [tool.mypy]
@@ -59,6 +60,12 @@ ignore_missing_imports = true
 
 [tool.uv]
 package = false
+
+[tool.dg]
+directory_type = "workspace"
+
+[tool.dg.workspace]
+projects = [{ path = "packages/databox" }]
 
 [tool.uv.workspace]
 members = ["packages/*"]

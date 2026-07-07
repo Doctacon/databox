@@ -59,17 +59,17 @@ override (default `30`) in
 - `DATABOX_USGS_DAYS_BACK`
 
 To widen the window for one local run, set the env var before launching the
-Quack dlt loader:
+Dagster ingest job or `task full-refresh`:
 
 ```bash
 # Pull eBird data for the last 90 days instead of the default 30
-DATABOX_EBIRD_DAYS_BACK=90 uv run python scripts/load_dlt_quack.py
+DATABOX_EBIRD_DAYS_BACK=90 task full-refresh
 
 # Full-year NOAA backfill (hits multiple 365-day chunks; expect 5-10 min)
-DATABOX_NOAA_DAYS_BACK=365 uv run python scripts/load_dlt_quack.py
+DATABOX_NOAA_DAYS_BACK=365 task full-refresh
 
 # USGS daily values for the last year (chunked to 90-day API calls)
-DATABOX_USGS_DAYS_BACK=365 uv run python scripts/load_dlt_quack.py
+DATABOX_USGS_DAYS_BACK=365 task full-refresh
 ```
 
 The merge disposition means a backfill never duplicates rows already present
@@ -90,10 +90,11 @@ in place.
 
 ## Dagster backfill
 
-A per-source Dagster partition backfill is not wired yet. The local raw-load
-path is `scripts/load_dlt_quack.py`; after it completes, run `task full-refresh`
-or materialize the SQLMesh assets to rebuild modeled tables from the refreshed
-raw schemas.
+A partitioned Dagster backfill is not wired yet, but each source has a dlt
+ingest asset job (`ebird_ingest`, `noaa_ingest`, `usgs_ingest`,
+`usgs_earthquakes_ingest`). `task full-refresh` runs those jobs sequentially
+through Quack and then uses the native SQLMesh CLI to rebuild modeled tables
+from the refreshed raw schemas.
 
 ## When to rely on merge vs replace
 

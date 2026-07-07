@@ -18,18 +18,22 @@ buying much.
 
 ## Decision
 
-Retire the Typer CLI. **Dagster is the single entrypoint** for every
-non-trivial operation: ingestion, transformation, quality checks,
-schedules, sensors, backfills. A thin `Taskfile.yml` wraps the common
-Dagster commands (`task dagster:dev`, `task dagster:materialize`,
-`task full-refresh`) for ergonomic reasons but does not implement any
-logic of its own.
+Retire the Typer CLI. **Dagster is the single entrypoint** for dlt ingestion,
+quality checks, schedules, sensors, and asset-observability workflows. A thin
+`Taskfile.yml` wraps the common commands (`task dagster:dev`, source ingest
+jobs, `task full-refresh`) for ergonomics.
+
+ADR-0007 narrows this for the local Quack full-refresh path: each dlt source
+still runs as a Dagster asset job, but SQLMesh transformations are invoked with
+the native SQLMesh CLI after Quack shuts down so SQLMesh owns its own planning,
+state, and restatement semantics directly.
 
 ## Consequences
 
 **Positive:**
-- One mental model. New contributors learn Dagster assets and see
-  every pipeline step as a node in one graph.
+- One mental model for ingestion and quality. New contributors learn Dagster
+  source assets and checks, while SQLMesh remains the direct interface for
+  transform planning and restatement.
 - Native lineage across dlt → SQLMesh → Soda. The UI shows that
   `analytics.fct_species_environment_daily` depends on
   `noaa.int_weather_by_h3_day` which depends on `raw_noaa.daily_weather`,

@@ -28,6 +28,33 @@ TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
 MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
 SODA_DIR = PROJECT_ROOT / "soda"
 
+# Freshness policies are derived from the source registry. Analytics marts are
+# cross-domain and inherit the slowest `analytics_anchor=True` upstream policy.
+FRESHNESS_BY_SOURCE: dict[str, dg.FreshnessPolicy] = {
+    src.name: src.freshness_policy for src in SOURCES
+}
+
+_ANALYTICS_ANCHOR = next((src.name for src in SOURCES if src.analytics_anchor), None)
+
+
+def _source_for_key(key: dg.AssetKey) -> str | None:
+    path = key.path
+    if len(path) < 2:
+        return None
+    schema = path[1]
+    # Longest match first so e.g. "usgs_earthquakes_staging" doesn't collapse to "usgs".
+    for src in sorted((s.name for s in SOURCES), key=len, reverse=True):
+        if src in schema:
+            return src
+    if schema == "analytics":
+        return _ANALYTICS_ANCHOR
+    return None
+
+
+def freshness_policy_for_key(key: dg.AssetKey) -> dg.FreshnessPolicy | None:
+    src = _source_for_key(key)
+    return FRESHNESS_BY_SOURCE[src] if src is not None else None
+
 
 class DataboxSQLMeshTranslator(SQLMeshDagsterTranslator):
     def get_asset_key_name(self, fqn: str) -> t.Sequence[str]:
@@ -38,6 +65,12 @@ class DataboxSQLMeshTranslator(SQLMeshDagsterTranslator):
         if table.catalog and str(table.db) == "main" and str(table.catalog) in raw_catalogs():
             return ["sqlmesh", str(table.catalog), table.name]
         return ["sqlmesh", table.db, table.name]
+
+    def create_asset_out(self, *, model_key: str, asset_key: str, **kwargs: t.Any) -> t.Any:
+        policy = freshness_policy_for_key(dg.AssetKey.from_user_string(asset_key))
+        if policy is not None:
+            kwargs.setdefault("freshness_policy", policy)
+        return super().create_asset_out(model_key=model_key, asset_key=asset_key, **kwargs)
 
 
 class DataboxSQLMeshContextConfig(SQLMeshContextConfig):
@@ -200,8 +233,10 @@ def dlt_translator(raw_schema: str) -> DagsterDltTranslator:
     class _Translator(DagsterDltTranslator):
         def get_asset_spec(self, data: DltResourceTranslatorData) -> dg.AssetSpec:
             default = super().get_asset_spec(data)
+            key = dg.AssetKey(["sqlmesh", raw_schema, data.resource.name])
             return default.replace_attributes(
-                key=dg.AssetKey(["sqlmesh", raw_schema, data.resource.name])
+                key=key,
+                freshness_policy=freshness_policy_for_key(key),
             )
 
     return _Translator()
@@ -248,55 +283,18 @@ def soda_check(
     return _check
 
 
-# Freshness policies are derived from the source registry. Analytics marts are
-# cross-domain and inherit the slowest `analytics_anchor=True` upstream policy.
-FRESHNESS_BY_SOURCE: dict[str, dg.FreshnessPolicy] = {
-    src.name: src.freshness_policy for src in SOURCES
-}
-
-_ANALYTICS_ANCHOR = next((src.name for src in SOURCES if src.analytics_anchor), None)
-
-
-def _source_for_key(key: dg.AssetKey) -> str | None:
-    path = key.path
-    if len(path) < 2:
-        return None
-    schema = path[1]
-    # Longest match first so e.g. "usgs_earthquakes_staging" doesn't collapse to "usgs".
-    for src in sorted((s.name for s in SOURCES), key=len, reverse=True):
-        if src in schema:
-            return src
-    if schema == "analytics":
-        return _ANALYTICS_ANCHOR
-    return None
-
-
-def apply_freshness(spec: dg.AssetSpec) -> dg.AssetSpec:
-    src = _source_for_key(spec.key)
-    if src is None:
-        return spec
-    return dg.apply_freshness_policy(spec, FRESHNESS_BY_SOURCE[src])
-
-
 def freshness_checks(
     slas: dict[dg.AssetKey, timedelta],
 ) -> list[dg.AssetChecksDefinition]:
-    """Build `last_update` freshness checks from an SLA map.
+    """Compatibility shim: freshness now lives on AssetSpec / AssetOut.
 
-    Each entry declares the maximum tolerable staleness. A check fails when
-    the asset's latest materialization timestamp is older than that window.
-    One check per asset keeps the asset-check panel in Dagster readable.
+    Dagster superseded `build_last_update_freshness_checks`; the supported path
+    is attaching `FreshnessPolicy` objects directly to assets. Domain modules
+    still pass their SLA maps here so older call sites stay simple, but the maps
+    are now documentation only.
     """
-    checks: list[dg.AssetChecksDefinition] = []
-    for key, max_lag in slas.items():
-        checks.extend(
-            dg.build_last_update_freshness_checks(
-                assets=[key],
-                lower_bound_delta=max_lag,
-                severity=dg.AssetCheckSeverity.WARN,
-            )
-        )
-    return checks
+    _ = slas
+    return []
 
 
 @dg.sensor(

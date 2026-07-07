@@ -9,7 +9,12 @@ from dagster_dlt import DagsterDltResource, dlt_assets
 from databox_sources.noaa.source import noaa_source
 
 from databox.config.settings import settings
-from databox.destinations import dlt_destination, dlt_pipeline, prepare_dlt_source
+from databox.destinations import (
+    dlt_destination,
+    dlt_pipeline,
+    prepare_dlt_source,
+    quack_ingest_session,
+)
 from databox.orchestration._factories import (
     SODA_DIR,
     dlt_translator,
@@ -43,7 +48,8 @@ def noaa_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> 
     )
     if settings.smoke:
         source.add_limit(max_items=5)
-    yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
+    with quack_ingest_session():
+        yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
 dlt_asset_keys = [spec.key for spec in noaa_dlt_assets.specs]
@@ -51,6 +57,7 @@ dlt_asset_keys = [spec.key for spec in noaa_dlt_assets.specs]
 sqlmesh_asset_keys = [
     dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_daily_weather"]),
     dg.AssetKey(["sqlmesh", "noaa_staging", "stg_noaa_stations"]),
+    dg.AssetKey(["sqlmesh", "noaa", "int_weather_by_h3_day"]),
     dg.AssetKey(["sqlmesh", "noaa", "fct_daily_weather"]),
 ]
 
@@ -74,9 +81,16 @@ asset_checks: list[dg.AssetChecksDefinition] = [
     *freshness_checks(FRESHNESS_SLAS),
 ]
 
+ingest_job = dg.define_asset_job(
+    name="noaa_ingest",
+    selection=dg.AssetSelection.assets(*dlt_asset_keys),
+    executor_def=dg.in_process_executor,
+)
+
 daily_pipeline = dg.define_asset_job(
     name="noaa_daily_pipeline",
     selection=dg.AssetSelection.assets(*dlt_asset_keys, *sqlmesh_asset_keys),
+    executor_def=dg.in_process_executor,
 )
 
 schedule = dg.ScheduleDefinition(job=daily_pipeline, cron_schedule="0 6 * * *")

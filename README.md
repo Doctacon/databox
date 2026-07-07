@@ -170,9 +170,12 @@ task plan:prod     # promote verified changes — see docs/environments.md
 task streamlit
 ```
 
-Dagster is the one entrypoint — individual pipeline runs, quality checks,
-schedules, and sensors all happen as assets in the same DAG. See
-[ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md).
+Dagster owns source ingestion as assets (`ebird_ingest`, `noaa_ingest`,
+`usgs_ingest`, `usgs_earthquakes_ingest`) plus schedules, sensors, and asset
+checks. `task full-refresh` runs those hermetic source assets through Quack,
+then invokes native SQLMesh for the prod restatement. See
+[ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md) and
+[ADR-0007](docs/adr/0007-quack-single-file-local-ingest.md).
 
 Per-mart staleness SLAs are declared in each domain module and validated
 by `last_update` asset checks; a sensor emits a structured warning line

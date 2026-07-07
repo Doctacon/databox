@@ -4,7 +4,10 @@ version: '3'
 # Pure CLI wrappers (uv/sqlmesh/dagster) live in docs/commands.md.
 
 vars: { VENV_DIR: .venv }
-env: { PYTHONPATH: . }
+env:
+  PYTHONPATH: .
+  RUNTIME__DLTHUB_TELEMETRY: "false"
+  SQLMESH__DISABLE_ANONYMIZED_ANALYTICS: "true"
 
 tasks:
   install:
@@ -29,9 +32,9 @@ tasks:
       - "{{.VENV_DIR}}/bin/ruff format --check ."
       - "{{.VENV_DIR}}/bin/mypy packages/"
       - "{{.VENV_DIR}}/bin/pytest"
-      - python scripts/check_secrets.py .
-      - python scripts/generate_staging.py --check
-      - python scripts/generate_platform_health.py --check
+      - "{{.VENV_DIR}}/bin/python scripts/check_secrets.py ."
+      - "{{.VENV_DIR}}/bin/python scripts/generate_staging.py --check"
+      - "{{.VENV_DIR}}/bin/python scripts/generate_platform_health.py --check"
 
   docs:build:
     desc: "Generate dictionary, build MkDocs (strict)"
@@ -57,19 +60,60 @@ tasks:
     cmds: ["{{.VENV_DIR}}/bin/python scripts/verify_dev.py"]
 
   full-refresh:
-    desc: "Quack dlt load to one DuckDB file, then SQLMesh + Soda via Dagster — logs to .logs/"
+    desc: "Dagster dlt source assets through Quack, then native SQLMesh prod restatement — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_BACKEND: "quack" }
     cmds:
-      - "./scripts/run-logged.sh full-refresh -- bash -lc '{{.VENV_DIR}}/bin/python scripts/load_dlt_quack.py && {{.VENV_DIR}}/bin/dagster asset materialize --select sqlmesh* -m databox.orchestration.definitions'"
+      - |
+        ./scripts/run-logged.sh full-refresh -- bash -lc '
+          set -euo pipefail
+          repo=$PWD
+          tmp=$(mktemp -d)
+          cleanup() { rm -rf "$tmp" "$repo/data/.quack-clients"; }
+          trap cleanup EXIT
+          export DATABOX_BACKEND=quack RUNTIME__DLTHUB_TELEMETRY=false SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}"
+          export VIRTUAL_ENV="$repo/{{.VENV_DIR}}"
+          export PATH="$VIRTUAL_ENV/bin:$PATH"
+          for job in ebird_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
+            (cd "$tmp" && "$repo/{{.VENV_DIR}}/bin/dg" launch --target-path "$repo/packages/databox" --job "$job")
+          done
+          (cd "$repo/transforms/main" && "../../{{.VENV_DIR}}/bin/sqlmesh" --log-to-stdout --log-file-dir ../../.logs/sqlmesh plan prod --auto-apply --restate-model "*" --no-prompts)
+        '
   verify:
-    desc: "Smoke Quack full-refresh — DATABOX_SMOKE=1 caps each source to 5 items — logs to .logs/"
+    desc: "Smoke Dagster dlt source assets through Quack, then native SQLMesh prod restatement — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_BACKEND: "quack", DATABOX_SMOKE: "1" }
     cmds:
-      - "./scripts/run-logged.sh verify -- bash -lc '{{.VENV_DIR}}/bin/python scripts/load_dlt_quack.py && {{.VENV_DIR}}/bin/dagster asset materialize --select sqlmesh* -m databox.orchestration.definitions'"
+      - |
+        ./scripts/run-logged.sh verify -- bash -lc '
+          set -euo pipefail
+          repo=$PWD
+          tmp=$(mktemp -d)
+          cleanup() { rm -rf "$tmp" "$repo/data/.quack-clients"; }
+          trap cleanup EXIT
+          export DATABOX_BACKEND=quack DATABOX_SMOKE=1 RUNTIME__DLTHUB_TELEMETRY=false SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}"
+          export VIRTUAL_ENV="$repo/{{.VENV_DIR}}"
+          export PATH="$VIRTUAL_ENV/bin:$PATH"
+          for job in ebird_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
+            (cd "$tmp" && "$repo/{{.VENV_DIR}}/bin/dg" launch --target-path "$repo/packages/databox" --job "$job")
+          done
+          (cd "$repo/transforms/main" && "../../{{.VENV_DIR}}/bin/sqlmesh" --log-to-stdout --log-file-dir ../../.logs/sqlmesh plan prod --auto-apply --restate-model "*" --no-prompts)
+        '
   dagster:dev:
-    desc: "Launch Dagster UI — discovers workspace.yaml at repo root"
-    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
-    cmds: ["{{.VENV_DIR}}/bin/dagster dev"]
+    desc: "Launch Dagster UI on the default Quack backend"
+    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_BACKEND: "quack" }
+    cmds:
+      - |
+        bash -lc '
+          set -euo pipefail
+          repo=$PWD
+          tmp=$(mktemp -d)
+          cleanup() { rm -rf "$tmp"; }
+          trap cleanup EXIT
+          export DATABOX_BACKEND=quack RUNTIME__DLTHUB_TELEMETRY=false SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}"
+          export VIRTUAL_ENV="$repo/{{.VENV_DIR}}"
+          export PATH="$VIRTUAL_ENV/bin:$PATH"
+          cd "$tmp"
+          "$repo/{{.VENV_DIR}}/bin/dg" dev --target-path "$repo/packages/databox" --use-active-venv {{.CLI_ARGS}}
+        '
 
   streamlit:
     desc: "Launch Databox Explorer"
@@ -77,10 +121,10 @@ tasks:
     cmds: ["../{{.VENV_DIR}}/bin/streamlit run main.py"]
   init:
     desc: "Rebrand a fresh fork from scaffold.yaml (see docs/template.md)"
-    cmds: ["python scripts/bootstrap.py {{.CLI_ARGS}}"]
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/bootstrap.py {{.CLI_ARGS}}"]
   new-source:
     desc: "Scaffold a new dlt source (see docs/new-source.md)"
-    cmds: ["python scripts/new_source.py {{.CLI_ARGS}}"]
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/new_source.py {{.CLI_ARGS}}"]
 
   db:reset:
     desc: "Delete local DuckDB files (MotherDuck dbs must be dropped manually)"
