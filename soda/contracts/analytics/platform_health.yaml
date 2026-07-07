@@ -6,7 +6,7 @@ columns:
       - missing:
           must_be: 0
       - invalid:
-          valid_values: [ebird, noaa, usgs]
+          valid_values: [ebird, noaa, usgs, usgs_earthquakes]
           must_be: 0
   - name: load_id
     checks:
@@ -27,4 +27,4 @@ columns:
 
 checks:
   - row_count:
-      must_be: 3
+      must_be: 4
