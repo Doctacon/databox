@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from unittest.mock import patch
 
 import pytest
+from databox.config.settings import settings
 from databox.config.sources import SOURCES
 
 EXPECTED_DOMAIN_EXPORTS = (
@@ -59,6 +61,18 @@ def test_source_names_unique() -> None:
 def test_raw_catalogs_match_name() -> None:
     for src in SOURCES:
         assert src.raw_catalog == f"raw_{src.name}"
+
+
+def test_quack_raw_dataset_matches_raw_schema() -> None:
+    with patch.object(settings, "backend", "quack"):
+        assert settings.raw_dataset_name("usgs") == "raw_usgs"
+
+
+def test_non_quack_raw_dataset_stays_main_schema() -> None:
+    with patch.object(settings, "backend", "motherduck"):
+        assert settings.raw_dataset_name("usgs") == "main"
+    with patch.object(settings, "backend", "local"):
+        assert settings.raw_dataset_name("usgs") == "main"
 
 
 def test_analytics_anchor_is_single() -> None:

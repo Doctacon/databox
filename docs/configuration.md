@@ -30,7 +30,7 @@ consumers read them, nothing sets them directly.
 | `settings.gateway` | `"motherduck" if backend == "motherduck" else "local"` |
 | `settings.database_path` | `"md:databox"` on motherduck, `data/databox.duckdb` otherwise |
 | `settings.raw_catalog_path(name)` | `data/databox.duckdb` on quack, `"md:raw_<name>"` on motherduck, `data/raw_<name>.duckdb` on legacy local |
-| `settings.raw_dataset_name(name)` | `main` for dlt loads; Quack publishes `raw_<name>` schema views post-load |
+| `settings.raw_dataset_name(name)` | `raw_<name>` on quack, `main` on motherduck and legacy local per-source files |
 | `settings.motherduck_database_names` | List of every MotherDuck database the stack expects (derived from the source registry) |
 | `settings.soda_datasource_yaml` | Rendered Soda datasource YAML using `database_path` |
 | `settings.sqlmesh_config()` | A `sqlmesh.core.config.Config` with the active gateway and `default_gateway` = current backend |
@@ -38,7 +38,7 @@ consumers read them, nothing sets them directly.
 ## Where it's read
 
 - **SQLMesh** — `transforms/main/config.py` returns `settings.sqlmesh_config()`; SQLMesh auto-discovers this Python config file in place of a `config.yaml`.
-- **Dagster dlt ingest assets** — each source ingest job starts a local Quack server over `settings.database_path`, runs that one dlt source, stops Quack, deduplicates append-loaded raw tables, and publishes `raw_<source>` schema views.
+- **Dagster dlt ingest assets** — each source ingest job starts a local Quack server over `settings.database_path`, runs that one dlt source into its physical `raw_<source>` schema, stops Quack, and deduplicates append-loaded raw tables.
 - **Dagster** — `packages/databox/databox/orchestration/definitions.py` reads `settings.backend`, `settings.gateway`, `settings.raw_catalog_path(...)`, `settings.raw_dataset_name(...)`, `settings.dlt_data_dir`, `settings.days_back(...)`, and `settings.soda_datasource_yaml`.
 - **Streamlit explorer** — `app/main.py` uses `settings.database_path`.
 - **Data-dictionary generator** — `scripts/generate_docs.py` uses `settings.gateway`.

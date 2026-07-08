@@ -3,8 +3,8 @@
 
 This is the local one-file ingestion path: a parent process starts a Quack
 server over data/databox.duckdb, then one worker process per registered source
-runs its dlt pipeline into that same file. After Quack shuts down, Databox
-publishes raw_<source> schema views for SQLMesh.
+runs its dlt pipeline into that same file. Each source physically lands in its
+own raw_<source> schema for SQLMesh.
 """
 
 from __future__ import annotations
@@ -17,7 +17,6 @@ from dataclasses import dataclass
 
 # Force the new local path even if a stale .env still says local.
 os.environ["DATABOX_BACKEND"] = "quack"
-os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
 os.environ.setdefault("RUNTIME__DLTHUB_TELEMETRY", "false")
 os.environ.setdefault("SQLMESH__DISABLE_ANONYMIZED_ANALYTICS", "true")
 
@@ -35,7 +34,6 @@ class LoadResult:
 
 def _load_source(source_name: str) -> LoadResult:
     os.environ["DATABOX_BACKEND"] = "quack"
-    os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
     os.environ.setdefault("RUNTIME__DLTHUB_TELEMETRY", "false")
     os.environ.setdefault("SQLMESH__DISABLE_ANONYMIZED_ANALYTICS", "true")
     try:

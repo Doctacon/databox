@@ -8,6 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+node_modules/
 
 # IDE
 .idea/
@@ -36,13 +37,17 @@ data/
 
 # DLT
 pipelines/.dlt/
+.dlt_state/
+.duckdb_state/
 
 # SQLMesh
 .sqlmesh/
+.sqlmesh_state/
 target/
 
 # Dagster
 .dagster/
+.dagster_state/
 
 # Logs
 logs/

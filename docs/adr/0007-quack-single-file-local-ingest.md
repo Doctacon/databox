@@ -21,17 +21,18 @@ Make Quack the default local ingest path.
 - Each dlt source is a Dagster ingest asset/job. For local Quack runs, that
   source job starts a Quack server over `data/databox.duckdb`, runs exactly one
   dlt source through Quack, stops Quack, then opens the file directly.
-- During the Quack load, dlt writes append-only tables in `main` because
-  Quack's beta attached-catalog path does not yet support every DELETE
-  statement dlt emits for merge loads.
+- During the Quack load, dlt writes append-only physical tables in each
+  source's `raw_<source>` schema because Quack's beta attached-catalog path does
+  not yet support every DELETE statement dlt emits for merge loads.
 - After the Quack server stops, Databox deduplicates known raw tables by their
-  declared primary keys and publishes `raw_<source>` schema views.
+  declared primary keys in place.
 - `task full-refresh` runs the source ingest jobs sequentially for hermeticity,
   then invokes the native SQLMesh CLI to restate prod models from the refreshed
   raw schemas.
 - SQLMesh reads raw sources using two-part names such as
-  `raw_ebird.recent_observations`, which works for both Quack-published schema
-  views and the legacy attached-catalog layout.
+  `raw_ebird.recent_observations`; under Quack those are physical tables in the
+  primary `data/databox.duckdb` file, while MotherDuck and legacy local continue
+  to expose the same two-part names through one raw catalog/database per source.
 - The old `DATABOX_BACKEND=local` per-source-file path remains only as an escape
   hatch.
 

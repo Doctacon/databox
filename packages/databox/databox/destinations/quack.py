@@ -1,8 +1,8 @@
 """DuckDB / Quack destination helpers.
 
 Quack is the local default: one server owns ``data/databox.duckdb`` while dlt
-attaches as a client. Raw source schemas are published as views after Quack
-loads complete.
+attaches as a client. Each source physically loads into its own ``raw_*`` schema
+inside that file.
 """
 
 from __future__ import annotations
@@ -21,25 +21,12 @@ from databox.config.settings import DATA_DIR, settings
 
 
 def configure_quack_dlt() -> None:
-    """Apply dlt config needed before constructing Quack-backed pipelines."""
-    if settings.backend == "quack":
-        os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
+    """Backward-compatible hook; Quack now uses dlt's default state sync."""
 
 
 @contextmanager
 def _quack_dlt_env() -> Iterator[None]:
-    if settings.backend != "quack":
-        yield
-        return
-    previous = os.environ.get("PIPELINES__RESTORE_FROM_DESTINATION")
-    os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
-    try:
-        yield
-    finally:
-        if previous is None:
-            os.environ.pop("PIPELINES__RESTORE_FROM_DESTINATION", None)
-        else:
-            os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = previous
+    yield
 
 
 def dlt_pipeline(*args: Any, **kwargs: Any) -> Any:
@@ -97,6 +84,7 @@ class QuackServer:
 
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._con = duckdb.connect(self.db_path)
+        _drop_legacy_raw_views(self._con)
         _load_quack(self._con)
         self._con.execute(
             f"CALL quack_serve('{_sql_literal(self.uri)}', token='{_sql_literal(self.token)}')"
@@ -144,8 +132,8 @@ def prepare_dlt_source(source: Any) -> Any:
     Quack's beta attached-catalog path currently handles INSERT/DDL but not the
     DELETE statements dlt emits for merge loads. For the personal local Quack
     path, force raw loads to append during ingest; the Dagster source asset runs
-    a direct post-load dedupe once its Quack server stops. MotherDuck and legacy
-    local keep declared dispositions.
+    a direct post-load dedupe against each physical raw schema once its Quack
+    server stops. MotherDuck and legacy local keep declared dispositions.
     """
     if settings.backend != "quack":
         return source
@@ -176,19 +164,6 @@ def quack_ingest_session(db_path: str | None = None) -> Iterator[None]:
         dedupe_quack_raw_tables(target)
 
 
-def _table_exists(con: Any, schema: str, table: str) -> bool:
-    return bool(
-        con.execute(
-            """
-            SELECT 1
-            FROM information_schema.tables
-            WHERE table_schema = ? AND table_name = ?
-            """,
-            [schema, table],
-        ).fetchone()
-    )
-
-
 def _columns(con: Any, schema: str, table: str) -> set[str]:
     rows = con.execute(
         """
@@ -201,38 +176,32 @@ def _columns(con: Any, schema: str, table: str) -> set[str]:
     return {row[0] for row in rows}
 
 
-def _publish_raw_views(con: Any) -> None:
-    schemas = sorted({schema for schema, _ in _RAW_DEDUPE_KEYS})
-    for schema in schemas:
-        source_name = schema.removeprefix("raw_")
-        dlt_schema = f"{source_name}_source"
-        con.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
-        if _table_exists(con, "main", "_dlt_loads"):
-            con.execute(f"DROP VIEW IF EXISTS {schema}._dlt_loads")
-            con.execute(f"DROP TABLE IF EXISTS {schema}._dlt_loads")
-            con.execute(
-                f"""
-                CREATE VIEW {schema}._dlt_loads AS
-                SELECT * FROM main._dlt_loads WHERE schema_name = '{_sql_literal(dlt_schema)}'
-                """
-            )
-        if _table_exists(con, "main", "_dlt_version"):
-            con.execute(f"DROP VIEW IF EXISTS {schema}._dlt_version")
-            con.execute(f"DROP TABLE IF EXISTS {schema}._dlt_version")
-            con.execute(
-                f"""
-                CREATE VIEW {schema}._dlt_version AS
-                SELECT * FROM main._dlt_version WHERE schema_name = '{_sql_literal(dlt_schema)}'
-                """
-            )
+def _relation_type(con: Any, schema: str, table: str) -> str | None:
+    row = con.execute(
+        """
+        SELECT table_type
+        FROM information_schema.tables
+        WHERE table_schema = ? AND table_name = ?
+        """,
+        [schema, table],
+    ).fetchone()
+    return str(row[0]) if row is not None else None
 
-    for schema, table in sorted(_RAW_DEDUPE_KEYS):
-        if not _table_exists(con, "main", table):
-            continue
-        con.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
-        con.execute(f"DROP VIEW IF EXISTS {schema}.{table}")
-        con.execute(f"DROP TABLE IF EXISTS {schema}.{table}")
-        con.execute(f"CREATE VIEW {schema}.{table} AS SELECT * FROM main.{table}")
+
+def _base_table_exists(con: Any, schema: str, table: str) -> bool:
+    return _relation_type(con, schema, table) == "BASE TABLE"
+
+
+def _drop_legacy_raw_views(con: Any) -> None:
+    """Drop old Quack raw-schema views so dlt can create physical raw tables."""
+    schemas = sorted({schema for schema, _ in _RAW_DEDUPE_KEYS})
+    metadata_relations = [
+        (schema, table) for schema in schemas for table in ("_dlt_loads", "_dlt_version")
+    ]
+    raw_relations = [*sorted(_RAW_DEDUPE_KEYS), *metadata_relations]
+    for schema, table in raw_relations:
+        if _relation_type(con, schema, table) == "VIEW":
+            con.execute(f"DROP VIEW {schema}.{table}")
 
 
 def _count_rows(con: Any, qualified_table: str) -> int:
@@ -241,16 +210,16 @@ def _count_rows(con: Any, qualified_table: str) -> int:
 
 
 def dedupe_quack_raw_tables(db_path: str) -> list[str]:
-    """Deduplicate append-loaded main tables and publish raw_<source> views."""
+    """Deduplicate append-loaded physical raw tables after a Quack ingest."""
     import duckdb
 
     changed: list[str] = []
     con = duckdb.connect(db_path)
     try:
-        for (_schema, table), keys in _RAW_DEDUPE_KEYS.items():
-            if not _table_exists(con, "main", table):
+        for (schema, table), keys in _RAW_DEDUPE_KEYS.items():
+            if not _base_table_exists(con, schema, table):
                 continue
-            cols = _columns(con, "main", table)
+            cols = _columns(con, schema, table)
             if not set(keys).issubset(cols):
                 continue
             order_cols = [col for col in ("_dlt_load_id", "_dlt_id") if col in cols]
@@ -258,8 +227,8 @@ def dedupe_quack_raw_tables(db_path: str) -> list[str]:
                 " ORDER BY " + ", ".join(f"{col} DESC" for col in order_cols) if order_cols else ""
             )
             key_sql = ", ".join(keys)
-            tmp_table = f"__dedupe_main_{table}"
-            qualified = f"main.{table}"
+            tmp_table = f"__dedupe_{schema}_{table}"
+            qualified = f"{schema}.{table}"
             before = _count_rows(con, qualified)
             con.execute(
                 f"""
@@ -279,7 +248,6 @@ def dedupe_quack_raw_tables(db_path: str) -> list[str]:
                 con.execute(f"CREATE OR REPLACE TABLE {qualified} AS SELECT * FROM {tmp_table}")
                 changed.append(f"{qualified}: {before} -> {after}")
             con.execute(f"DROP TABLE {tmp_table}")
-        _publish_raw_views(con)
     finally:
         con.close()
     return changed

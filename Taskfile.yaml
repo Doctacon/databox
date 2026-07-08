@@ -76,7 +76,7 @@ tasks:
           for job in ebird_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
             (cd "$tmp" && "$repo/{{.VENV_DIR}}/bin/dg" launch --target-path "$repo/packages/databox" --job "$job")
           done
-          (cd "$repo/transforms/main" && "../../{{.VENV_DIR}}/bin/sqlmesh" --log-to-stdout --log-file-dir ../../.logs/sqlmesh plan prod --auto-apply --restate-model "*" --no-prompts)
+          "$repo/scripts/sqlmesh_plan_prod.sh"
         '
   verify:
     desc: "Smoke Dagster dlt source assets through Quack, then native SQLMesh prod restatement — logs to .logs/"
@@ -95,7 +95,7 @@ tasks:
           for job in ebird_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
             (cd "$tmp" && "$repo/{{.VENV_DIR}}/bin/dg" launch --target-path "$repo/packages/databox" --job "$job")
           done
-          (cd "$repo/transforms/main" && "../../{{.VENV_DIR}}/bin/sqlmesh" --log-to-stdout --log-file-dir ../../.logs/sqlmesh plan prod --auto-apply --restate-model "*" --no-prompts)
+          "$repo/scripts/sqlmesh_plan_prod.sh"
         '
   dagster:dev:
     desc: "Launch Dagster UI on the default Quack backend"
@@ -132,9 +132,16 @@ tasks:
   clean:
     desc: "Remove build + test + cache artifacts"
     cmds:
-      - rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .coverage htmlcov/
-      - find . -type d -name __pycache__ -exec rm -rf {} +
+      - >-
+        rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .coverage htmlcov/
+        .mypy_cache/ .ruff_cache/ site/ logs/
+        packages/databox/data/ transforms/main/data/ transforms/main/.cache/
+        .dive-preview/node_modules/ .dive-preview/.env
+        .dagster_state/ .dlt_state/ .duckdb_state/ .sqlmesh_state/
+      - >-
+        find . \( -path ./.git -o -path ./{{.VENV_DIR}} -o -path ./data -o -path ./.dagster -o -path ./.logs \) -prune
+        -o -type d \( -name __pycache__ -o -name '*.egg-info' \) -exec rm -rf {} +
   clean-all:
-    desc: "Clean + drop .venv, data/, .dlt_state/"
+    desc: "Clean + drop .venv and data/"
     deps: [clean]
-    cmds: ["rm -rf {{.VENV_DIR}} data .dlt_state/"]
+    cmds: ["rm -rf {{.VENV_DIR}} data"]

@@ -79,7 +79,15 @@ class DataboxSettings(BaseSettings):
         return str(DATA_DIR / f"raw_{name}.duckdb")
 
     def raw_dataset_name(self, name: str) -> str:
-        """dlt dataset/schema name for a raw source."""
+        """dlt dataset/schema name for a raw source.
+
+        Quack keeps every source in the primary local file, so the dlt dataset
+        is the source's raw schema. MotherDuck and the legacy local backend use
+        one raw catalog/database per source and keep dlt in that catalog's main
+        schema so two-part SQL like ``raw_usgs.daily_values`` continues to work.
+        """
+        if self.backend == "quack":
+            return f"raw_{name}"
         return "main"
 
     def days_back(self, source: str) -> int:
