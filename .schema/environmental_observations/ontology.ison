@@ -1,0 +1,162 @@
+nodes.Entity
+id	label	inferred	assumption
+BirdObservation	BirdObservation	false	No cross-source natural key/stitching strategy required.
+Species	Species	false	No cross-source natural key/stitching strategy required.
+BirdHotspot	BirdHotspot	false	No cross-source natural key/stitching strategy required.
+RegionDailyStats	RegionDailyStats	false	No cross-source natural key/stitching strategy required.
+WeatherObservation	WeatherObservation	false	No cross-source natural key/stitching strategy required.
+WeatherStation	WeatherStation	false	No cross-source natural key/stitching strategy required.
+StreamflowObservation	StreamflowObservation	false	No cross-source natural key/stitching strategy required.
+StreamgageSite	StreamgageSite	false	No cross-source natural key/stitching strategy required.
+EarthquakeEvent	EarthquakeEvent	false	No cross-source natural key/stitching strategy required.
+
+nodes.Attribute
+entity	name	type	master_source	also_in	note
+:Entity:BirdObservation	_dlt_id	text	ebird_api.recent_observations	ebird_api.notable_observations	dlt metadata, not null, row_key, unique
+:Entity:BirdObservation	_dlt_load_id	text	ebird_api.recent_observations	ebird_api.notable_observations	dlt metadata, not null
+:Entity:BirdObservation	_is_notable	bool	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	_loaded_at	timestamp	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	_observation_date	timestamp	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	_region_code	text	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	com_name	text	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	exotic_category	text	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	how_many	bigint	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	lat	double	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	lng	double	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	loc_id	text	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	loc_name	text	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	location_private	bool	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	obs_dt	timestamp	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	obs_reviewed	bool	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	obs_valid	bool	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	sci_name	text	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	species_code	text	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	sub_id	text	ebird_api.recent_observations	ebird_api.notable_observations	not null, primary_key
+:Entity:Species	_dlt_id	text	ebird_api.taxonomy	ebird_api.species_list, ebird_api.taxonomy__com_name_codes, ebird_api.taxonomy__sci_name_codes, ebird_api.taxonomy__banding_codes	dlt metadata, not null, row_key, unique
+:Entity:Species	_dlt_list_idx	bigint	ebird_api.taxonomy__com_name_codes	ebird_api.taxonomy__sci_name_codes, ebird_api.taxonomy__banding_codes	dlt metadata, not null
+:Entity:Species	_dlt_load_id	text	ebird_api.taxonomy	ebird_api.species_list	dlt metadata, not null
+:Entity:Species	_dlt_parent_id	text	ebird_api.taxonomy__com_name_codes	ebird_api.taxonomy__sci_name_codes, ebird_api.taxonomy__banding_codes	dlt metadata, not null
+:Entity:Species	_loaded_at	timestamp	ebird_api.taxonomy	ebird_api.species_list
+:Entity:Species	banding_code_value	text	ebird_api.taxonomy__banding_codes		source column: taxonomy__banding_codes.value
+:Entity:Species	category	text	ebird_api.taxonomy
+:Entity:Species	com_name	text	ebird_api.taxonomy
+:Entity:Species	com_name_code_value	text	ebird_api.taxonomy__com_name_codes		source column: taxonomy__com_name_codes.value
+:Entity:Species	extinct	bool	ebird_api.taxonomy
+:Entity:Species	extinct_year	bigint	ebird_api.taxonomy
+:Entity:Species	family_code	text	ebird_api.taxonomy
+:Entity:Species	family_com_name	text	ebird_api.taxonomy
+:Entity:Species	family_sci_name	text	ebird_api.taxonomy
+:Entity:Species	order	text	ebird_api.taxonomy	ebird_api.species_list	also type bigint in ebird_api.species_list
+:Entity:Species	region	text	ebird_api.species_list
+:Entity:Species	report_as	text	ebird_api.taxonomy
+:Entity:Species	sci_name	text	ebird_api.taxonomy		not null, primary_key
+:Entity:Species	sci_name_code_value	text	ebird_api.taxonomy__sci_name_codes		source column: taxonomy__sci_name_codes.value
+:Entity:Species	species_code	text	ebird_api.taxonomy	ebird_api.species_list	not null, primary_key
+:Entity:Species	taxon_order	double	ebird_api.taxonomy
+:Entity:BirdHotspot	_dlt_id	text	ebird_api.hotspots		dlt metadata, not null, row_key, unique
+:Entity:BirdHotspot	_dlt_load_id	text	ebird_api.hotspots		dlt metadata, not null
+:Entity:BirdHotspot	_loaded_at	timestamp	ebird_api.hotspots
+:Entity:BirdHotspot	_region_code	text	ebird_api.hotspots
+:Entity:BirdHotspot	country_code	text	ebird_api.hotspots
+:Entity:BirdHotspot	lat	double	ebird_api.hotspots
+:Entity:BirdHotspot	latest_obs_dt	timestamp	ebird_api.hotspots
+:Entity:BirdHotspot	lng	double	ebird_api.hotspots
+:Entity:BirdHotspot	loc_id	text	ebird_api.hotspots		not null, primary_key
+:Entity:BirdHotspot	loc_name	text	ebird_api.hotspots
+:Entity:BirdHotspot	num_checklists_all_time	bigint	ebird_api.hotspots
+:Entity:BirdHotspot	num_species_all_time	bigint	ebird_api.hotspots
+:Entity:BirdHotspot	subnational1_code	text	ebird_api.hotspots
+:Entity:BirdHotspot	subnational2_code	text	ebird_api.hotspots
+:Entity:RegionDailyStats	_dlt_id	text	ebird_api.region_stats		dlt metadata, not null, row_key, unique
+:Entity:RegionDailyStats	_dlt_load_id	text	ebird_api.region_stats		dlt metadata, not null
+:Entity:RegionDailyStats	_loaded_at	timestamp	ebird_api.region_stats
+:Entity:RegionDailyStats	date	text	ebird_api.region_stats
+:Entity:RegionDailyStats	day	bigint	ebird_api.region_stats		not null, primary_key
+:Entity:RegionDailyStats	month	bigint	ebird_api.region_stats		not null, primary_key
+:Entity:RegionDailyStats	num_checklists	bigint	ebird_api.region_stats
+:Entity:RegionDailyStats	num_contributors	bigint	ebird_api.region_stats
+:Entity:RegionDailyStats	num_species	bigint	ebird_api.region_stats
+:Entity:RegionDailyStats	region_code	text	ebird_api.region_stats		not null, primary_key
+:Entity:RegionDailyStats	year	bigint	ebird_api.region_stats		not null, primary_key
+:Entity:WeatherObservation	_dlt_id	text	noaa_api.daily_weather		dlt metadata, not null, row_key, unique
+:Entity:WeatherObservation	_dlt_load_id	text	noaa_api.daily_weather		dlt metadata, not null
+:Entity:WeatherObservation	_loaded_at	timestamp	noaa_api.daily_weather
+:Entity:WeatherObservation	_location_id	text	noaa_api.daily_weather
+:Entity:WeatherObservation	attributes	text	noaa_api.daily_weather
+:Entity:WeatherObservation	datatype	text	noaa_api.daily_weather		not null, primary_key
+:Entity:WeatherObservation	date	text	noaa_api.daily_weather		not null, primary_key
+:Entity:WeatherObservation	source	text	noaa_api.daily_weather
+:Entity:WeatherObservation	station	text	noaa_api.daily_weather		not null, primary_key
+:Entity:WeatherObservation	value	double	noaa_api.daily_weather
+:Entity:WeatherStation	_dlt_id	text	noaa_api.stations		dlt metadata, not null, row_key, unique
+:Entity:WeatherStation	_dlt_load_id	text	noaa_api.stations		dlt metadata, not null
+:Entity:WeatherStation	_loaded_at	timestamp	noaa_api.stations
+:Entity:WeatherStation	_location_id	text	noaa_api.stations
+:Entity:WeatherStation	datacoverage	double	noaa_api.stations
+:Entity:WeatherStation	elevation	double	noaa_api.stations
+:Entity:WeatherStation	elevation_unit	text	noaa_api.stations
+:Entity:WeatherStation	id	text	noaa_api.stations		not null, primary_key
+:Entity:WeatherStation	latitude	double	noaa_api.stations
+:Entity:WeatherStation	longitude	double	noaa_api.stations
+:Entity:WeatherStation	maxdate	text	noaa_api.stations
+:Entity:WeatherStation	mindate	text	noaa_api.stations
+:Entity:WeatherStation	name	text	noaa_api.stations
+:Entity:StreamflowObservation	_dlt_id	text	usgs_api.daily_values		dlt metadata, not null, row_key, unique
+:Entity:StreamflowObservation	_dlt_load_id	text	usgs_api.daily_values		dlt metadata, not null
+:Entity:StreamflowObservation	_loaded_at	timestamp	usgs_api.daily_values
+:Entity:StreamflowObservation	_state_cd	text	usgs_api.daily_values
+:Entity:StreamflowObservation	latitude	double	usgs_api.daily_values
+:Entity:StreamflowObservation	longitude	double	usgs_api.daily_values
+:Entity:StreamflowObservation	observation_date	text	usgs_api.daily_values		not null, primary_key
+:Entity:StreamflowObservation	parameter_cd	text	usgs_api.daily_values		not null, primary_key
+:Entity:StreamflowObservation	parameter_name	text	usgs_api.daily_values
+:Entity:StreamflowObservation	qualifier	text	usgs_api.daily_values
+:Entity:StreamflowObservation	site_name	text	usgs_api.daily_values
+:Entity:StreamflowObservation	site_no	text	usgs_api.daily_values		not null, primary_key
+:Entity:StreamflowObservation	unit_cd	text	usgs_api.daily_values
+:Entity:StreamflowObservation	value	double	usgs_api.daily_values
+:Entity:StreamgageSite	_dlt_id	text	usgs_api.sites		dlt metadata, not null, row_key, unique
+:Entity:StreamgageSite	_dlt_load_id	text	usgs_api.sites		dlt metadata, not null
+:Entity:StreamgageSite	_loaded_at	timestamp	usgs_api.sites
+:Entity:StreamgageSite	begin_date	text	usgs_api.sites
+:Entity:StreamgageSite	county_cd	text	usgs_api.sites
+:Entity:StreamgageSite	drain_area_va	double	usgs_api.sites
+:Entity:StreamgageSite	end_date	text	usgs_api.sites
+:Entity:StreamgageSite	huc_cd	text	usgs_api.sites
+:Entity:StreamgageSite	latitude	double	usgs_api.sites
+:Entity:StreamgageSite	longitude	double	usgs_api.sites
+:Entity:StreamgageSite	site_name	text	usgs_api.sites
+:Entity:StreamgageSite	site_no	text	usgs_api.sites		not null, primary_key
+:Entity:StreamgageSite	site_type	text	usgs_api.sites
+:Entity:StreamgageSite	state_cd	text	usgs_api.sites
+:Entity:EarthquakeEvent	_dlt_id	text	usgs_earthquakes_api.events		dlt metadata, not null, row_key, unique
+:Entity:EarthquakeEvent	_dlt_load_id	text	usgs_earthquakes_api.events		dlt metadata, not null
+:Entity:EarthquakeEvent	_loaded_at	timestamp	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	alert	text	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	depth_km	double	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	event_time	text	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	event_type	text	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	event_updated_at	text	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	id	text	usgs_earthquakes_api.events		not null, primary_key
+:Entity:EarthquakeEvent	latitude	double	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	longitude	double	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	magnitude	double	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	magnitude_type	text	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	place	text	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	significance	bigint	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	status	text	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	title	text	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	tsunami_flag	bigint	usgs_earthquakes_api.events
+:Entity:EarthquakeEvent	url	text	usgs_earthquakes_api.events
+
+edges.OBSERVED_AT
+from	to	via	inferred
+:Entity:BirdObservation	:Entity:BirdHotspot	ebird_api.recent_observations.loc_id -> ebird_api.hotspots.loc_id	true
+:Entity:BirdObservation	:Entity:BirdHotspot	ebird_api.notable_observations.loc_id -> ebird_api.hotspots.loc_id	true
+:Entity:WeatherObservation	:Entity:WeatherStation	noaa_api.daily_weather.station -> noaa_api.stations.id	true
+:Entity:StreamflowObservation	:Entity:StreamgageSite	usgs_api.daily_values.site_no -> usgs_api.sites.site_no	true
+
+edges.OBSERVED_SPECIES
+from	to	via	inferred
+:Entity:BirdObservation	:Entity:Species	ebird_api.recent_observations.species_code -> ebird_api.taxonomy/species_list.species_code	true
+:Entity:BirdObservation	:Entity:Species	ebird_api.notable_observations.species_code -> ebird_api.taxonomy/species_list.species_code	true

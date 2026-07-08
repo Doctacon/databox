@@ -1,0 +1,1 @@
+../../../.10x/skills/create-ontology/SKILL.md
