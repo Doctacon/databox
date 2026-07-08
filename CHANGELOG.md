@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/Doctacon/databox/compare/v0.3.0...v0.4.0) (2026-07-08)
+
+
+### Features
+
+* **10x:** add cdm generation and dlt transformation skills ([f2389af](https://github.com/Doctacon/databox/commit/f2389afbd84d5ed638d33a206c2c2e07f613a591))
+* **10x:** add create-ontology skill to generate business entity graphs ([a130d04](https://github.com/Doctacon/databox/commit/a130d04d78125818fea0b451ab91e4f379cf8e06))
+* **10x:** introduce durable project memory and schema annotation skill ([3cfc6e3](https://github.com/Doctacon/databox/commit/3cfc6e3992d361e2b18c697c2770356de3d53663))
+* **cdm:** initialize ([f0aa508](https://github.com/Doctacon/databox/commit/f0aa508c76645bf807b83d64ba8c50159a8256c5))
+* **duckdb:** install quack protocol ([441bb36](https://github.com/Doctacon/databox/commit/441bb36c5cd7e6d33f7a98f2c912d756fc46dd73))
+* **duckdb:** quack added as well as migration to dg from dagster ([27012f8](https://github.com/Doctacon/databox/commit/27012f8a0044fa32ecaf73baa7c582ee318d4a77))
+* **platform_health:** add usgs_earthquakes to valid sources ([6120be0](https://github.com/Doctacon/databox/commit/6120be0c420fb1a5917e05be0c39c6c1e9c9889e))
+
 ## [0.3.0](https://github.com/Doctacon/databox/compare/v0.2.0...v0.3.0) (2026-04-24)
 
 
