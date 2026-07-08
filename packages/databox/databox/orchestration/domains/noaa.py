@@ -42,7 +42,7 @@ def noaa_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> 
     )
     if settings.smoke:
         source.add_limit(max_items=5)
-    with quack_ingest_session():
+    with quack_ingest_session(settings.raw_dataset_name("noaa")):
         yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 

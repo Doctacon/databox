@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import duckdb
 from databox.destinations import dedupe_quack_raw_tables
-from databox.destinations.quack import _drop_legacy_raw_views
+from databox.destinations.quack import (
+    _drop_legacy_raw_views,
+    _drop_quack_metadata_read_views,
+    _publish_quack_metadata_read_views,
+    _quack_dlt_env,
+)
 
 
 def test_dedupe_quack_raw_tables_keeps_physical_raw_tables(tmp_path: Path) -> None:
@@ -98,5 +104,62 @@ def test_drop_legacy_raw_views_preserves_base_tables(tmp_path: Path) -> None:
             ).fetchall()
         )
         assert relations == {"raw_ebird.recent_observations": "BASE TABLE"}
+    finally:
+        con.close()
+
+
+def test_quack_dlt_env_disables_destination_state_restore(monkeypatch) -> None:
+    monkeypatch.delenv("PIPELINES__RESTORE_FROM_DESTINATION", raising=False)
+
+    with _quack_dlt_env():
+        assert os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] == "false"
+    assert "PIPELINES__RESTORE_FROM_DESTINATION" not in os.environ
+
+    monkeypatch.setenv("PIPELINES__RESTORE_FROM_DESTINATION", "true")
+    with _quack_dlt_env():
+        assert os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] == "false"
+    assert os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] == "true"
+
+
+def test_quack_metadata_read_views_are_transient(tmp_path: Path) -> None:
+    db_path = tmp_path / "databox.duckdb"
+    con = duckdb.connect(str(db_path))
+    try:
+        con.execute("CREATE SCHEMA raw_ebird")
+        con.execute("CREATE TABLE raw_ebird._dlt_version (version_hash TEXT)")
+        con.execute("INSERT INTO raw_ebird._dlt_version VALUES ('v1')")
+        con.execute("CREATE TABLE raw_ebird._dlt_loads (load_id TEXT)")
+        con.execute("CREATE TABLE raw_ebird._dlt_pipeline_state (pipeline_name TEXT)")
+
+        _publish_quack_metadata_read_views(con, "raw_ebird")
+
+        relations = dict(
+            con.execute(
+                """
+                SELECT table_name, table_type
+                FROM information_schema.tables
+                WHERE table_schema = 'main' AND table_name LIKE '\\_dlt%' ESCAPE '\\'
+                """
+            ).fetchall()
+        )
+        assert relations == {
+            "_dlt_loads": "VIEW",
+            "_dlt_pipeline_state": "VIEW",
+            "_dlt_version": "VIEW",
+        }
+        assert con.execute("SELECT version_hash FROM main._dlt_version").fetchall() == [("v1",)]
+
+        _drop_quack_metadata_read_views(con)
+
+        assert con.execute(
+            """
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = 'main' AND table_name LIKE '\\_dlt%' ESCAPE '\\'
+                """
+        ).fetchone() == (0,)
+        assert con.execute("SELECT version_hash FROM raw_ebird._dlt_version").fetchall() == [
+            ("v1",)
+        ]
     finally:
         con.close()

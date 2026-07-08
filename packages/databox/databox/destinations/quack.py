@@ -21,12 +21,25 @@ from databox.config.settings import DATA_DIR, settings
 
 
 def configure_quack_dlt() -> None:
-    """Backward-compatible hook; Quack now uses dlt's default state sync."""
+    """Apply dlt config needed before constructing Quack-backed pipelines."""
+    if settings.backend == "quack":
+        os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
 
 
 @contextmanager
 def _quack_dlt_env() -> Iterator[None]:
-    yield
+    if settings.backend != "quack":
+        yield
+        return
+    previous = os.environ.get("PIPELINES__RESTORE_FROM_DESTINATION")
+    os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("PIPELINES__RESTORE_FROM_DESTINATION", None)
+        else:
+            os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = previous
 
 
 def dlt_pipeline(*args: Any, **kwargs: Any) -> Any:
@@ -34,6 +47,8 @@ def dlt_pipeline(*args: Any, **kwargs: Any) -> Any:
     with _quack_dlt_env():
         return dlt.pipeline(*args, **kwargs)
 
+
+_DLT_METADATA_TABLES = ("_dlt_loads", "_dlt_version", "_dlt_pipeline_state")
 
 _RAW_DEDUPE_KEYS: dict[tuple[str, str], tuple[str, ...]] = {
     ("raw_ebird", "recent_observations"): ("sub_id",),
@@ -73,10 +88,12 @@ class QuackServer:
         uri: str | None = None,
         token: str | None = None,
         db_path: str | None = None,
+        raw_schema: str | None = None,
     ) -> None:
         self.uri = uri or settings.quack_uri
         self.token = token or settings.quack_token
         self.db_path = db_path or settings.database_path
+        self.raw_schema = raw_schema
         self._con: Any | None = None
 
     def __enter__(self) -> QuackServer:
@@ -85,6 +102,7 @@ class QuackServer:
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._con = duckdb.connect(self.db_path)
         _drop_legacy_raw_views(self._con)
+        _publish_quack_metadata_read_views(self._con, self.raw_schema)
         _load_quack(self._con)
         self._con.execute(
             f"CALL quack_serve('{_sql_literal(self.uri)}', token='{_sql_literal(self.token)}')"
@@ -97,6 +115,7 @@ class QuackServer:
         try:
             self._con.execute(f"CALL quack_stop('{_sql_literal(self.uri)}')")
         finally:
+            _drop_quack_metadata_read_views(self._con)
             self._con.close()
             self._con = None
 
@@ -148,7 +167,9 @@ def cleanup_quack_clients() -> None:
 
 
 @contextmanager
-def quack_ingest_session(db_path: str | None = None) -> Iterator[None]:
+def quack_ingest_session(
+    raw_schema: str | None = None, db_path: str | None = None
+) -> Iterator[None]:
     """Own Quack lifecycle around one hermetic dlt source asset run."""
     if settings.backend != "quack":
         yield
@@ -156,7 +177,7 @@ def quack_ingest_session(db_path: str | None = None) -> Iterator[None]:
 
     target = db_path or settings.database_path
     try:
-        with QuackServer(db_path=target):
+        with _quack_dlt_env(), QuackServer(db_path=target, raw_schema=raw_schema):
             yield
     except BaseException:
         raise
@@ -195,13 +216,34 @@ def _base_table_exists(con: Any, schema: str, table: str) -> bool:
 def _drop_legacy_raw_views(con: Any) -> None:
     """Drop old Quack raw-schema views so dlt can create physical raw tables."""
     schemas = sorted({schema for schema, _ in _RAW_DEDUPE_KEYS})
-    metadata_relations = [
-        (schema, table) for schema in schemas for table in ("_dlt_loads", "_dlt_version")
-    ]
+    metadata_relations = [(schema, table) for schema in schemas for table in _DLT_METADATA_TABLES]
     raw_relations = [*sorted(_RAW_DEDUPE_KEYS), *metadata_relations]
     for schema, table in raw_relations:
         if _relation_type(con, schema, table) == "VIEW":
             con.execute(f"DROP VIEW {schema}.{table}")
+
+
+def _drop_quack_metadata_read_views(con: Any) -> None:
+    """Drop transient main-schema metadata views used only while Quack serves."""
+    for table in _DLT_METADATA_TABLES:
+        if _relation_type(con, "main", table) == "VIEW":
+            con.execute(f"DROP VIEW main.{table}")
+
+
+def _publish_quack_metadata_read_views(con: Any, raw_schema: str | None) -> None:
+    """Expose existing dlt metadata to Quack clients without keeping main tables.
+
+    Quack's attached-catalog beta path currently resolves scans through the main
+    schema even when the client search path is a physical raw schema. dlt reads
+    `_dlt_version` on repeat loads, so publish main-schema views while the server
+    is running and remove them when the hermetic source load finishes.
+    """
+    _drop_quack_metadata_read_views(con)
+    if not raw_schema:
+        return
+    for table in _DLT_METADATA_TABLES:
+        if _base_table_exists(con, raw_schema, table):
+            con.execute(f"CREATE VIEW main.{table} AS SELECT * FROM {raw_schema}.{table}")
 
 
 def _count_rows(con: Any, qualified_table: str) -> int:

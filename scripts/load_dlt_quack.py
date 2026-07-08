@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-"""Load every registered dlt source concurrently through Quack.
+"""Load registered dlt sources through hermetic Quack sessions.
 
-This is the local one-file ingestion path: a parent process starts a Quack
-server over data/databox.duckdb, then one worker process per registered source
-runs its dlt pipeline into that same file. Each source physically lands in its
-own raw_<source> schema for SQLMesh.
+This is the local one-file ingestion path: each source starts a Quack server
+over data/databox.duckdb, runs its dlt pipeline into its own raw_<source>
+schema, stops Quack, and deduplicates append-loaded rows before the next source.
 """
 
 from __future__ import annotations
 
 import argparse
-import concurrent.futures as futures
 import os
 import sys
 from dataclasses import dataclass
@@ -22,7 +20,11 @@ os.environ.setdefault("SQLMESH__DISABLE_ANONYMIZED_ANALYTICS", "true")
 
 from databox.config.settings import settings
 from databox.config.sources import SOURCES
-from databox.destinations import QuackServer, cleanup_quack_clients, dedupe_quack_raw_tables
+from databox.destinations import (
+    cleanup_quack_clients,
+    dedupe_quack_raw_tables,
+    quack_ingest_session,
+)
 
 
 @dataclass(frozen=True)
@@ -32,7 +34,7 @@ class LoadResult:
     message: str
 
 
-def _load_source(source_name: str) -> LoadResult:
+def _load_source(source_name: str, database: str) -> LoadResult:
     os.environ["DATABOX_BACKEND"] = "quack"
     os.environ.setdefault("RUNTIME__DLTHUB_TELEMETRY", "false")
     os.environ.setdefault("SQLMESH__DISABLE_ANONYMIZED_ANALYTICS", "true")
@@ -40,7 +42,8 @@ def _load_source(source_name: str) -> LoadResult:
         from databox_sources.registry import get_source
 
         source = get_source(source_name)
-        source.load(smoke=settings.smoke)
+        with quack_ingest_session(settings.raw_dataset_name(source_name), db_path=database):
+            source.load(smoke=settings.smoke)
         return LoadResult(source_name, True, "loaded")
     except Exception as exc:  # noqa: BLE001 - cross-process report, parent raises summary
         return LoadResult(source_name, False, f"{type(exc).__name__}: {exc}")
@@ -76,15 +79,9 @@ def main() -> int:
         print("No sources registered.")
         return 0
 
-    max_workers = min(len(names), os.cpu_count() or 1)
-    print(
-        f"Starting Quack server {settings.quack_uri} over {args.database}; "
-        f"loading {len(names)} source(s) with {max_workers} worker(s)."
-    )
+    print(f"Loading {len(names)} source(s) through hermetic Quack sessions over {args.database}.")
     try:
-        with QuackServer(db_path=args.database):
-            with futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-                results = list(executor.map(_load_source, names))
+        results = [_load_source(name, args.database) for name in names]
     finally:
         cleanup_quack_clients()
 
