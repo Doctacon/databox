@@ -11,10 +11,10 @@ A first job, `Classify changed paths`, runs on every event. It uses [`dorny/path
 | Output | Matches |
 | --- | --- |
 | `docs` | `docs/**`, any root `*.md`, `mkdocs.yml` |
-| `src_ebird` | `packages/databox-sources/databox_sources/ebird/**`, `packages/databox-sources/tests/ebird/**`, `transforms/main/models/ebird/**`, `soda/contracts/ebird{,_staging}/**`, `domains/ebird.py` |
+| `src_ebird` | `packages/databox-sources/databox_sources/ebird/**`, `packages/databox-sources/tests/ebird/**`, `domains/ebird.py`, raw contracts for eBird |
 | `src_noaa` | same shape, scoped to `noaa` |
 | `src_usgs` | same shape, scoped to `usgs` |
-| `cross_cutting` | `packages/databox/**`, shared source plumbing (`__init__.py`, `base.py`, `registry.py`, `_*.py`), `scripts/**`, top-level `tests/**`, analytics models & contracts, `pyproject.toml`, `uv.lock`, `Taskfile.yaml`, `.pre-commit-config.yaml` |
+| `cross_cutting` | `packages/databox/**`, shared source plumbing (`__init__.py`, `base.py`, `registry.py`, `_*.py`), `scripts/**`, top-level `tests/**`, CDM/analytics SQLMesh models & contracts, `pyproject.toml`, `uv.lock`, `Taskfile.yaml`, `.pre-commit-config.yaml` |
 | `ci_config` | `.github/workflows/**` |
 
 Two composed outputs are derived from those:
@@ -30,7 +30,7 @@ Two composed outputs are derived from those:
 | `tests-core` | `needs_full` only (runs `tests/` + `packages/databox`) |
 | `tests-ebird` / `tests-noaa` / `tests-usgs` | `needs_full \|\| src_<source>` |
 | `sqlmesh-lint` | `needs_full \|\| needs_any_source` |
-| `staging-codegen-drift` | `needs_full \|\| needs_any_source` |
+| `staging-codegen-drift` | `needs_full \|\| needs_any_source` (currently a no-op unless a fork adds staging contracts) |
 | `soda-validate` | `needs_full \|\| needs_any_source` |
 | `source-layout-lint` | always (cheap; the layout is the scaling invariant) |
 | `schema-contract-gate` | always on `pull_request` (protects downstream consumers) |
@@ -56,7 +56,7 @@ Full matrix, always. The event_name check in `needs_full` enforces this independ
 
 ## Why `tests-core` is gated on `needs_full` only
 
-`tests/` and `packages/databox/**/tests/**` exercise the shared infrastructure — config, orchestration, quality engine, schema gate, staging codegen. A source-only PR can't reach any of that code path, so running it would only burn minutes.
+`tests/` and `packages/databox/**/tests/**` exercise the shared infrastructure — config, orchestration, quality engine, schema gate, CDM wiring, and optional staging codegen. A source-only PR can't reach any of that code path, so running it would only burn minutes.
 
 Per-source tests live under `packages/databox-sources/tests/<source>/` and are wired to their matching `src_<source>` filter. The filter includes the test directory so a test-only change still triggers the source's job.
 

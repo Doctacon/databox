@@ -1,7 +1,6 @@
-"""eBird domain — dlt ingestion + SQLMesh marts + Soda checks."""
+"""eBird domain — dlt ingestion assets and source schedule."""
 
 import typing as t
-from datetime import timedelta
 
 import dagster as dg
 from dagster import AssetExecutionContext
@@ -15,12 +14,7 @@ from databox.destinations import (
     prepare_dlt_source,
     quack_ingest_session,
 )
-from databox.orchestration._factories import (
-    SODA_DIR,
-    dlt_translator,
-    freshness_checks,
-    soda_check,
-)
+from databox.orchestration._factories import dlt_translator
 
 
 @dlt_assets(
@@ -47,55 +41,8 @@ def ebird_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) ->
 
 
 dlt_asset_keys = [spec.key for spec in ebird_dlt_assets.specs]
-
-sqlmesh_asset_keys = [
-    dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_observations"]),
-    dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_taxonomy"]),
-    dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_hotspots"]),
-    dg.AssetKey(["sqlmesh", "ebird", "int_ebird_enriched_observations"]),
-    dg.AssetKey(["sqlmesh", "ebird", "int_observations_by_h3_day"]),
-    dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]),
-    dg.AssetKey(["sqlmesh", "ebird", "dim_species"]),
-    dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]),
-]
-
-FRESHNESS_SLAS: dict[dg.AssetKey, timedelta] = {
-    dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]): timedelta(hours=30),
-    dg.AssetKey(["sqlmesh", "ebird", "dim_species"]): timedelta(days=7),
-    dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]): timedelta(hours=30),
-}
-
-asset_checks: list[dg.AssetChecksDefinition] = [
-    soda_check(
-        dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_observations"]),
-        SODA_DIR / "contracts/ebird_staging/stg_ebird_observations.yaml",
-    ),
-    soda_check(
-        dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_taxonomy"]),
-        SODA_DIR / "contracts/ebird_staging/stg_ebird_taxonomy.yaml",
-    ),
-    soda_check(
-        dg.AssetKey(["sqlmesh", "ebird_staging", "stg_ebird_hotspots"]),
-        SODA_DIR / "contracts/ebird_staging/stg_ebird_hotspots.yaml",
-    ),
-    soda_check(
-        dg.AssetKey(["sqlmesh", "ebird", "int_ebird_enriched_observations"]),
-        SODA_DIR / "contracts/ebird/int_ebird_enriched_observations.yaml",
-    ),
-    soda_check(
-        dg.AssetKey(["sqlmesh", "ebird", "fct_daily_bird_observations"]),
-        SODA_DIR / "contracts/ebird/fct_daily_bird_observations.yaml",
-    ),
-    soda_check(
-        dg.AssetKey(["sqlmesh", "ebird", "dim_species"]),
-        SODA_DIR / "contracts/ebird/dim_species.yaml",
-    ),
-    soda_check(
-        dg.AssetKey(["sqlmesh", "ebird", "fct_hotspot_species_diversity"]),
-        SODA_DIR / "contracts/ebird/fct_hotspot_species_diversity.yaml",
-    ),
-    *freshness_checks(FRESHNESS_SLAS),
-]
+sqlmesh_asset_keys: list[dg.AssetKey] = []
+asset_checks: list[dg.AssetChecksDefinition] = []
 
 ingest_job = dg.define_asset_job(
     name="ebird_ingest",
@@ -105,7 +52,7 @@ ingest_job = dg.define_asset_job(
 
 daily_pipeline = dg.define_asset_job(
     name="ebird_daily_pipeline",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, *sqlmesh_asset_keys),
+    selection=dg.AssetSelection.assets(*dlt_asset_keys),
     executor_def=dg.in_process_executor,
 )
 

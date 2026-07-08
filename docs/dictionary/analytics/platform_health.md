@@ -20,31 +20,31 @@ Per-source load observability — most recent dlt load id, completion time, stat
 | `load_id` | `UNKNOWN` | missing (must_be=0) | — |
 | `rows_loaded` | `UNKNOWN` | — | — |
 | `schema_name` | `UNKNOWN` | — | — |
-| `source` | `UNKNOWN` | missing (must_be=0), invalid (valid_values=['ebird', 'noaa', 'usgs'], must_be=0) | — |
+| `source` | `UNKNOWN` | missing (must_be=0), invalid (valid_values=['ebird', 'noaa', 'usgs', 'usgs_earthquakes'], must_be=0) | — |
 | `status` | `UNKNOWN` | missing (must_be=0) | — |
 | `status_label` | `TEXT` | — | — |
 
 ## Table-level checks
 
-- **row_count** — must_be=3
+- **row_count** — must_be=4
 
 ## Lineage
 
 **Upstream**
 
-- `main._dlt_loads` (external)
-- `main.hotspots` (external)
-- `main.notable_observations` (external)
-- `main.recent_observations` (external)
-- `main.species_list` (external)
-- `main._dlt_loads` (external)
-- `main.daily_weather` (external)
-- `main.stations` (external)
-- `main._dlt_loads` (external)
-- `main.daily_values` (external)
-- `main.sites` (external)
-- `main._dlt_loads` (external)
-- `main.events` (external)
+- `raw_ebird._dlt_loads` (external)
+- `raw_ebird.hotspots` (external)
+- `raw_ebird.notable_observations` (external)
+- `raw_ebird.recent_observations` (external)
+- `raw_ebird.species_list` (external)
+- `raw_noaa._dlt_loads` (external)
+- `raw_noaa.daily_weather` (external)
+- `raw_noaa.stations` (external)
+- `raw_usgs._dlt_loads` (external)
+- `raw_usgs.daily_values` (external)
+- `raw_usgs.sites` (external)
+- `raw_usgs_earthquakes._dlt_loads` (external)
+- `raw_usgs_earthquakes.events` (external)
 
 ## Example query
 

@@ -1,18 +1,20 @@
-"""Semantic metrics layer — resolve metric queries against the flagship mart.
+"""Semantic metrics layer — resolve metric queries against the CDM fact layer.
 
 Consumers request metrics by name (e.g. ``METRIC(species_richness)``) via the
 special ``__semantic.__table`` placeholder; this module rewrites those queries
-into executable SQL against the actual mart using SQLMesh's metric rewriter.
+into executable SQL against the actual CDM SQLMesh model using SQLMesh's metric
+rewriter.
 
 Example:
 
     from databox.orchestration.metrics import resolve_metric_query
 
     sql = resolve_metric_query(
-        "SELECT obs_date, METRIC(species_richness) AS sr "
-        "FROM __semantic.__table GROUP BY obs_date"
+        "SELECT observation_date, METRIC(species_richness) AS sr "
+        "FROM __semantic.__table GROUP BY observation_date"
     )
-    # -> ready-to-execute DuckDB SQL against analytics.fct_species_environment_daily
+    # -> ready-to-execute DuckDB SQL against
+    #    environmental_observations.fact_bird_observation
 
 The single source of truth for metric definitions is
 ``transforms/main/metrics/flagship.sql``. If a metric changes there,

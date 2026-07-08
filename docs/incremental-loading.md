@@ -84,9 +84,9 @@ in place.
 - **replace resources**: the entire table is dropped and reloaded on every
   run, so a backfill on `days_back` has no effect on these (they always
   reflect the current full snapshot).
-- **downstream SQLMesh marts**: all are declarative views/tables over the raw
-  layer. A backfill at the source layer is picked up on the next
-  `task full-refresh` (or the next scheduled Dagster run).
+- **downstream SQLMesh CDM models**: all are declarative views/tables over the
+  raw layer. A backfill at the source layer is picked up on the next
+  `task full-refresh` (or native SQLMesh restatement).
 
 ## Dagster backfill
 

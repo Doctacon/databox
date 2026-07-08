@@ -1,90 +1,5 @@
-test_stg_ebird_observations:
-  model: ebird_staging.stg_ebird_observations
-  inputs:
-    raw_ebird.recent_observations:
-      rows:
-        - sub_id: "S001"
-          species_code: "norcar"
-          com_name: "Northern Cardinal"
-          sci_name: "Cardinalis cardinalis"
-          loc_id: "L123"
-          loc_name: "Test Park"
-          obs_dt: "2025-07-20 08:30"
-          how_many: 3
-          lat: 33.45
-          lng: -112.07
-          obs_valid: true
-          obs_reviewed: false
-          location_private: false
-          _region_code: "US-AZ"
-          _loaded_at: "2025-07-20T10:00:00+00:00"
-    raw_ebird.notable_observations:
-      rows:
-        - sub_id: "S002"
-          species_code: "blujay"
-          com_name: "Blue Jay"
-          sci_name: "Cyanocitta cristata"
-          loc_id: "L456"
-          loc_name: "Rare Spot"
-          obs_dt: "2025-07-21 14:00"
-          how_many: 1
-          lat: 33.50
-          lng: -112.10
-          obs_valid: true
-          obs_reviewed: true
-          location_private: false
-          _region_code: "US-AZ"
-          _loaded_at: "2025-07-21T10:00:00+00:00"
-  outputs:
-    query:
-      rows:
-        - submission_id: "S001"
-          species_code: "norcar"
-          common_name: "Northern Cardinal"
-          scientific_name: "Cardinalis cardinalis"
-          location_id: "L123"
-          location_name: "Test Park"
-          observation_datetime: "2025-07-20 08:30:00"
-          observation_date: "2025-07-20"
-          observation_year: 2025
-          observation_month: 7
-          observation_day: 20
-          observation_hour: 8
-          count: 3
-          count_display: "3"
-          latitude: 33.45
-          longitude: -112.07
-          is_valid: true
-          is_reviewed: false
-          is_location_private: false
-          region_code: "US-AZ"
-          is_notable: false
-          loaded_at: "2025-07-20 10:00:00"
-        - submission_id: "S002"
-          species_code: "blujay"
-          common_name: "Blue Jay"
-          scientific_name: "Cyanocitta cristata"
-          location_id: "L456"
-          location_name: "Rare Spot"
-          observation_datetime: "2025-07-21 14:00:00"
-          observation_date: "2025-07-21"
-          observation_year: 2025
-          observation_month: 7
-          observation_day: 21
-          observation_hour: 14
-          count: 1
-          count_display: "1"
-          latitude: 33.50
-          longitude: -112.10
-          is_valid: true
-          is_reviewed: true
-          is_location_private: false
-          region_code: "US-AZ"
-          is_notable: true
-          loaded_at: "2025-07-21 10:00:00"
-
-test_stg_ebird_taxonomy:
-  model: ebird_staging.stg_ebird_taxonomy
+test_dim_species:
+  model: environmental_observations.dim_species
   inputs:
     raw_ebird.taxonomy:
       rows:
@@ -93,112 +8,64 @@ test_stg_ebird_taxonomy:
           sci_name: "Cardinalis cardinalis"
           taxon_order: 1001
           category: "species"
+          family_code: "cardin1"
           family_com_name: "Cardinals and Allies"
           family_sci_name: "Cardinalidae"
+          report_as: "norcar"
+          extinct: false
+          extinct_year: 0
           _loaded_at: "2025-07-20T10:00:00+00:00"
+    raw_ebird.species_list:
+      rows:
+        - species_code: "norcar"
+          region: "US-AZ"
+          order: 1001
+          _loaded_at: "2025-07-20T09:00:00+00:00"
   outputs:
     query:
       rows:
-        - species_code: "norcar"
+        - species_sk: "6274ec82dda9d492725bbcb967d90fd3"
+          source_pipeline: "ebird_api"
+          source_id: "norcar"
+          species_code: "norcar"
           common_name: "Northern Cardinal"
           scientific_name: "Cardinalis cardinalis"
           taxonomic_order: 1001
           taxonomic_category: "species"
+          family_code: "cardin1"
           family_common_name: "Cardinals and Allies"
           family_scientific_name: "Cardinalidae"
+          report_as: "norcar"
+          extinct: false
+          extinct_year: 0
+          region: "US-AZ"
           loaded_at: "2025-07-20 10:00:00"
+        - species_sk: "1179353561b8617a04054c9119dc2d22"
+          source_pipeline: "sentinel"
+          source_id: "UNKNOWN"
+          species_code: null
+          common_name: "Unknown species"
+          scientific_name: null
+          taxonomic_order: null
+          taxonomic_category: null
+          family_code: null
+          family_common_name: null
+          family_scientific_name: null
+          report_as: null
+          extinct: null
+          extinct_year: null
+          region: null
+          loaded_at: null
 
-test_stg_ebird_hotspots:
-  model: ebird_staging.stg_ebird_hotspots
+test_fact_weather_observation:
+  model: environmental_observations.fact_weather_observation
   inputs:
-    raw_ebird.hotspots:
+    environmental_observations.dim_weather_station:
       rows:
-        - loc_id: "L999"
-          loc_name: "Gilbert Water Ranch"
-          country_code: "US"
-          subnational1_code: "US-AZ"
-          subnational2_code: "US-AZ-013"
-          lat: 33.38
-          lng: -111.74
-          latest_obs_dt: "2025-07-19"
-          num_species_all_time: 280
-          _region_code: "US-AZ"
-          _loaded_at: "2025-07-20T10:00:00+00:00"
-  outputs:
-    query:
-      rows:
-        - location_id: "L999"
-          location_name: "Gilbert Water Ranch"
-          country_code: "US"
-          state_code: "US-AZ"
-          county_code: "US-AZ-013"
-          latitude: 33.38
-          longitude: -111.74
-          latest_observation_datetime: "2025-07-19 00:00:00"
-          total_species_count: 280
-          region_code: "US-AZ"
-          loaded_at: "2025-07-20 10:00:00"
-test_stg_noaa_daily_weather:
-  model: noaa_staging.stg_noaa_daily_weather
-  inputs:
-    raw_noaa.daily_weather:
-      rows:
-        - date: "2025-07-20"
-          datatype: "TMAX"
-          station: "GHCND:USC00010008"
-          value: 105.3
-          attributes: ",,S,"
-          source: ""
-          _location_id: "FIPS:04"
-          _loaded_at: "2025-07-20T10:00:00+00:00"
-        - date: "2025-07-20"
-          datatype: "TMIN"
-          station: "GHCND:USC00010008"
-          value: 72.1
-          attributes: ",,S,"
-          source: ""
-          _location_id: "FIPS:04"
-          _loaded_at: "2025-07-20T10:00:00+00:00"
-  outputs:
-    query:
-      rows:
-        - observation_date: "2025-07-20"
-          datatype: "TMAX"
-          station: "GHCND:USC00010008"
-          value: 105.3
-          attributes: ",,S,"
-          source: ""
-          location_id: "FIPS:04"
-          loaded_at: "2025-07-20 10:00:00"
-        - observation_date: "2025-07-20"
-          datatype: "TMIN"
-          station: "GHCND:USC00010008"
-          value: 72.1
-          attributes: ",,S,"
-          source: ""
-          location_id: "FIPS:04"
-          loaded_at: "2025-07-20 10:00:00"
-
-test_stg_noaa_stations:
-  model: noaa_staging.stg_noaa_stations
-  inputs:
-    raw_noaa.stations:
-      rows:
-        - id: "GHCND:USC00010008"
-          name: "PHOENIX"
-          latitude: 33.45
-          longitude: -112.07
-          elevation: 331.0
-          elevation_unit: "METERS"
-          mindate: "1895-01-01"
-          maxdate: "2025-12-31"
-          datacoverage: 0.95
-          _location_id: "FIPS:04"
-          _loaded_at: "2025-07-20T10:00:00+00:00"
-  outputs:
-    query:
-      rows:
-        - station_id: "GHCND:USC00010008"
+        - weather_station_sk: "e4ca290bb094f37dc69ff5c4549c99cc"
+          source_pipeline: "noaa_api"
+          source_id: "GHCND:USC00010008"
+          station_id: "GHCND:USC00010008"
           station_name: "PHOENIX"
           latitude: 33.45
           longitude: -112.07
@@ -209,3 +76,32 @@ test_stg_noaa_stations:
           data_coverage: 0.95
           location_id: "FIPS:04"
           loaded_at: "2025-07-20 10:00:00"
+    raw_noaa.daily_weather:
+      rows:
+        - date: "2025-07-20"
+          datatype: "TMAX"
+          station: "GHCND:USC00010008"
+          value: 105.3
+          attributes: ",,S,"
+          source: ""
+          _location_id: "FIPS:04"
+          _loaded_at: "2025-07-20T10:00:00+00:00"
+          _dlt_load_id: "load-1"
+          _dlt_id: "row-1"
+  outputs:
+    query:
+      rows:
+        - weather_observation_sk: "90284713e99ba9f2b164d59735d8e9f0"
+          weather_station_sk: "e4ca290bb094f37dc69ff5c4549c99cc"
+          source_pipeline: "noaa_api"
+          source_id: "GHCND:USC00010008|2025-07-20|TMAX"
+          station_id: "GHCND:USC00010008"
+          observation_date: "2025-07-20"
+          datatype: "TMAX"
+          value: 105.3
+          attributes: ",,S,"
+          source: ""
+          location_id: "FIPS:04"
+          loaded_at: "2025-07-20 10:00:00"
+          dlt_load_id: "load-1"
+          dlt_id: "row-1"

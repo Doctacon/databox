@@ -1,0 +1,27 @@
+dataset: databox/environmental_observations/dim_streamgage_site
+
+columns:
+  - name: streamgage_site_sk
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: source_pipeline
+  - name: source_id
+  - name: site_no
+  - name: site_name
+  - name: site_type
+  - name: latitude
+  - name: longitude
+  - name: county_cd
+  - name: state_cd
+  - name: huc_cd
+  - name: drainage_area_sqmi
+  - name: begin_date
+  - name: end_date
+  - name: loaded_at
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

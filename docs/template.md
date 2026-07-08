@@ -74,10 +74,9 @@ Out of scope for `task init` — that command only renames. To remove a source:
 
 1. Delete `packages/databox-sources/databox_sources/<source>/`
 2. Delete `packages/databox-sources/tests/<source>/`
-3. Delete `transforms/main/models/<source>/`
-4. Delete `soda/contracts/<source>/` and `soda/contracts/<source>_staging/`
-5. Delete `packages/databox/databox/orchestration/domains/<source>.py`
-6. Remove any analytics models or contracts that reference it
-7. Run `python scripts/check_source_layout.py` — should report no missing layout for the remaining sources
+3. Delete `packages/databox/databox/orchestration/domains/<source>.py`
+4. Remove the source from `packages/databox/databox/config/sources.py`
+5. Update `.schema/<cdm-name>/` artifacts and SQLMesh CDM models if the source contributed CDM tables
+6. Run `python scripts/check_source_layout.py` — should report no missing layout for the remaining sources
 
 A dedicated `task rm-source <name>` wrapper is planned but not yet shipped.

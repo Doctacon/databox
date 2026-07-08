@@ -1,6 +1,6 @@
 ---
 name: create-transformation
-description: "Use after generate-cdm to write dlthub transformation functions that map annotated source tables to CDM entities."
+description: "Use after generate-cdm to write SQLMesh models that transform raw dlt source tables into the Canonical Data Model."
 argument-hint: "[pipeline-name]"
 metadata:
   created: 2026-07-07
@@ -9,27 +9,30 @@ metadata:
 
 # Create transformation
 
-Write `@dlt.hub.transformation` functions that map annotated source tables to CDM entities, using SQL-first with optional ibis.
+Write SQLMesh models that map annotated dlt source tables to CDM dimensions and facts.
+
+**Architecture rule:** SQLMesh is the transformation layer. dlt remains the ingestion layer. Do **not** generate `@dlt.hub.transformation` scripts for this project workflow unless the user explicitly supersedes the architecture.
 
 Requires:
 
 - `.schema/<cdm-name>/taxonomy.json` — confirmed table-to-concept mappings and natural keys; read `_name` from this file to determine `<cdm-name>`
 - `.schema/<cdm-name>/<pipeline_name>.dbml` — annotated source schemas
-- `.schema/<cdm-name>/CDM.dbml` — target CDM schema
+- `.schema/<cdm-name>/ontology.ison` and `.schema/<cdm-name>/ontology.md` — entity graph and relationship context
+- `.schema/<cdm-name>/CDM.dbml` — target Kimball CDM schema
 
 If any are missing, run the preceding skills first: `annotate-sources`, `create-ontology`, then `generate-cdm`.
 
-The `_name` value from `taxonomy.json` is also the target `dataset_name` for the transformation pipeline. Do not re-derive it.
+The `_name` value from `taxonomy.json` is the CDM schema/domain name unless the user explicitly chooses a different SQLMesh schema. Do not re-derive it from source system names.
 
-This skill does **not** require a dlt MCP server. Prefer local dlt pipeline state, `dlt.attach(...)`, relation schemas, and destination SQL/preview queries for validation.
+This skill does **not** require a dlt MCP server. Use local project files, SQLMesh, and destination-native validation.
 
 ## Invocation arguments
 
 Parse the appended user text as:
 
-- `pipeline-name`: the dlt pipeline to transform from, e.g. `hubspot_crm_pipeline`
+- `pipeline-name`: optional source pipeline to focus on, e.g. `ebird_api`
 
-If omitted, read `taxonomy.json` for contributing pipelines and ask the user which source pipeline to target. If the CDM requires multiple source pipelines, explain that the transformation is cross-source and ask whether to generate one cross-source script or one script per source pipeline.
+If omitted, read `taxonomy.json` for contributing pipelines. If the CDM spans multiple source pipelines, plan a cross-source SQLMesh model set under one CDM schema rather than one dlt transformation script per pipeline.
 
 ## Determine the CDM folder
 
@@ -44,328 +47,185 @@ If not provided:
 
 ## Steps
 
-### 1. Confirm destination and dependencies
-
-Determine destination. If the destination is not already known from prior context or project config, ask the user which destination they are using before proceeding.
-
-Prefer the existing project environment and dependencies. Do not run dependency-install commands unless the user confirms.
-
-Install or add the matching ibis backend only if ibis is needed:
-
-| Destination | Command |
-|---|---|
-| DuckDB | `uv add "ibis-framework[duckdb]"` |
-| PostgreSQL | `uv add "ibis-framework[postgres]"` |
-| Snowflake | `uv add "ibis-framework[snowflake]"` |
-| BigQuery | `uv add "ibis-framework[bigquery]"` |
-| Other backend | `uv add "ibis-framework[<backend>]"` |
-
-Install dlt hub support if missing and the user confirms:
-
-```bash
-uv add "dlt[hub]"
-```
-
-### 2. Read inputs
+### 1. Read inputs
 
 Read in parallel:
 
-- `.schema/<cdm-name>/taxonomy.json` — table mappings and natural keys
-- `.schema/<cdm-name>/<pipeline_name>.dbml` — source columns and concept mappings
-- `.schema/<cdm-name>/CDM.dbml` — CDM entity definitions and column specs
-- `.schema/<cdm-name>/ontology.ison` and `.schema/<cdm-name>/ontology.md` when relationship context is needed
+- `.schema/<cdm-name>/taxonomy.json`
+- `.schema/<cdm-name>/<pipeline_name>.dbml` for every contributing source pipeline
+- `.schema/<cdm-name>/ontology.ison`
+- `.schema/<cdm-name>/ontology.md`
+- `.schema/<cdm-name>/CDM.dbml`
+- relevant existing SQLMesh config under `transforms/main/config.py` and model conventions under `transforms/main/models/`
 
-### 3. Get actual source schema
+### 2. Inspect existing SQLMesh model layer
 
-Prefer relation schema from dlt dataset objects for actual column types. Do not rely on MCP schema tools.
+Before writing files, inspect current SQLMesh models and identify whether each is:
 
-```python
-import dlt
+- **keep** — operational or still required, e.g. platform health if not superseded
+- **replace** — old staging/intermediate/mart model superseded by a CDM-aligned model
+- **reference** — useful SQL logic to port into the CDM models
+- **remove later** — obsolete after CDM SQLMesh models validate
 
-pipeline = dlt.attach(pipeline_name="<pipeline_name>")
-dataset = pipeline.dataset()
-relation = dataset.<table_name>
-schema = relation.schema()  # authoritative materialized column list
+Do not delete old models in this skill unless the user explicitly asks. The safe default is to create the new CDM model set first, validate it, then decommission old models in a separate cleanup ticket.
+
+### 3. Plan SQLMesh model layout
+
+Use one SQLMesh schema/domain for the CDM, usually `<cdm-name>` from taxonomy `_name`, e.g. `environmental_observations`.
+
+Recommended file layout:
+
+```text
+transforms/main/models/<cdm-name>/dimensions/dim_<entity>.sql
+transforms/main/models/<cdm-name>/facts/fact_<process>.sql
+transforms/main/models/<cdm-name>/staging/stg_<source>_<table>.sql   # only when needed
 ```
 
-Cross-check the annotated columns in `.schema/<cdm-name>/<pipeline_name>.dbml` against `relation.schema()`. Note discrepancies before writing SQL.
+Rules:
+
+- Prefer direct raw-source references from CDM models when the SQL is simple.
+- Add `stg_*` models only when needed for repeated normalization, complex casts, reusable source filtering, or a clear quality boundary.
+- Do not recreate the old source-specific mart layout unless the CDM explicitly calls for it.
+- Use SQLMesh model names that match the CDM schema, e.g. `environmental_observations.dim_species`.
 
 ### 4. Plan transformation order
 
-Always run dimensions before facts because facts join on dimension surrogate keys.
+Always materialize reference/dimension models before facts because facts join to dimension surrogate keys.
 
 Build an execution order:
 
-1. All conformed/shared dimensions
-2. Non-conformed dimensions
-3. Fact tables after all their dimension FKs exist
+1. Required staging models, if any
+2. Conformed/shared dimensions
+3. Non-conformed dimensions
+4. Fact tables
+5. Optional operational/observability models, if retained under SQLMesh
 
-**Do not self-reference transformation outputs while building facts by default.** Fact SQL must be derived from source-side tables/logic or explicit stage resources, not newly produced `dim_*` output tables. This avoids cyclic or destination-incompatible behavior across runs.
+### 5. Define key strategy
 
-Allowed exception:
+Use the CDM DBML as the key contract.
 
-- If the user explicitly requests output-to-output dependencies and the destination semantics are confirmed to support that pattern, document it in the plan before writing SQL.
+For each dimension/reference table:
 
-**Define a key type contract before writing any SQL.** Pick one key type for this pipeline, `text` or `bigint`, and apply it consistently to:
+- Generate/populate `<entity>_sk` as the surrogate key.
+- Preserve source lineage columns such as `source_id` and `source_pipeline` where specified in CDM.dbml.
+- Add sentinel handling for `UNKNOWN` / `NOT_APPLICABLE` rows if the CDM requires facts to avoid NULL foreign keys.
 
-- all surrogate/foreign key casts in SQL or ibis
-- every corresponding `columns=` schema hint
+For each fact table:
 
-Do not mix key representations, e.g. `INT64` vs `STRING`, for related keys across dimensions/facts. If source systems disagree on key type, normalize to the chosen contract in staging/CTEs first.
+- Join to dimensions and output dimension surrogate keys, not natural keys.
+- Preserve degenerate dimensions, e.g. event IDs, observation IDs, or source transaction IDs, when specified in CDM.dbml.
+- Enforce the confirmed grain from CDM.dbml in the SELECT logic.
 
-### 5. Write transformation functions
+Choose a stable surrogate-key expression appropriate to the project and gateway. Prefer portable SQL where possible. If a gateway-specific function is necessary, document it in the model or use existing project SQLMesh gateway conventions.
 
-Write one `@dlt.hub.transformation` function per CDM entity. Wrap all transformations in a `@dlt.source`.
+### 6. Write SQLMesh models
 
-**Dataset binding is required when yielding from `@dlt.source`.** When a transformation resource is returned/yielded from a source, pass the dataset argument explicitly. Not binding datasets can raise `IncompatibleDatasetsException`.
+For each CDM table in `.schema/<cdm-name>/CDM.dbml`, write one SQLMesh model.
 
-```python
-import dlt
+Model template:
 
-@dlt.source
-def hubspot_activity_schema(source_dataset: dlt.Dataset):
-    # Correct: dataset is explicitly bound
-    yield dim_company(source_dataset)
-    yield fact_activity(source_dataset)
+```sql
+MODEL (
+  name <cdm-name>.dim_species,
+  kind FULL,
+  description 'Dimension generated from .schema/<cdm-name>/CDM.dbml.',
+  grain species_sk,
+);
 
-@dlt.hub.transformation
-def dim_company(dataset: dlt.Dataset):
-    yield dataset("SELECT company_id, name FROM hubspot__companies")
+SELECT
+  ...
+FROM raw_ebird.taxonomy
 ```
 
-#### Default to SQL transformation logic
+Guidelines:
 
-Pass a SQL string directly to `dataset()`. SQL is easier for users to review, generally more reliable for LLM generation, and dlthub can transpile dialect differences when needed.
+- Use source tables from annotated DBML/taxonomy, not invented tables.
+- Keep SQL readable and ANSI-oriented where possible.
+- Match output column names and types to `CDM.dbml`.
+- Put descriptive attributes in dimensions.
+- Put measures and grain columns in facts.
+- Do not hide business logic in Python if SQLMesh SQL can express it clearly.
+- Avoid speculative abstractions; one model file per CDM table is enough.
 
-```python
-@dlt.hub.transformation
-def dim_person(dataset: dlt.Dataset):
-    yield dataset("SELECT email, first_name, last_name FROM hubspot__contacts ORDER BY email")
-```
+### 7. Add SQLMesh tests and quality hooks as needed
 
-If a relation variable is already available, treat it as a callable dataset relation and pass SQL directly:
+Add or update SQLMesh tests only for behavior that is record-backed by ontology/CDM artifacts.
 
-```python
-@dlt.hub.transformation
-def dim_users(dataset: dlt.Dataset):
-    yield dataset("SELECT user_id, email, created_at FROM users")
-```
+Recommended checks:
 
-#### SQL style
+- primary/surrogate keys are non-null
+- grain keys are unique
+- fact FK columns are non-null or use sentinel keys
+- facts have plausible non-zero row counts after a full refresh
 
-Write all transformation SQL in ANSI-standard SQL. dlthub uses SQLGlot to transpile queries, but transpilation works best when the input SQL uses portable constructs.
+If the project uses Soda contracts for asset checks, either:
 
-Use:
+- generate/update contracts for the new CDM SQLMesh models, or
+- record a follow-up ticket to add CDM quality checks after the SQLMesh model shape is ratified
 
-- `CAST(x AS type)`, not `x::type`
-- `COALESCE(a, b)`, not `IFNULL(a, b)`
-- standard type names: `VARCHAR`, `BIGINT`, `BOOLEAN`, `TIMESTAMP`
-- `CASE WHEN` for conditional logic
-- standard aggregates: `SUM`, `AVG`, `COUNT`, `MIN`, `MAX`
+Do not silently keep checks for removed legacy models.
 
-When a transformation genuinely requires a dialect-specific function with no ANSI equivalent, e.g. `EPOCH_MS`, `STRFTIME`, arrays, pass `query_dialect` to `dataset()` so dlthub knows how to transpile it.
+### 8. Wire Dagster assets after model files are stable
 
-#### Cross-dataset SQL
+After writing SQLMesh models, update Dagster domain wiring so the new CDM SQLMesh assets appear in lineage.
 
-Cross-dataset SQL must use fully qualified source references. When writing into `<target_dataset>` from a different source dataset, unqualified table names may resolve against the target dataset and fail with `table not found`.
+Typical updates:
 
-For BigQuery, always use backtick-qualified `project.dataset.table` source-side refs:
+- Add new `dg.AssetKey(["sqlmesh", "<cdm-name>", "dim_x"])` / `fact_x` entries.
+- Remove old source-specific SQLMesh asset keys only when those models are actually removed.
+- Update freshness policies/checks for CDM assets based on source cadence.
+- Keep dlt ingest jobs unchanged.
 
-```python
-@dlt.hub.transformation
-def fact_activity(dataset: dlt.Dataset):
-    yield dataset(
-        """
-        SELECT a.id, a.activity_type, a.created_at
-        FROM `my_project.source_dataset_name.activities` AS a
-        """
-    )
-```
-
-#### Association key check
-
-Association key checks are mandatory before FK logic for nested association tables.
-
-For nested association tables, verify join lineage first:
-
-- association table `_dlt_parent_id` joins to parent row `_dlt_id`
-- not to parent business keys like `id`
-
-Do this verification before writing any JOIN used to derive foreign keys.
-
-#### ibis option
-
-ibis remains supported when SQL becomes too verbose for a specific step, e.g. complex programmatic expression building, reusable expression fragments, or an existing ibis-heavy codebase. If ibis is chosen, keep everything lazy and never fall back to pandas.
-
-Minimal ibis example:
-
-```python
-@dlt.hub.transformation
-def dim_person(dataset: dlt.Dataset):
-    contacts = dataset.table("hubspot__contacts").to_ibis()
-    yield contacts.select("email", "first_name", "last_name").order_by("email").limit(1000)
-```
-
-ibis requires a SQL-capable destination. If the user requests DuckDB as destination, check whether ibis can connect to it in the current context; if not, keep SQL-first transformations or switch to a destination that supports the desired ibis workflow.
-
-#### Decorator default
-
-```python
-@dlt.hub.transformation(
-    write_disposition="replace",
-)
-def dim_person(dataset: dlt.Dataset):
-    ...
-```
-
-For scheduled or high-volume pipelines, switch `replace` to an incremental strategy only after the user asks for incremental behavior and the incremental grain is confirmed.
-
-#### `columns=` hints
-
-`columns=` hints are required for any column that may be NULL on the first run, and for any computed or derived column.
-
-```python
-@dlt.hub.transformation(
-    write_disposition="replace",
-    columns={
-        "company_sk":   {"data_type": "text", "nullable": False},
-        "email_hash":   {"data_type": "text", "nullable": True},
-        "month_bucket": {"data_type": "text", "nullable": True},
-        "event_count":  {"data_type": "bigint", "nullable": True},
-    },
-)
-def dim_person(dataset: dlt.Dataset):
-    ...
-```
-
-`columns=` `data_type` values for keys must match the key type contract selected in step 4.
-
-Add `columns=` for:
-
-- any computed or derived column: every hash, date bucket, `TRY_CAST`, `CASE WHEN`, aggregate alias, function chain
-- any column from a LEFT JOIN
-- any cast from string to typed value where source may be empty
-- any column that was NULL-only in a prior run
-
-Omitting `columns=` can cause silent data loss: dlthub may strip a column from the outer SELECT if its schema entry has no `data_type`.
-
-Do **not** use `execute_sql_query` for cloud destinations. Use dlthub transformations with SQL-first, or ibis when explicitly selected.
-
-### 6. Write the script
-
-Output file:
-
-```text
-transformations/<dataset_name>_to_cdm.py
-```
-
-Structure:
-
-```python
-import dlt
-
-@dlt.source
-def <dataset_name>_to_cdm(dataset: dlt.Dataset):
-    # dimensions first
-    yield dim_person(dataset)
-    yield dim_company(dataset)
-    yield dim_event(dataset)
-    # facts after
-    yield fact_event_attendance(dataset)
-
-@dlt.hub.transformation(write_disposition="replace")
-def dim_person(dataset: dlt.Dataset):
-    ...
-
-# ... remaining functions
-
-if __name__ == "__main__":
-    source_pipeline = dlt.attach(pipeline_name="<source_pipeline_name>")
-    source_dataset = source_pipeline.dataset()
-
-    load_info = source_pipeline.run(<dataset_name>_to_cdm(source_dataset))
-    print(load_info)
-```
-
-Run from the project root so dlt state resolves correctly. If needed, enforce root CWD in the entrypoint:
-
-```python
-from pathlib import Path
-import os
-
-os.chdir(Path(__file__).resolve().parents[1])
-```
-
-Naming convention: `pipeline_name` and `dataset_name` should reflect the business domain and central fact, not the source systems. Here, `<dataset_name>` comes from `taxonomy.json` `_name`.
-
-### 7. Get feedback before running
+### 9. Get feedback before running
 
 Show a summary of:
 
-- output tables being created
-- source tables used per output table
-- key type contract
-- any `columns=` hints and why they are required
-- any source columns skipped and why
-- any relationship/FK assumptions
+- SQLMesh model files to create/update
+- source tables used per CDM model
+- dimensions and facts produced
+- surrogate key strategy
+- grain enforcement for each fact
+- old SQLMesh models being referenced, retained, or proposed for later removal
+- quality checks added or deferred
 
-Ask the user to confirm before running the transformation.
+Ask the user to confirm before running SQLMesh.
 
-### 8. Run
+### 10. Validate with SQLMesh and destination-native checks
 
-Run the script from the project root.
+After user confirmation, run finite validation commands only. Do not run long-running UI servers.
 
-If the run fails, read the error before deciding where to go. Do not proceed to validation.
+Recommended validation:
 
-- SQL syntax error, unsupported function, dialect error → debug the transformation SQL.
-- Pipeline state error, stale packages, schema drift, connection error → debug dlt pipeline state and destination connection.
-
-### 9. Validate output without MCP
-
-After a successful run, verify the transformation produced the expected result using local/destination-native checks, not MCP.
-
-Preferred validation methods:
-
-1. Attach the output pipeline and use dlt dataset relations.
-2. Use destination SQL through the project-native client, e.g. DuckDB connection for local DuckDB/Quack after no writer is active.
-3. Use `relation.schema()` for column names/types.
-4. Use `SELECT COUNT(*)`, duplicate checks by grain, FK anti-joins, and small previews.
-
-Example validation skeleton:
-
-```python
-import dlt
-
-pipeline = dlt.attach(pipeline_name="<source_pipeline_name>")
-dataset = pipeline.dataset()
-
-for table_name in ["dim_person", "fact_event_attendance"]:
-    relation = dataset.table(table_name)
-    print(table_name, relation.schema())
-    print(dataset(f"SELECT COUNT(*) AS row_count FROM {table_name}"))
-    print(dataset(f"SELECT * FROM {table_name} LIMIT 10"))
+```bash
+cd transforms/main && ../../.venv/bin/sqlmesh plan dev --auto-apply --no-prompts
+cd transforms/main && ../../.venv/bin/sqlmesh test
 ```
 
-What to check:
+Then use destination-native SQL for row counts, key checks, FK anti-joins, and samples. For local Quack/DuckDB, ensure no Quack writer is active before opening `data/databox.duckdb` directly.
 
-- all expected CDM tables exist; no silent skip due to empty resource
-- row counts are non-zero and plausible relative to source table sizes
-- surrogate key columns are populated, not all NULL
-- foreign keys in fact tables resolve to values present in dimension tables
-- no unexpected duplicate rows, i.e. grain violation
-- computed columns are present and non-NULL where expected
+Check:
+
+- all expected CDM models exist
+- row counts are non-zero and plausible relative to raw source tables
+- surrogate keys are populated
+- fact foreign keys resolve to dimension keys or sentinel rows
+- no unexpected duplicate rows at the confirmed grain
 - column names and types match `.schema/<cdm-name>/CDM.dbml`
 
-If any check fails, debug the transformation before presenting success.
+If any check fails, debug SQLMesh models before presenting success.
 
 If all checks pass, ask the user what they want next:
 
 ```text
-Transformation validated successfully. What would you like to do next?
-1. Deploy and schedule this transformation.
-2. Explore and visualise the CDM output.
+SQLMesh CDM models validated successfully. What would you like to do next?
+1. Decommission superseded legacy SQLMesh staging/mart models.
+2. Add/adjust Soda quality checks for the CDM models.
+3. Explore and visualise the CDM output.
 ```
 
 ## Output
 
-- `transformations/<dataset_name>_to_cdm.py` — dlthub transformation script
+- SQLMesh model files under `transforms/main/models/<cdm-name>/`
+- optional SQLMesh tests under `transforms/main/tests/`
+- optional Soda contracts under `soda/contracts/<cdm-name>/`
+- Dagster SQLMesh asset wiring updates when model files are stable

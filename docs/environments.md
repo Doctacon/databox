@@ -14,8 +14,9 @@ account) holds both — environments are metadata, not separate databases.
 
 1. Edit a model in `transforms/main/models/`.
 2. `task plan:dev` — SQLMesh materializes the change into the `dev` virtual
-   env. Schemas get `__dev` suffix: `ebird.fct_daily_bird_observations`
-   becomes `ebird__dev.fct_daily_bird_observations`.
+   env. Schemas get `__dev` suffix:
+   `environmental_observations.fact_bird_observation` becomes
+   `environmental_observations__dev.fact_bird_observation`.
 3. `task verify:dev` — Soda contracts run against the `__dev` schemas.
    Sample queries against `ebird__dev.*` confirm the change looks right.
 4. `task plan:prod` — SQLMesh promotes the dev changes to `prod`. Because
@@ -58,10 +59,10 @@ implication: dev materializations do consume MotherDuck storage until
 ## Soda contracts and schema suffixes
 
 Every Soda contract under `soda/contracts/` hard-codes a dataset path like
-`databox/ebird/fct_daily_bird_observations`. `scripts/verify_dev.py`
-rewrites that to `databox/ebird__dev/fct_daily_bird_observations` in
-memory before handing the YAML to Soda. The committed contract files are
-never edited.
+`databox/environmental_observations/fact_bird_observation`.
+`scripts/verify_dev.py` rewrites that to
+`databox/environmental_observations__dev/fact_bird_observation` in memory
+before handing the YAML to Soda. The committed contract files are never edited.
 
 If you add a new source, its contracts automatically pick up the rewrite —
 the script walks every file under `soda/contracts/` and applies a regex.

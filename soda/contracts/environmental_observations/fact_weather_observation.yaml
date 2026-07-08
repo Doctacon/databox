@@ -1,0 +1,27 @@
+dataset: databox/environmental_observations/fact_weather_observation
+
+columns:
+  - name: weather_observation_sk
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: weather_station_sk
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_pipeline
+  - name: source_id
+  - name: station_id
+  - name: observation_date
+  - name: datatype
+  - name: value
+  - name: location_id
+  - name: loaded_at
+  - name: dlt_load_id
+  - name: dlt_id
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

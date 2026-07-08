@@ -1,0 +1,186 @@
+// Canonical Data Model for environmental observations.
+// Generated from .schema/environmental_observations/ontology.ison and source DBML.
+// SQLMesh remains the transformation layer; dlt remains raw ingestion.
+
+Table dim_species [note: 'table_type:dimension; surrogate_key:species_sk; scd_type:1; conformed:true; source_entity:Species'] {
+  species_sk varchar [pk, note: 'Stable string hash of source_pipeline and species_code; UNKNOWN sentinel is present']
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'Source species_code or UNKNOWN']
+  species_code varchar
+  common_name varchar
+  scientific_name varchar
+  taxonomic_order double
+  taxonomic_category varchar
+  family_code varchar
+  family_common_name varchar
+  family_scientific_name varchar
+  report_as varchar
+  extinct bool
+  extinct_year bigint
+  region varchar
+  loaded_at timestamp
+}
+
+Table dim_bird_hotspot [note: 'table_type:dimension; surrogate_key:bird_hotspot_sk; scd_type:1; conformed:false; source_entity:BirdHotspot'] {
+  bird_hotspot_sk varchar [pk, note: 'Stable string hash of source_pipeline and loc_id; UNKNOWN sentinel is present']
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'eBird loc_id or UNKNOWN']
+  location_id varchar
+  location_name varchar
+  country_code varchar
+  subnational1_code varchar
+  subnational2_code varchar
+  region_code varchar
+  latitude double
+  longitude double
+  latest_observation_datetime timestamp
+  num_species_all_time bigint
+  num_checklists_all_time bigint
+  loaded_at timestamp
+}
+
+Table dim_weather_station [note: 'table_type:dimension; surrogate_key:weather_station_sk; scd_type:1; conformed:false; source_entity:WeatherStation'] {
+  weather_station_sk varchar [pk, note: 'Stable string hash of source_pipeline and station id; UNKNOWN sentinel is present']
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'NOAA station id or UNKNOWN']
+  station_id varchar
+  station_name varchar
+  latitude double
+  longitude double
+  elevation double
+  elevation_unit varchar
+  min_date date
+  max_date date
+  data_coverage double
+  location_id varchar
+  loaded_at timestamp
+}
+
+Table dim_streamgage_site [note: 'table_type:dimension; surrogate_key:streamgage_site_sk; scd_type:1; conformed:false; source_entity:StreamgageSite'] {
+  streamgage_site_sk varchar [pk, note: 'Stable string hash of source_pipeline and site_no; UNKNOWN sentinel is present']
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'USGS site_no or UNKNOWN']
+  site_no varchar
+  site_name varchar
+  site_type varchar
+  latitude double
+  longitude double
+  county_cd varchar
+  state_cd varchar
+  huc_cd varchar
+  drainage_area_sqmi double
+  begin_date date
+  end_date date
+  loaded_at timestamp
+}
+
+Table fact_bird_observation [note: 'table_type:fact; grain:one row per eBird observation submission id across recent and notable observation feeds; source_entity:BirdObservation'] {
+  bird_observation_sk varchar [pk, note: 'Stable string hash of source_pipeline and sub_id']
+  species_sk varchar [not null, ref: > dim_species.species_sk]
+  bird_hotspot_sk varchar [not null, ref: > dim_bird_hotspot.bird_hotspot_sk]
+  source_pipeline varchar [not null]
+  source_table varchar [not null]
+  source_observation_id varchar [not null, note: 'eBird sub_id']
+  observation_datetime timestamp
+  observation_date date
+  observation_year bigint
+  observation_month bigint
+  observation_day bigint
+  observation_hour bigint
+  species_code varchar
+  location_id varchar
+  location_name varchar
+  region_code varchar
+  latitude double
+  longitude double
+  observation_count bigint
+  count_display varchar
+  is_valid bool
+  is_reviewed bool
+  is_location_private bool
+  is_notable bool
+  exotic_category varchar
+  loaded_at timestamp
+  dlt_load_id varchar
+  dlt_id varchar
+}
+
+Table fact_region_daily_stats [note: 'table_type:fact; grain:one row per eBird region per calendar date; source_entity:RegionDailyStats'] {
+  region_daily_stats_sk varchar [pk, note: 'Stable string hash of source_pipeline, region_code, year, month, and day']
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'region_code|year|month|day']
+  region_code varchar [not null]
+  stats_date date
+  year bigint
+  month bigint
+  day bigint
+  num_checklists bigint
+  num_contributors bigint
+  num_species bigint
+  loaded_at timestamp
+  dlt_load_id varchar
+  dlt_id varchar
+}
+
+Table fact_weather_observation [note: 'table_type:fact; grain:one row per NOAA station per observation date per datatype; source_entity:WeatherObservation'] {
+  weather_observation_sk varchar [pk, note: 'Stable string hash of source_pipeline, station, date, and datatype']
+  weather_station_sk varchar [not null, ref: > dim_weather_station.weather_station_sk]
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'station|date|datatype']
+  station_id varchar
+  observation_date date
+  datatype varchar
+  value double
+  attributes varchar
+  source varchar
+  location_id varchar
+  loaded_at timestamp
+  dlt_load_id varchar
+  dlt_id varchar
+}
+
+Table fact_streamflow_observation [note: 'table_type:fact; grain:one row per USGS streamgage site per observation date per parameter code; source_entity:StreamflowObservation'] {
+  streamflow_observation_sk varchar [pk, note: 'Stable string hash of source_pipeline, site_no, observation_date, and parameter_cd']
+  streamgage_site_sk varchar [not null, ref: > dim_streamgage_site.streamgage_site_sk]
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'site_no|observation_date|parameter_cd']
+  site_no varchar
+  site_name varchar
+  observation_date date
+  parameter_cd varchar
+  parameter_name varchar
+  unit_cd varchar
+  value double
+  qualifier varchar
+  state_cd varchar
+  latitude double
+  longitude double
+  loaded_at timestamp
+  dlt_load_id varchar
+  dlt_id varchar
+}
+
+Table fact_earthquake_event [note: 'table_type:fact; grain:one row per USGS earthquake event id; source_entity:EarthquakeEvent'] {
+  earthquake_event_sk varchar [pk, note: 'Stable string hash of source_pipeline and event id']
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'USGS earthquake event id']
+  event_id varchar [not null]
+  magnitude double
+  magnitude_type varchar
+  place varchar
+  title varchar
+  event_time timestamp
+  event_updated_at timestamp
+  longitude double
+  latitude double
+  depth_km double
+  status varchar
+  tsunami_flag bigint
+  significance bigint
+  event_type varchar
+  alert varchar
+  url varchar
+  loaded_at timestamp
+  dlt_load_id varchar
+  dlt_id varchar
+}

@@ -1,0 +1,26 @@
+dataset: databox/environmental_observations/fact_streamflow_observation
+
+columns:
+  - name: streamflow_observation_sk
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: streamgage_site_sk
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_pipeline
+  - name: source_id
+  - name: site_no
+  - name: observation_date
+  - name: parameter_cd
+  - name: value
+  - name: loaded_at
+  - name: dlt_load_id
+  - name: dlt_id
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

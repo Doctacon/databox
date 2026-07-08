@@ -1,8 +1,8 @@
 """Scaffold a new dlt source following `docs/source-layout.md`.
 
-Creates the full per-source tree (source package, model dirs with `.gitkeep`,
-Soda contract dirs, Dagster domain stub), wires the new domain module into
-`definitions.py`, and optionally appends an API-key line to `.env.example`.
+Creates the per-source ingestion tree (source package and Dagster domain stub),
+wires the new domain module into `definitions.py`, and optionally appends an
+API-key line to `.env.example`.
 The output passes `scripts/check_source_layout.py` on first commit because
 the generated `source.py` carries a `scaffold-lint: skip=scaffolded` marker.
 
@@ -75,10 +75,6 @@ def render(shape: str, name: str, no_auth: bool = False) -> dict[Path, str]:
         SOURCES_PKG_DIR / name / "source.py": env.get_template("source.py.j2").render(**ctx),
         SOURCES_PKG_DIR / name / "config.yaml": env.get_template("config.yaml.j2").render(**ctx),
         DOMAINS_DIR / f"{name}.py": env.get_template("domain.py.j2").render(**ctx),
-        MODELS_DIR / name / "staging" / ".gitkeep": "",
-        MODELS_DIR / name / "marts" / ".gitkeep": "",
-        CONTRACTS_DIR / f"{name}_staging" / ".gitkeep": "",
-        CONTRACTS_DIR / name / ".gitkeep": "",
     }
     return files
 
@@ -198,12 +194,12 @@ def print_next_steps(name: str) -> None:
         f" then remove the `# scaffold-lint: skip=scaffolded` marker."
     )
     print(
-        f"  2. Add staging SQL under transforms/main/models/{name}/staging/"
-        f" (at least one `stg_*.sql`)."
+        "  2. Run the annotation workflow so `.schema/<cdm-name>/` includes this source: "
+        "annotate-sources → create-ontology → generate-cdm."
     )
     print(
-        f"  3. Add a Soda contract under soda/contracts/{name}_staging/ for each staging table,"
-        f" then mart contracts under soda/contracts/{name}/."
+        "  3. Extend SQLMesh CDM models under "
+        "transforms/main/models/environmental_observations/ when the CDM changes."
     )
     print(
         f"  4. Wire the real assets in packages/databox/databox/orchestration/domains/{name}.py"

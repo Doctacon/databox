@@ -1,7 +1,7 @@
 dataset: databox/raw_ebird/species_list
 
 columns:
-  - name: spec_code
+  - name: species_code
     checks:
       - missing:
           must_be: 0

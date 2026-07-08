@@ -28,8 +28,8 @@ TRANSFORMS_DIR = PROJECT_ROOT / "transforms"
 MAIN_TRANSFORM_PROJECT = TRANSFORMS_DIR / "main"
 SODA_DIR = PROJECT_ROOT / "soda"
 
-# Freshness policies are derived from the source registry. Analytics marts are
-# cross-domain and inherit the slowest `analytics_anchor=True` upstream policy.
+# Freshness policies are derived from the source registry. Cross-domain CDM and
+# operational analytics assets inherit the `analytics_anchor=True` upstream policy.
 FRESHNESS_BY_SOURCE: dict[str, dg.FreshnessPolicy] = {
     src.name: src.freshness_policy for src in SOURCES
 }
@@ -42,11 +42,11 @@ def _source_for_key(key: dg.AssetKey) -> str | None:
     if len(path) < 2:
         return None
     schema = path[1]
-    # Longest match first so e.g. "usgs_earthquakes_staging" doesn't collapse to "usgs".
+    # Longest match first so e.g. "usgs_earthquakes" doesn't collapse to "usgs".
     for src in sorted((s.name for s in SOURCES), key=len, reverse=True):
         if src in schema:
             return src
-    if schema == "analytics":
+    if schema in {"analytics", "environmental_observations"}:
         return _ANALYTICS_ANCHOR
     return None
 

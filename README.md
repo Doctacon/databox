@@ -53,9 +53,8 @@ graph TB
     end
 
     subgraph Transform["Transform · SQLMesh"]
-        staging["*_staging views"]
-        marts["ebird / noaa / usgs marts"]
-        analytics["analytics.*  cross-domain marts"]
+        cdm["environmental_observations CDM"]
+        health["analytics.platform_health"]
         metrics["semantic metrics METRIC()"]
     end
 
@@ -73,23 +72,23 @@ graph TB
     ebird_api --> ebird_src --> raw_ebird
     noaa_api --> noaa_src --> raw_noaa
     usgs_api --> usgs_src --> raw_usgs
-    raw_ebird --> staging
-    raw_noaa --> staging
-    raw_usgs --> staging
-    staging --> marts
-    marts --> analytics
-    analytics --> metrics
-    analytics --> contracts
-    marts --> contracts
-    analytics --> dashboard
-    analytics --> dict
+    raw_ebird --> cdm
+    raw_noaa --> cdm
+    raw_usgs --> cdm
+    cdm --> metrics
+    cdm --> contracts
+    cdm --> dashboard
+    cdm --> dict
+    raw_ebird --> health
+    raw_noaa --> health
+    raw_usgs --> health
+    health --> contracts
 
     Orchestrator -.materializes.-> ebird_src
     Orchestrator -.materializes.-> noaa_src
     Orchestrator -.materializes.-> usgs_src
-    Orchestrator -.materializes.-> staging
-    Orchestrator -.materializes.-> marts
-    Orchestrator -.materializes.-> analytics
+    Orchestrator -.materializes.-> cdm
+    Orchestrator -.materializes.-> health
     Orchestrator -.asset-checks.-> contracts
 ```
 
@@ -98,12 +97,10 @@ graph TB
 ```mermaid
 flowchart LR
     A[API responses<br/>JSON] -->|dlt incremental| B[raw_*<br/>append-only tables]
-    B -->|SQLMesh stg_* views| C[*_staging<br/>renames + type coercion]
-    C -->|SQLMesh int_* models| D[int_*<br/>H3 cell + day grain]
-    D -->|SQLMesh fct_* / dim_*| E[source marts<br/>ebird / noaa / usgs]
-    E -->|cross-domain joins| F[analytics.fct_species_environment_daily<br/>species × H3 × day]
-    F -->|METRIC DDL| G[semantic metrics<br/>richness · intensity · anomalies]
-    F -->|Soda asset check| H{quality gate}
+    B -->|.schema workflow| C[CDM contract<br/>CDM.dbml]
+    C -->|SQLMesh models| D[environmental_observations<br/>dimensions + facts]
+    D -->|METRIC DDL| G[semantic metrics<br/>richness · counts]
+    D -->|Soda asset check| H{quality gate}
     H -->|pass| I[Dive dashboards]
     H -->|fail| J[block downstream · surface in Dagster]
 ```
@@ -114,8 +111,8 @@ Each claim is backed by a ticket and its evidence, not just prose.
 
 | Capability | How it shows up | Evidence |
 |---|---|---|
-| **Cross-domain modeling** — joining bird, weather, and streamflow at a shared spatial grain | `analytics.fct_species_environment_daily` keyed on `(species_code, h3_cell, obs_date)`, H3 cells resolve spatial joins across domains | [ticket:flagship-cross-domain-mart](.loom/tickets/20260420-7g33iy2i-flagship-cross-domain-mart.md) · [example queries](docs/analytics-examples.md) |
-| **Semantic metrics layer** — one canonical SQL definition per KPI | Seven metrics in `transforms/main/metrics/flagship.sql`, queryable by name via `resolve_metric_query()` | [ticket:semantic-metrics-layer](.loom/tickets/20260420-ah4djnga-semantic-metrics-layer.md) · [metrics docs](docs/metrics.md) · [design record](.loom/research/20260421-semantic-metrics-approach.md) |
+| **Canonical data modeling** — raw source schemas become a reviewed CDM before SQL implementation | `.schema/environmental_observations/CDM.dbml` drives SQLMesh models under `environmental_observations.*` | [example queries](docs/analytics-examples.md) |
+| **Semantic metrics layer** — one canonical SQL definition per KPI | CDM metrics in `transforms/main/metrics/flagship.sql`, queryable by name via `resolve_metric_query()` | [metrics docs](docs/metrics.md) |
 | **Contract-based quality** — every model has a Soda contract gated as a Dagster asset check | `soda/contracts/` + Soda asset checks that block downstream materialization on failure | [ticket:observability-pass](.loom/tickets/20260420-wvp3m9gt-observability-pass.md) · [contracts doc](docs/contracts.md) |
 | **Schema-contract CI gate** — breaking changes to contracts require explicit opt-in | `scripts/schema_gate.py` runs on PRs, blocks column drops / type narrowings without `accept-breaking-change` marker | [ticket:schema-contract-ci](.loom/tickets/20260420-bsha1b91-schema-contract-ci.md) |
 | **Auto-generated data dictionary** — every model's columns, types, checks, and lineage discoverable without cloning | [doctacon.github.io/databox](https://doctacon.github.io/databox/), regenerated from `sqlmesh.Context` + Soda YAML | [ticket:data-dictionary-site](.loom/tickets/20260420-2ikjh1e2-data-dictionary-site.md) |
@@ -235,13 +232,13 @@ packages/                  # uv workspace
 └── databox-sources/       # dlt ingestion + per-source configs
 
 transforms/main/           # Unified SQLMesh project (ADR-0003)
-├── config.yaml            # local + motherduck gateways
+├── config.py              # local + motherduck gateways
 ├── metrics/               # semantic metrics registry
 └── models/
-    ├── ebird/  noaa/  usgs/   # staging → intermediate → marts
-    └── analytics/             # cross-domain marts
+    ├── environmental_observations/ # CDM dimensions + facts
+    └── analytics/                  # operational platform health
 
-soda/contracts/            # One Soda contract per SQLMesh model
+soda/contracts/            # Soda contracts for raw, CDM, and operational models
 
 docs/
 ├── adr/                   # 6 backfilled ADRs
@@ -257,13 +254,13 @@ scripts/
 data/                      # DuckDB files (gitignored)
 ```
 
-Adding a source? See [docs/source-layout.md](docs/source-layout.md) for the required on-disk shape (enforced in CI by `source-layout-lint`).
+Adding a source? See [docs/new-source.md](docs/new-source.md) and then extend the `.schema` CDM workflow before adding SQLMesh models.
 
 ## Published artifacts
 
 - **Data dictionary + lineage:** https://doctacon.github.io/databox/ — regenerates on every push to `main`
 - **[docs/metrics.md](docs/metrics.md)** — semantic metrics registry and `resolve_metric_query` helper
-- **[docs/analytics-examples.md](docs/analytics-examples.md)** — representative queries against the flagship mart
+- **[docs/analytics-examples.md](docs/analytics-examples.md)** — representative queries against the CDM model layer
 - **[docs/contracts.md](docs/contracts.md)** — Soda contract conventions + schema-contract gate escape hatch
 - **[docs/incremental-loading.md](docs/incremental-loading.md)** — per-resource write disposition, keys, backfill
 

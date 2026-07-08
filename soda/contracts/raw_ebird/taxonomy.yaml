@@ -9,7 +9,7 @@ columns:
     checks:
       - missing:
           must_be: 0
-  - name: spec_code
+  - name: species_code
     checks:
       - missing:
           must_be: 0

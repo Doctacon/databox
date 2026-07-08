@@ -1,7 +1,7 @@
 dataset: databox/raw_ebird/recent_observations
 
 columns:
-  - name: spec_code
+  - name: species_code
     checks:
       - missing:
           must_be: 0
@@ -22,8 +22,8 @@ columns:
   - name: how_many
   - name: lat
   - name: lng
-  - name: valid
-  - name: reviewed
+  - name: obs_valid
+  - name: obs_reviewed
   - name: location_private
   - name: sub_id
     checks:

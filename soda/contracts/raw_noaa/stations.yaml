@@ -14,8 +14,8 @@ columns:
   - name: latitude
   - name: longitude
   - name: elevation
-  - name: min_date
-  - name: max_date
+  - name: mindate
+  - name: maxdate
   - name: _dlt_load_id
     checks:
       - missing:

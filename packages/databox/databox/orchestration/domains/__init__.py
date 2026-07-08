@@ -1,1 +1,1 @@
-"""Per-source Dagster wiring — ebird, noaa, usgs, analytics."""
+"""Per-source ingestion wiring plus cross-domain SQLMesh CDM assets."""

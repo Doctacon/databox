@@ -4,9 +4,9 @@
 TODO: describe the upstream API, auth model, rate limits, pagination.
 
 The `scaffold-lint: skip=scaffolded` marker above tells
-`scripts/check_source_layout.py` to tolerate the missing staging/mart/contract
-files while this source is being built. Remove the marker once the layout is
-complete.
+`scripts/check_source_layout.py` to tolerate an in-flight source while this
+source is being built. Remove the marker once source.py, config.yaml, and the
+Dagster domain are real.
 """
 
 from __future__ import annotations

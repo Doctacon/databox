@@ -2,7 +2,7 @@
 
 Exercises the generator against a synthetic repo root in tmp_path. Uses
 monkeypatch to rebind the module's path constants so the real check_source_layout
-linter can verify the scaffolded tree.
+linter can verify the scaffolded ingestion tree.
 """
 
 from __future__ import annotations
@@ -108,8 +108,6 @@ def _rebind(gen_module, layout_module, root: Path) -> None:
     gen_module.ENV_EXAMPLE_PATH = root / ".env.example"
 
     layout_module.SOURCES_DIR = gen_module.SOURCES_PKG_DIR
-    layout_module.MODELS_DIR = gen_module.MODELS_DIR
-    layout_module.CONTRACTS_DIR = gen_module.CONTRACTS_DIR
     layout_module.DOMAINS_DIR = gen_module.DOMAINS_DIR
 
 
@@ -240,16 +238,12 @@ def test_generated_source_py_has_skip_marker(env) -> None:
     assert any("scaffold-lint: skip=scaffolded" in line for line in src_py)
 
 
-def test_gitkeep_files_present(env) -> None:
+def test_source_scaffold_does_not_create_per_source_sqlmesh_dirs(env) -> None:
     gen, _, root = env
     assert gen.main(["demo"]) == 0
-    for relpath in [
-        "transforms/main/models/demo/staging/.gitkeep",
-        "transforms/main/models/demo/marts/.gitkeep",
-        "soda/contracts/demo_staging/.gitkeep",
-        "soda/contracts/demo/.gitkeep",
-    ]:
-        assert (root / relpath).exists(), relpath
+    assert not (root / "transforms/main/models/demo").exists()
+    assert not (root / "soda/contracts/demo_staging").exists()
+    assert not (root / "soda/contracts/demo").exists()
 
 
 def test_domain_stub_is_valid_python(env) -> None:

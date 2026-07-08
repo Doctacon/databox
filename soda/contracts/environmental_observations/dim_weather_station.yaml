@@ -1,0 +1,26 @@
+dataset: databox/environmental_observations/dim_weather_station
+
+columns:
+  - name: weather_station_sk
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: source_pipeline
+  - name: source_id
+  - name: station_id
+  - name: station_name
+  - name: latitude
+  - name: longitude
+  - name: elevation
+  - name: elevation_unit
+  - name: min_date
+  - name: max_date
+  - name: data_coverage
+  - name: location_id
+  - name: loaded_at
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

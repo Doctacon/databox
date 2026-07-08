@@ -35,8 +35,8 @@ state, and restatement semantics directly.
   source assets and checks, while SQLMesh remains the direct interface for
   transform planning and restatement.
 - Native lineage across dlt → SQLMesh → Soda. The UI shows that
-  `analytics.fct_species_environment_daily` depends on
-  `noaa.int_weather_by_h3_day` which depends on `raw_noaa.daily_weather`,
+  `environmental_observations.fact_weather_observation` depends on
+  `environmental_observations.dim_weather_station` and `raw_noaa.daily_weather`,
   end to end, without extra wiring.
 - Soda contracts run as Dagster **asset checks**, gating downstream
   materialization on quality automatically.

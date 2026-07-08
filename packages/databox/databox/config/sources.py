@@ -35,7 +35,7 @@ class Source:
       freshness_policy: Dagster FreshnessPolicy applied to every sqlmesh asset
         derived from this source (via `_factories.apply_freshness`).
       analytics_anchor: if True, this source's freshness policy is inherited
-        by cross-domain `analytics.*` marts (the slowest upstream wins).
+        by cross-domain CDM/analytics SQLMesh assets (the slowest upstream wins).
     """
 
     name: str

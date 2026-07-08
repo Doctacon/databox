@@ -1,10 +1,13 @@
 """Run every Soda contract against the SQLMesh `__dev` virtual environment.
 
-Soda contracts hard-code dataset paths like `databox/ebird/fct_x`. SQLMesh's
-dev env materializes the same table at `ebird__dev.fct_x`. This script
-rewrites `databox/<schema>/<table>` to `databox/<schema>__dev/<table>` in
-each contract YAML (in memory, committed files untouched) and pipes the
-rewritten contract into Soda's ContractVerificationSession.
+Soda contracts hard-code dataset paths like
+`databox/environmental_observations/fact_x`. SQLMesh's dev env materializes the
+same table at `environmental_observations__dev.fact_x`. This script rewrites
+SQLMesh-owned `databox/<schema>/<table>` datasets to
+`databox/<schema>__dev/<table>` in each contract YAML (in memory, committed
+files untouched) and pipes the rewritten contract into Soda's
+ContractVerificationSession. Raw `raw_*` contracts and operational `analytics`
+contracts are not rewritten.
 
 Exit: 0 if every contract passes, 1 on any failure, 2 on invocation error.
 """
@@ -31,7 +34,7 @@ DATASET_RE = re.compile(
 def rewrite_for_dev(contract_yaml: str) -> str:
     def _sub(match: re.Match[str]) -> str:
         prefix, schema, tail = match.group(1), match.group(2), match.group(3)
-        if schema.endswith("__dev"):
+        if schema.endswith("__dev") or schema.startswith("raw_") or schema == "analytics":
             return match.group(0)
         return f"{prefix}{schema}__dev{tail}"
 

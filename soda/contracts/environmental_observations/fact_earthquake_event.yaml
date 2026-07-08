@@ -1,0 +1,25 @@
+dataset: databox/environmental_observations/fact_earthquake_event
+
+columns:
+  - name: earthquake_event_sk
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: source_pipeline
+  - name: source_id
+  - name: event_id
+  - name: magnitude
+  - name: event_time
+  - name: longitude
+  - name: latitude
+  - name: depth_km
+  - name: status
+  - name: loaded_at
+  - name: dlt_load_id
+  - name: dlt_id
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

@@ -35,16 +35,9 @@ OUT_ROOT = REPO_ROOT / "docs" / "dictionary"
 REPO_BLOB_URL = "https://github.com/Doctacon/databox/blob/main"
 
 SCHEMA_DESCRIPTIONS = {
-    "analytics": "Cross-domain marts that join bird, weather, and streamflow signals.",
-    "ebird": "eBird bird-observation domain — intermediate and mart models.",
-    "ebird_staging": "eBird staging views — raw dlt loads with column renames only.",
-    "noaa": "NOAA weather domain — intermediate and mart models.",
-    "noaa_staging": "NOAA staging views — raw dlt loads with column renames only.",
-    "usgs": "USGS streamflow domain — intermediate and mart models.",
-    "usgs_staging": "USGS staging views — raw dlt loads with column renames only.",
-    "usgs_earthquakes": "USGS earthquakes domain — intermediate and mart models.",
-    "usgs_earthquakes_staging": (
-        "USGS earthquakes staging views — raw dlt loads with column renames only."
+    "analytics": "Operational analytics models retained outside the CDM, such as platform health.",
+    "environmental_observations": (
+        "Canonical environmental-observations CDM models generated from the .schema workflow."
     ),
 }
 

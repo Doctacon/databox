@@ -11,10 +11,10 @@ contracts, and orchestrates with Quack-backed DuckDB / MotherDuck.
   from SQLMesh and Soda metadata.
 - **[Lineage](dictionary/lineage.md)** — full model dependency graph rendered
   with Mermaid. Each node links to its dictionary page.
-- **[Metrics](metrics.md)** — semantic metrics layer over the flagship mart
-  (`analytics.fct_species_environment_daily`).
+- **[Metrics](metrics.md)** — semantic metrics layer over the CDM fact model
+  (`environmental_observations.fact_bird_observation`).
 - **[Analytics examples](analytics-examples.md)** — representative queries
-  the flagship mart supports.
+  the CDM model layer supports.
 - **[Contracts](contracts.md)** — Soda quality contract conventions.
 - **[Incremental loading](incremental-loading.md)** — dlt incremental and
   SQLMesh incremental-by-time notes.

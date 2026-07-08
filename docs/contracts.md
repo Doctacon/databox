@@ -50,8 +50,8 @@ The job only runs on `pull_request` events — pushes to `main` have no sensible
 Breaking changes are sometimes the right call — retiring a deprecated column, collapsing a mart, renaming a model after a domain change. When that happens, add an `accept-breaking-change` line to the PR body, one per model:
 
 ```
-accept-breaking-change: ebird.fct_daily_bird_observations
-accept-breaking-change: noaa.fct_daily_weather
+accept-breaking-change: environmental_observations.fact_bird_observation
+accept-breaking-change: environmental_observations.fact_weather_observation
 ```
 
 The token the gate matches on is the contract's `dataset` field (not the file path). The gate prints the full report either way — acknowledged breaking changes are annotated `(ACKED)` in the output so reviewers can still see them at a glance.

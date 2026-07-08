@@ -62,7 +62,7 @@ def _fabricate_materialization_record(
 
 def test_emit_tick_emits_one_runevent_per_materialization() -> None:
     """Ticket acceptance: mocked OL emitter records at least one event."""
-    asset_key = dg.AssetKey(["sqlmesh", "ebird", "stg_ebird_observations"])
+    asset_key = dg.AssetKey(["sqlmesh", "environmental_observations", "fact_bird_observation"])
     ts = datetime(2026, 4, 21, 12, 0, tzinfo=UTC).timestamp()
     record = _fabricate_materialization_record(asset_key, storage_id=42, ts_epoch=ts)
 
@@ -80,10 +80,10 @@ def test_emit_tick_emits_one_runevent_per_materialization() -> None:
     assert mock_client.emit.call_count == 1
     emitted = mock_client.emit.call_args[0][0]
     assert emitted.job.namespace == "databox"
-    assert emitted.job.name == "sqlmesh/ebird/stg_ebird_observations"
+    assert emitted.job.name == "sqlmesh/environmental_observations/fact_bird_observation"
     assert len(emitted.outputs) == 1
     assert emitted.outputs[0].namespace == "databox"
-    assert emitted.outputs[0].name == "sqlmesh/ebird/stg_ebird_observations"
+    assert emitted.outputs[0].name == "sqlmesh/environmental_observations/fact_bird_observation"
     assert result.cursor == "42"
 
 
@@ -91,7 +91,7 @@ def test_emit_tick_advances_cursor_over_many_records() -> None:
     """Cursor must track the highest storage_id seen so next tick resumes cleanly."""
     records = [
         _fabricate_materialization_record(
-            dg.AssetKey(["sqlmesh", "ebird", f"t{i}"]),
+            dg.AssetKey(["sqlmesh", "environmental_observations", f"t{i}"]),
             storage_id=100 + i,
             ts_epoch=1_700_000_000 + i,
         )
@@ -117,12 +117,12 @@ def test_emit_tick_survives_client_exception() -> None:
     """A flaky OL backend must not crash Dagster — warn and continue."""
     records = [
         _fabricate_materialization_record(
-            dg.AssetKey(["sqlmesh", "ebird", "a"]),
+            dg.AssetKey(["sqlmesh", "environmental_observations", "a"]),
             storage_id=1,
             ts_epoch=1_700_000_000,
         ),
         _fabricate_materialization_record(
-            dg.AssetKey(["sqlmesh", "ebird", "b"]),
+            dg.AssetKey(["sqlmesh", "environmental_observations", "b"]),
             storage_id=2,
             ts_epoch=1_700_000_001,
         ),

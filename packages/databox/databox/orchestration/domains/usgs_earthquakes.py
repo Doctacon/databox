@@ -1,7 +1,6 @@
-"""USGS Earthquakes domain — dlt ingestion + SQLMesh marts + Soda checks."""
+"""USGS Earthquakes domain — dlt ingestion assets and source schedule."""
 
 import typing as t
-from datetime import timedelta
 
 import dagster as dg
 from dagster import AssetExecutionContext
@@ -15,12 +14,7 @@ from databox.destinations import (
     prepare_dlt_source,
     quack_ingest_session,
 )
-from databox.orchestration._factories import (
-    SODA_DIR,
-    dlt_translator,
-    freshness_checks,
-    soda_check,
-)
+from databox.orchestration._factories import dlt_translator
 
 
 @dlt_assets(
@@ -45,27 +39,8 @@ def usgs_earthquakes_dlt_assets(
 
 
 dlt_asset_keys = [spec.key for spec in usgs_earthquakes_dlt_assets.specs]
-
-sqlmesh_asset_keys = [
-    dg.AssetKey(["sqlmesh", "usgs_earthquakes_staging", "stg_usgs_earthquakes_events"]),
-    dg.AssetKey(["sqlmesh", "usgs_earthquakes", "fct_daily_earthquakes"]),
-]
-
-FRESHNESS_SLAS: dict[dg.AssetKey, timedelta] = {
-    dg.AssetKey(["sqlmesh", "usgs_earthquakes", "fct_daily_earthquakes"]): timedelta(hours=30),
-}
-
-asset_checks: list[dg.AssetChecksDefinition] = [
-    soda_check(
-        dg.AssetKey(["sqlmesh", "usgs_earthquakes_staging", "stg_usgs_earthquakes_events"]),
-        SODA_DIR / "contracts/usgs_earthquakes_staging/stg_usgs_earthquakes_events.yaml",
-    ),
-    soda_check(
-        dg.AssetKey(["sqlmesh", "usgs_earthquakes", "fct_daily_earthquakes"]),
-        SODA_DIR / "contracts/usgs_earthquakes/fct_daily_earthquakes.yaml",
-    ),
-    *freshness_checks(FRESHNESS_SLAS),
-]
+sqlmesh_asset_keys: list[dg.AssetKey] = []
+asset_checks: list[dg.AssetChecksDefinition] = []
 
 ingest_job = dg.define_asset_job(
     name="usgs_earthquakes_ingest",
@@ -75,7 +50,7 @@ ingest_job = dg.define_asset_job(
 
 daily_pipeline = dg.define_asset_job(
     name="usgs_earthquakes_daily_pipeline",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, *sqlmesh_asset_keys),
+    selection=dg.AssetSelection.assets(*dlt_asset_keys),
     executor_def=dg.in_process_executor,
 )
 

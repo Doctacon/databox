@@ -2,7 +2,8 @@
 
 Usage:
     python scripts/schema_gate.py --base origin/main
-    python scripts/schema_gate.py --base origin/main --accept ebird.fct_daily_bird_observations
+    python scripts/schema_gate.py --base origin/main \
+      --accept environmental_observations.fact_bird_observation
 
 Exit: 0 clean or acked · 1 unacked breaking · 2 invocation error.
 See docs/contracts.md for the classifier and acknowledgement protocol.

@@ -7,11 +7,9 @@ loads clean on day one. Fill in as you add resources:
      `@dlt.source` that yields them.
   2. Build `{{ name }}_dlt_assets` here via `@dlt_assets(...)` (see usgs.py
      for the canonical shape), then populate `dlt_asset_keys`.
-  3. Add SQLMesh models under `transforms/main/models/{{ name }}/`, enumerate
-     their keys in `sqlmesh_asset_keys`.
-  4. Add Soda contracts under `soda/contracts/{{ name }}{,_staging}/`,
-     register them in `asset_checks`.
-  5. Define `daily_pipeline`, `schedule`, and wire them into `definitions.py`.
+  3. Keep `sqlmesh_asset_keys` empty for source domains; CDM SQLMesh assets
+     are owned by the cross-source CDM model layer after `.schema` review.
+  4. Replace the placeholder jobs/schedule below when the source is real.
 
 Until then, the empty splats below are no-ops — Dagster sees the module.
 """
@@ -23,3 +21,17 @@ import dagster as dg
 dlt_asset_keys: list[dg.AssetKey] = []
 sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []
+
+ingest_job = dg.define_asset_job(
+    name="{{ name }}_ingest",
+    selection=dg.AssetSelection.assets(*dlt_asset_keys),
+    executor_def=dg.in_process_executor,
+)
+
+daily_pipeline = dg.define_asset_job(
+    name="{{ name }}_daily_pipeline",
+    selection=dg.AssetSelection.assets(*dlt_asset_keys),
+    executor_def=dg.in_process_executor,
+)
+
+schedule = dg.ScheduleDefinition(job=daily_pipeline, cron_schedule="0 6 * * *")

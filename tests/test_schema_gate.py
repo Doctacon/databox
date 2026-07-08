@@ -147,19 +147,22 @@ def test_ack_from_env_only() -> None:
 
 
 def test_ack_from_pr_body_single() -> None:
-    body = "Some PR summary\n\naccept-breaking-change: ebird.fct_daily_bird_observations\n"
-    assert acknowledgements(body, None) == {"ebird.fct_daily_bird_observations"}
+    body = (
+        "Some PR summary\n\n"
+        "accept-breaking-change: environmental_observations.fact_bird_observation\n"
+    )
+    assert acknowledgements(body, None) == {"environmental_observations.fact_bird_observation"}
 
 
 def test_ack_from_pr_body_multiple() -> None:
     body = (
         "Dropping two columns intentionally:\n"
-        "accept-breaking-change: ebird.fct_daily_bird_observations\n"
-        "accept-breaking-change: noaa.fct_daily_weather\n"
+        "accept-breaking-change: environmental_observations.fact_bird_observation\n"
+        "accept-breaking-change: environmental_observations.fact_weather_observation\n"
     )
     assert acknowledgements(body, None) == {
-        "ebird.fct_daily_bird_observations",
-        "noaa.fct_daily_weather",
+        "environmental_observations.fact_bird_observation",
+        "environmental_observations.fact_weather_observation",
     }
 
 

@@ -4,8 +4,8 @@
 
 ## Context
 
-The platform ingests from three sources (eBird, NOAA, USGS) with distinct
-staging layers. An earlier iteration used one SQLMesh project per source
+The platform ingests from multiple sources (eBird, NOAA, USGS, USGS earthquakes)
+with one CDM-oriented SQLMesh transform layer. An earlier iteration used one SQLMesh project per source
 under `transformations/ebird/`, `transformations/noaa/`, `transformations/usgs/`,
 each with its own `config.yaml` and its own state.
 
@@ -27,15 +27,15 @@ live.
 ## Decision
 
 Collapse all source-specific projects into a **single SQLMesh project**
-at `transforms/main/`. Models are namespaced by source schema
-(`ebird.*`, `ebird_staging.*`, `noaa.*`, `usgs.*`, `analytics.*`) but share
-one project, one state, one `sqlmesh plan`.
+at `transforms/main/`. Models are namespaced by SQLMesh schema
+(`environmental_observations.*` for the CDM and `analytics.*` for operational
+health) but share one project, one state, one `sqlmesh plan`.
 
 ## Consequences
 
 **Positive:**
-- One DAG. Cross-domain marts (`analytics.fct_species_environment_daily`)
-  are first-class, not a bolt-on.
+- One DAG. The cross-domain CDM (`environmental_observations.*`) is
+  first-class, not a bolt-on.
 - One `sqlmesh plan` shows every downstream impact of a change,
   regardless of source boundary.
 - One environment promotion gates the entire graph consistently.
@@ -51,6 +51,6 @@ one project, one state, one `sqlmesh plan`.
   contracts between them) might be worth the state-management cost.
 
 **Neutral:**
-- Folder structure under `transforms/main/models/` still organizes by
-  source for humans — the single-project decision is about SQLMesh state,
+- Folder structure under `transforms/main/models/` can organize by CDM domain
+  or source for humans — the single-project decision is about SQLMesh state,
   not repo layout.
