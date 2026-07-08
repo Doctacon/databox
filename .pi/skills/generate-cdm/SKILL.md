@@ -1,0 +1,1 @@
+../../../.10x/skills/generate-cdm/SKILL.md
