@@ -1,0 +1,290 @@
+{
+  "_version": "1.0",
+  "_name": "environmental_observations",
+  "BirdObservation": {
+    "description": "Individual eBird observation records with species, observation date/time, location, count, and region fields.",
+    "use_cases": [
+      "date/location analysis across environmental observations"
+    ],
+    "references": [
+      "recent_observations",
+      "notable_observations",
+      "observation",
+      "species"
+    ],
+    "tables": [
+      {
+        "table": "recent_observations",
+        "source_pipeline": "ebird_api",
+        "role": "primary"
+      },
+      {
+        "table": "notable_observations",
+        "source_pipeline": "ebird_api",
+        "role": "secondary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "Species": {
+    "description": "eBird species codes, taxonomy, and alternate common/scientific/banding code rows present in the eBird schema.",
+    "use_cases": [
+      "date/location analysis across environmental observations"
+    ],
+    "references": [
+      "species_list",
+      "taxonomy",
+      "species_code",
+      "sci_name",
+      "com_name"
+    ],
+    "tables": [
+      {
+        "table": "taxonomy",
+        "source_pipeline": "ebird_api",
+        "role": "primary"
+      },
+      {
+        "table": "species_list",
+        "source_pipeline": "ebird_api",
+        "role": "secondary"
+      },
+      {
+        "table": "taxonomy__com_name_codes",
+        "source_pipeline": "ebird_api",
+        "role": "child"
+      },
+      {
+        "table": "taxonomy__sci_name_codes",
+        "source_pipeline": "ebird_api",
+        "role": "child"
+      },
+      {
+        "table": "taxonomy__banding_codes",
+        "source_pipeline": "ebird_api",
+        "role": "child"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "BirdHotspot": {
+    "description": "eBird hotspot location records with hotspot id, name, lat/lng, region codes, and observation/checklist totals.",
+    "use_cases": [
+      "date/location analysis across environmental observations"
+    ],
+    "references": [
+      "hotspot",
+      "loc_id",
+      "loc_name"
+    ],
+    "tables": [
+      {
+        "table": "hotspots",
+        "source_pipeline": "ebird_api",
+        "role": "primary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "RegionDailyStats": {
+    "description": "Daily eBird regional counts for checklists, contributors, and species by region and date parts.",
+    "use_cases": [
+      "date/location analysis across environmental observations"
+    ],
+    "references": [
+      "region_stats",
+      "region_code",
+      "num_checklists",
+      "num_contributors",
+      "num_species"
+    ],
+    "tables": [
+      {
+        "table": "region_stats",
+        "source_pipeline": "ebird_api",
+        "role": "primary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "WeatherObservation": {
+    "description": "NOAA daily weather observation values by date, datatype, station, value, and source fields.",
+    "use_cases": [
+      "date/location analysis across environmental observations"
+    ],
+    "references": [
+      "daily_weather",
+      "weather",
+      "datatype",
+      "station"
+    ],
+    "tables": [
+      {
+        "table": "daily_weather",
+        "source_pipeline": "noaa_api",
+        "role": "primary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "WeatherStation": {
+    "description": "NOAA station metadata with station id, name, lat/lng, elevation, and coverage dates.",
+    "use_cases": [
+      "date/location analysis across environmental observations"
+    ],
+    "references": [
+      "stations",
+      "station",
+      "latitude",
+      "longitude"
+    ],
+    "tables": [
+      {
+        "table": "stations",
+        "source_pipeline": "noaa_api",
+        "role": "primary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "StreamflowObservation": {
+    "description": "USGS daily water values by site, parameter code, observation date, value, and unit fields.",
+    "use_cases": [
+      "date/location analysis across environmental observations"
+    ],
+    "references": [
+      "daily_values",
+      "streamflow",
+      "site_no",
+      "parameter_cd",
+      "observation_date"
+    ],
+    "tables": [
+      {
+        "table": "daily_values",
+        "source_pipeline": "usgs_api",
+        "role": "primary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "StreamgageSite": {
+    "description": "USGS site metadata with site number, name, lat/lng, hydrologic unit, drainage area, and state/county codes.",
+    "use_cases": [
+      "date/location analysis across environmental observations"
+    ],
+    "references": [
+      "sites",
+      "site_no",
+      "huc_cd",
+      "dec_lat_va",
+      "dec_long_va"
+    ],
+    "tables": [
+      {
+        "table": "sites",
+        "source_pipeline": "usgs_api",
+        "role": "primary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "EarthquakeEvent": {
+    "description": "USGS earthquake event records with id, magnitude, event time, location coordinates, depth, status, and event type fields.",
+    "use_cases": [
+      "date/location analysis across environmental observations"
+    ],
+    "references": [
+      "events",
+      "earthquake",
+      "magnitude",
+      "event_time",
+      "longitude",
+      "latitude"
+    ],
+    "tables": [
+      {
+        "table": "events",
+        "source_pipeline": "usgs_earthquakes_api",
+        "role": "primary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "_excluded": [
+    {
+      "table": "_dlt_version",
+      "source_pipeline": "ebird_api",
+      "reason": "dlt internal schema version table"
+    },
+    {
+      "table": "_dlt_loads",
+      "source_pipeline": "ebird_api",
+      "reason": "dlt internal load tracking table"
+    },
+    {
+      "table": "_dlt_pipeline_state",
+      "source_pipeline": "ebird_api",
+      "reason": "dlt internal pipeline state table"
+    },
+    {
+      "table": "_dlt_version",
+      "source_pipeline": "noaa_api",
+      "reason": "dlt internal schema version table"
+    },
+    {
+      "table": "_dlt_loads",
+      "source_pipeline": "noaa_api",
+      "reason": "dlt internal load tracking table"
+    },
+    {
+      "table": "_dlt_pipeline_state",
+      "source_pipeline": "noaa_api",
+      "reason": "dlt internal pipeline state table"
+    },
+    {
+      "table": "datasets",
+      "source_pipeline": "noaa_api",
+      "reason": "NOAA source dataset metadata, not a date/location observation or location entity"
+    },
+    {
+      "table": "_dlt_version",
+      "source_pipeline": "usgs_api",
+      "reason": "dlt internal schema version table"
+    },
+    {
+      "table": "_dlt_loads",
+      "source_pipeline": "usgs_api",
+      "reason": "dlt internal load tracking table"
+    },
+    {
+      "table": "_dlt_pipeline_state",
+      "source_pipeline": "usgs_api",
+      "reason": "dlt internal pipeline state table"
+    },
+    {
+      "table": "_dlt_version",
+      "source_pipeline": "usgs_earthquakes_api",
+      "reason": "dlt internal schema version table"
+    },
+    {
+      "table": "_dlt_loads",
+      "source_pipeline": "usgs_earthquakes_api",
+      "reason": "dlt internal load tracking table"
+    },
+    {
+      "table": "_dlt_pipeline_state",
+      "source_pipeline": "usgs_earthquakes_api",
+      "reason": "dlt internal pipeline state table"
+    }
+  ]
+}

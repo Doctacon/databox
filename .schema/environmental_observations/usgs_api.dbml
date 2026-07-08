@@ -1,0 +1,61 @@
+Table "_dlt_version" [note: 'excluded: dlt internal schema version table'] {
+  "version" bigint [not null]
+  "engine_version" bigint [not null]
+  "inserted_at" timestamp [not null]
+  "schema_name" text [not null]
+  "version_hash" text [not null]
+  "schema" text [not null]
+}
+
+Table "_dlt_loads" [note: 'excluded: dlt internal load tracking table'] {
+  "load_id" text [not null]
+  "schema_name" text
+  "status" bigint [not null]
+  "inserted_at" timestamp [not null]
+  "schema_version_hash" text
+}
+
+Table "daily_values" [note: 'concept: StreamflowObservation | role: primary'] {
+  "site_no" text [primary_key, not null]
+  "site_name" text
+  "latitude" double
+  "longitude" double
+  "parameter_cd" text [primary_key, not null]
+  "parameter_name" text
+  "unit_cd" text
+  "observation_date" text [primary_key, not null]
+  "value" double
+  "qualifier" text
+  "_state_cd" text
+  "_loaded_at" timestamp
+  "_dlt_load_id" text [not null]
+  "_dlt_id" text [not null, unique, row_key]
+}
+
+Table "sites" [note: 'concept: StreamgageSite | role: primary'] {
+  "site_no" text [primary_key, not null]
+  "site_name" text
+  "site_type" text
+  "latitude" double
+  "longitude" double
+  "county_cd" text
+  "state_cd" text
+  "huc_cd" text
+  "drain_area_va" double
+  "begin_date" text
+  "end_date" text
+  "_loaded_at" timestamp
+  "_dlt_load_id" text [not null]
+  "_dlt_id" text [not null, unique, row_key]
+}
+
+Table "_dlt_pipeline_state" [note: 'excluded: dlt internal pipeline state table'] {
+  "version" bigint [not null]
+  "engine_version" bigint [not null]
+  "pipeline_name" text [not null]
+  "state" text [not null]
+  "created_at" timestamp [not null]
+  "version_hash" text
+  "_dlt_load_id" text [not null]
+  "_dlt_id" text [not null, unique, row_key]
+}
