@@ -1,4 +1,10 @@
-import type { ApiError, CreatePlanInput, PlanSummary, TripPlanDetail } from "./types";
+import type {
+  ApiError,
+  CreatePlanInput,
+  LocationSuggestion,
+  PlanSummary,
+  TripPlanDetail,
+} from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -11,6 +17,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(error.error?.message || "The local service could not complete the request");
   }
   return body as T;
+}
+
+export async function searchLocations(
+  query: string,
+  signal?: AbortSignal,
+): Promise<LocationSuggestion[]> {
+  const body = await request<{ locations: LocationSuggestion[] }>(
+    `/api/locations?q=${encodeURIComponent(query)}`,
+    { signal },
+  );
+  return body.locations;
 }
 
 export async function listPlans(): Promise<PlanSummary[]> {

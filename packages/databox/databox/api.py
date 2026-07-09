@@ -4,19 +4,31 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, cast
+from urllib.parse import urlsplit
 
 import duckdb
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from databox.agents.birding_trip_planner import TripRequest, run_trip_planner_agent_async
+from databox.agent_tools.open_meteo_geocoding import (
+    ArizonaLocationSuggestion,
+    OpenMeteoGeocodingError,
+    search_arizona_locations,
+)
+from databox.agents.birding_trip_planner import (
+    NormalizedLocation,
+    TripRequest,
+    resolve_arizona_location,
+    run_trip_planner_agent_async,
+)
 from databox.agents.cloudflare_workers_ai import (
     CLOUDFLARE_WORKERS_AI_MODEL,
     CloudflareAuthenticationError,
@@ -34,10 +46,21 @@ JsonGetter = Callable[[str, Mapping[str, object]], dict[str, Any]]
 JsonObject = dict[str, Any]
 
 
+class LocationSelectionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    display_name: str = Field(min_length=1, max_length=300)
+    latitude: float
+    longitude: float
+    timezone: str = Field(min_length=1, max_length=64)
+    region_code: Literal["US-AZ"]
+
+
 class CreateTripPlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     location: str = Field(min_length=1, max_length=300)
+    location_selection: LocationSelectionRequest | None = None
     start_at: datetime
     duration_minutes: int = Field(gt=0, le=1440)
     skill_level: str | None = Field(default=None, max_length=64)
@@ -81,6 +104,18 @@ class HealthResponse(BaseModel):
     model_ready: bool
 
 
+class LocationSuggestionResponse(BaseModel):
+    display_name: str
+    latitude: float
+    longitude: float
+    timezone: str
+    region_code: Literal["US-AZ"]
+
+
+class LocationSearchResponse(BaseModel):
+    locations: list[LocationSuggestionResponse]
+
+
 class PlanSummaryResponse(BaseModel):
     trip_plan_id: str
     requested_location: str
@@ -98,6 +133,7 @@ class TripPlanResponse(PlanSummaryResponse):
     latitude: float | None
     longitude: float | None
     region_code: str | None
+    timezone: str | None
     skill_level: str | None
     constraints_text: str | None
     field_plan_text: str | None
@@ -129,6 +165,23 @@ class EvidenceResponse(BaseModel):
     caveats: list[str]
 
 
+class MediaResponse(BaseModel):
+    evidence_id: str
+    recommendation_id: str | None
+    source_record_id: str | None
+    recording_id: str | None
+    status: str
+    species_name: str | None
+    recording_type: str | None
+    quality: str | None
+    recordist: str | None
+    license_text: str
+    license_url: str | None
+    source_url: str | None
+    audio_url: str | None
+    caveats: list[str]
+
+
 class ToolTraceResponse(BaseModel):
     tool_trace_id: str
     step_order: int
@@ -146,7 +199,7 @@ class TripPlanDetailResponse(BaseModel):
     recommendations: list[RecommendationResponse]
     evidence: list[EvidenceResponse]
     weather: EvidenceResponse | None
-    media: list[EvidenceResponse]
+    media: list[MediaResponse]
     tool_traces: list[ToolTraceResponse]
 
 
@@ -178,6 +231,149 @@ def _json_strings(value: object) -> list[str]:
     if not isinstance(parsed, list):
         return []
     return [item for item in parsed if isinstance(item, str)]
+
+
+_XENO_CANTO_HOSTS = frozenset({"xeno-canto.org", "www.xeno-canto.org"})
+_XENO_RECORDING_ID = re.compile(r"^(?:XC)?(\d+)$")
+_XENO_SOURCE_PATH = re.compile(r"^/(\d+)/?$")
+_XENO_AUDIO_PATH = re.compile(r"^/(\d+)/download/?$")
+_CREATIVE_COMMONS_HOSTS = frozenset({"creativecommons.org", "www.creativecommons.org"})
+_CREATIVE_COMMONS_PATH = re.compile(r"^/licenses/([a-z0-9-]+)/([0-9.]+)/?$")
+_UNAVAILABLE_VALUES = frozenset({"unavailable", "not available", "none", "null", "n/a"})
+
+
+def _text(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    result = value.strip()
+    if not result or result.lower() in _UNAVAILABLE_VALUES:
+        return None
+    return result
+
+
+def _canonical_digits(value: str) -> str:
+    return value.lstrip("0") or "0"
+
+
+def _recording_id(row: EvidenceResponse) -> str | None:
+    values = (
+        row.source_record_id,
+        row.summary.get("source_record_id"),
+        row.summary.get("recording_id"),
+        row.payload.get("source_record_id"),
+        row.payload.get("recording_id"),
+    )
+    normalized: set[str] = set()
+    found = False
+    for value in values:
+        if value is None:
+            continue
+        found = True
+        if not isinstance(value, str):
+            return None
+        match = _XENO_RECORDING_ID.fullmatch(value)
+        if match is None:
+            return None
+        normalized.add(_canonical_digits(match.group(1)))
+    return normalized.pop() if found and len(normalized) == 1 else None
+
+
+def _safe_xeno_canto_url(
+    value: object, *, kind: Literal["source", "audio"]
+) -> tuple[str, str] | None:
+    raw = _text(value)
+    if raw is None:
+        return None
+    try:
+        parsed = urlsplit(raw)
+        if parsed.port is not None:
+            return None
+    except ValueError:
+        return None
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in _XENO_CANTO_HOSTS
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    match = (_XENO_SOURCE_PATH if kind == "source" else _XENO_AUDIO_PATH).fullmatch(parsed.path)
+    if match is None:
+        return None
+    return raw, match.group(1)
+
+
+def _media_url(
+    row: EvidenceResponse, *, field: str, kind: Literal["source", "audio"]
+) -> tuple[str, str] | None:
+    supplied = [
+        value for value in (row.summary.get(field), row.payload.get(field)) if value is not None
+    ]
+    if not supplied:
+        return None
+    validated = [_safe_xeno_canto_url(value, kind=kind) for value in supplied]
+    if any(value is None for value in validated):
+        return None
+    safe = cast(list[tuple[str, str]], validated)
+    if len({value[1] for value in safe}) != 1:
+        return None
+    return safe[0]
+
+
+def _license(value: object) -> tuple[str, str | None]:
+    raw = _text(value)
+    if raw is None:
+        return "License not reported", None
+    candidate = f"https:{raw}" if raw.startswith("//") else raw
+    try:
+        parsed = urlsplit(candidate)
+        if parsed.port is not None:
+            return "License link unavailable", None
+    except ValueError:
+        return "License link unavailable", None
+    if parsed.scheme or parsed.netloc:
+        match = _CREATIVE_COMMONS_PATH.fullmatch(parsed.path)
+        if (
+            parsed.scheme == "https"
+            and parsed.hostname in _CREATIVE_COMMONS_HOSTS
+            and parsed.username is None
+            and parsed.password is None
+            and not parsed.query
+            and not parsed.fragment
+            and match is not None
+        ):
+            return f"CC {match.group(1).upper()} {match.group(2)}", candidate
+        return "License link unavailable", None
+    return raw, None
+
+
+def _media_response(row: EvidenceResponse) -> MediaResponse:
+    recording_id = _recording_id(row)
+    source = _media_url(row, field="recording_url", kind="source")
+    audio = _media_url(row, field="audio_file_url", kind="audio")
+    source_matches = recording_id is not None and source is not None and source[1] == recording_id
+    audio_matches = recording_id is not None and audio is not None and audio[1] == recording_id
+    license_text, license_url = _license(row.summary.get("license") or row.payload.get("license"))
+    return MediaResponse(
+        evidence_id=row.evidence_id,
+        recommendation_id=row.recommendation_id,
+        source_record_id=row.source_record_id,
+        recording_id=recording_id,
+        status=row.status,
+        species_name=_text(row.summary.get("english_name"))
+        or _text(row.payload.get("english_name")),
+        recording_type=_text(row.summary.get("recording_type"))
+        or _text(row.payload.get("recording_type")),
+        quality=_text(row.summary.get("quality")) or _text(row.payload.get("quality")),
+        recordist=_text(row.summary.get("recordist")) or _text(row.payload.get("recordist")),
+        license_text=license_text,
+        license_url=license_url,
+        source_url=source[0] if source_matches and source is not None else None,
+        audio_url=audio[0] if audio_matches and audio is not None else None,
+        caveats=row.caveats,
+    )
 
 
 def _rows(cursor: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
@@ -239,6 +435,7 @@ def _plan_detail(
         return None
     plan_row = plans[0]
     plan_row["caveats"] = _json_strings(plan_row.pop("caveats_json", None))
+    plan_row["timezone"] = None
     plan = TripPlanResponse.model_validate(plan_row)
 
     recommendation_rows = _rows(
@@ -296,7 +493,15 @@ def _plan_detail(
     traces = [ToolTraceResponse.model_validate(row) for row in trace_rows]
 
     weather = next((row for row in evidence if row.source == "open_meteo"), None)
-    media = [row for row in evidence if row.source == "xeno_canto" and row.status == "available"]
+    if weather is not None:
+        weather_timezone = weather.payload.get("timezone")
+        if isinstance(weather_timezone, str):
+            plan.timezone = weather_timezone
+    media = [
+        _media_response(row)
+        for row in evidence
+        if row.source == "xeno_canto" and row.status == "available"
+    ]
     return TripPlanDetailResponse(
         plan=plan,
         recommendations=recommendations,
@@ -314,11 +519,36 @@ def _is_database_busy(exc: BaseException) -> bool:
     )
 
 
+def _selected_location(payload: CreateTripPlanRequest) -> NormalizedLocation | None:
+    selected = payload.location_selection
+    if selected is None:
+        return None
+    return NormalizedLocation(
+        requested_location=payload.location,
+        normalized_location_name=selected.display_name,
+        latitude=selected.latitude,
+        longitude=selected.longitude,
+        region_code=selected.region_code,
+        timezone=selected.timezone,
+    )
+
+
+def _suggestion_response(suggestion: ArizonaLocationSuggestion) -> LocationSuggestionResponse:
+    return LocationSuggestionResponse(
+        display_name=suggestion.display_name,
+        latitude=suggestion.latitude,
+        longitude=suggestion.longitude,
+        timezone=suggestion.timezone,
+        region_code="US-AZ",
+    )
+
+
 def create_app(
     *,
     database_path: str | None = None,
     model_client: TripPlanModelClient | None = None,
     weather_getter: JsonGetter | None = None,
+    geocoding_getter: JsonGetter | None = None,
     static_dir: Path | None = None,
 ) -> FastAPI:
     """Create the local API; injected clients keep tests offline and deterministic."""
@@ -358,6 +588,26 @@ def create_app(
             database_ready=database_ready,
             model_ready=model_ready,
         )
+
+    @app.get(
+        "/api/locations",
+        response_model=LocationSearchResponse,
+        responses={503: {"model": ErrorResponse}},
+    )
+    async def search_locations(
+        q: str = Query(min_length=2, max_length=100),
+    ) -> LocationSearchResponse | JSONResponse:
+        try:
+            locations = search_arizona_locations(q, http_get_json=geocoding_getter)
+            return LocationSearchResponse(
+                locations=[_suggestion_response(item) for item in locations]
+            )
+        except OpenMeteoGeocodingError:
+            return _error(
+                "geocoder_unavailable",
+                "Location search is temporarily unavailable; enter valid Arizona coordinates",
+                503,
+            )
 
     @app.get(
         "/api/trip-plans",
@@ -424,6 +674,12 @@ def create_app(
     async def create_trip_plan(
         payload: CreateTripPlanRequest,
     ) -> TripPlanDetailResponse | JSONResponse:
+        try:
+            resolved_location = resolve_arizona_location(
+                payload.location, _selected_location(payload)
+            )
+        except ValueError as exc:
+            return _error("invalid_location", str(exc), 400)
         if app.state.plan_lock.locked():
             return _error("planner_busy", "A trip plan is already running", 409)
         async with app.state.plan_lock:
@@ -439,6 +695,8 @@ def create_app(
                         duration_minutes=payload.duration_minutes,
                         skill_level=payload.skill_level,
                         constraints_text=payload.constraints,
+                        timezone=resolved_location.timezone,
+                        resolved_location=resolved_location,
                     ),
                     model_client=model_client,
                     weather_getter=weather_getter,

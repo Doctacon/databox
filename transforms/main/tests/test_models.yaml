@@ -346,6 +346,16 @@ test_birding_agent_recent_observation_evidence:
 test_birding_agent_gbif_occurrence_evidence:
   model: birding_agent.gbif_occurrence_evidence
   inputs:
+    environmental_observations.dim_species:
+      columns:
+        species_sk: text
+        species_natural_key: text
+        source_pipeline: text
+        species_code: text
+        common_name: text
+        scientific_name: text
+        loaded_at: timestamp
+      rows: []
     raw_gbif.occurrences:
       rows:
         - key: 9001
@@ -400,7 +410,10 @@ test_birding_agent_gbif_occurrence_evidence:
           occurrence_id: "occ-9001"
           dataset_key: "dataset-1"
           publishing_org_key: "org-1"
+          species_natural_key: "cardinalis cardinalis"
+          species_code: null
           scientific_name: "Cardinalis cardinalis"
+          source_scientific_name: "Cardinalis cardinalis"
           accepted_scientific_name: "Cardinalis cardinalis"
           common_name: "Northern Cardinal"
           family: "Cardinalidae"
@@ -435,6 +448,125 @@ test_birding_agent_gbif_occurrence_evidence:
           loaded_at: "2025-07-21 10:00:00"
           dlt_load_id: "load-gbif"
           dlt_id: "row-gbif"
+
+test_birding_agent_gbif_authority_free_conformance:
+  model: birding_agent.gbif_occurrence_evidence
+  inputs:
+    environmental_observations.dim_species:
+      rows:
+        - species_sk: "species-western-bluebird-ebird"
+          species_natural_key: "sialia mexicana"
+          source_pipeline: "ebird_api"
+          species_code: "wesblu"
+          common_name: "Western Bluebird"
+          scientific_name: "Sialia mexicana"
+          loaded_at: "2025-07-20T10:00:00+00:00"
+        - species_sk: "species-western-bluebird-gbif"
+          species_natural_key: "sialia mexicana"
+          source_pipeline: "gbif_api"
+          common_name: null
+          scientific_name: "Sialia mexicana Swainson, 1832"
+          loaded_at: "2025-07-21T10:00:00+00:00"
+        - species_sk: "species-gila-woodpecker"
+          species_natural_key: "melanerpes uropygialis"
+          source_pipeline: "ebird_api"
+          species_code: "gilwoo"
+          common_name: "Gila Woodpecker"
+          scientific_name: "Melanerpes uropygialis"
+          loaded_at: "2025-07-20T10:00:00+00:00"
+        - species_sk: "species-saw-whet-owl"
+          species_natural_key: "aegolius acadicus"
+          source_pipeline: "ebird_api"
+          species_code: "nswowl"
+          common_name: "Northern Saw-whet Owl"
+          scientific_name: "Aegolius acadicus"
+          loaded_at: "2025-07-20T10:00:00+00:00"
+    raw_gbif.occurrences:
+      columns:
+        key: bigint
+        gbif_id: text
+        occurrence_id: text
+        dataset_key: text
+        publishing_org_key: text
+        scientific_name: text
+        accepted_scientific_name: text
+        vernacular_name: text
+        family: text
+        genus: text
+        species: text
+        taxon_rank: text
+        taxon_key: bigint
+        accepted_taxon_key: bigint
+        decimal_latitude: double
+        decimal_longitude: double
+        coordinate_uncertainty_in_meters: double
+        country: text
+        country_code: text
+        state_province: text
+        locality: text
+        event_date: text
+        year: bigint
+        month: bigint
+        day: bigint
+        basis_of_record: text
+        occurrence_status: text
+        establishment_means: text
+        license: text
+        references: text
+        last_interpreted: text
+        last_crawled: text
+        last_parsed: text
+        _source_url: text
+        _query_country_code: text
+        _query_state_province: text
+        _query_taxon_key: bigint
+        _loaded_at: timestamp
+        _dlt_load_id: text
+        _dlt_id: text
+      rows:
+        - key: 9101
+          scientific_name: "Sialia occidentalis Townsend, 1837"
+          accepted_scientific_name: "Sialia mexicana Swainson, 1832"
+          species: "Sialia mexicana"
+          _loaded_at: "2025-07-21T10:00:00+00:00"
+        - key: 9102
+          scientific_name: "Melanerpes uropygialis (S.F.Baird, 1854)"
+          accepted_scientific_name: "Melanerpes uropygialis (S.F.Baird, 1854)"
+          species: "Melanerpes uropygialis"
+          _loaded_at: "2025-07-21T10:00:00+00:00"
+        - key: 9103
+          scientific_name: "Aegolius acadicus (J.F.Gmelin, 1788)"
+          accepted_scientific_name: "Aegolius acadicus (J.F.Gmelin, 1788)"
+          species: "Aegolius acadicus"
+          _loaded_at: "2025-07-21T10:00:00+00:00"
+  outputs:
+    partial: true
+    query:
+      rows:
+        - occurrence_evidence_id: "10e00afac8f43254fbeaac7262630f4b"
+          source_record_id: "9101"
+          species_natural_key: "sialia mexicana"
+          species_code: "wesblu"
+          scientific_name: "Sialia mexicana"
+          source_scientific_name: "Sialia occidentalis Townsend, 1837"
+          accepted_scientific_name: "Sialia mexicana Swainson, 1832"
+          common_name: "Western Bluebird"
+        - occurrence_evidence_id: "1cce72f119632cf20e59aa484255ff19"
+          source_record_id: "9102"
+          species_natural_key: "melanerpes uropygialis"
+          species_code: "gilwoo"
+          scientific_name: "Melanerpes uropygialis"
+          source_scientific_name: "Melanerpes uropygialis (S.F.Baird, 1854)"
+          accepted_scientific_name: "Melanerpes uropygialis (S.F.Baird, 1854)"
+          common_name: "Gila Woodpecker"
+        - occurrence_evidence_id: "45f65757c7aa82aea4b1bd1fce98bcbb"
+          source_record_id: "9103"
+          species_natural_key: "aegolius acadicus"
+          species_code: "nswowl"
+          scientific_name: "Aegolius acadicus"
+          source_scientific_name: "Aegolius acadicus (J.F.Gmelin, 1788)"
+          accepted_scientific_name: "Aegolius acadicus (J.F.Gmelin, 1788)"
+          common_name: "Northern Saw-whet Owl"
 
 test_birding_agent_xeno_canto_media_evidence:
   model: birding_agent.xeno_canto_media_evidence

@@ -20,6 +20,7 @@ graph LR
     n13["environmental_observations.fact_region_daily_stats"]
     n14["environmental_observations.fact_streamflow_observation"]
     n15["environmental_observations.fact_weather_observation"]
+    n6 --> n1
     n5 --> n2
     n6 --> n2
     n9 --> n2

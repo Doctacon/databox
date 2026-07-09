@@ -336,7 +336,9 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
             occurrence_evidence_id TEXT,
             source_table TEXT,
             source_record_id TEXT,
+            species_code TEXT,
             scientific_name TEXT,
+            source_scientific_name TEXT,
             accepted_scientific_name TEXT,
             common_name TEXT,
             family TEXT,
@@ -360,13 +362,15 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(
         """
         INSERT INTO birding_agent.gbif_occurrence_evidence
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             "gbif-1",
             "raw_gbif.occurrences",
             "G1",
+            "zthawk",
             "Buteo albonotatus",
+            "Buteo albonotatus Kaup, 1847",
             "Buteo albonotatus",
             "Zone-tailed Hawk",
             "Accipitridae",

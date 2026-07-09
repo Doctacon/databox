@@ -21,6 +21,7 @@ export interface TripPlan extends PlanSummary {
   latitude: number | null;
   longitude: number | null;
   region_code: string | null;
+  timezone: string | null;
   skill_level: string | null;
   constraints_text: string | null;
   field_plan_text: string | null;
@@ -52,6 +53,23 @@ export interface Evidence {
   caveats: string[];
 }
 
+export interface Media {
+  evidence_id: string;
+  recommendation_id: string | null;
+  source_record_id: string | null;
+  recording_id: string | null;
+  status: string;
+  species_name: string | null;
+  recording_type: string | null;
+  quality: string | null;
+  recordist: string | null;
+  license_text: string;
+  license_url: string | null;
+  source_url: string | null;
+  audio_url: string | null;
+  caveats: string[];
+}
+
 export interface ToolTrace {
   tool_trace_id: string;
   step_order: number;
@@ -69,12 +87,21 @@ export interface TripPlanDetail {
   recommendations: Recommendation[];
   evidence: Evidence[];
   weather: Evidence | null;
-  media: Evidence[];
+  media: Media[];
   tool_traces: ToolTrace[];
+}
+
+export interface LocationSuggestion {
+  display_name: string;
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  region_code: "US-AZ";
 }
 
 export interface CreatePlanInput {
   location: string;
+  location_selection?: LocationSuggestion;
   start_at: string;
   duration_minutes: number;
   skill_level?: string;

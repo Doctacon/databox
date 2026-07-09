@@ -20,7 +20,7 @@ Planner-ready SQL interfaces for the Birding Trip Copilot agent and local produc
 
 | Model | Contract | Description |
 | --- | --- | --- |
-| [`birding_agent.gbif_occurrence_evidence`](birding_agent/gbif_occurrence_evidence.md) | yes | Planner-ready GBIF bird occurrence evidence with taxonomy, location, license, and source provenance. |
+| [`birding_agent.gbif_occurrence_evidence`](birding_agent/gbif_occurrence_evidence.md) | yes | Planner-ready GBIF bird occurrence evidence conformed to eBird-first species names with location, license, and source provenance. |
 | [`birding_agent.recent_observation_evidence`](birding_agent/recent_observation_evidence.md) | yes | Planner-ready recent eBird observation evidence from the environmental observations CDM. |
 | [`birding_agent.species_lookup`](birding_agent/species_lookup.md) | yes | Planner-ready bird species lookup from the conformed environmental observations species dimension. |
 | [`birding_agent.xeno_canto_media_evidence`](birding_agent/xeno_canto_media_evidence.md) | yes | Planner-ready Xeno-canto bird sound metadata with media links, license, attribution, and provenance. |

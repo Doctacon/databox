@@ -69,6 +69,31 @@ DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable
 `task app:audit-bundle` command checks the compiled files for all configured
 Cloudflare variable names and non-empty local values without printing secrets.
 
+Location autocomplete calls Open-Meteo geocoding through the local Python API;
+the browser never calls the upstream service directly. Search results and manual
+coordinates are restricted with a compact official US Census TIGERweb-derived
+Arizona polygon because the current bird evidence is Arizona-scoped. A missing
+negative longitude such as `34.54,112.50` is rejected
+before weather, evidence, model, or persistence work; valid Arizona coordinates
+such as `34.54,-112.50` remain available when geocoding is unavailable. Selected
+location identity and all completed plan artifacts persist in the single local
+`data/databox.duckdb` warehouse.
+
+GBIF planner evidence is conformed to the eBird-first species dimension by an
+authority-free scientific-name key, so available common names lead result cards
+while the scientific name remains visible underneath. Open-Meteo measurements
+are reloaded from the persisted trip-plan evidence payload and displayed in both
+US customary and metric units; the browser does not refetch or ask the model to
+convert weather values.
+
+Xeno-canto metadata, URLs, recordist attribution, and licenses are reloaded from
+persisted DuckDB evidence. The API exposes a separate typed media projection and
+activates source/audio URLs only for exact HTTPS Xeno-canto hosts, matching
+recording IDs, and expected `/{id}` or `/{id}/download` paths. The React app uses
+native audio controls with `preload="none"` and no autoplay. Audio bytes stream
+directly from Xeno-canto only after user interaction; Databox does not proxy,
+download, cache, or store audio.
+
 ## SQLMesh
 
 Run from `transforms/main/` — SQLMesh picks up `config.py` there.

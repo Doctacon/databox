@@ -1,6 +1,6 @@
 # birding_agent.gbif_occurrence_evidence
 
-Planner-ready GBIF bird occurrence evidence with taxonomy, location, license, and source provenance.
+Planner-ready GBIF bird occurrence evidence conformed to eBird-first species names with location, license, and source provenance.
 
 ## Overview
 
@@ -22,7 +22,7 @@ Planner-ready GBIF bird occurrence evidence with taxonomy, location, license, an
 | `accepted_scientific_name` | `UNKNOWN` | — | — |
 | `accepted_taxon_key` | `UNKNOWN` | — | — |
 | `basis_of_record` | `UNKNOWN` | — | — |
-| `common_name` | `UNKNOWN` | — | — |
+| `common_name` | `TEXT` | — | — |
 | `coordinate_uncertainty_in_meters` | `UNKNOWN` | — | — |
 | `country` | `UNKNOWN` | — | — |
 | `country_code` | `UNKNOWN` | — | — |
@@ -50,11 +50,14 @@ Planner-ready GBIF bird occurrence evidence with taxonomy, location, license, an
 | `occurrence_id` | `UNKNOWN` | — | — |
 | `occurrence_status` | `UNKNOWN` | — | — |
 | `publishing_org_key` | `UNKNOWN` | — | — |
-| `scientific_name` | `UNKNOWN` | — | — |
+| `scientific_name` | `TEXT` | — | — |
 | `source_record_id` | `TEXT` | missing (must_be=0) | — |
 | `source_reference_url` | `UNKNOWN` | — | — |
+| `source_scientific_name` | `UNKNOWN` | — | — |
 | `source_table` | `TEXT` | — | — |
 | `species` | `UNKNOWN` | — | — |
+| `species_code` | `UNKNOWN` | — | — |
+| `species_natural_key` | `UNKNOWN` | — | — |
 | `state_province` | `UNKNOWN` | — | — |
 | `taxon_key` | `UNKNOWN` | — | — |
 | `taxon_rank` | `UNKNOWN` | — | — |
@@ -68,6 +71,7 @@ Planner-ready GBIF bird occurrence evidence with taxonomy, location, license, an
 
 **Upstream**
 
+- [`environmental_observations.dim_species`](../environmental_observations/dim_species.md)
 - `raw_gbif.occurrences` (external)
 
 ## Example query

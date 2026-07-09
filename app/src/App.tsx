@@ -1,29 +1,59 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createPlan, getPlan, listPlans } from "./api";
+import LocationCombobox from "./LocationCombobox";
 import type {
   CreatePlanInput,
   Evidence,
+  LocationSuggestion,
+  Media,
   PlanSummary,
   Recommendation,
   TripPlanDetail,
 } from "./types";
+import { presentWeather } from "./weather";
 import "./styles.css";
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-function numberText(value: unknown, suffix = ""): string | null {
-  return typeof value === "number" ? `${value.toLocaleString()}${suffix}` : null;
+const creativeCommonsHosts = new Set(["creativecommons.org", "www.creativecommons.org"]);
+
+function hasUnsafeAuthority(value: string): boolean {
+  const authority = /^https:\/\/([^/]+)/.exec(value)?.[1];
+  return !authority || authority.includes("@") || authority.includes(":");
 }
 
-function mediaUrl(row: Evidence): string | null {
-  const raw = text(row.summary.recording_url) || text(row.payload.recording_url) || text(row.payload.url);
-  if (!raw) return null;
+function canonicalRecordingId(value: unknown): string | null {
+  return typeof value === "string" && /^(?:0|[1-9]\d*)$/.test(value) ? value : null;
+}
+
+function safeXenoCantoUrl(
+  value: unknown,
+  kind: "source" | "audio",
+): { href: string; recordingId: string } | null {
+  if (typeof value !== "string") return null;
+  const grammar = kind === "source"
+    ? /^https:\/\/(?:xeno-canto\.org|www\.xeno-canto\.org)\/(\d+)\/?$/
+    : /^https:\/\/(?:xeno-canto\.org|www\.xeno-canto\.org)\/(\d+)\/download\/?$/;
+  const match = grammar.exec(value);
+  return match && match[0] === value ? { href: value, recordingId: match[1] } : null;
+}
+
+function safeLicenseUrl(value: string | null): string | null {
+  if (!value || hasUnsafeAuthority(value)) return null;
   try {
-    const url = new URL(raw);
-    const isXenoCanto = url.hostname === "xeno-canto.org" || url.hostname.endsWith(".xeno-canto.org");
-    return url.protocol === "https:" && isXenoCanto ? url.href : null;
+    const url = new URL(value);
+    return url.protocol === "https:"
+      && creativeCommonsHosts.has(url.hostname)
+      && !url.username
+      && !url.password
+      && !url.port
+      && !url.search
+      && !url.hash
+      && /^\/licenses\/[a-z0-9-]+\/[0-9.]+\/?$/.test(url.pathname)
+      ? url.href
+      : null;
   } catch {
     return null;
   }
@@ -38,6 +68,46 @@ function evidenceSummary(row: Evidence): string {
     text(row.summary.location_name),
   ].filter(Boolean);
   return values.join(" · ") || row.evidence_type.replaceAll("_", " ");
+}
+
+function MediaCard({ row }: { row: Media }) {
+  const [playbackFailed, setPlaybackFailed] = useState(false);
+  const recordingId = canonicalRecordingId(row.recording_id);
+  const source = safeXenoCantoUrl(row.source_url, "source");
+  const audio = safeXenoCantoUrl(row.audio_url, "audio");
+  const sourceUrl = recordingId !== null && source?.recordingId === recordingId
+    ? source.href
+    : null;
+  const audioUrl = recordingId !== null && audio?.recordingId === recordingId
+    ? audio.href
+    : null;
+  const licenseUrl = safeLicenseUrl(row.license_url);
+  const context = [row.species_name, row.recording_type, row.quality ? `Quality ${row.quality}` : null]
+    .filter(Boolean)
+    .join(" · ") || "Xeno-canto recording";
+
+  return <li className="media-card">
+    <h3>{context}</h3>
+    {audioUrl && !playbackFailed ? (
+      <audio
+        aria-label={`Play ${context}`}
+        controls
+        preload="none"
+        src={audioUrl}
+        onError={() => setPlaybackFailed(true)}
+      />
+    ) : (
+      <p className="empty">Audio playback is unavailable in the app.</p>
+    )}
+    <p className="media-attribution">Recordist: {row.recordist || "Not reported"}</p>
+    <p className="media-license">License: {licenseUrl
+      ? <a href={licenseUrl} target="_blank" rel="noreferrer">{row.license_text}</a>
+      : row.license_text}</p>
+    {sourceUrl
+      ? <a href={sourceUrl} target="_blank" rel="noreferrer">View recording on Xeno-canto</a>
+      : <p className="empty">Xeno-canto source page unavailable.</p>}
+    {row.caveats.map((caveat) => <p className="caveat" key={caveat}>{caveat}</p>)}
+  </li>;
 }
 
 function RecommendationGroup({ title, rows }: { title: string; rows: Recommendation[] }) {
@@ -68,9 +138,7 @@ function PlanView({ detail }: { detail: TripPlanDetail }) {
   const high = detail.recommendations.filter((row) => row.recommendation_group === "high_likelihood");
   const uncommon = detail.recommendations.filter((row) => row.recommendation_group === "uncommon_plausible");
   const media = detail.media.filter((row) => row.status === "available");
-  const weather = detail.weather?.payload || detail.weather?.summary || {};
-  const elevation = numberText(weather.elevation_m, " m");
-  const weatherStatus = detail.weather?.status || "unavailable";
+  const weather = presentWeather(detail.weather?.payload || {}, detail.weather?.summary || {});
 
   return (
     <div className="plan" aria-live="polite">
@@ -80,8 +148,8 @@ function PlanView({ detail }: { detail: TripPlanDetail }) {
         <div className="summary-grid">
           <div><strong>{new Date(detail.plan.window_start).toLocaleString()}</strong><span>Start</span></div>
           <div><strong>{detail.plan.duration_minutes} min</strong><span>Duration</span></div>
-          <div><strong>{elevation || "Not available"}</strong><span>Elevation</span></div>
-          <div><strong>{weatherStatus}</strong><span>Weather context</span></div>
+          <div><strong>{weather.elevation}</strong><span>Elevation</span></div>
+          <div><strong>{weather.condition}</strong><span>Forecast conditions</span></div>
         </div>
       </section>
 
@@ -102,28 +170,26 @@ function PlanView({ detail }: { detail: TripPlanDetail }) {
 
       <section className="panel" aria-labelledby="weather-context">
         <h2 id="weather-context">Weather and elevation</h2>
-        {detail.weather ? (
-          <dl className="details-list">
-            <div><dt>Status</dt><dd>{detail.weather.status}</dd></div>
-            <div><dt>Elevation</dt><dd>{elevation || "Not reported"}</dd></div>
-            <div><dt>Source</dt><dd>Open-Meteo</dd></div>
+        {detail.weather ? <>
+          <dl className="details-list weather-details">
+            {weather.metrics.map((metric) => <div key={metric.label}>
+              <dt>{metric.label}</dt><dd>{metric.value}</dd>
+            </div>)}
           </dl>
-        ) : <p className="empty">Open-Meteo context was not persisted.</p>}
+          {detail.weather.caveats.length > 0 && (
+            <ul className="weather-caveats">
+              {detail.weather.caveats.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          )}
+          <p className="source-status">Open-Meteo source status: {detail.weather.status}</p>
+        </> : <p className="empty">Open-Meteo context was not persisted.</p>}
       </section>
 
       <section className="panel" aria-labelledby="media-examples">
         <h2 id="media-examples">Call and media examples</h2>
         {media.length === 0 ? <p className="empty">No Xeno-canto media examples were available.</p> : (
-          <ul className="link-list">
-            {media.map((row) => {
-              const url = mediaUrl(row);
-              const recordist = text(row.summary.recordist) || text(row.payload.recordist) || "Recordist not reported";
-              const license = text(row.summary.license) || text(row.payload.license) || "License not reported";
-              return <li key={row.evidence_id}>
-                {url ? <a href={url} target="_blank" rel="noreferrer">{evidenceSummary(row)}</a> : <span>{evidenceSummary(row)}</span>}
-                <small>Source: Xeno-canto · Recordist: {recordist} · License: {license}</small>
-              </li>;
-            })}
+          <ul className="media-list">
+            {media.map((row) => <MediaCard key={row.evidence_id} row={row} />)}
           </ul>
         )}
       </section>
@@ -160,6 +226,8 @@ export default function App() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [location, setLocation] = useState("");
+  const [locationSelection, setLocationSelection] = useState<LocationSuggestion | null>(null);
 
   const selectedId = detail?.plan.trip_plan_id || "";
   const heading = useMemo(() => detail ? "Plan details" : "Plan your next local birding outing", [detail]);
@@ -187,7 +255,8 @@ export default function App() {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const input: CreatePlanInput = {
-      location: String(data.get("location") || ""),
+      location,
+      location_selection: locationSelection || undefined,
       start_at: String(data.get("start_at") || ""),
       duration_minutes: Number(data.get("duration_minutes")),
       skill_level: String(data.get("skill_level") || "") || undefined,
@@ -213,7 +282,19 @@ export default function App() {
         <p className="eyebrow">Trip planner</p><h1 id="planner-heading">{heading}</h1>
         <form onSubmit={submit}>
           <label htmlFor="location">Location</label>
-          <input id="location" name="location" required maxLength={300} placeholder="Thumb Butte or 34.54,-112.47" />
+          <LocationCombobox
+            value={location}
+            selected={locationSelection}
+            disabled={loadingPlan}
+            onChange={(value) => {
+              setLocation(value);
+              setLocationSelection(null);
+            }}
+            onSelect={(selected) => {
+              setLocation(selected.display_name);
+              setLocationSelection(selected);
+            }}
+          />
           <label htmlFor="start_at">Start date and time</label>
           <input id="start_at" name="start_at" type="datetime-local" required />
           <label htmlFor="duration_minutes">Duration</label>

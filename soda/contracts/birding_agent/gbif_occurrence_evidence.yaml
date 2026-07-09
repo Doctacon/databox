@@ -21,7 +21,10 @@ columns:
   - name: occurrence_id
   - name: dataset_key
   - name: publishing_org_key
+  - name: species_natural_key
+  - name: species_code
   - name: scientific_name
+  - name: source_scientific_name
   - name: accepted_scientific_name
   - name: common_name
   - name: family

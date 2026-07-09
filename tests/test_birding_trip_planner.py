@@ -12,9 +12,11 @@ import duckdb
 import pytest
 from databox.agent_tools.open_meteo import ELEVATION_ENDPOINT, FORECAST_ENDPOINT
 from databox.agents.birding_trip_planner import (
+    BirdingTripPlanner,
     TripRequest,
     build_root_agent,
     main,
+    resolve_arizona_location,
     run_trip_planner_agent,
     run_trip_planner_agent_async,
 )
@@ -162,7 +164,9 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
             occurrence_evidence_id TEXT,
             source_table TEXT,
             source_record_id TEXT,
+            species_code TEXT,
             scientific_name TEXT,
+            source_scientific_name TEXT,
             accepted_scientific_name TEXT,
             common_name TEXT,
             family TEXT,
@@ -186,13 +190,15 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(
         """
         INSERT INTO birding_agent.gbif_occurrence_evidence
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             "gbif-1",
             "raw_gbif.occurrences",
             "G1",
+            "zthawk",
             "Buteo albonotatus",
+            "Buteo albonotatus Kaup, 1847",
             "Buteo albonotatus",
             "Zone-tailed Hawk",
             "Accipitridae",
@@ -264,6 +270,90 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
             "2026-07-08T12:00:00",
         ],
     )
+
+
+def test_arizona_coordinate_validation_rejects_before_persistence_or_model() -> None:
+    con = duckdb.connect(":memory:")
+    model = FakeTripPlanModelClient()
+    planner = BirdingTripPlanner(
+        con,
+        model_client=model,
+        weather_getter=lambda endpoint, params: (_ for _ in ()).throw(
+            AssertionError(f"weather must not run: {endpoint} {params}")
+        ),
+    )
+
+    with pytest.raises(ValueError, match="Arizona longitudes are negative"):
+        planner.plan_trip(
+            TripRequest(
+                location="34.54,112.50",
+                start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+                duration_minutes=60,
+            )
+        )
+
+    schemas = con.execute(
+        "SELECT count(*) FROM information_schema.schemata WHERE schema_name = 'birding_agent'"
+    ).fetchone()
+    assert schemas == (0,)
+    assert model.requests == []
+
+
+def test_valid_arizona_coordinate_retains_region_and_timezone() -> None:
+    location = resolve_arizona_location("34.54,-112.50")
+
+    assert location.latitude == 34.54
+    assert location.longitude == -112.50
+    assert location.region_code == "US-AZ"
+    assert location.timezone == "America/Phoenix"
+    named = resolve_arizona_location("Prescott, Arizona")
+    assert named.normalized_location_name == "Prescott, Arizona, United States"
+    assert named.region_code == "US-AZ"
+
+
+def test_ranked_gbif_recommendations_keep_conformed_names_and_do_not_duplicate() -> None:
+    planner = BirdingTripPlanner(
+        duckdb.connect(":memory:"),
+        model_client=FakeTripPlanModelClient(),
+        weather_getter=_weather_response,
+    )
+    occurrence_rows = [
+        {
+            "species_code": "wesblu",
+            "common_name": "Western Bluebird",
+            "scientific_name": "Sialia mexicana",
+        },
+        {
+            "species_code": "wesblu",
+            "common_name": "Western Bluebird",
+            "scientific_name": "Sialia mexicana",
+        },
+        {
+            "species_code": "gilwoo",
+            "common_name": "Gila Woodpecker",
+            "scientific_name": "Melanerpes uropygialis",
+        },
+        {
+            "species_code": "nswowl",
+            "common_name": "Northern Saw-whet Owl",
+            "scientific_name": "Aegolius acadicus",
+        },
+    ]
+
+    recommendations = planner.rank_likely_species([], occurrence_rows)
+
+    assert len(recommendations) == 3
+    assert {
+        recommendation.common_name: (
+            recommendation.species_code,
+            recommendation.scientific_name,
+        )
+        for recommendation in recommendations
+    } == {
+        "Western Bluebird": ("wesblu", "Sialia mexicana"),
+        "Gila Woodpecker": ("gilwoo", "Melanerpes uropygialis"),
+        "Northern Saw-whet Owl": ("nswowl", "Aegolius acadicus"),
+    }
 
 
 def test_build_root_agent_exposes_bounded_tool_contract() -> None:

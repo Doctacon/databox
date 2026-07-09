@@ -27,6 +27,7 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 from pydantic import Field
 
+from databox.agent_tools.arizona_boundary import is_in_arizona
 from databox.agent_tools.open_meteo import (
     JsonGetter,
     OpenMeteoTripContext,
@@ -54,7 +55,9 @@ DEFAULT_RADIUS_KM = 50.0
 KNOWN_LOCATIONS: dict[str, tuple[str, float, float, str]] = {
     "thumb butte": ("Thumb Butte, Prescott, AZ", 34.5444, -112.5280, "US-AZ"),
     "watson lake": ("Watson Lake, Prescott, AZ", 34.5959, -112.4157, "US-AZ"),
-    "prescott": ("Prescott, AZ", 34.5400, -112.4685, "US-AZ"),
+    "prescott": ("Prescott, Arizona, United States", 34.5400, -112.4685, "US-AZ"),
+    "prescott, arizona": ("Prescott, Arizona, United States", 34.5400, -112.4685, "US-AZ"),
+    "prescott, az": ("Prescott, Arizona, United States", 34.5400, -112.4685, "US-AZ"),
 }
 
 _PLAN_ACTION_TEXT: dict[PlanActionId, str] = {
@@ -77,6 +80,7 @@ class TripRequest:
     skill_level: str | None = None
     constraints_text: str | None = None
     timezone: str = DEFAULT_TIMEZONE
+    resolved_location: NormalizedLocation | None = None
 
     @property
     def end_at(self) -> datetime:
@@ -89,7 +93,8 @@ class NormalizedLocation:
     normalized_location_name: str
     latitude: float
     longitude: float
-    region_code: str | None
+    region_code: str
+    timezone: str = DEFAULT_TIMEZONE
     caveats: list[str] = field(default_factory=list)
 
 
@@ -155,6 +160,7 @@ class TripPlanResult:
                 "latitude": self.location.latitude,
                 "longitude": self.location.longitude,
                 "region_code": self.location.region_code,
+                "timezone": self.location.timezone,
             },
             "window_start": self.request.start_at.isoformat(),
             "window_end": self.request.end_at.isoformat(),
@@ -196,6 +202,7 @@ class BirdingTripPlanner:
         if request.duration_minutes <= 0:
             raise ValueError("duration_minutes must be positive")
 
+        location = self.normalize_location(request.location, request.resolved_location)
         ensure_birding_agent_persistence_tables(self.connection)
         plan_id = trip_plan_id or f"trip_{uuid.uuid4().hex}"
         traces: list[ToolTrace] = []
@@ -204,7 +211,7 @@ class BirdingTripPlanner:
             step_order=1,
             tool_name="normalize_location",
             tool_input={"location": request.location},
-            call=lambda: self.normalize_location(request.location),
+            call=lambda: location,
             summary=lambda loc: {
                 "normalized_location_name": loc.normalized_location_name,
                 "latitude": loc.latitude,
@@ -250,14 +257,14 @@ class BirdingTripPlanner:
                 "longitude": location.longitude,
                 "window_start": request.start_at.isoformat(),
                 "window_end": request.end_at.isoformat(),
-                "timezone": request.timezone,
+                "timezone": location.timezone,
             },
             call=lambda: fetch_open_meteo_trip_context(
                 latitude=location.latitude,
                 longitude=location.longitude,
                 start_at=request.start_at,
                 end_at=request.end_at,
-                timezone=request.timezone,
+                timezone=location.timezone,
                 http_get_json=self.weather_getter,
             ),
             summary=lambda context: {
@@ -411,35 +418,12 @@ class BirdingTripPlanner:
             caveats=caveats,
         )
 
-    def normalize_location(self, location: str) -> NormalizedLocation:
-        """Resolve coordinates from either `lat,lon` input or a small supported place set."""
+    def normalize_location(
+        self, location: str, resolved_location: NormalizedLocation | None = None
+    ) -> NormalizedLocation:
+        """Resolve and validate an Arizona coordinate, selected place, or known alias."""
 
-        value = location.strip()
-        parsed = _parse_coordinate_pair(value)
-        if parsed is not None:
-            lat, lon = parsed
-            return NormalizedLocation(
-                requested_location=location,
-                normalized_location_name=f"{lat:.4f}, {lon:.4f}",
-                latitude=lat,
-                longitude=lon,
-                region_code=None,
-            )
-
-        known = KNOWN_LOCATIONS.get(value.lower())
-        if known is None:
-            raise ValueError(
-                "location must be coordinates as 'latitude,longitude' or one of: "
-                + ", ".join(sorted(KNOWN_LOCATIONS))
-            )
-        name, lat, lon, region = known
-        return NormalizedLocation(
-            requested_location=location,
-            normalized_location_name=name,
-            latitude=lat,
-            longitude=lon,
-            region_code=region,
-        )
+        return resolve_arizona_location(location, resolved_location)
 
     def lookup_recent_observation_evidence(
         self, location: NormalizedLocation, *, limit: int = 200
@@ -496,7 +480,9 @@ class BirdingTripPlanner:
                 occurrence_evidence_id,
                 source_table,
                 source_record_id,
+                species_code,
                 scientific_name,
+                source_scientific_name,
                 accepted_scientific_name,
                 common_name,
                 family,
@@ -710,6 +696,8 @@ class BirdingTripPlanner:
                     summary={
                         "common_name": row.get("common_name"),
                         "scientific_name": row.get("scientific_name"),
+                        "source_scientific_name": row.get("source_scientific_name"),
+                        "accepted_scientific_name": row.get("accepted_scientific_name"),
                         "event_date_text": row.get("event_date_text"),
                         "locality": row.get("locality"),
                         "license": row.get("license"),
@@ -1415,6 +1403,71 @@ def _fetch_dicts(
     cursor = connection.execute(query, list(params))
     columns = [description[0] for description in cursor.description]
     return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
+
+
+def resolve_arizona_location(
+    location: str, resolved_location: NormalizedLocation | None = None
+) -> NormalizedLocation:
+    """Resolve and validate an Arizona coordinate, selected place, or known alias."""
+
+    value = location.strip()
+    if resolved_location is not None:
+        return _validate_arizona_location(
+            NormalizedLocation(
+                requested_location=location,
+                normalized_location_name=resolved_location.normalized_location_name,
+                latitude=resolved_location.latitude,
+                longitude=resolved_location.longitude,
+                region_code=resolved_location.region_code,
+                timezone=resolved_location.timezone,
+            )
+        )
+
+    parsed = _parse_coordinate_pair(value)
+    if parsed is not None:
+        lat, lon = parsed
+        return _validate_arizona_location(
+            NormalizedLocation(
+                requested_location=location,
+                normalized_location_name=f"{lat:.4f}, {lon:.4f}",
+                latitude=lat,
+                longitude=lon,
+                region_code="US-AZ",
+            )
+        )
+
+    known = KNOWN_LOCATIONS.get(value.lower())
+    if known is None:
+        raise ValueError(
+            "Select an Arizona place suggestion, enter valid Arizona coordinates as "
+            "'latitude,longitude', or use a supported local alias"
+        )
+    name, lat, lon, region = known
+    return _validate_arizona_location(
+        NormalizedLocation(
+            requested_location=location,
+            normalized_location_name=name,
+            latitude=lat,
+            longitude=lon,
+            region_code=region,
+        )
+    )
+
+
+def _validate_arizona_location(location: NormalizedLocation) -> NormalizedLocation:
+    latitude = location.latitude
+    longitude = location.longitude
+    if longitude > 0 and is_in_arizona(latitude, -longitude):
+        raise ValueError(
+            "Arizona longitudes are negative; did you mean "
+            f"'{latitude:.4f},{-longitude:.4f}'? Confirm the corrected coordinates "
+            "before submitting"
+        )
+    if not is_in_arizona(latitude, longitude):
+        raise ValueError("The current bird dataset supports Arizona locations only")
+    if location.region_code != "US-AZ":
+        raise ValueError("The current bird dataset supports Arizona locations only")
+    return location
 
 
 def _parse_coordinate_pair(value: str) -> tuple[float, float] | None:
