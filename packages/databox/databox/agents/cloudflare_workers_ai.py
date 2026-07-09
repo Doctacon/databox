@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_valida
 
 from databox.config.settings import DataboxSettings
 
-CLOUDFLARE_WORKERS_AI_MODEL = "@cf/zai-org/glm-4.7-flash"
+CLOUDFLARE_WORKERS_AI_MODEL = "@cf/zai-org/glm-5.2"
 MAX_MODEL_INPUT_BYTES = 65_536
 MAX_MODEL_OUTPUT_BYTES = 32_768
 MAX_MODEL_OUTPUT_TOKENS = 750
@@ -34,6 +34,48 @@ _ALLOWED_ACTION_IDS = {
     "check_weather",
     "respect_access",
     "review_call_examples",
+}
+_GROUNDED_SYNTHESIS_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "action_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "uniqueItems": True,
+            "items": {"type": "string", "enum": sorted(_ALLOWED_ACTION_IDS)},
+        },
+        "grounding": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "requested_location": {"type": "string", "minLength": 1, "maxLength": 300},
+                "window_start": {"type": "string", "minLength": 1, "maxLength": 64},
+                "window_end": {"type": "string", "minLength": 1, "maxLength": 64},
+                "duration_minutes": {"type": "integer", "minimum": 1, "maximum": 1440},
+                "recommendation_ids": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {"type": "string"},
+                },
+                "caveats": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {"type": "string", "maxLength": 1000},
+                },
+            },
+            "required": [
+                "requested_location",
+                "window_start",
+                "window_end",
+                "duration_minutes",
+                "recommendation_ids",
+                "caveats",
+            ],
+        },
+    },
+    "required": ["action_ids", "grounding"],
 }
 
 
@@ -189,7 +231,16 @@ class CloudflareWorkersAIClient:
         payload = {
             "model": self.model,
             "temperature": 0.0,
-            "max_tokens": MAX_MODEL_OUTPUT_TOKENS,
+            "max_completion_tokens": MAX_MODEL_OUTPUT_TOKENS,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "grounded_trip_plan",
+                    "description": "Bounded field actions and exact supplied grounding",
+                    "schema": _GROUNDED_SYNTHESIS_JSON_SCHEMA,
+                    "strict": True,
+                },
+            },
             "messages": [
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": serialized_request},

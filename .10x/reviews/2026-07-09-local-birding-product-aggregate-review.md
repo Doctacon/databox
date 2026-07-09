@@ -10,7 +10,7 @@ Verdict: concerns
 
 Closure readiness of the local-only product graph against:
 
-- `.10x/tickets/2026-07-09-build-local-birding-copilot-product.md`
+- `.10x/tickets/done/2026-07-09-build-local-birding-copilot-product.md`
 - `.10x/tickets/done/2026-07-09-verify-local-birding-product.md`
 - the four completed implementation children,
 - `.10x/decisions/local-only-birding-product-architecture.md`,
@@ -63,7 +63,7 @@ No behavior contract was weakened to resolve these findings. A fresh independent
 
 The required live smoke again ended in the safe bounded `CloudflareTimeoutError`. Prior HTTP 200 token verification supports credential/network reachability, but neither that fact nor deterministic client tests prove that the configured account can obtain a response from `@cf/zai-org/glm-4.7-flash`.
 
-This does not justify an implementation repair or fallback: no local defect was reproduced, credentials stayed on the fixed HTTPS Cloudflare route, and all safe failure behavior passed. The concern is durably owned by `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md`.
+This does not justify an implementation repair or fallback: no local defect was reproduced, credentials stayed on the fixed HTTPS Cloudflare route, and all safe failure behavior passed. The concern is durably owned by `.10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md`.
 
 The verification ticket explicitly accepts a precise owned external blocker and can close as a completed verification activity. The aggregate parent MUST remain open because the active Cloudflare specification's live-invocation acceptance criterion is not yet supported. Parent closure requires either successful live evidence or a separately ratified specification/acceptance change; record hardening alone cannot waive that criterion.
 
@@ -71,10 +71,16 @@ The verification ticket explicitly accepts a precise owned external blocker and 
 
 Concerns, with independent follow-up pass. The local implementation and every offline/local integration gate pass, all corrective findings are resolved, and the only open finding has a bounded durable owner. The verification child is closed under its pass-or-owned-blocker criterion. The aggregate parent is **not** closure-ready while the active Cloudflare live-invocation acceptance remains unsupported.
 
+## Subsequent model resolution
+
+After this review, the user superseded GLM 4.7 Flash with `@cf/zai-org/glm-5.2`. The replacement added Cloudflare's documented strict `response_format.json_schema`, passed offline validation and 189-test CI, and returned a bounded live response with four validated actions. Independent review passed with no blocker in `.10x/reviews/2026-07-09-glm-5-2-model-replacement-review.md`.
+
+This later evidence resolves the live-model concern that prevented parent closure; it does not rewrite the original GLM 4.7 observation.
+
 ## Residual risk
 
-- The model-dependent create-plan action can return a user-safe timeout until Cloudflare/account availability is resolved.
 - Quack remains beta and relies on tested transient metadata compatibility views.
 - UI evidence is deterministic rendered DOM plus built-page smoke rather than cross-browser visual regression.
+- The GLM 5.2 live proof is a minimal bounded smoke; full persisted-trip behavior remains deterministically integration-tested.
 
 No other unowned defect or follow-up was identified.

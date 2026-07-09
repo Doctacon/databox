@@ -67,7 +67,7 @@ tasks:
       PYTEST_ADDOPTS: "--no-cov"
     cmds: ["{{.VENV_DIR}}/bin/deepeval test run tests/evals/test_birding_trip_copilot_deepeval.py"]
   smoke:cloudflare-ai:
-    desc: "Opt-in live Cloudflare Workers AI smoke using only @cf/zai-org/glm-4.7-flash"
+    desc: "Opt-in live Cloudflare Workers AI smoke using only @cf/zai-org/glm-5.2"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/smoke_cloudflare_ai.py"]
 
   full-refresh:

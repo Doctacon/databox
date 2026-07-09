@@ -15,7 +15,7 @@ This spec governs the user-visible trip-planning behavior and persisted trip-pla
 - The first workflow MUST be trip planning.
 - The MVP MUST NOT include stored personal sightings, life-list ingestion, user accounts, or user profiles.
 - The MVP MUST use Python with Google ADK for the agent runtime.
-- The local product MUST use only Cloudflare Workers AI model `@cf/zai-org/glm-4.7-flash` for model-generated agent behavior; no fallback model is allowed.
+- The local product MUST use only Cloudflare Workers AI model `@cf/zai-org/glm-5.2` for model-generated agent behavior; no fallback model is allowed.
 - The MVP MUST use persisted trip-plan outputs as the contract between the Python agent and the local React/API product surface.
 - The MVP MUST include DeepEval tests in the first implementation slice.
 - The MVP SHOULD use existing Databox eBird/weather/environmental data plus GBIF, Xeno-canto, and Open-Meteo context.

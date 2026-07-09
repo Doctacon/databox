@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-09
 Updated: 2026-07-09
 Parent: None
@@ -14,7 +14,7 @@ Deliver a local-only Databox product with:
 - concurrent hermetic source loading through one shared Quack server,
 - local SQLMesh transformations,
 - Python/Google ADK agent runtime,
-- Cloudflare Workers AI inference using only `@cf/zai-org/glm-4.7-flash`,
+- Cloudflare Workers AI inference using only `@cf/zai-org/glm-5.2`,
 - local React + Python API product surface,
 - no active MotherDuck backend or Dive artifacts.
 
@@ -38,6 +38,7 @@ This is a parent plan and is not executable directly.
 3. `.10x/tickets/done/2026-07-09-integrate-cloudflare-ai-with-adk.md`
 4. `.10x/tickets/done/2026-07-09-build-local-react-trip-planner.md`
 5. `.10x/tickets/done/2026-07-09-verify-local-birding-product.md`
+6. `.10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md`
 
 The sequence is intentional because the first four children touch overlapping configuration/runtime surfaces. Parent orchestration SHOULD avoid concurrent writers to the same worktree.
 
@@ -65,7 +66,12 @@ The sequence is intentional because the first four children touch overlapping co
 - 2026-07-09: Local React/FastAPI Trip Planner completed with controlled persisted-plan creation/reload, frontend state coverage, loopback launch verification, and bundle secret audit.
 - 2026-07-09: Aggregate verification completed in `.10x/tickets/done/2026-07-09-verify-local-birding-product.md`. Fresh full refresh/concurrency, SQLMesh production state and tests, 23 Soda contracts, CI, offline DeepEval, React/API/build, bundle and sensitive-value audits, loopback launch, docs, and active MotherDuck/Dive audit passed. Evidence: `.10x/evidence/2026-07-09-local-birding-product-aggregate-verification.md`.
 - 2026-07-09: Aggregate review `.10x/reviews/2026-07-09-local-birding-product-aggregate-review.md` found no unowned implementation defect, but returned concerns for parent closure because the live Cloudflare request again timed out. The verifier did not retry, change implementation, or select a fallback.
+- 2026-07-09: User explicitly superseded the GLM 4.7 Flash choice with the sole model `@cf/zai-org/glm-5.2` and exact local selector `CF_WORKERS_AI_MODEL_BASE_URL='@cf/zai-org/glm-5.2'`. The replacement is owned by `.10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md`; the prior timeout investigation was cancelled as superseded.
+- 2026-07-09: GLM 5.2 replacement implementation and strict OpenAI-compatible JSON Schema output are complete. Offline validation and 189-test CI passed; one bounded live smoke returned four validated actions from exactly GLM 5.2. Evidence: `.10x/evidence/2026-07-09-glm-5-2-model-replacement.md`.
+- 2026-07-09: Independent GLM 5.2 correctness/security review passed with no blocker: `.10x/reviews/2026-07-09-glm-5-2-model-replacement-review.md`. All six child tickets are done and their findings are resolved or superseded by current evidence.
+- 2026-07-09: Retrospective extraction preserved the only new provider-specific mechanic—strict `response_format.json_schema` for GLM 5.2—in the active model spec and compatibility evidence. No unfinished implementation, technical debt, or additional operational procedure remains.
+- 2026-07-09: Final parent closure review passed after historical GLM 4.7 timeout records were reconciled with the successful GLM 5.2 resolution. All six children are done, every parent criterion maps to evidence, and no unowned finding remains.
 
 ## Blockers
 
-The active `.10x/specs/cloudflare-workers-ai-local-agent.md` live-invocation acceptance criterion remains unsupported. `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md` owns the external availability/entitlement investigation. Keep this parent open until live success is evidenced or the acceptance contract is explicitly superseded/ratified.
+None.

@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-verify-local-birding-product.md, .10x/tickets/2026-07-09-build-local-birding-copilot-product.md, .10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md
+Relates-To: .10x/tickets/done/2026-07-09-verify-local-birding-product.md, .10x/tickets/done/2026-07-09-build-local-birding-copilot-product.md, .10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md
 
 # Local Birding Trip Copilot aggregate verification
 
@@ -9,7 +9,7 @@ Relates-To: .10x/tickets/done/2026-07-09-verify-local-birding-product.md, .10x/t
 
 The local-only product passed a fresh production-sized source refresh, SQLMesh production materialization/state checks, all production Soda contracts, Python CI, offline agent evaluation, React checks/build, API controlled persistence/reload tests, compiled-bundle audit, built loopback launch, documentation build, active MotherDuck/Dive audit, and repository integrity checks.
 
-The one opt-in live Cloudflare request again reached the configured fixed Cloudflare route but ended in the client's bounded timeout before a model response. This external availability/entitlement risk is owned by `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md`. No fallback model or credential disclosure occurred.
+At the time of this aggregate run, the one opt-in GLM 4.7 Flash request reached the configured fixed Cloudflare route but ended in the client's bounded timeout before a model response. No fallback model or credential disclosure occurred. Subsequent GLM 5.2 replacement evidence resolves that historical live-model gap; see `.10x/evidence/2026-07-09-glm-5-2-model-replacement.md`.
 
 ## Procedure and results
 
@@ -281,9 +281,9 @@ Command, run exactly once during aggregate verification:
 task smoke:cloudflare-ai
 ```
 
-Result: failed with the safe bounded `CloudflareTimeoutError` after reaching the configured fixed route. The traceback contained no credentials, endpoint value, response body, or chained transport details. The runtime did not select a fallback model. Earlier evidence records a successful HTTP 200 token verification and timeouts from both OpenAI-compatible and native model routes, so account/model response availability remains externally unproven rather than silently attributed to local correctness.
+Historical result: GLM 4.7 Flash failed with the safe bounded `CloudflareTimeoutError` after reaching the configured fixed route. The traceback contained no credentials, endpoint value, response body, or chained transport details. The runtime did not select a fallback model.
 
-Durable owner: `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md`.
+Subsequent resolution: the user replaced the sole model with GLM 5.2. The current client added documented strict JSON Schema output, and a post-offline bounded live smoke returned four validated actions. Evidence and owner: `.10x/evidence/2026-07-09-glm-5-2-model-replacement.md` and `.10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md`.
 
 ## Acceptance mapping
 
@@ -294,15 +294,15 @@ Durable owner: `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-infer
 - **Agent/model:** deterministic tests/evals prove the exact allowlisted model boundary, bounded structured action selection, deterministic factual rendering, and atomic persisted artifacts.
 - **React/API:** controlled create/list/detail reload, frontend states/accessibility/media attribution, compiled build, and loopback launch passed.
 - **Secrets/offline behavior:** CI/evals incurred no live inference; repository, browser bundle, logs, and records exposed no sensitive configured values.
-- **Live model:** timeout is precisely recorded and durably owned; no fallback was used.
+- **Live model:** the historical GLM 4.7 timeout is precisely recorded; subsequent GLM 5.2 strict-schema diagnostic and live smoke passed with no fallback.
 
 ## Limits and residual risk
 
-- Live inference from `@cf/zai-org/glm-4.7-flash` remains unproven because Cloudflare did not return a model response within the bounded timeout. The local product's model-dependent create action may therefore remain unavailable until the follow-up resolves provider/account availability.
+- GLM 4.7 Flash live inference was unproven during this historical aggregate run; the current GLM 5.2 live path is proven by later strict-schema evidence.
 - Quack is beta and dlt's unqualified metadata reads still depend on the tested transient union metadata views.
 - UI verification is rendered-DOM plus a built static-page smoke, not a cross-browser pixel-regression suite.
 - Source values and upstream response volumes are time-dependent; this evidence records the exact 2026-07-09 refresh rather than promising fixed counts.
 
 ## Retrospective extraction
 
-No new reusable procedure or domain convention crystallized beyond existing source/verification records. The only unresolved operational learning is captured as the bounded Cloudflare timeout follow-up ticket rather than left in chat or this evidence alone.
+No new reusable procedure or domain convention crystallized during the original aggregate run. The later model replacement preserved the provider-specific lesson—GLM 5.2 requires documented strict `response_format.json_schema`—in the active specification and compatibility evidence. No unresolved operational follow-up remains.

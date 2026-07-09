@@ -51,7 +51,7 @@ Opt in to one live credential/model check with:
 task smoke:cloudflare-ai
 ```
 
-The smoke command uses only `@cf/zai-org/glm-4.7-flash` and never prints
+The smoke command uses only `@cf/zai-org/glm-5.2` and never prints
 Cloudflare credentials.
 
 ## Local Trip Planner

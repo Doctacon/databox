@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-07-09
 Updated: 2026-07-09
-Parent: .10x/tickets/2026-07-09-build-local-birding-copilot-product.md
+Parent: .10x/tickets/done/2026-07-09-build-local-birding-copilot-product.md
 Depends-On: .10x/tickets/done/2026-07-09-implement-shared-quack-parallel-refresh.md
 
 # Integrate Cloudflare Workers AI with local Google ADK planner
@@ -67,4 +67,4 @@ Record:
 
 ## Blockers
 
-No implementation blocker. The local value-shape blocker is resolved. Live account invocation remains externally unproven because both the compatibility-fix smoke and the aggregate retry in `.10x/tickets/done/2026-07-09-verify-local-birding-product.md` timed out without a response. `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md` owns the continuing external investigation. No fallback model was used.
+None. At this ticket's original closure, GLM 4.7 Flash live invocation remained unproven after bounded timeouts and no fallback was used. That historical gap was subsequently resolved by the user-ratified GLM 5.2 replacement: `.10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md` records strict JSON Schema output, passing CI/review, and a successful bounded live smoke.

@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-07-09
 Updated: 2026-07-09
-Parent: .10x/tickets/2026-07-09-build-local-birding-copilot-product.md
+Parent: .10x/tickets/done/2026-07-09-build-local-birding-copilot-product.md
 Depends-On: None
 
 # Decommission MotherDuck platform support

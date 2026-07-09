@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-07-09
 Updated: 2026-07-09
-Parent: .10x/tickets/2026-07-09-build-local-birding-copilot-product.md
+Parent: .10x/tickets/done/2026-07-09-build-local-birding-copilot-product.md
 Depends-On: .10x/tickets/done/2026-07-09-decommission-motherduck-platform-support.md, .10x/tickets/done/2026-07-09-implement-shared-quack-parallel-refresh.md, .10x/tickets/done/2026-07-09-integrate-cloudflare-ai-with-adk.md, .10x/tickets/done/2026-07-09-build-local-react-trip-planner.md
 
 # Verify local Birding Trip Copilot product
@@ -46,14 +46,15 @@ Create aggregate evidence with exact commands, dates, output summaries, logs/art
 
 ## Progress and notes
 
-- 2026-07-09: Cloudflare integration evidence records a redacted live-smoke blocker: the local base-URL value has model-identifier rather than HTTP(S) endpoint shape. Rerun `task smoke:cloudflare-ai` after local configuration correction; do not record the configured values.
+- 2026-07-09: Initial GLM 4.7 verification recorded a redacted model-selector compatibility issue and required a safe smoke rerun. This historical issue was later superseded and resolved by the GLM 5.2 replacement recorded below.
 - 2026-07-09: All four implementation dependencies were complete and review-passed before aggregate verification began.
 - 2026-07-09: Fresh `task full-refresh` passed with six source jobs, all 15 actual ingest overlap pairs, non-zero core raw counts, zero persistent `main._dlt*`, clean client state, and SQLMesh production materialization.
 - 2026-07-09: SQLMesh tests/state, all 23 production Soda contracts (104 checks), `task ci` (183 tests, 81.78% coverage), offline DeepEval, React/API/build/bundle audit, loopback launch, docs build, active MotherDuck/Dive audit, and sensitive-value audits passed.
-- 2026-07-09: The single aggregate live Cloudflare retry ended in the safe bounded timeout. The external limitation is owned by `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md`; no fallback or credential disclosure occurred.
-- 2026-07-09: Aggregate evidence is `.10x/evidence/2026-07-09-local-birding-product-aggregate-verification.md`. Review `.10x/reviews/2026-07-09-local-birding-product-aggregate-review.md` finds the verification child closure-ready but keeps the aggregate parent open because the active Cloudflare live-invocation criterion remains unsupported.
-- 2026-07-09: Retrospective found no new reusable procedure beyond existing records; the only unresolved operational learning has the bounded Cloudflare follow-up owner.
+- 2026-07-09: The original aggregate GLM 4.7 live retry ended in a safe bounded timeout with no fallback or credential disclosure; this is retained as historical evidence and was later resolved by the completed GLM 5.2 replacement.
+- 2026-07-09: Aggregate evidence is `.10x/evidence/2026-07-09-local-birding-product-aggregate-verification.md`. Its original review kept the parent open for the then-unsupported GLM 4.7 live criterion; the subsequent-resolution addendum and GLM 5.2 review now support closure.
+- 2026-07-09: Retrospective initially assigned the GLM 4.7 Flash timeout to a bounded follow-up owner.
+- 2026-07-09: Subsequent resolution replaced the sole model with GLM 5.2, added strict `response_format.json_schema`, passed 189-test CI and independent review, and produced a successful bounded live smoke with four validated actions. Evidence: `.10x/evidence/2026-07-09-glm-5-2-model-replacement.md`.
 
 ## Blockers
 
-None for this completed verification activity. The aggregate parent's live Cloudflare acceptance gap remains explicitly open under `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md`.
+None. The live-model gap observed during this verification was subsequently resolved by `.10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md`.

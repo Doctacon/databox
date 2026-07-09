@@ -51,14 +51,17 @@ remain in `pyproject.toml`.
 ## Cloudflare Workers AI
 
 The local Python/Google ADK planner uses Cloudflare only for remote model
-inference. The runtime hard-allows exactly `@cf/zai-org/glm-4.7-flash`; it has
+inference. The runtime hard-allows exactly `@cf/zai-org/glm-5.2`; it has
 no fallback model and does not deploy a Worker. `CF_WORKERS_AI_MODEL_BASE_URL`
 accepts either that exact identifier, which derives Cloudflare's official
 account-specific `/ai/v1/chat/completions` endpoint from
-`CF_WORKERS_AI_ACCOUNT_ID`, or an explicit HTTP(S) Workers AI base/endpoint URL.
-Every other non-HTTP value is rejected. Validate configured credentials
-explicitly with `task smoke:cloudflare-ai`. Default unit tests and `task
-eval:agent` use deterministic fake model clients and make no paid/live calls.
+`CF_WORKERS_AI_ACCOUNT_ID`, or an explicit HTTPS `api.cloudflare.com` Workers AI
+base/endpoint URL. Every other host, plain HTTP URL, and non-URL value is
+rejected. Requests use Cloudflare's OpenAI-compatible strict JSON Schema
+response format and retain local Pydantic plus exact-grounding validation.
+Validate configured credentials explicitly with `task smoke:cloudflare-ai`.
+Default unit tests and `task eval:agent` use deterministic fake model clients
+and make no paid/live calls.
 
 ## SQLMesh state
 

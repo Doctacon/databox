@@ -96,6 +96,7 @@ def test_client_uses_fixed_host_model_and_output_bound_without_repr_secrets() ->
     client = _client(post)
     result = client.synthesize(_request())
 
+    assert CLOUDFLARE_WORKERS_AI_MODEL == "@cf/zai-org/glm-5.2"
     assert client.model == CLOUDFLARE_WORKERS_AI_MODEL
     assert observed["url"] == (
         "https://api.cloudflare.com/client/v4/accounts/account-123/ai/v1/chat/completions"
@@ -103,7 +104,25 @@ def test_client_uses_fixed_host_model_and_output_bound_without_repr_secrets() ->
     payload = observed["json"]
     assert isinstance(payload, dict)
     assert payload["model"] == CLOUDFLARE_WORKERS_AI_MODEL
-    assert payload["max_tokens"] == MAX_MODEL_OUTPUT_TOKENS
+    assert payload["max_completion_tokens"] == MAX_MODEL_OUTPUT_TOKENS
+    assert "max_tokens" not in payload
+    response_format = payload["response_format"]
+    assert response_format["type"] == "json_schema"
+    json_schema = response_format["json_schema"]
+    assert json_schema["name"] == "grounded_trip_plan"
+    assert json_schema["strict"] is True
+    schema = json_schema["schema"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["grounding"]["additionalProperties"] is False
+    assert schema["properties"]["action_ids"]["uniqueItems"] is True
+    assert set(schema["properties"]["action_ids"]["items"]["enum"]) == {
+        "listen_first",
+        "scan_habitat_edges",
+        "move_if_quiet",
+        "check_weather",
+        "respect_access",
+        "review_call_examples",
+    }
     assert API_KEY not in repr(client)
     assert "account-123" not in repr(client)
     assert "api.cloudflare.com" not in repr(client)
@@ -169,7 +188,7 @@ def test_client_from_typed_settings_and_missing_configuration() -> None:
 
 
 def test_client_rejects_any_other_model() -> None:
-    with pytest.raises(CloudflareConfigurationError, match="Only @cf/zai-org/glm-4.7-flash"):
+    with pytest.raises(CloudflareConfigurationError, match="Only @cf/zai-org/glm-5.2"):
         CloudflareWorkersAIClient(
             api_key="x",
             account_id="a",

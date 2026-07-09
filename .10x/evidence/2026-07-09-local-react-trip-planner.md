@@ -117,5 +117,5 @@ Result: strict MkDocs build passed; all pre-commit hooks passed.
 ## Limits
 
 - Vitest/jsdom rendered-DOM assertions substitute for a pixel screenshot; no cross-browser visual-regression suite was introduced.
-- Live Cloudflare response behavior remained outside this child ticket and was checked by `.10x/tickets/done/2026-07-09-verify-local-birding-product.md`; the continuing external timeout is owned by `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md`. Controlled model tests establish the local API/UI contract.
+- Live Cloudflare response behavior remained outside this child ticket and was checked by `.10x/tickets/done/2026-07-09-verify-local-birding-product.md`; the continuing external timeout is owned by `.10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md`. Controlled model tests establish the local API/UI contract.
 - The existing repository-wide `.env`, warehouse, logs, and earlier uncommitted roadmap changes were preserved and were not staged or committed.

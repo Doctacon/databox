@@ -4,7 +4,7 @@ Updated: 2026-07-09
 
 # Shape live MotherDuck + Cloudflare agentic product
 
-Cancelled after the user rejected deployment and MotherDuck. Replacement owner: `.10x/tickets/2026-07-09-build-local-birding-copilot-product.md`.
+Cancelled after the user rejected deployment and MotherDuck. Replacement owner: `.10x/tickets/done/2026-07-09-build-local-birding-copilot-product.md`.
 
 ## Scope
 

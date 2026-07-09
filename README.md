@@ -162,7 +162,7 @@ task plan:dev      # materialize into ebird__dev, noaa__dev, ...
 task verify:dev    # Soda contracts run against __dev schemas
 task plan:prod     # promote verified changes — see docs/environments.md
 
-# Optional: verify the configured agent model (@cf/zai-org/glm-4.7-flash)
+# Optional: verify the configured agent model (@cf/zai-org/glm-5.2)
 task smoke:cloudflare-ai
 
 # Launch the local Trip Planner (FastAPI + React) at localhost:5173

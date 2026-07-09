@@ -1,4 +1,4 @@
-Status: open
+Status: cancelled
 Created: 2026-07-09
 Updated: 2026-07-09
 Parent: None
@@ -42,6 +42,8 @@ Record the exact bounded commands, date/time, safe status/result, provider statu
 
 - 2026-07-09: Aggregate verification reran `task smoke:cloudflare-ai` once. It reached the configured fixed Cloudflare route but ended in the client's bounded `CloudflareTimeoutError`; no fallback was used and no credential value was printed. Earlier token verification returned HTTP 200, while prior OpenAI-compatible and native model calls also timed out.
 
+- 2026-07-09: Cancelled after the user explicitly replaced the sole model with `@cf/zai-org/glm-5.2`. The replacement and live proof are owned by `.10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md`.
+
 ## Blockers
 
-External Cloudflare model response availability or account entitlement is not yet established.
+None. Superseded by the user-ratified GLM 5.2 replacement.
