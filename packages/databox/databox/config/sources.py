@@ -58,6 +58,8 @@ SOURCES: list[Source] = [
             "species_list",
         ),
     ),
+    Source(name="gbif", raw_tables=("occurrences",)),
+    Source(name="xeno_canto", raw_tables=("recordings",)),
     Source(
         name="noaa",
         raw_tables=("daily_weather", "stations"),

@@ -1,0 +1,44 @@
+dataset: databox/birding_agent/recent_observation_evidence
+
+columns:
+  - name: observation_evidence_id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: evidence_source
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_table
+  - name: source_record_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: raw_source_table
+  - name: species_code
+  - name: common_name
+  - name: scientific_name
+  - name: observation_datetime
+  - name: observation_date
+  - name: observation_count
+  - name: count_display
+  - name: location_id
+  - name: location_name
+  - name: region_code
+  - name: latitude
+  - name: longitude
+  - name: is_valid
+  - name: is_reviewed
+  - name: is_notable
+  - name: exotic_category
+  - name: hotspot_species_all_time
+  - name: hotspot_checklists_all_time
+  - name: loaded_at
+  - name: dlt_load_id
+  - name: dlt_id
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

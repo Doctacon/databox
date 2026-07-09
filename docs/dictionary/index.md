@@ -2,8 +2,8 @@
 
 Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/generate_docs.py`.
 
-- **Models:** 10
-- **Soda contracts:** 17
+- **Models:** 14
+- **Soda contracts:** 21
 - **Lineage:** [browse the dependency graph](lineage.md)
 
 ## `analytics`
@@ -13,6 +13,17 @@ Operational analytics models retained outside the CDM, such as platform health.
 | Model | Contract | Description |
 | --- | --- | --- |
 | [`analytics.platform_health`](analytics/platform_health.md) | yes | Per-source load observability — most recent dlt load id, completion time, status, and row volume |
+
+## `birding_agent`
+
+Planner-ready SQL interfaces for the Birding Trip Copilot agent and Dive.
+
+| Model | Contract | Description |
+| --- | --- | --- |
+| [`birding_agent.gbif_occurrence_evidence`](birding_agent/gbif_occurrence_evidence.md) | yes | Planner-ready GBIF bird occurrence evidence with taxonomy, location, license, and source provenance. |
+| [`birding_agent.recent_observation_evidence`](birding_agent/recent_observation_evidence.md) | yes | Planner-ready recent eBird observation evidence from the environmental observations CDM. |
+| [`birding_agent.species_lookup`](birding_agent/species_lookup.md) | yes | Planner-ready bird species lookup from eBird CDM species plus GBIF occurrence taxonomy fields. |
+| [`birding_agent.xeno_canto_media_evidence`](birding_agent/xeno_canto_media_evidence.md) | yes | Planner-ready Xeno-canto bird sound metadata with media links, license, attribution, and provenance. |
 
 ## `environmental_observations`
 

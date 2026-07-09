@@ -36,6 +36,7 @@ REPO_BLOB_URL = "https://github.com/Doctacon/databox/blob/main"
 
 SCHEMA_DESCRIPTIONS = {
     "analytics": "Operational analytics models retained outside the CDM, such as platform health.",
+    "birding_agent": ("Planner-ready SQL interfaces for the Birding Trip Copilot agent and Dive."),
     "environmental_observations": (
         "Canonical environmental-observations CDM models generated from the .schema workflow."
     ),

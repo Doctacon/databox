@@ -43,6 +43,7 @@ CDM eBird hotspot dimension.
 
 **Downstream**
 
+- [`birding_agent.recent_observation_evidence`](../birding_agent/recent_observation_evidence.md)
 - [`environmental_observations.fact_bird_observation`](fact_bird_observation.md)
 
 ## Example query

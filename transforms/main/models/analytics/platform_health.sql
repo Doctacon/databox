@@ -15,6 +15,24 @@ WITH ebird_loads AS (
     inserted_at::TIMESTAMP AS completed_at
   FROM raw_ebird._dlt_loads
 ),
+gbif_loads AS (
+  SELECT
+    'gbif'             AS source,
+    load_id,
+    schema_name,
+    status,
+    inserted_at::TIMESTAMP AS completed_at
+  FROM raw_gbif._dlt_loads
+),
+xeno_canto_loads AS (
+  SELECT
+    'xeno_canto'             AS source,
+    load_id,
+    schema_name,
+    status,
+    inserted_at::TIMESTAMP AS completed_at
+  FROM raw_xeno_canto._dlt_loads
+),
 noaa_loads AS (
   SELECT
     'noaa'             AS source,
@@ -44,6 +62,8 @@ usgs_earthquakes_loads AS (
 ),
 all_loads AS (
   SELECT * FROM ebird_loads
+  UNION ALL SELECT * FROM gbif_loads
+  UNION ALL SELECT * FROM xeno_canto_loads
   UNION ALL SELECT * FROM noaa_loads
   UNION ALL SELECT * FROM usgs_loads
   UNION ALL SELECT * FROM usgs_earthquakes_loads
@@ -54,6 +74,16 @@ ebird_rows AS (
     UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.notable_observations GROUP BY 1
     UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.hotspots GROUP BY 1
     UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.species_list GROUP BY 1
+  ) t GROUP BY 1
+),
+gbif_rows AS (
+  SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
+    SELECT _dlt_load_id, COUNT(*) AS n FROM raw_gbif.occurrences GROUP BY 1
+  ) t GROUP BY 1
+),
+xeno_canto_rows AS (
+  SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
+    SELECT _dlt_load_id, COUNT(*) AS n FROM raw_xeno_canto.recordings GROUP BY 1
   ) t GROUP BY 1
 ),
 noaa_rows AS (
@@ -75,6 +105,8 @@ usgs_earthquakes_rows AS (
 ),
 all_rows AS (
   SELECT 'ebird' AS source, load_id, rows FROM ebird_rows
+  UNION ALL SELECT 'gbif' AS source, load_id, rows FROM gbif_rows
+  UNION ALL SELECT 'xeno_canto' AS source, load_id, rows FROM xeno_canto_rows
   UNION ALL SELECT 'noaa' AS source, load_id, rows FROM noaa_rows
   UNION ALL SELECT 'usgs' AS source, load_id, rows FROM usgs_rows
   UNION ALL SELECT 'usgs_earthquakes' AS source, load_id, rows FROM usgs_earthquakes_rows

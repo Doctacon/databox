@@ -58,6 +58,14 @@ tasks:
   verify:dev:
     desc: "Run every Soda contract against the __dev schemas"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/verify_dev.py"]
+  eval:agent:
+    desc: "Run deterministic DeepEval checks for the Birding Trip Copilot"
+    env:
+      CONFIDENT_OPEN_BROWSER: "false"
+      DEEPEVAL_CACHE_FOLDER: ".cache/deepeval"
+      DEEPEVAL_TELEMETRY_OPT_OUT: "true"
+      PYTEST_ADDOPTS: "--no-cov"
+    cmds: ["{{.VENV_DIR}}/bin/deepeval test run tests/evals/test_birding_trip_copilot_deepeval.py"]
 
   full-refresh:
     desc: "Dagster dlt source assets through Quack, then native SQLMesh prod restatement — logs to .logs/"
@@ -73,7 +81,7 @@ tasks:
           export DATABOX_BACKEND=quack RUNTIME__DLTHUB_TELEMETRY=false SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}"
           export VIRTUAL_ENV="$repo/{{.VENV_DIR}}"
           export PATH="$VIRTUAL_ENV/bin:$PATH"
-          for job in ebird_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
+          for job in ebird_ingest gbif_ingest xeno_canto_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
             (cd "$tmp" && "$repo/{{.VENV_DIR}}/bin/dg" launch --target-path "$repo/packages/databox" --job "$job")
           done
           "$repo/scripts/sqlmesh_plan_prod.sh"
@@ -92,7 +100,7 @@ tasks:
           export DATABOX_BACKEND=quack DATABOX_SMOKE=1 RUNTIME__DLTHUB_TELEMETRY=false SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}"
           export VIRTUAL_ENV="$repo/{{.VENV_DIR}}"
           export PATH="$VIRTUAL_ENV/bin:$PATH"
-          for job in ebird_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
+          for job in ebird_ingest gbif_ingest xeno_canto_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
             (cd "$tmp" && "$repo/{{.VENV_DIR}}/bin/dg" launch --target-path "$repo/packages/databox" --job "$job")
           done
           "$repo/scripts/sqlmesh_plan_prod.sh"

@@ -57,6 +57,10 @@ CDM fact: one row per eBird observation submission id across recent and notable 
 - `raw_ebird.notable_observations` (external)
 - `raw_ebird.recent_observations` (external)
 
+**Downstream**
+
+- [`birding_agent.recent_observation_evidence`](../birding_agent/recent_observation_evidence.md)
+
 ## Example query
 
 ```sql

@@ -33,6 +33,11 @@ PY
 
 cd "$repo/transforms/main"
 if prod_exists; then
+  # First apply metadata/snapshot changes so newly added models exist in prod.
+  # A direct `--restate-model "*"` can fail when the codebase introduces models
+  # that are not yet present in the existing prod environment.
+  "$sqlmesh" --log-to-stdout --log-file-dir ../../.logs/sqlmesh \
+    plan prod --auto-apply --no-prompts
   "$sqlmesh" --log-to-stdout --log-file-dir ../../.logs/sqlmesh \
     plan prod --auto-apply --restate-model "*" --no-prompts
 else

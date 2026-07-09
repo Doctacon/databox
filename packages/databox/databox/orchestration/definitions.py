@@ -17,7 +17,15 @@ from databox.orchestration._factories import (
     openlineage_sensor_or_none,
     sqlmesh_project,
 )
-from databox.orchestration.domains import analytics, ebird, noaa, usgs, usgs_earthquakes
+from databox.orchestration.domains import (
+    analytics,
+    ebird,
+    gbif,
+    noaa,
+    usgs,
+    usgs_earthquakes,
+    xeno_canto,
+)
 
 ensure_motherduck_databases()
 
@@ -25,6 +33,8 @@ _openlineage_sensor = openlineage_sensor_or_none()
 
 sqlmesh_asset_selection = dg.AssetSelection.assets(
     *ebird.sqlmesh_asset_keys,
+    *gbif.sqlmesh_asset_keys,
+    *xeno_canto.sqlmesh_asset_keys,
     *noaa.sqlmesh_asset_keys,
     *usgs.sqlmesh_asset_keys,
     *usgs_earthquakes.sqlmesh_asset_keys,
@@ -35,6 +45,8 @@ all_pipelines = dg.define_asset_job(
     name="all_pipelines",
     selection=dg.AssetSelection.assets(
         *ebird.dlt_asset_keys,
+        *gbif.dlt_asset_keys,
+        *xeno_canto.dlt_asset_keys,
         *noaa.dlt_asset_keys,
         *usgs.dlt_asset_keys,
         *usgs_earthquakes.dlt_asset_keys,
@@ -46,6 +58,8 @@ all_pipelines = dg.define_asset_job(
 defs = dg.Definitions(
     assets=[
         ebird.ebird_dlt_assets,
+        gbif.gbif_dlt_assets,
+        xeno_canto.xeno_canto_dlt_assets,
         noaa.noaa_dlt_assets,
         usgs.usgs_dlt_assets,
         usgs_earthquakes.usgs_earthquakes_dlt_assets,
@@ -53,6 +67,8 @@ defs = dg.Definitions(
     ],
     asset_checks=[
         *ebird.asset_checks,
+        *gbif.asset_checks,
+        *xeno_canto.asset_checks,
         *noaa.asset_checks,
         *usgs.asset_checks,
         *usgs_earthquakes.asset_checks,
@@ -60,10 +76,14 @@ defs = dg.Definitions(
     ],
     jobs=[
         ebird.ingest_job,
+        gbif.ingest_job,
+        xeno_canto.ingest_job,
         noaa.ingest_job,
         usgs.ingest_job,
         usgs_earthquakes.ingest_job,
         ebird.daily_pipeline,
+        gbif.daily_pipeline,
+        xeno_canto.daily_pipeline,
         noaa.daily_pipeline,
         usgs.daily_pipeline,
         usgs_earthquakes.daily_pipeline,
@@ -71,6 +91,8 @@ defs = dg.Definitions(
     ],
     schedules=[
         ebird.schedule,
+        gbif.schedule,
+        xeno_canto.schedule,
         noaa.schedule,
         usgs.schedule,
         usgs_earthquakes.schedule,

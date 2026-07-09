@@ -1,0 +1,62 @@
+dataset: databox/birding_agent/gbif_occurrence_evidence
+
+columns:
+  - name: occurrence_evidence_id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: evidence_source
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_table
+  - name: source_record_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: gbif_key
+  - name: gbif_id
+  - name: occurrence_id
+  - name: dataset_key
+  - name: publishing_org_key
+  - name: scientific_name
+  - name: accepted_scientific_name
+  - name: common_name
+  - name: family
+  - name: genus
+  - name: species
+  - name: taxon_rank
+  - name: taxon_key
+  - name: accepted_taxon_key
+  - name: latitude
+  - name: longitude
+  - name: coordinate_uncertainty_in_meters
+  - name: country
+  - name: country_code
+  - name: state_province
+  - name: locality
+  - name: event_date_text
+  - name: year
+  - name: month
+  - name: day
+  - name: basis_of_record
+  - name: occurrence_status
+  - name: establishment_means
+  - name: license
+  - name: source_reference_url
+  - name: last_interpreted
+  - name: last_crawled
+  - name: last_parsed
+  - name: _source_url
+  - name: _query_country_code
+  - name: _query_state_province
+  - name: _query_taxon_key
+  - name: loaded_at
+  - name: dlt_load_id
+  - name: dlt_id
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

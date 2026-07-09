@@ -1,0 +1,34 @@
+dataset: databox/birding_agent/species_lookup
+
+columns:
+  - name: species_lookup_id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: evidence_source
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_table
+  - name: source_record_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: species_code
+  - name: common_name
+  - name: scientific_name
+  - name: taxonomic_order
+  - name: taxonomic_category
+  - name: family_name
+  - name: genus
+  - name: taxon_rank
+  - name: taxon_key
+  - name: accepted_taxon_key
+  - name: region_code
+  - name: loaded_at
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

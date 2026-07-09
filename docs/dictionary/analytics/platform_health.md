@@ -20,13 +20,13 @@ Per-source load observability — most recent dlt load id, completion time, stat
 | `load_id` | `UNKNOWN` | missing (must_be=0) | — |
 | `rows_loaded` | `UNKNOWN` | — | — |
 | `schema_name` | `UNKNOWN` | — | — |
-| `source` | `UNKNOWN` | missing (must_be=0), invalid (valid_values=['ebird', 'noaa', 'usgs', 'usgs_earthquakes'], must_be=0) | — |
+| `source` | `UNKNOWN` | missing (must_be=0), invalid (valid_values=['ebird', 'gbif', 'xeno_canto', 'noaa', 'usgs', 'usgs_earthquakes'], must_be=0) | — |
 | `status` | `UNKNOWN` | missing (must_be=0) | — |
 | `status_label` | `TEXT` | — | — |
 
 ## Table-level checks
 
-- **row_count** — must_be=4
+- **row_count** — must_be=6
 
 ## Lineage
 
@@ -37,6 +37,8 @@ Per-source load observability — most recent dlt load id, completion time, stat
 - `raw_ebird.notable_observations` (external)
 - `raw_ebird.recent_observations` (external)
 - `raw_ebird.species_list` (external)
+- `raw_gbif._dlt_loads` (external)
+- `raw_gbif.occurrences` (external)
 - `raw_noaa._dlt_loads` (external)
 - `raw_noaa.daily_weather` (external)
 - `raw_noaa.stations` (external)
@@ -45,6 +47,8 @@ Per-source load observability — most recent dlt load id, completion time, stat
 - `raw_usgs.sites` (external)
 - `raw_usgs_earthquakes._dlt_loads` (external)
 - `raw_usgs_earthquakes.events` (external)
+- `raw_xeno_canto._dlt_loads` (external)
+- `raw_xeno_canto.recordings` (external)
 
 ## Example query
 

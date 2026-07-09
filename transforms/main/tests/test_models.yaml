@@ -105,3 +105,326 @@ test_fact_weather_observation:
           loaded_at: "2025-07-20 10:00:00"
           dlt_load_id: "load-1"
           dlt_id: "row-1"
+
+test_birding_agent_species_lookup:
+  model: birding_agent.species_lookup
+  inputs:
+    environmental_observations.dim_species:
+      rows:
+        - source_pipeline: "ebird_api"
+          source_id: "norcar"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          taxonomic_order: 1001
+          taxonomic_category: "species"
+          family_common_name: "Cardinals and Allies"
+          region: "US-AZ"
+          loaded_at: "2025-07-20 10:00:00"
+    raw_gbif.occurrences:
+      rows:
+        - key: 9001
+          accepted_taxon_key: 12345
+          taxon_key: 12345
+          accepted_scientific_name: "Cardinalis cardinalis"
+          scientific_name: "Cardinalis cardinalis"
+          species: "Cardinalis cardinalis"
+          vernacular_name: "Northern Cardinal"
+          family: "Cardinalidae"
+          genus: "Cardinalis"
+          taxon_rank: "SPECIES"
+          _query_state_province: "Arizona"
+          _loaded_at: "2025-07-21T10:00:00+00:00"
+  outputs:
+    query:
+      rows:
+        - species_lookup_id: "1de0fb5ac90fc57a8291450cf723c3b9"
+          evidence_source: "ebird"
+          source_table: "environmental_observations.dim_species"
+          source_record_id: "norcar"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          taxonomic_order: 1001
+          taxonomic_category: "species"
+          family_name: "Cardinals and Allies"
+          genus: null
+          taxon_rank: null
+          taxon_key: null
+          accepted_taxon_key: null
+          region_code: "US-AZ"
+          loaded_at: "2025-07-20 10:00:00"
+        - species_lookup_id: "f556880de172a3e7d0256189cf50f1c1"
+          evidence_source: "gbif"
+          source_table: "raw_gbif.occurrences"
+          source_record_id: "12345"
+          species_code: null
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          taxonomic_order: null
+          taxonomic_category: null
+          family_name: "Cardinalidae"
+          genus: "Cardinalis"
+          taxon_rank: "SPECIES"
+          taxon_key: 12345
+          accepted_taxon_key: 12345
+          region_code: "Arizona"
+          loaded_at: "2025-07-21 10:00:00"
+
+test_birding_agent_recent_observation_evidence:
+  model: birding_agent.recent_observation_evidence
+  inputs:
+    environmental_observations.fact_bird_observation:
+      rows:
+        - source_observation_id: "S1"
+          source_table: "recent_observations"
+          species_sk: "species-sk"
+          bird_hotspot_sk: "hotspot-sk"
+          species_code: "norcar"
+          observation_datetime: "2025-07-20 06:30:00"
+          observation_date: "2025-07-20"
+          observation_count: 2
+          count_display: "2"
+          location_id: "L1"
+          location_name: "Thumb Butte"
+          region_code: "US-AZ"
+          latitude: 34.54
+          longitude: -112.47
+          is_valid: true
+          is_reviewed: false
+          is_notable: false
+          exotic_category: "N"
+          loaded_at: "2025-07-20 10:00:00"
+          dlt_load_id: "load-1"
+          dlt_id: "row-1"
+    environmental_observations.dim_species:
+      rows:
+        - species_sk: "species-sk"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+    environmental_observations.dim_bird_hotspot:
+      rows:
+        - bird_hotspot_sk: "hotspot-sk"
+          num_species_all_time: 120
+          num_checklists_all_time: 500
+  outputs:
+    query:
+      rows:
+        - observation_evidence_id: "fe9569a6ca5e18d31136819763816434"
+          evidence_source: "ebird"
+          source_table: "environmental_observations.fact_bird_observation"
+          source_record_id: "S1"
+          raw_source_table: "recent_observations"
+          species_code: "norcar"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          observation_datetime: "2025-07-20 06:30:00"
+          observation_date: "2025-07-20"
+          observation_count: 2
+          count_display: "2"
+          location_id: "L1"
+          location_name: "Thumb Butte"
+          region_code: "US-AZ"
+          latitude: 34.54
+          longitude: -112.47
+          is_valid: true
+          is_reviewed: false
+          is_notable: false
+          exotic_category: "N"
+          hotspot_species_all_time: 120
+          hotspot_checklists_all_time: 500
+          loaded_at: "2025-07-20 10:00:00"
+          dlt_load_id: "load-1"
+          dlt_id: "row-1"
+
+test_birding_agent_gbif_occurrence_evidence:
+  model: birding_agent.gbif_occurrence_evidence
+  inputs:
+    raw_gbif.occurrences:
+      rows:
+        - key: 9001
+          gbif_id: "9001"
+          occurrence_id: "occ-9001"
+          dataset_key: "dataset-1"
+          publishing_org_key: "org-1"
+          scientific_name: "Cardinalis cardinalis"
+          accepted_scientific_name: "Cardinalis cardinalis"
+          vernacular_name: "Northern Cardinal"
+          family: "Cardinalidae"
+          genus: "Cardinalis"
+          species: "Cardinalis cardinalis"
+          taxon_rank: "SPECIES"
+          taxon_key: 12345
+          accepted_taxon_key: 12345
+          decimal_latitude: 34.54
+          decimal_longitude: -112.47
+          coordinate_uncertainty_in_meters: 30
+          country: "United States"
+          country_code: "US"
+          state_province: "Arizona"
+          locality: "Thumb Butte"
+          event_date: "2025-07-20"
+          year: 2025
+          month: 7
+          day: 20
+          basis_of_record: "HUMAN_OBSERVATION"
+          occurrence_status: "PRESENT"
+          establishment_means: "native"
+          license: "CC_BY_4_0"
+          references: "https://www.gbif.org/occurrence/9001"
+          last_interpreted: "2025-07-21T00:00:00Z"
+          last_crawled: "2025-07-21T00:00:00Z"
+          last_parsed: "2025-07-21T00:00:00Z"
+          _source_url: "https://api.gbif.org/v1/occurrence/search"
+          _query_country_code: "US"
+          _query_state_province: "Arizona"
+          _query_taxon_key: 212
+          _loaded_at: "2025-07-21T10:00:00+00:00"
+          _dlt_load_id: "load-gbif"
+          _dlt_id: "row-gbif"
+  outputs:
+    query:
+      rows:
+        - occurrence_evidence_id: "e3e6302bce62f7197cb255a3475cbc17"
+          evidence_source: "gbif"
+          source_table: "raw_gbif.occurrences"
+          source_record_id: "9001"
+          gbif_key: 9001
+          gbif_id: "9001"
+          occurrence_id: "occ-9001"
+          dataset_key: "dataset-1"
+          publishing_org_key: "org-1"
+          scientific_name: "Cardinalis cardinalis"
+          accepted_scientific_name: "Cardinalis cardinalis"
+          common_name: "Northern Cardinal"
+          family: "Cardinalidae"
+          genus: "Cardinalis"
+          species: "Cardinalis cardinalis"
+          taxon_rank: "SPECIES"
+          taxon_key: 12345
+          accepted_taxon_key: 12345
+          latitude: 34.54
+          longitude: -112.47
+          coordinate_uncertainty_in_meters: 30
+          country: "United States"
+          country_code: "US"
+          state_province: "Arizona"
+          locality: "Thumb Butte"
+          event_date_text: "2025-07-20"
+          year: 2025
+          month: 7
+          day: 20
+          basis_of_record: "HUMAN_OBSERVATION"
+          occurrence_status: "PRESENT"
+          establishment_means: "native"
+          license: "CC_BY_4_0"
+          source_reference_url: "https://www.gbif.org/occurrence/9001"
+          last_interpreted: "2025-07-21T00:00:00Z"
+          last_crawled: "2025-07-21T00:00:00Z"
+          last_parsed: "2025-07-21T00:00:00Z"
+          _source_url: "https://api.gbif.org/v1/occurrence/search"
+          _query_country_code: "US"
+          _query_state_province: "Arizona"
+          _query_taxon_key: 212
+          loaded_at: "2025-07-21 10:00:00"
+          dlt_load_id: "load-gbif"
+          dlt_id: "row-gbif"
+
+test_birding_agent_xeno_canto_media_evidence:
+  model: birding_agent.xeno_canto_media_evidence
+  inputs:
+    raw_xeno_canto.recordings:
+      rows:
+        - id: "XC123"
+          genus: "Cardinalis"
+          species: "cardinalis"
+          subspecies: "nominate"
+          group_name: "birds"
+          english_name: "Northern Cardinal"
+          recordist: "Jane Recordist"
+          country: "United States"
+          locality: "Thumb Butte"
+          latitude: 34.54
+          longitude: -112.47
+          altitude: "1600m"
+          recording_type: "song"
+          sex: "male"
+          stage: "adult"
+          method: "field recording"
+          recording_url: "https://xeno-canto.org/123"
+          audio_file_url: "https://xeno-canto.org/123/download"
+          file_name: "XC123.mp3"
+          sonogram: "{}"
+          oscillogram: "{}"
+          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
+          quality: "A"
+          length: "0:12"
+          recording_time: "06:30"
+          recording_date: "2025-07-20"
+          uploaded_at: "2025-07-21"
+          also_species: "Spotted Towhee"
+          remarks: "singing"
+          bird_seen: "yes"
+          animal_seen: "yes"
+          playback_used: "no"
+          temperature: "20"
+          registration_number: "reg-1"
+          automatic_recording: "no"
+          device: "recorder"
+          microphone: "mic"
+          _source_url: "https://xeno-canto.org/api/3/recordings"
+          _query: "cnt:\"United States\" loc:\"Arizona\" grp:birds"
+          _query_page: 1
+          _loaded_at: "2025-07-21T10:00:00+00:00"
+          _dlt_load_id: "load-xc"
+          _dlt_id: "row-xc"
+  outputs:
+    query:
+      rows:
+        - media_evidence_id: "f31eb634afa364c493c02493db1dc61b"
+          evidence_source: "xeno_canto"
+          source_table: "raw_xeno_canto.recordings"
+          source_record_id: "XC123"
+          recording_id: "XC123"
+          genus: "Cardinalis"
+          species: "cardinalis"
+          subspecies: "nominate"
+          group_name: "birds"
+          english_name: "Northern Cardinal"
+          recordist: "Jane Recordist"
+          country: "United States"
+          locality: "Thumb Butte"
+          latitude: 34.54
+          longitude: -112.47
+          altitude: "1600m"
+          recording_type: "song"
+          sex: "male"
+          stage: "adult"
+          method: "field recording"
+          recording_url: "https://xeno-canto.org/123"
+          audio_file_url: "https://xeno-canto.org/123/download"
+          file_name: "XC123.mp3"
+          sonogram: "{}"
+          oscillogram: "{}"
+          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
+          quality: "A"
+          length: "0:12"
+          recording_time: "06:30"
+          recording_date: "2025-07-20"
+          uploaded_at: "2025-07-21"
+          also_species: "Spotted Towhee"
+          remarks: "singing"
+          bird_seen: "yes"
+          animal_seen: "yes"
+          playback_used: "no"
+          temperature: "20"
+          registration_number: "reg-1"
+          automatic_recording: "no"
+          device: "recorder"
+          microphone: "mic"
+          _source_url: "https://xeno-canto.org/api/3/recordings"
+          _query: "cnt:\"United States\" loc:\"Arizona\" grp:birds"
+          _query_page: 1
+          loaded_at: "2025-07-21 10:00:00"
+          dlt_load_id: "load-xc"
+          dlt_id: "row-xc"

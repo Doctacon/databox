@@ -22,8 +22,17 @@ _CDM_MODELS = [
     "fact_earthquake_event",
 ]
 
+_BIRDING_AGENT_SCHEMA = "birding_agent"
+_BIRDING_AGENT_MODELS = [
+    "species_lookup",
+    "recent_observation_evidence",
+    "gbif_occurrence_evidence",
+    "xeno_canto_media_evidence",
+]
+
 sqlmesh_asset_keys = [
     *(dg.AssetKey(["sqlmesh", _CDM_SCHEMA, model]) for model in _CDM_MODELS),
+    *(dg.AssetKey(["sqlmesh", _BIRDING_AGENT_SCHEMA, model]) for model in _BIRDING_AGENT_MODELS),
     dg.AssetKey(["sqlmesh", "analytics", "platform_health"]),
 ]
 
@@ -34,6 +43,13 @@ asset_checks: list[dg.AssetChecksDefinition] = [
             SODA_DIR / f"contracts/{_CDM_SCHEMA}/{model}.yaml",
         )
         for model in _CDM_MODELS
+    ),
+    *(
+        soda_check(
+            dg.AssetKey(["sqlmesh", _BIRDING_AGENT_SCHEMA, model]),
+            SODA_DIR / f"contracts/{_BIRDING_AGENT_SCHEMA}/{model}.yaml",
+        )
+        for model in _BIRDING_AGENT_MODELS
     ),
     soda_check(
         dg.AssetKey(["sqlmesh", "analytics", "platform_health"]),

@@ -32,6 +32,18 @@ uv run pytest --cov=. --cov-report=html
 
 Test markers are defined in `pyproject.toml` under `[tool.pytest.ini_options]`.
 
+## Agent evaluations
+
+```bash
+task eval:agent
+```
+
+This runs the deterministic DeepEval suite at
+`tests/evals/test_birding_trip_copilot_deepeval.py`. The target opts out of
+DeepEval telemetry, keeps the cache under the ignored `.cache/` tree, disables
+browser opening, and sets `PYTEST_ADDOPTS=--no-cov` so the focused eval run is
+not affected by the repository-wide coverage gate.
+
 ## SQLMesh
 
 Run from `transforms/main/` — SQLMesh picks up `config.py` there.

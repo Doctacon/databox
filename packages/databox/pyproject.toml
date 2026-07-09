@@ -17,6 +17,7 @@ dependencies = [
     "duckdb>=1.5.3",
     "sqlmesh>=0.204.0",
     "dagster-sqlmesh",
+    "google-adk>=2.4.0",
 ]
 
 [project.optional-dependencies]

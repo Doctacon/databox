@@ -45,6 +45,8 @@ CDM species dimension from eBird taxonomy and species list.
 
 **Downstream**
 
+- [`birding_agent.recent_observation_evidence`](../birding_agent/recent_observation_evidence.md)
+- [`birding_agent.species_lookup`](../birding_agent/species_lookup.md)
 - [`environmental_observations.fact_bird_observation`](fact_bird_observation.md)
 
 ## Example query

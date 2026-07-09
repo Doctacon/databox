@@ -53,6 +53,8 @@ def test_motherduck_database_names_includes_known_sources() -> None:
     names = _factories.settings.motherduck_database_names
     assert "databox" in names
     assert "raw_ebird" in names
+    assert "raw_gbif" in names
+    assert "raw_xeno_canto" in names
     assert "raw_noaa" in names
     assert "raw_usgs" in names
     assert "raw_usgs_earthquakes" in names

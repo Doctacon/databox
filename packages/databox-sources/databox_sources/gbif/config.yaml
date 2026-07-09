@@ -1,0 +1,16 @@
+source_module: "databox_sources.gbif.source"
+description: "GBIF bird occurrence records from the GBIF API"
+schedule:
+  cron: "0 6 * * *"
+  enabled: true
+params:
+  country_code: "US"
+  state_province: "Arizona"
+  taxon_key: 212
+  max_records: 1000
+  has_coordinate: true
+quality_rules:
+  - column: key
+    check: not_null
+  - column: scientific_name
+    check: not_null

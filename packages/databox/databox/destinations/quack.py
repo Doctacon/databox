@@ -57,6 +57,8 @@ _RAW_DEDUPE_KEYS: dict[tuple[str, str], tuple[str, ...]] = {
     ("raw_ebird", "species_list"): ("species_code",),
     ("raw_ebird", "taxonomy"): ("sci_name",),
     ("raw_ebird", "region_stats"): ("region_code", "year", "month", "day"),
+    ("raw_gbif", "occurrences"): ("key",),
+    ("raw_xeno_canto", "recordings"): ("id",),
     ("raw_noaa", "daily_weather"): ("date", "datatype", "station"),
     ("raw_noaa", "stations"): ("id",),
     ("raw_noaa", "datasets"): ("id",),
