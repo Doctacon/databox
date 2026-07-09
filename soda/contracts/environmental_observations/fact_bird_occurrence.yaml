@@ -1,0 +1,44 @@
+dataset: databox/environmental_observations/fact_bird_occurrence
+
+columns:
+  - name: bird_occurrence_sk
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: species_sk
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_pipeline
+  - name: source_id
+    checks:
+      - missing:
+          must_be: 0
+  - name: gbif_key
+  - name: gbif_id
+  - name: occurrence_id
+  - name: scientific_name
+  - name: accepted_scientific_name
+  - name: common_name
+  - name: taxon_key
+  - name: accepted_taxon_key
+  - name: latitude
+  - name: longitude
+  - name: country_code
+  - name: state_province
+  - name: event_date_text
+  - name: event_date
+  - name: basis_of_record
+  - name: occurrence_status
+  - name: license
+  - name: source_reference_url
+  - name: source_url
+  - name: loaded_at
+  - name: dlt_load_id
+  - name: dlt_id
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

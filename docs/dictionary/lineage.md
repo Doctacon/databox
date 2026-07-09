@@ -14,18 +14,22 @@ graph LR
     n7["environmental_observations.dim_streamgage_site"]
     n8["environmental_observations.dim_weather_station"]
     n9["environmental_observations.fact_bird_observation"]
-    n10["environmental_observations.fact_earthquake_event"]
-    n11["environmental_observations.fact_region_daily_stats"]
-    n12["environmental_observations.fact_streamflow_observation"]
-    n13["environmental_observations.fact_weather_observation"]
+    n10["environmental_observations.fact_bird_occurrence"]
+    n11["environmental_observations.fact_bird_sound_recording"]
+    n12["environmental_observations.fact_earthquake_event"]
+    n13["environmental_observations.fact_region_daily_stats"]
+    n14["environmental_observations.fact_streamflow_observation"]
+    n15["environmental_observations.fact_weather_observation"]
     n5 --> n2
     n6 --> n2
     n9 --> n2
     n6 --> n3
     n5 --> n9
     n6 --> n9
-    n7 --> n12
-    n8 --> n13
+    n6 --> n10
+    n6 --> n11
+    n7 --> n14
+    n8 --> n15
 
     click n0 "analytics/platform_health.md"
     click n1 "birding_agent/gbif_occurrence_evidence.md"
@@ -37,8 +41,10 @@ graph LR
     click n7 "environmental_observations/dim_streamgage_site.md"
     click n8 "environmental_observations/dim_weather_station.md"
     click n9 "environmental_observations/fact_bird_observation.md"
-    click n10 "environmental_observations/fact_earthquake_event.md"
-    click n11 "environmental_observations/fact_region_daily_stats.md"
-    click n12 "environmental_observations/fact_streamflow_observation.md"
-    click n13 "environmental_observations/fact_weather_observation.md"
+    click n10 "environmental_observations/fact_bird_occurrence.md"
+    click n11 "environmental_observations/fact_bird_sound_recording.md"
+    click n12 "environmental_observations/fact_earthquake_event.md"
+    click n13 "environmental_observations/fact_region_daily_stats.md"
+    click n14 "environmental_observations/fact_streamflow_observation.md"
+    click n15 "environmental_observations/fact_weather_observation.md"
 ```

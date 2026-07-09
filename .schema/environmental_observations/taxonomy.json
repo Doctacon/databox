@@ -28,16 +28,23 @@
     "assumptions": []
   },
   "Species": {
-    "description": "eBird species codes, taxonomy, and alternate common/scientific/banding code rows present in the eBird schema.",
+    "description": "Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF occurrence taxonomy, and Xeno-canto recording metadata.",
     "use_cases": [
-      "date/location analysis across environmental observations"
+      "date/location analysis across environmental observations",
+      "birding trip planning evidence"
     ],
     "references": [
       "species_list",
       "taxonomy",
       "species_code",
       "sci_name",
-      "com_name"
+      "com_name",
+      "accepted_scientific_name",
+      "accepted_taxon_key",
+      "taxon_key",
+      "genus",
+      "english_name",
+      "normalized_scientific_name"
     ],
     "tables": [
       {
@@ -64,10 +71,25 @@
         "table": "taxonomy__banding_codes",
         "source_pipeline": "ebird_api",
         "role": "child"
+      },
+      {
+        "table": "occurrences",
+        "source_pipeline": "gbif_api",
+        "role": "secondary_taxonomy"
+      },
+      {
+        "table": "recordings",
+        "source_pipeline": "xeno_canto_api",
+        "role": "media_context"
       }
     ],
-    "natural_key": null,
-    "assumptions": []
+    "natural_key": "normalized_scientific_name",
+    "assumptions": [
+      "Conform eBird, GBIF, and Xeno-canto species using normalized scientific name: lowercase/trim and strip trailing parenthetical authorship when present.",
+      "eBird taxonomy wins conflicting descriptive attributes; GBIF fills taxon identifiers and gaps; Xeno-canto supplies media context.",
+      "Coverage is a union of species from any source; rows without a usable scientific-name key remain source-scoped by fallback key.",
+      "Normalization does not collapse hybrids or subspecies to a broader species unless the source scientific-name text matches after author stripping."
+    ]
   },
   "BirdHotspot": {
     "description": "eBird hotspot location records with hotspot id, name, lat/lng, region codes, and observation/checklist totals.",
@@ -220,6 +242,61 @@
     "natural_key": null,
     "assumptions": []
   },
+  "BirdOccurrence": {
+    "description": "GBIF bird occurrence records with occurrence identifiers, taxonomy fields, event date parts, coordinates, location/status fields, license, and provenance metadata.",
+    "use_cases": [
+      "date/location analysis across environmental observations",
+      "birding trip planning evidence"
+    ],
+    "references": [
+      "occurrences",
+      "gbif_id",
+      "occurrence_id",
+      "scientific_name",
+      "accepted_taxon_key",
+      "decimal_latitude",
+      "decimal_longitude",
+      "event_date"
+    ],
+    "tables": [
+      {
+        "table": "occurrences",
+        "source_pipeline": "gbif_api",
+        "role": "primary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": []
+  },
+  "BirdSoundRecording": {
+    "description": "Xeno-canto bird sound recording metadata with recording identifiers, species names, media links, license/attribution fields, date/location fields, and provenance metadata.",
+    "use_cases": [
+      "date/location analysis across environmental observations",
+      "birding trip planning evidence"
+    ],
+    "references": [
+      "recordings",
+      "recording_url",
+      "audio_file_url",
+      "english_name",
+      "genus",
+      "species",
+      "recording_date",
+      "quality",
+      "license"
+    ],
+    "tables": [
+      {
+        "table": "recordings",
+        "source_pipeline": "xeno_canto_api",
+        "role": "primary"
+      }
+    ],
+    "natural_key": null,
+    "assumptions": [
+      "Xeno-canto audio remains an external linked artifact; the source stores recording metadata and media links only."
+    ]
+  },
   "_excluded": [
     {
       "table": "_dlt_version",
@@ -285,6 +362,26 @@
       "table": "_dlt_pipeline_state",
       "source_pipeline": "usgs_earthquakes_api",
       "reason": "dlt internal pipeline state table"
+    },
+    {
+      "table": "_dlt_version",
+      "source_pipeline": "gbif_api",
+      "reason": "dlt internal schema version table"
+    },
+    {
+      "table": "_dlt_loads",
+      "source_pipeline": "gbif_api",
+      "reason": "dlt internal load tracking table"
+    },
+    {
+      "table": "_dlt_version",
+      "source_pipeline": "xeno_canto_api",
+      "reason": "dlt internal schema version table"
+    },
+    {
+      "table": "_dlt_loads",
+      "source_pipeline": "xeno_canto_api",
+      "reason": "dlt internal load tracking table"
     }
   ]
 }

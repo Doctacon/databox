@@ -93,7 +93,12 @@ SELECT
   o._dlt_id AS dlt_id
 FROM ranked o
 LEFT JOIN environmental_observations.dim_species s
-  ON s.source_pipeline = 'ebird_api' AND s.source_id = o.species_code
+  ON s.species_natural_key = NULLIF(LOWER(TRIM(regexp_replace(TRIM(o.sci_name), '\s*\([^)]*\)\s*$', ''))), '')
+  OR (
+    NULLIF(LOWER(TRIM(regexp_replace(TRIM(o.sci_name), '\s*\([^)]*\)\s*$', ''))), '') IS NULL
+    AND s.source_pipeline = 'ebird_api'
+    AND s.source_id = o.species_code
+  )
 LEFT JOIN environmental_observations.dim_bird_hotspot h
   ON h.source_pipeline = 'ebird_api' AND h.source_id = o.loc_id
 WHERE o.rn = 1

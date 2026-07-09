@@ -15,16 +15,55 @@ test_dim_species:
           extinct: false
           extinct_year: 0
           _loaded_at: "2025-07-20T10:00:00+00:00"
+        - species_code: "norcarx"
+          com_name: "Northern Cardinal duplicate"
+          sci_name: "Cardinalis cardinalis"
+          taxon_order: 1002
+          category: "hybrid"
+          _loaded_at: "2025-07-21T10:00:00+00:00"
     raw_ebird.species_list:
       rows:
         - species_code: "norcar"
           region: "US-AZ"
           order: 1001
           _loaded_at: "2025-07-20T09:00:00+00:00"
+    raw_gbif.occurrences:
+      rows:
+        - key: 9001
+          accepted_taxon_key: 12345
+          taxon_key: 12345
+          accepted_scientific_name: "Cardinalis cardinalis"
+          scientific_name: "Cardinalis cardinalis"
+          species: "Cardinalis cardinalis"
+          vernacular_name: "Northern Cardinal"
+          family: "Cardinalidae"
+          genus: "Cardinalis"
+          taxon_rank: "SPECIES"
+          _query_state_province: "Arizona"
+          _loaded_at: "2025-07-19T10:00:00+00:00"
+        - key: 9002
+          vernacular_name: "Mystery GBIF bird"
+          _loaded_at: "2025-07-19T11:00:00+00:00"
+    raw_xeno_canto.recordings:
+      rows:
+        - id: "XC123"
+          genus: "Cardinalis"
+          species: "cardinalis"
+          english_name: "Northern Cardinal"
+          recording_url: "https://xeno-canto.org/123"
+          audio_file_url: "https://xeno-canto.org/123/download"
+          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
+          quality: "A"
+          _loaded_at: "2025-07-18T10:00:00+00:00"
+        - id: "XC999"
+          english_name: "Mystery Xeno-canto bird"
+          recording_url: "https://xeno-canto.org/999"
+          _loaded_at: "2025-07-18T11:00:00+00:00"
   outputs:
     query:
       rows:
-        - species_sk: "6274ec82dda9d492725bbcb967d90fd3"
+        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
+          species_natural_key: "cardinalis cardinalis"
           source_pipeline: "ebird_api"
           source_id: "norcar"
           species_code: "norcar"
@@ -39,8 +78,85 @@ test_dim_species:
           extinct: false
           extinct_year: 0
           region: "US-AZ"
+          gbif_source_id: "12345"
+          gbif_taxon_key: 12345
+          gbif_accepted_taxon_key: 12345
+          gbif_family: "Cardinalidae"
+          genus: "Cardinalis"
+          gbif_taxon_rank: "SPECIES"
+          xeno_canto_recording_id: "XC123"
+          xeno_canto_recording_count: 1
+          xeno_canto_recording_url: "https://xeno-canto.org/123"
+          xeno_canto_audio_file_url: "https://xeno-canto.org/123/download"
+          xeno_canto_license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
+          xeno_canto_quality: "A"
+          has_gbif_occurrence: true
+          has_xeno_canto_recording: true
           loaded_at: "2025-07-20 10:00:00"
+        - species_sk: "18c87eff7e1b035dc3d50865a6c76dfb"
+          species_natural_key: null
+          source_pipeline: "gbif_api"
+          source_id: "9002"
+          species_code: null
+          common_name: "Mystery GBIF bird"
+          scientific_name: null
+          taxonomic_order: null
+          taxonomic_category: null
+          family_code: null
+          family_common_name: null
+          family_scientific_name: null
+          report_as: null
+          extinct: null
+          extinct_year: null
+          region: null
+          gbif_source_id: "9002"
+          gbif_taxon_key: null
+          gbif_accepted_taxon_key: null
+          gbif_family: null
+          genus: null
+          gbif_taxon_rank: null
+          xeno_canto_recording_id: null
+          xeno_canto_recording_count: null
+          xeno_canto_recording_url: null
+          xeno_canto_audio_file_url: null
+          xeno_canto_license: null
+          xeno_canto_quality: null
+          has_gbif_occurrence: true
+          has_xeno_canto_recording: false
+          loaded_at: "2025-07-19 11:00:00"
+        - species_sk: "7c39a6027c8fc71f7305a5023c5b22ff"
+          species_natural_key: null
+          source_pipeline: "xeno_canto_api"
+          source_id: "XC999"
+          species_code: null
+          common_name: "Mystery Xeno-canto bird"
+          scientific_name: null
+          taxonomic_order: null
+          taxonomic_category: null
+          family_code: null
+          family_common_name: null
+          family_scientific_name: null
+          report_as: null
+          extinct: null
+          extinct_year: null
+          region: null
+          gbif_source_id: null
+          gbif_taxon_key: null
+          gbif_accepted_taxon_key: null
+          gbif_family: null
+          genus: null
+          gbif_taxon_rank: null
+          xeno_canto_recording_id: "XC999"
+          xeno_canto_recording_count: 1
+          xeno_canto_recording_url: "https://xeno-canto.org/999"
+          xeno_canto_audio_file_url: null
+          xeno_canto_license: null
+          xeno_canto_quality: null
+          has_gbif_occurrence: false
+          has_xeno_canto_recording: true
+          loaded_at: "2025-07-18 11:00:00"
         - species_sk: "1179353561b8617a04054c9119dc2d22"
+          species_natural_key: null
           source_pipeline: "sentinel"
           source_id: "UNKNOWN"
           species_code: null
@@ -55,6 +171,20 @@ test_dim_species:
           extinct: null
           extinct_year: null
           region: null
+          gbif_source_id: null
+          gbif_taxon_key: null
+          gbif_accepted_taxon_key: null
+          gbif_family: null
+          genus: null
+          gbif_taxon_rank: null
+          xeno_canto_recording_id: null
+          xeno_canto_recording_count: null
+          xeno_canto_recording_url: null
+          xeno_canto_audio_file_url: null
+          xeno_canto_license: null
+          xeno_canto_quality: null
+          has_gbif_occurrence: false
+          has_xeno_canto_recording: false
           loaded_at: null
 
 test_fact_weather_observation:
@@ -111,7 +241,8 @@ test_birding_agent_species_lookup:
   inputs:
     environmental_observations.dim_species:
       rows:
-        - source_pipeline: "ebird_api"
+        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
+          source_pipeline: "ebird_api"
           source_id: "norcar"
           species_code: "norcar"
           common_name: "Northern Cardinal"
@@ -119,27 +250,18 @@ test_birding_agent_species_lookup:
           taxonomic_order: 1001
           taxonomic_category: "species"
           family_common_name: "Cardinals and Allies"
-          region: "US-AZ"
-          loaded_at: "2025-07-20 10:00:00"
-    raw_gbif.occurrences:
-      rows:
-        - key: 9001
-          accepted_taxon_key: 12345
-          taxon_key: 12345
-          accepted_scientific_name: "Cardinalis cardinalis"
-          scientific_name: "Cardinalis cardinalis"
-          species: "Cardinalis cardinalis"
-          vernacular_name: "Northern Cardinal"
-          family: "Cardinalidae"
+          gbif_family: "Cardinalidae"
           genus: "Cardinalis"
-          taxon_rank: "SPECIES"
-          _query_state_province: "Arizona"
-          _loaded_at: "2025-07-21T10:00:00+00:00"
+          gbif_taxon_rank: "SPECIES"
+          gbif_taxon_key: 12345
+          gbif_accepted_taxon_key: 12345
+          region: "US-AZ"
+          loaded_at: "2025-07-21 10:00:00"
   outputs:
     query:
       rows:
-        - species_lookup_id: "1de0fb5ac90fc57a8291450cf723c3b9"
-          evidence_source: "ebird"
+        - species_lookup_id: "814ddfa94aaba2c1b7bca60a38e8ae8e"
+          evidence_source: "ebird_api"
           source_table: "environmental_observations.dim_species"
           source_record_id: "norcar"
           species_code: "norcar"
@@ -148,27 +270,11 @@ test_birding_agent_species_lookup:
           taxonomic_order: 1001
           taxonomic_category: "species"
           family_name: "Cardinals and Allies"
-          genus: null
-          taxon_rank: null
-          taxon_key: null
-          accepted_taxon_key: null
-          region_code: "US-AZ"
-          loaded_at: "2025-07-20 10:00:00"
-        - species_lookup_id: "f556880de172a3e7d0256189cf50f1c1"
-          evidence_source: "gbif"
-          source_table: "raw_gbif.occurrences"
-          source_record_id: "12345"
-          species_code: null
-          common_name: "Northern Cardinal"
-          scientific_name: "Cardinalis cardinalis"
-          taxonomic_order: null
-          taxonomic_category: null
-          family_name: "Cardinalidae"
           genus: "Cardinalis"
           taxon_rank: "SPECIES"
           taxon_key: 12345
           accepted_taxon_key: 12345
-          region_code: "Arizona"
+          region_code: "US-AZ"
           loaded_at: "2025-07-21 10:00:00"
 
 test_birding_agent_recent_observation_evidence:
@@ -428,3 +534,457 @@ test_birding_agent_xeno_canto_media_evidence:
           loaded_at: "2025-07-21 10:00:00"
           dlt_load_id: "load-xc"
           dlt_id: "row-xc"
+
+test_fact_bird_occurrence:
+  model: environmental_observations.fact_bird_occurrence
+  inputs:
+    environmental_observations.dim_species:
+      rows:
+        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
+          species_natural_key: "cardinalis cardinalis"
+          source_pipeline: "ebird_api"
+          source_id: "norcar"
+    raw_gbif.occurrences:
+      rows:
+        - key: 9001
+          gbif_id: "9001"
+          occurrence_id: "occ-9001"
+          dataset_key: "dataset-1"
+          publishing_org_key: "org-1"
+          installation_key: "install-1"
+          hosting_organization_key: "host-1"
+          protocol: "DWC_ARCHIVE"
+          publishing_country: "US"
+          scientific_name: "Cardinalis cardinalis"
+          accepted_scientific_name: "Cardinalis cardinalis"
+          vernacular_name: "Northern Cardinal"
+          kingdom: "Animalia"
+          phylum: "Chordata"
+          class_name: "Aves"
+          order_name: "Passeriformes"
+          family: "Cardinalidae"
+          genus: "Cardinalis"
+          species: "Cardinalis cardinalis"
+          generic_name: "Cardinalis"
+          specific_epithet: "cardinalis"
+          taxon_rank: "SPECIES"
+          taxon_key: 12345
+          accepted_taxon_key: 12345
+          kingdom_key: 1
+          phylum_key: 44
+          class_key: 212
+          order_key: 729
+          family_key: 9608
+          genus_key: 2491321
+          species_key: 2491322
+          decimal_latitude: 34.54
+          decimal_longitude: -112.47
+          coordinate_uncertainty_in_meters: 30
+          country: "United States"
+          country_code: "US"
+          state_province: "Arizona"
+          locality: "Thumb Butte"
+          event_date: "2025-07-20"
+          year: 2025
+          month: 7
+          day: 20
+          basis_of_record: "HUMAN_OBSERVATION"
+          occurrence_status: "PRESENT"
+          establishment_means: "native"
+          record_number: "rec-1"
+          recorded_by: "Observer"
+          identified_by: "Identifier"
+          institution_code: "INST"
+          collection_code: "COLL"
+          catalog_number: "CAT-1"
+          license: "CC_BY_4_0"
+          references: "https://www.gbif.org/occurrence/9001"
+          last_interpreted: "2025-07-21T00:00:00Z"
+          last_crawled: "2025-07-21T00:00:00Z"
+          last_parsed: "2025-07-21T00:00:00Z"
+          _source_url: "https://api.gbif.org/v1/occurrence/search"
+          _query_country_code: "US"
+          _query_state_province: "Arizona"
+          _query_taxon_key: 212
+          _loaded_at: "2025-07-21T10:00:00+00:00"
+          _dlt_load_id: "load-gbif"
+          _dlt_id: "row-gbif"
+  outputs:
+    query:
+      rows:
+        - bird_occurrence_sk: "430463ba1cc22feb42d6cca1807a8649"
+          species_sk: "472526fe01a3fd0400bdbb083727c8b4"
+          source_pipeline: "gbif_api"
+          source_id: "9001"
+          gbif_key: 9001
+          gbif_id: "9001"
+          occurrence_id: "occ-9001"
+          dataset_key: "dataset-1"
+          publishing_org_key: "org-1"
+          installation_key: "install-1"
+          hosting_organization_key: "host-1"
+          protocol: "DWC_ARCHIVE"
+          publishing_country: "US"
+          scientific_name: "Cardinalis cardinalis"
+          accepted_scientific_name: "Cardinalis cardinalis"
+          common_name: "Northern Cardinal"
+          kingdom: "Animalia"
+          phylum: "Chordata"
+          class_name: "Aves"
+          order_name: "Passeriformes"
+          family: "Cardinalidae"
+          genus: "Cardinalis"
+          species: "Cardinalis cardinalis"
+          generic_name: "Cardinalis"
+          specific_epithet: "cardinalis"
+          taxon_rank: "SPECIES"
+          taxon_key: 12345
+          accepted_taxon_key: 12345
+          kingdom_key: 1
+          phylum_key: 44
+          class_key: 212
+          order_key: 729
+          family_key: 9608
+          genus_key: 2491321
+          species_key: 2491322
+          latitude: 34.54
+          longitude: -112.47
+          coordinate_uncertainty_in_meters: 30
+          country: "United States"
+          country_code: "US"
+          state_province: "Arizona"
+          locality: "Thumb Butte"
+          event_date_text: "2025-07-20"
+          event_date: "2025-07-20"
+          year: 2025
+          month: 7
+          day: 20
+          basis_of_record: "HUMAN_OBSERVATION"
+          occurrence_status: "PRESENT"
+          establishment_means: "native"
+          record_number: "rec-1"
+          recorded_by: "Observer"
+          identified_by: "Identifier"
+          institution_code: "INST"
+          collection_code: "COLL"
+          catalog_number: "CAT-1"
+          license: "CC_BY_4_0"
+          source_reference_url: "https://www.gbif.org/occurrence/9001"
+          last_interpreted: "2025-07-21T00:00:00Z"
+          last_crawled: "2025-07-21T00:00:00Z"
+          last_parsed: "2025-07-21T00:00:00Z"
+          source_url: "https://api.gbif.org/v1/occurrence/search"
+          query_country_code: "US"
+          query_state_province: "Arizona"
+          query_taxon_key: 212
+          loaded_at: "2025-07-21 10:00:00"
+          dlt_load_id: "load-gbif"
+          dlt_id: "row-gbif"
+
+test_fact_bird_sound_recording:
+  model: environmental_observations.fact_bird_sound_recording
+  inputs:
+    environmental_observations.dim_species:
+      rows:
+        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
+          species_natural_key: "cardinalis cardinalis"
+          source_pipeline: "ebird_api"
+          source_id: "norcar"
+    raw_xeno_canto.recordings:
+      rows:
+        - id: "XC123"
+          genus: "Cardinalis"
+          species: "cardinalis"
+          subspecies: "nominate"
+          group_name: "birds"
+          english_name: "Northern Cardinal"
+          recordist: "Jane Recordist"
+          country: "United States"
+          locality: "Thumb Butte"
+          latitude: 34.54
+          longitude: -112.47
+          altitude: "1600m"
+          recording_type: "song"
+          sex: "male"
+          stage: "adult"
+          method: "field recording"
+          recording_url: "https://xeno-canto.org/123"
+          audio_file_url: "https://xeno-canto.org/123/download"
+          file_name: "XC123.mp3"
+          sonogram: "{}"
+          oscillogram: "{}"
+          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
+          quality: "A"
+          length: "0:12"
+          recording_time: "06:30"
+          recording_date: "2025-07-20"
+          uploaded_at: "2025-07-21"
+          also_species: "Spotted Towhee"
+          remarks: "singing"
+          bird_seen: "yes"
+          animal_seen: "yes"
+          playback_used: "no"
+          temperature: "20"
+          registration_number: "reg-1"
+          automatic_recording: "no"
+          device: "recorder"
+          microphone: "mic"
+          _source_url: "https://xeno-canto.org/api/3/recordings"
+          _query: "cnt:\"United States\" loc:\"Arizona\" grp:birds"
+          _query_page: 1
+          _loaded_at: "2025-07-21T10:00:00+00:00"
+          _dlt_load_id: "load-xc"
+          _dlt_id: "row-xc"
+  outputs:
+    query:
+      rows:
+        - bird_sound_recording_sk: "eec0153ab1cfec0e594df72483831d20"
+          species_sk: "472526fe01a3fd0400bdbb083727c8b4"
+          source_pipeline: "xeno_canto_api"
+          source_id: "XC123"
+          recording_id: "XC123"
+          genus: "Cardinalis"
+          species: "cardinalis"
+          subspecies: "nominate"
+          group_name: "birds"
+          english_name: "Northern Cardinal"
+          recordist: "Jane Recordist"
+          country: "United States"
+          locality: "Thumb Butte"
+          latitude: 34.54
+          longitude: -112.47
+          altitude: "1600m"
+          recording_type: "song"
+          sex: "male"
+          stage: "adult"
+          method: "field recording"
+          recording_url: "https://xeno-canto.org/123"
+          audio_file_url: "https://xeno-canto.org/123/download"
+          file_name: "XC123.mp3"
+          sonogram: "{}"
+          oscillogram: "{}"
+          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
+          quality: "A"
+          length: "0:12"
+          recording_time: "06:30"
+          recording_date_text: "2025-07-20"
+          recording_date: "2025-07-20"
+          uploaded_at: "2025-07-21"
+          also_species: "Spotted Towhee"
+          remarks: "singing"
+          bird_seen: "yes"
+          animal_seen: "yes"
+          playback_used: "no"
+          temperature: "20"
+          registration_number: "reg-1"
+          automatic_recording: "no"
+          device: "recorder"
+          microphone: "mic"
+          source_url: "https://xeno-canto.org/api/3/recordings"
+          query: "cnt:\"United States\" loc:\"Arizona\" grp:birds"
+          query_page: 1
+          loaded_at: "2025-07-21 10:00:00"
+          dlt_load_id: "load-xc"
+          dlt_id: "row-xc"
+
+test_fact_bird_occurrence_blank_name_fallbacks:
+  model: environmental_observations.fact_bird_occurrence
+  inputs:
+    environmental_observations.dim_species:
+      rows:
+        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
+          species_natural_key: "cardinalis cardinalis"
+          source_pipeline: "ebird_api"
+          source_id: "norcar"
+        - species_sk: "8e752939f2db9dc7db3013693506c4eb"
+          species_natural_key: null
+          source_pipeline: "gbif_api"
+          source_id: "9011"
+    raw_gbif.occurrences:
+      columns:
+        key: bigint
+        gbif_id: text
+        occurrence_id: text
+        dataset_key: text
+        publishing_org_key: text
+        installation_key: text
+        hosting_organization_key: text
+        protocol: text
+        publishing_country: text
+        scientific_name: text
+        accepted_scientific_name: text
+        vernacular_name: text
+        kingdom: text
+        phylum: text
+        class_name: text
+        order_name: text
+        family: text
+        genus: text
+        species: text
+        generic_name: text
+        specific_epithet: text
+        taxon_rank: text
+        taxon_key: bigint
+        accepted_taxon_key: bigint
+        kingdom_key: bigint
+        phylum_key: bigint
+        class_key: bigint
+        order_key: bigint
+        family_key: bigint
+        genus_key: bigint
+        species_key: bigint
+        decimal_latitude: double
+        decimal_longitude: double
+        coordinate_uncertainty_in_meters: double
+        country: text
+        country_code: text
+        state_province: text
+        locality: text
+        event_date: text
+        year: bigint
+        month: bigint
+        day: bigint
+        basis_of_record: text
+        occurrence_status: text
+        establishment_means: text
+        record_number: text
+        recorded_by: text
+        identified_by: text
+        institution_code: text
+        collection_code: text
+        catalog_number: text
+        license: text
+        references: text
+        last_interpreted: text
+        last_crawled: text
+        last_parsed: text
+        _source_url: text
+        _query_country_code: text
+        _query_state_province: text
+        _query_taxon_key: bigint
+        _loaded_at: timestamp
+        _dlt_load_id: text
+        _dlt_id: text
+      rows:
+        - key: 9010
+          accepted_taxon_key: 12345
+          taxon_key: 12345
+          accepted_scientific_name: ""
+          scientific_name: "Cardinalis cardinalis"
+          species: ""
+        - key: 9011
+          accepted_taxon_key: 12345
+          taxon_key: 12345
+          species: ""
+  outputs:
+    query:
+      rows:
+        - bird_occurrence_sk: "750321d6366640c0b811603abba4b9f7"
+          species_sk: "472526fe01a3fd0400bdbb083727c8b4"
+          source_pipeline: "gbif_api"
+          source_id: "9010"
+          gbif_key: 9010
+          scientific_name: "Cardinalis cardinalis"
+          accepted_scientific_name: ""
+          species: ""
+          taxon_key: 12345
+          accepted_taxon_key: 12345
+        - bird_occurrence_sk: "1c989fc27ee69ba092ef006db4d0403d"
+          species_sk: "8e752939f2db9dc7db3013693506c4eb"
+          source_pipeline: "gbif_api"
+          source_id: "9011"
+          gbif_key: 9011
+          species: ""
+          taxon_key: 12345
+          accepted_taxon_key: 12345
+
+test_fact_bird_observation_uses_natural_key_without_duplicate_fallback_join:
+  model: environmental_observations.fact_bird_observation
+  inputs:
+    environmental_observations.dim_species:
+      rows:
+        - species_sk: "natural-species-sk"
+          species_natural_key: "cardinalis cardinalis"
+          source_pipeline: "gbif_api"
+          source_id: "12345"
+        - species_sk: "fallback-species-sk"
+          species_natural_key: null
+          source_pipeline: "ebird_api"
+          source_id: "norcar"
+    environmental_observations.dim_bird_hotspot:
+      rows:
+        - bird_hotspot_sk: "hotspot-sk"
+          source_pipeline: "ebird_api"
+          source_id: "L1"
+    raw_ebird.recent_observations:
+      rows:
+        - sub_id: "S1"
+          species_code: "norcar"
+          com_name: "Northern Cardinal"
+          sci_name: "Cardinalis cardinalis"
+          loc_id: "L1"
+          loc_name: "Thumb Butte"
+          obs_dt: "2025-07-20T06:30:00+00:00"
+          how_many: 2
+          lat: 34.54
+          lng: -112.47
+          obs_valid: true
+          obs_reviewed: false
+          location_private: false
+          _region_code: "US-AZ"
+          exotic_category: "N"
+          _loaded_at: "2025-07-20T10:00:00+00:00"
+          _dlt_load_id: "load-1"
+          _dlt_id: "row-1"
+    raw_ebird.notable_observations:
+      columns:
+        how_many: bigint
+        lat: double
+        lng: double
+        species_code: text
+        com_name: text
+        sci_name: text
+        loc_id: text
+        loc_name: text
+        obs_dt: timestamp
+        obs_valid: boolean
+        obs_reviewed: boolean
+        location_private: boolean
+        sub_id: text
+        exotic_category: text
+        _region_code: text
+        _loaded_at: timestamp
+        _dlt_load_id: text
+        _dlt_id: text
+      rows: []
+  outputs:
+    query:
+      rows:
+        - bird_observation_sk: "2132567cb66f4ecc8de12d312fcb4e4d"
+          species_sk: "natural-species-sk"
+          bird_hotspot_sk: "hotspot-sk"
+          source_pipeline: "ebird_api"
+          source_table: "recent_observations"
+          source_observation_id: "S1"
+          observation_datetime: "2025-07-20 06:30:00"
+          observation_date: "2025-07-20"
+          observation_year: 2025
+          observation_month: 7
+          observation_day: 20
+          observation_hour: 6
+          species_code: "norcar"
+          location_id: "L1"
+          location_name: "Thumb Butte"
+          region_code: "US-AZ"
+          latitude: 34.54
+          longitude: -112.47
+          observation_count: 2
+          count_display: "2"
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
+          is_notable: false
+          exotic_category: "N"
+          loaded_at: "2025-07-20 10:00:00"
+          dlt_load_id: "load-1"
+          dlt_id: "row-1"

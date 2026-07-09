@@ -1,6 +1,6 @@
 # birding_agent.species_lookup
 
-Planner-ready bird species lookup from eBird CDM species plus GBIF occurrence taxonomy fields.
+Planner-ready bird species lookup from the conformed environmental observations species dimension.
 
 ## Overview
 
@@ -24,9 +24,9 @@ Planner-ready bird species lookup from eBird CDM species plus GBIF occurrence ta
 | `region_code` | `UNKNOWN` | — | — |
 | `scientific_name` | `UNKNOWN` | — | — |
 | `source_record_id` | `UNKNOWN` | missing (must_be=0) | — |
-| `source_table` | `UNKNOWN` | — | — |
+| `source_table` | `TEXT` | — | — |
 | `species_code` | `UNKNOWN` | — | — |
-| `species_lookup_id` | `UNKNOWN` | missing (must_be=0), duplicate (must_be=0) | — |
+| `species_lookup_id` | `TEXT` | missing (must_be=0), duplicate (must_be=0) | — |
 | `taxon_key` | `UNKNOWN` | — | — |
 | `taxon_rank` | `UNKNOWN` | — | — |
 | `taxonomic_category` | `UNKNOWN` | — | — |
@@ -41,7 +41,6 @@ Planner-ready bird species lookup from eBird CDM species plus GBIF occurrence ta
 **Upstream**
 
 - [`environmental_observations.dim_species`](../environmental_observations/dim_species.md)
-- `raw_gbif.occurrences` (external)
 
 ## Example query
 

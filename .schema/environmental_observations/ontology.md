@@ -7,13 +7,16 @@
 - `.schema/environmental_observations/noaa_api.dbml`
 - `.schema/environmental_observations/usgs_api.dbml`
 - `.schema/environmental_observations/usgs_earthquakes_api.dbml`
+- `.schema/environmental_observations/xeno_canto_api.dbml`
+- `.schema/environmental_observations/gbif_api.dbml`
 
 ## Summary
 
-- Natural keys: none recorded in `taxonomy.json`; no cross-source stitching strategy required.
+- Natural keys: `Species.normalized_scientific_name` conforms eBird, GBIF, and Xeno-canto species where a scientific-name key is available.
 - Inferred structural relationships: included per user confirmation; all are marked `inferred=true`.
 - dlt operational columns: included as attributes with `dlt metadata` notes per user confirmation.
 - Semantic gaps: none identified from the confirmed taxonomy/use case.
+- GBIF occurrences and Xeno-canto recording metadata are modeled as separate fact entities that reference the conformed `Species` dimension when a normalized scientific-name key is available.
 
 ## BirdObservation
 
@@ -66,7 +69,7 @@ Individual eBird observation records with species, observation date/time, locati
 
 ## Species
 
-eBird species codes, taxonomy, and alternate common/scientific/banding code rows present in the eBird schema.
+Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF occurrence taxonomy, and Xeno-canto recording metadata.
 
 ### Source tables
 
@@ -77,6 +80,8 @@ eBird species codes, taxonomy, and alternate common/scientific/banding code rows
 | `ebird_api` | `taxonomy__com_name_codes` | child |
 | `ebird_api` | `taxonomy__sci_name_codes` | child |
 | `ebird_api` | `taxonomy__banding_codes` | child |
+| `xeno_canto_api` | `recordings` | media_context |
+| `gbif_api` | `occurrences` | secondary_taxonomy |
 
 ### Attributes
 
@@ -103,6 +108,15 @@ eBird species codes, taxonomy, and alternate common/scientific/banding code rows
 | `sci_name_code_value` | `text` | `ebird_api.taxonomy__sci_name_codes` | source column: taxonomy__sci_name_codes.value |
 | `species_code` | `text` | `ebird_api.taxonomy`<br>`ebird_api.species_list` | not null, primary_key |
 | `taxon_order` | `double` | `ebird_api.taxonomy` |  |
+| `accepted_scientific_name` | `text` | `gbif_api.occurrences` | GBIF species conformance source column |
+| `vernacular_name` | `text` | `gbif_api.occurrences` | GBIF common-name fallback |
+| `taxon_key` | `bigint` | `gbif_api.occurrences` | GBIF taxon identifier |
+| `accepted_taxon_key` | `bigint` | `gbif_api.occurrences` | GBIF accepted taxon identifier |
+| `genus` | `text` | `gbif_api.occurrences`<br>`xeno_canto_api.recordings` | GBIF/Xeno-canto species conformance source column |
+| `english_name` | `text` | `xeno_canto_api.recordings` | Xeno-canto common-name/media context |
+| `recording_url` | `text` | `xeno_canto_api.recordings` | Xeno-canto external recording link |
+| `audio_file_url` | `text` | `xeno_canto_api.recordings` | Xeno-canto external media link; audio not downloaded |
+| `license` | `text` | `gbif_api.occurrences`<br>`xeno_canto_api.recordings` | License/provenance context |
 
 ### Relationships
 
@@ -112,7 +126,9 @@ eBird species codes, taxonomy, and alternate common/scientific/banding code rows
 
 ### Assumptions
 
-- No cross-source natural key/stitching strategy required.
+- Natural key: `normalized_scientific_name` from eBird `sci_name`, GBIF `accepted_scientific_name`/`scientific_name`/`species`, and Xeno-canto `genus || ' ' || species`; normalization lowercases, trims, and strips trailing parenthetical authorship.
+- eBird wins descriptive conflicts; GBIF fills taxon identifiers/gaps; Xeno-canto supplies media context.
+- Coverage is a union of species from any source; source rows without a usable scientific-name key remain source-scoped.
 
 ## BirdHotspot
 
@@ -384,13 +400,172 @@ USGS earthquake event records with id, magnitude, event time, location coordinat
 
 - No cross-source natural key/stitching strategy required.
 
+## BirdOccurrence
+
+GBIF bird occurrence records with occurrence identifiers, taxonomy fields, event date parts, coordinates, location/status fields, license, and provenance metadata.
+
+### Source tables
+
+| Pipeline | Table | Role |
+|---|---|---|
+| `gbif_api` | `occurrences` | primary |
+
+### Attributes
+
+| Name | Type | Source | Notes |
+|---|---|---|---|
+| `key` | `bigint` | `gbif_api.occurrences` | not null, primary_key |
+| `gbif_id` | `text` | `gbif_api.occurrences` |   |
+| `occurrence_id` | `text` | `gbif_api.occurrences` |   |
+| `dataset_key` | `text` | `gbif_api.occurrences` |   |
+| `publishing_org_key` | `text` | `gbif_api.occurrences` |   |
+| `installation_key` | `text` | `gbif_api.occurrences` |   |
+| `hosting_organization_key` | `text` | `gbif_api.occurrences` |   |
+| `protocol` | `text` | `gbif_api.occurrences` |   |
+| `publishing_country` | `text` | `gbif_api.occurrences` |   |
+| `scientific_name` | `text` | `gbif_api.occurrences` |   |
+| `accepted_scientific_name` | `text` | `gbif_api.occurrences` |   |
+| `vernacular_name` | `text` | `gbif_api.occurrences` |   |
+| `kingdom` | `text` | `gbif_api.occurrences` |   |
+| `phylum` | `text` | `gbif_api.occurrences` |   |
+| `class_name` | `text` | `gbif_api.occurrences` |   |
+| `order_name` | `text` | `gbif_api.occurrences` |   |
+| `family` | `text` | `gbif_api.occurrences` |   |
+| `genus` | `text` | `gbif_api.occurrences` |   |
+| `species` | `text` | `gbif_api.occurrences` |   |
+| `generic_name` | `text` | `gbif_api.occurrences` |   |
+| `specific_epithet` | `text` | `gbif_api.occurrences` |   |
+| `taxon_rank` | `text` | `gbif_api.occurrences` |   |
+| `taxon_key` | `bigint` | `gbif_api.occurrences` |   |
+| `accepted_taxon_key` | `bigint` | `gbif_api.occurrences` |   |
+| `kingdom_key` | `bigint` | `gbif_api.occurrences` |   |
+| `phylum_key` | `bigint` | `gbif_api.occurrences` |   |
+| `class_key` | `bigint` | `gbif_api.occurrences` |   |
+| `order_key` | `bigint` | `gbif_api.occurrences` |   |
+| `family_key` | `bigint` | `gbif_api.occurrences` |   |
+| `genus_key` | `bigint` | `gbif_api.occurrences` |   |
+| `species_key` | `bigint` | `gbif_api.occurrences` |   |
+| `decimal_latitude` | `double` | `gbif_api.occurrences` |   |
+| `decimal_longitude` | `double` | `gbif_api.occurrences` |   |
+| `coordinate_uncertainty_in_meters` | `double` | `gbif_api.occurrences` |   |
+| `country` | `text` | `gbif_api.occurrences` |   |
+| `country_code` | `text` | `gbif_api.occurrences` |   |
+| `state_province` | `text` | `gbif_api.occurrences` |   |
+| `locality` | `text` | `gbif_api.occurrences` |   |
+| `event_date` | `text` | `gbif_api.occurrences` |   |
+| `year` | `bigint` | `gbif_api.occurrences` |   |
+| `month` | `bigint` | `gbif_api.occurrences` |   |
+| `day` | `bigint` | `gbif_api.occurrences` |   |
+| `basis_of_record` | `text` | `gbif_api.occurrences` |   |
+| `occurrence_status` | `text` | `gbif_api.occurrences` |   |
+| `establishment_means` | `text` | `gbif_api.occurrences` |   |
+| `record_number` | `text` | `gbif_api.occurrences` |   |
+| `recorded_by` | `text` | `gbif_api.occurrences` |   |
+| `identified_by` | `text` | `gbif_api.occurrences` |   |
+| `institution_code` | `text` | `gbif_api.occurrences` |   |
+| `collection_code` | `text` | `gbif_api.occurrences` |   |
+| `catalog_number` | `text` | `gbif_api.occurrences` |   |
+| `license` | `text` | `gbif_api.occurrences` |   |
+| `references` | `text` | `gbif_api.occurrences` |   |
+| `last_interpreted` | `text` | `gbif_api.occurrences` |   |
+| `last_crawled` | `text` | `gbif_api.occurrences` |   |
+| `last_parsed` | `text` | `gbif_api.occurrences` |   |
+| `_source_url` | `text` | `gbif_api.occurrences` |   |
+| `_query_country_code` | `text` | `gbif_api.occurrences` |   |
+| `_query_state_province` | `text` | `gbif_api.occurrences` |   |
+| `_query_taxon_key` | `bigint` | `gbif_api.occurrences` |   |
+| `_loaded_at` | `timestamp` | `gbif_api.occurrences` |   |
+| `_dlt_load_id` | `text` | `gbif_api.occurrences` | dlt metadata, not null |
+| `_dlt_id` | `text` | `gbif_api.occurrences` | dlt metadata, not null, row_key, unique |
+
+### Relationships
+
+| Relationship | Target | Via | Inferred |
+|---|---|---|---|
+| — | — | — | — |
+
+### Assumptions
+
+- No cross-source natural key/stitching strategy required.
+
+## BirdSoundRecording
+
+Xeno-canto bird sound recording metadata with recording identifiers, species names, media links, license/attribution fields, date/location fields, and provenance metadata.
+
+### Source tables
+
+| Pipeline | Table | Role |
+|---|---|---|
+| `xeno_canto_api` | `recordings` | primary |
+
+### Attributes
+
+| Name | Type | Source | Notes |
+|---|---|---|---|
+| `id` | `text` | `xeno_canto_api.recordings` | not null, primary_key |
+| `genus` | `text` | `xeno_canto_api.recordings` |   |
+| `species` | `text` | `xeno_canto_api.recordings` |   |
+| `subspecies` | `text` | `xeno_canto_api.recordings` |   |
+| `group_name` | `text` | `xeno_canto_api.recordings` |   |
+| `english_name` | `text` | `xeno_canto_api.recordings` |   |
+| `recordist` | `text` | `xeno_canto_api.recordings` |   |
+| `country` | `text` | `xeno_canto_api.recordings` |   |
+| `locality` | `text` | `xeno_canto_api.recordings` |   |
+| `latitude` | `double` | `xeno_canto_api.recordings` |   |
+| `longitude` | `double` | `xeno_canto_api.recordings` |   |
+| `altitude` | `text` | `xeno_canto_api.recordings` |   |
+| `recording_type` | `text` | `xeno_canto_api.recordings` |   |
+| `sex` | `text` | `xeno_canto_api.recordings` |   |
+| `stage` | `text` | `xeno_canto_api.recordings` |   |
+| `method` | `text` | `xeno_canto_api.recordings` |   |
+| `recording_url` | `text` | `xeno_canto_api.recordings` |   |
+| `audio_file_url` | `text` | `xeno_canto_api.recordings` |   |
+| `file_name` | `text` | `xeno_canto_api.recordings` |   |
+| `sonogram` | `text` | `xeno_canto_api.recordings` |   |
+| `oscillogram` | `text` | `xeno_canto_api.recordings` |   |
+| `license` | `text` | `xeno_canto_api.recordings` |   |
+| `quality` | `text` | `xeno_canto_api.recordings` |   |
+| `length` | `text` | `xeno_canto_api.recordings` |   |
+| `recording_time` | `text` | `xeno_canto_api.recordings` |   |
+| `recording_date` | `text` | `xeno_canto_api.recordings` |   |
+| `uploaded_at` | `text` | `xeno_canto_api.recordings` |   |
+| `also_species` | `text` | `xeno_canto_api.recordings` |   |
+| `remarks` | `text` | `xeno_canto_api.recordings` |   |
+| `bird_seen` | `text` | `xeno_canto_api.recordings` |   |
+| `animal_seen` | `text` | `xeno_canto_api.recordings` |   |
+| `playback_used` | `text` | `xeno_canto_api.recordings` |   |
+| `temperature` | `text` | `xeno_canto_api.recordings` |   |
+| `registration_number` | `text` | `xeno_canto_api.recordings` |   |
+| `automatic_recording` | `text` | `xeno_canto_api.recordings` |   |
+| `device` | `text` | `xeno_canto_api.recordings` |   |
+| `microphone` | `text` | `xeno_canto_api.recordings` |   |
+| `_source_url` | `text` | `xeno_canto_api.recordings` |   |
+| `_query` | `text` | `xeno_canto_api.recordings` |   |
+| `_query_page` | `bigint` | `xeno_canto_api.recordings` |   |
+| `_loaded_at` | `timestamp` | `xeno_canto_api.recordings` |   |
+| `_dlt_load_id` | `text` | `xeno_canto_api.recordings` | dlt metadata, not null |
+| `_dlt_id` | `text` | `xeno_canto_api.recordings` | dlt metadata, not null, row_key, unique |
+
+### Relationships
+
+| Relationship | Target | Via | Inferred |
+|---|---|---|---|
+| — | — | — | — |
+
+### Assumptions
+
+- No cross-source natural key/stitching strategy required.
+- Audio remains an external linked artifact; CDM stores metadata and URLs only.
+
 ## Assumptions & Exclusions
 
 ### Natural-key conflict strategies
 
-- None required: no concept in `taxonomy.json` has a non-null `natural_key`.
+- `Species`: conform all eBird, GBIF, and Xeno-canto species using normalized scientific name (lowercase/trim/strip trailing parenthetical authorship); eBird wins descriptive conflicts, GBIF fills taxon identifiers/gaps, Xeno-canto supplies media context; coverage is a union.
 
 ### Relationship assumptions
+
+- `Species` STITCHED_BY `Species` via `normalized_scientific_name`.
 
 - Inferred key-column relationships were included after user confirmation.
 - `BirdObservation` OBSERVED_SPECIES `Species` via `ebird_api.recent_observations.species_code -> ebird_api.taxonomy/species_list.species_code`.
@@ -421,3 +596,7 @@ USGS earthquake event records with id, magnitude, event time, location coordinat
 | `usgs_earthquakes_api` | `_dlt_version` | dlt internal schema version table |
 | `usgs_earthquakes_api` | `_dlt_loads` | dlt internal load tracking table |
 | `usgs_earthquakes_api` | `_dlt_pipeline_state` | dlt internal pipeline state table |
+| `gbif_api` | `_dlt_version` | dlt internal schema version table |
+| `gbif_api` | `_dlt_loads` | dlt internal load tracking table |
+| `xeno_canto_api` | `_dlt_version` | dlt internal schema version table |
+| `xeno_canto_api` | `_dlt_loads` | dlt internal load tracking table |

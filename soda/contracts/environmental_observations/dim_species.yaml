@@ -7,6 +7,7 @@ columns:
           must_be: 0
       - duplicate:
           must_be: 0
+  - name: species_natural_key
   - name: source_pipeline
   - name: source_id
   - name: species_code
@@ -21,6 +22,20 @@ columns:
   - name: extinct
   - name: extinct_year
   - name: region
+  - name: gbif_source_id
+  - name: gbif_taxon_key
+  - name: gbif_accepted_taxon_key
+  - name: gbif_family
+  - name: genus
+  - name: gbif_taxon_rank
+  - name: xeno_canto_recording_id
+  - name: xeno_canto_recording_count
+  - name: xeno_canto_recording_url
+  - name: xeno_canto_audio_file_url
+  - name: xeno_canto_license
+  - name: xeno_canto_quality
+  - name: has_gbif_occurrence
+  - name: has_xeno_canto_recording
   - name: loaded_at
 
 checks:

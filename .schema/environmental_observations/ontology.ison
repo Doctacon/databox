@@ -1,7 +1,7 @@
 nodes.Entity
 id	label	inferred	assumption
 BirdObservation	BirdObservation	false	No cross-source natural key/stitching strategy required.
-Species	Species	false	No cross-source natural key/stitching strategy required.
+Species	Species	false	Natural key: normalized_scientific_name (lowercase/trim/strip trailing parenthetical authorship). eBird wins descriptive conflicts; GBIF fills taxon identifiers/gaps; Xeno-canto supplies media context. Union coverage across all sources.
 BirdHotspot	BirdHotspot	false	No cross-source natural key/stitching strategy required.
 RegionDailyStats	RegionDailyStats	false	No cross-source natural key/stitching strategy required.
 WeatherObservation	WeatherObservation	false	No cross-source natural key/stitching strategy required.
@@ -9,6 +9,9 @@ WeatherStation	WeatherStation	false	No cross-source natural key/stitching strate
 StreamflowObservation	StreamflowObservation	false	No cross-source natural key/stitching strategy required.
 StreamgageSite	StreamgageSite	false	No cross-source natural key/stitching strategy required.
 EarthquakeEvent	EarthquakeEvent	false	No cross-source natural key/stitching strategy required.
+
+BirdOccurrence	BirdOccurrence	false	No cross-source natural key/stitching strategy required.
+BirdSoundRecording	BirdSoundRecording	false	No cross-source natural key/stitching strategy required. Audio remains an external linked artifact; CDM stores metadata and URLs only.
 
 nodes.Attribute
 entity	name	type	master_source	also_in	note
@@ -53,6 +56,16 @@ entity	name	type	master_source	also_in	note
 :Entity:Species	sci_name_code_value	text	ebird_api.taxonomy__sci_name_codes		source column: taxonomy__sci_name_codes.value
 :Entity:Species	species_code	text	ebird_api.taxonomy	ebird_api.species_list	not null, primary_key
 :Entity:Species	taxon_order	double	ebird_api.taxonomy
+
+:Entity:Species	accepted_scientific_name	text	gbif_api.occurrences		GBIF species conformance source column
+:Entity:Species	vernacular_name	text	gbif_api.occurrences		GBIF common-name fallback
+:Entity:Species	taxon_key	bigint	gbif_api.occurrences		GBIF taxon identifier
+:Entity:Species	accepted_taxon_key	bigint	gbif_api.occurrences		GBIF accepted taxon identifier
+:Entity:Species	genus	text	gbif_api.occurrences	xeno_canto_api.recordings	GBIF/Xeno-canto species conformance source column
+:Entity:Species	english_name	text	xeno_canto_api.recordings		Xeno-canto common-name/media context
+:Entity:Species	recording_url	text	xeno_canto_api.recordings		Xeno-canto external recording link
+:Entity:Species	audio_file_url	text	xeno_canto_api.recordings		Xeno-canto external media link; audio not downloaded
+:Entity:Species	license	text	gbif_api.occurrences	xeno_canto_api.recordings	License/provenance context
 :Entity:BirdHotspot	_dlt_id	text	ebird_api.hotspots		dlt metadata, not null, row_key, unique
 :Entity:BirdHotspot	_dlt_load_id	text	ebird_api.hotspots		dlt metadata, not null
 :Entity:BirdHotspot	_loaded_at	timestamp	ebird_api.hotspots
@@ -149,6 +162,113 @@ entity	name	type	master_source	also_in	note
 :Entity:EarthquakeEvent	tsunami_flag	bigint	usgs_earthquakes_api.events
 :Entity:EarthquakeEvent	url	text	usgs_earthquakes_api.events
 
+:Entity:BirdOccurrence	key	bigint	gbif_api.occurrences		not null, primary_key
+:Entity:BirdOccurrence	gbif_id	text	gbif_api.occurrences
+:Entity:BirdOccurrence	occurrence_id	text	gbif_api.occurrences
+:Entity:BirdOccurrence	dataset_key	text	gbif_api.occurrences
+:Entity:BirdOccurrence	publishing_org_key	text	gbif_api.occurrences
+:Entity:BirdOccurrence	installation_key	text	gbif_api.occurrences
+:Entity:BirdOccurrence	hosting_organization_key	text	gbif_api.occurrences
+:Entity:BirdOccurrence	protocol	text	gbif_api.occurrences
+:Entity:BirdOccurrence	publishing_country	text	gbif_api.occurrences
+:Entity:BirdOccurrence	scientific_name	text	gbif_api.occurrences
+:Entity:BirdOccurrence	accepted_scientific_name	text	gbif_api.occurrences
+:Entity:BirdOccurrence	vernacular_name	text	gbif_api.occurrences
+:Entity:BirdOccurrence	kingdom	text	gbif_api.occurrences
+:Entity:BirdOccurrence	phylum	text	gbif_api.occurrences
+:Entity:BirdOccurrence	class_name	text	gbif_api.occurrences
+:Entity:BirdOccurrence	order_name	text	gbif_api.occurrences
+:Entity:BirdOccurrence	family	text	gbif_api.occurrences
+:Entity:BirdOccurrence	genus	text	gbif_api.occurrences
+:Entity:BirdOccurrence	species	text	gbif_api.occurrences
+:Entity:BirdOccurrence	generic_name	text	gbif_api.occurrences
+:Entity:BirdOccurrence	specific_epithet	text	gbif_api.occurrences
+:Entity:BirdOccurrence	taxon_rank	text	gbif_api.occurrences
+:Entity:BirdOccurrence	taxon_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	accepted_taxon_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	kingdom_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	phylum_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	class_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	order_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	family_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	genus_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	species_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	decimal_latitude	double	gbif_api.occurrences
+:Entity:BirdOccurrence	decimal_longitude	double	gbif_api.occurrences
+:Entity:BirdOccurrence	coordinate_uncertainty_in_meters	double	gbif_api.occurrences
+:Entity:BirdOccurrence	country	text	gbif_api.occurrences
+:Entity:BirdOccurrence	country_code	text	gbif_api.occurrences
+:Entity:BirdOccurrence	state_province	text	gbif_api.occurrences
+:Entity:BirdOccurrence	locality	text	gbif_api.occurrences
+:Entity:BirdOccurrence	event_date	text	gbif_api.occurrences
+:Entity:BirdOccurrence	year	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	month	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	day	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	basis_of_record	text	gbif_api.occurrences
+:Entity:BirdOccurrence	occurrence_status	text	gbif_api.occurrences
+:Entity:BirdOccurrence	establishment_means	text	gbif_api.occurrences
+:Entity:BirdOccurrence	record_number	text	gbif_api.occurrences
+:Entity:BirdOccurrence	recorded_by	text	gbif_api.occurrences
+:Entity:BirdOccurrence	identified_by	text	gbif_api.occurrences
+:Entity:BirdOccurrence	institution_code	text	gbif_api.occurrences
+:Entity:BirdOccurrence	collection_code	text	gbif_api.occurrences
+:Entity:BirdOccurrence	catalog_number	text	gbif_api.occurrences
+:Entity:BirdOccurrence	license	text	gbif_api.occurrences
+:Entity:BirdOccurrence	references	text	gbif_api.occurrences
+:Entity:BirdOccurrence	last_interpreted	text	gbif_api.occurrences
+:Entity:BirdOccurrence	last_crawled	text	gbif_api.occurrences
+:Entity:BirdOccurrence	last_parsed	text	gbif_api.occurrences
+:Entity:BirdOccurrence	_source_url	text	gbif_api.occurrences
+:Entity:BirdOccurrence	_query_country_code	text	gbif_api.occurrences
+:Entity:BirdOccurrence	_query_state_province	text	gbif_api.occurrences
+:Entity:BirdOccurrence	_query_taxon_key	bigint	gbif_api.occurrences
+:Entity:BirdOccurrence	_loaded_at	timestamp	gbif_api.occurrences
+:Entity:BirdOccurrence	_dlt_load_id	text	gbif_api.occurrences		dlt metadata, not null
+:Entity:BirdOccurrence	_dlt_id	text	gbif_api.occurrences		dlt metadata, not null, row_key, unique
+:Entity:BirdSoundRecording	id	text	xeno_canto_api.recordings		not null, primary_key
+:Entity:BirdSoundRecording	genus	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	species	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	subspecies	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	group_name	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	english_name	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	recordist	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	country	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	locality	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	latitude	double	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	longitude	double	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	altitude	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	recording_type	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	sex	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	stage	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	method	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	recording_url	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	audio_file_url	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	file_name	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	sonogram	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	oscillogram	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	license	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	quality	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	length	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	recording_time	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	recording_date	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	uploaded_at	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	also_species	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	remarks	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	bird_seen	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	animal_seen	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	playback_used	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	temperature	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	registration_number	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	automatic_recording	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	device	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	microphone	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	_source_url	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	_query	text	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	_query_page	bigint	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	_loaded_at	timestamp	xeno_canto_api.recordings
+:Entity:BirdSoundRecording	_dlt_load_id	text	xeno_canto_api.recordings		dlt metadata, not null
+:Entity:BirdSoundRecording	_dlt_id	text	xeno_canto_api.recordings		dlt metadata, not null, row_key, unique
+
 edges.OBSERVED_AT
 from	to	via	inferred
 :Entity:BirdObservation	:Entity:BirdHotspot	ebird_api.recent_observations.loc_id -> ebird_api.hotspots.loc_id	true
@@ -160,3 +280,7 @@ edges.OBSERVED_SPECIES
 from	to	via	inferred
 :Entity:BirdObservation	:Entity:Species	ebird_api.recent_observations.species_code -> ebird_api.taxonomy/species_list.species_code	true
 :Entity:BirdObservation	:Entity:Species	ebird_api.notable_observations.species_code -> ebird_api.taxonomy/species_list.species_code	true
+
+edges.STITCHED_BY
+from	to	via	inferred
+:Entity:Species	:Entity:Species	normalized_scientific_name	false

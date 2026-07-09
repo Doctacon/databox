@@ -2,10 +2,11 @@
 // Generated from .schema/environmental_observations/ontology.ison and source DBML.
 // SQLMesh remains the transformation layer; dlt remains raw ingestion.
 
-Table dim_species [note: 'table_type:dimension; surrogate_key:species_sk; scd_type:1; conformed:true; source_entity:Species'] {
-  species_sk varchar [pk, note: 'Stable string hash of source_pipeline and species_code; UNKNOWN sentinel is present']
-  source_pipeline varchar [not null]
-  source_id varchar [not null, note: 'Source species_code or UNKNOWN']
+Table dim_species [note: 'table_type:dimension; surrogate_key:species_sk; scd_type:1; conformed:true; source_entity:Species; natural_key:normalized_scientific_name; precedence:ebird_then_gbif_then_xeno_canto; coverage:union'] {
+  species_sk varchar [pk, note: 'Stable string hash of normalized scientific-name key or source fallback; UNKNOWN sentinel is present']
+  species_natural_key varchar [note: 'Normalized scientific name used to conform eBird, GBIF, and Xeno-canto when available; lowercase/trim/strip trailing parenthetical authorship']
+  source_pipeline varchar [not null, note: 'Master source after precedence: eBird, then GBIF, then Xeno-canto']
+  source_id varchar [not null, note: 'Master source id or UNKNOWN']
   species_code varchar
   common_name varchar
   scientific_name varchar
@@ -18,6 +19,20 @@ Table dim_species [note: 'table_type:dimension; surrogate_key:species_sk; scd_ty
   extinct bool
   extinct_year bigint
   region varchar
+  gbif_source_id varchar
+  gbif_taxon_key bigint
+  gbif_accepted_taxon_key bigint
+  gbif_family varchar
+  genus varchar
+  gbif_taxon_rank varchar
+  xeno_canto_recording_id varchar
+  xeno_canto_recording_count bigint
+  xeno_canto_recording_url varchar
+  xeno_canto_audio_file_url varchar [note: 'external media link; audio is not downloaded by the CDM']
+  xeno_canto_license varchar
+  xeno_canto_quality varchar
+  has_gbif_occurrence bool
+  has_xeno_canto_recording bool
   loaded_at timestamp
 }
 
@@ -100,6 +115,128 @@ Table fact_bird_observation [note: 'table_type:fact; grain:one row per eBird obs
   is_location_private bool
   is_notable bool
   exotic_category varchar
+  loaded_at timestamp
+  dlt_load_id varchar
+  dlt_id varchar
+}
+
+Table fact_bird_occurrence [note: 'table_type:fact; grain:one row per GBIF bird occurrence key; source_entity:BirdOccurrence'] {
+  bird_occurrence_sk varchar [pk, note: 'Stable string hash of source_pipeline and GBIF occurrence key']
+  species_sk varchar [not null, ref: > dim_species.species_sk]
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'GBIF occurrence key']
+  gbif_key bigint
+  gbif_id varchar
+  occurrence_id varchar
+  dataset_key varchar
+  publishing_org_key varchar
+  installation_key varchar
+  hosting_organization_key varchar
+  protocol varchar
+  publishing_country varchar
+  scientific_name varchar
+  accepted_scientific_name varchar
+  common_name varchar
+  kingdom varchar
+  phylum varchar
+  class_name varchar
+  order_name varchar
+  family varchar
+  genus varchar
+  species varchar
+  generic_name varchar
+  specific_epithet varchar
+  taxon_rank varchar
+  taxon_key bigint
+  accepted_taxon_key bigint
+  kingdom_key bigint
+  phylum_key bigint
+  class_key bigint
+  order_key bigint
+  family_key bigint
+  genus_key bigint
+  species_key bigint
+  latitude double
+  longitude double
+  coordinate_uncertainty_in_meters double
+  country varchar
+  country_code varchar
+  state_province varchar
+  locality varchar
+  event_date_text varchar
+  event_date date
+  year bigint
+  month bigint
+  day bigint
+  basis_of_record varchar
+  occurrence_status varchar
+  establishment_means varchar
+  record_number varchar
+  recorded_by varchar
+  identified_by varchar
+  institution_code varchar
+  collection_code varchar
+  catalog_number varchar
+  license varchar
+  source_reference_url varchar
+  last_interpreted varchar
+  last_crawled varchar
+  last_parsed varchar
+  source_url varchar
+  query_country_code varchar
+  query_state_province varchar
+  query_taxon_key bigint
+  loaded_at timestamp
+  dlt_load_id varchar
+  dlt_id varchar
+}
+
+Table fact_bird_sound_recording [note: 'table_type:fact; grain:one row per Xeno-canto bird sound recording id; source_entity:BirdSoundRecording; media_storage:external_link_only'] {
+  bird_sound_recording_sk varchar [pk, note: 'Stable string hash of source_pipeline and Xeno-canto recording id']
+  species_sk varchar [not null, ref: > dim_species.species_sk]
+  source_pipeline varchar [not null]
+  source_id varchar [not null, note: 'Xeno-canto recording id']
+  recording_id varchar
+  genus varchar
+  species varchar
+  subspecies varchar
+  group_name varchar
+  english_name varchar
+  recordist varchar
+  country varchar
+  locality varchar
+  latitude double
+  longitude double
+  altitude varchar
+  recording_type varchar
+  sex varchar
+  stage varchar
+  method varchar
+  recording_url varchar
+  audio_file_url varchar [note: 'external media link; audio is not downloaded by the CDM']
+  file_name varchar
+  sonogram varchar
+  oscillogram varchar
+  license varchar
+  quality varchar
+  length varchar
+  recording_time varchar
+  recording_date_text varchar
+  recording_date date
+  uploaded_at varchar
+  also_species varchar
+  remarks varchar
+  bird_seen varchar
+  animal_seen varchar
+  playback_used varchar
+  temperature varchar
+  registration_number varchar
+  automatic_recording varchar
+  device varchar
+  microphone varchar
+  source_url varchar
+  query varchar
+  query_page bigint
   loaded_at timestamp
   dlt_load_id varchar
   dlt_id varchar

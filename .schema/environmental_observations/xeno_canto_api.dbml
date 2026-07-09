@@ -1,0 +1,62 @@
+Table "_dlt_version" [note: 'excluded: dlt internal schema version table'] {
+  "version" bigint [not null]
+  "engine_version" bigint [not null]
+  "inserted_at" timestamp [not null]
+  "schema_name" text [not null]
+  "version_hash" text [not null]
+  "schema" text [not null]
+}
+
+Table "_dlt_loads" [note: 'excluded: dlt internal load tracking table'] {
+  "load_id" text [not null]
+  "schema_name" text
+  "status" bigint [not null]
+  "inserted_at" timestamp [not null]
+  "schema_version_hash" text
+}
+
+Table "recordings" [note: 'concept: BirdSoundRecording | role: primary | also_concept: Species | species_natural_key: genus + species | media_storage: external_link_only'] {
+  "id" text [primary_key, not null]
+  "genus" text
+  "species" text
+  "subspecies" text
+  "group_name" text
+  "english_name" text
+  "recordist" text
+  "country" text
+  "locality" text
+  "latitude" double
+  "longitude" double
+  "altitude" text
+  "recording_type" text
+  "sex" text
+  "stage" text
+  "method" text
+  "recording_url" text
+  "audio_file_url" text
+  "file_name" text
+  "sonogram" text
+  "oscillogram" text
+  "license" text
+  "quality" text
+  "length" text
+  "recording_time" text
+  "recording_date" text
+  "uploaded_at" text
+  "also_species" text
+  "remarks" text
+  "bird_seen" text
+  "animal_seen" text
+  "playback_used" text
+  "temperature" text
+  "registration_number" text
+  "automatic_recording" text
+  "device" text
+  "microphone" text
+  "_source_url" text
+  "_query" text
+  "_query_page" bigint
+  "_loaded_at" timestamp
+  "_dlt_load_id" text [not null]
+  "_dlt_id" text [not null, unique, row_key]
+}
