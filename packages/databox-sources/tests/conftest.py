@@ -56,9 +56,8 @@ def _scrub_response_body(response: dict[str, Any]) -> dict[str, Any]:
     """
     ebird = os.getenv("EBIRD_API_TOKEN", "")
     noaa = os.getenv("NOAA_API_TOKEN", "")
-    motherduck = os.getenv("MOTHERDUCK_TOKEN", "")
 
-    tokens = [t for t in (ebird, noaa, motherduck) if t]
+    tokens = [t for t in (ebird, noaa) if t]
     if not tokens:
         return response
 

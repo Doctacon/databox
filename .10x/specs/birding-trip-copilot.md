@@ -56,7 +56,7 @@ The planner MUST do more than directly generate prose. It MUST choose and sequen
 5. Retrieve media/call metadata from Xeno-canto-derived context when implemented.
 6. Rank likely species and uncommon-but-plausible targets.
 7. Produce final field-ready recommendations with evidence and caveats.
-8. Persist the plan, recommended species, evidence rows, and tool trace needed for the MotherDuck Dive.
+8. Persist the plan, recommended species, evidence rows, and tool trace needed for the local React/API product.
 
 The planner MUST NOT silently skip a required evidence family. If a source is unavailable, the final plan MUST include a source-availability caveat and the persisted evidence MUST record the missing source state.
 
@@ -75,7 +75,7 @@ A completed trip plan MUST contain:
 - evidence/provenance sufficient to explain why each recommended species was included,
 - caveats for sparse, stale, unavailable, conflicting, or weak evidence.
 
-The final user-facing prose SHOULD be field-ready and concise. Detailed evidence MAY be exposed through the Dive rather than repeated in full in the prose.
+The final user-facing prose SHOULD be field-ready and concise. Detailed evidence MAY be exposed through the local React app rather than repeated in full in the prose.
 
 ## Persisted artifact contract
 
@@ -88,7 +88,7 @@ At minimum, persisted artifacts MUST support these logical grains:
 - one row per evidence item per recommended species or per trip plan,
 - one row per tool call or trace step per trip plan.
 
-The persisted artifact MUST include enough stable identifiers for the Dive and evaluations to join plans, recommendations, evidence, and traces. Exact physical schema names are implementation details, but the SQL interface MUST be documented before the Dive ticket is closed.
+The persisted artifact MUST include enough stable identifiers for the local API, React app, and evaluations to join plans, recommendations, evidence, and traces. Exact physical schema names are implementation details, but the SQL interface MUST be documented before the local app ticket is closed.
 
 ## Acceptance criteria
 

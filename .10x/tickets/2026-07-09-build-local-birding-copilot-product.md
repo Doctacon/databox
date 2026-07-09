@@ -33,11 +33,11 @@ This is a parent plan and is not executable directly.
 
 ## Child sequence
 
-1. `.10x/tickets/2026-07-09-decommission-motherduck-platform-support.md`
-2. `.10x/tickets/2026-07-09-implement-shared-quack-parallel-refresh.md`
-3. `.10x/tickets/2026-07-09-integrate-cloudflare-ai-with-adk.md`
-4. `.10x/tickets/2026-07-09-build-local-react-trip-planner.md`
-5. `.10x/tickets/2026-07-09-verify-local-birding-product.md`
+1. `.10x/tickets/done/2026-07-09-decommission-motherduck-platform-support.md`
+2. `.10x/tickets/done/2026-07-09-implement-shared-quack-parallel-refresh.md`
+3. `.10x/tickets/done/2026-07-09-integrate-cloudflare-ai-with-adk.md`
+4. `.10x/tickets/done/2026-07-09-build-local-react-trip-planner.md`
+5. `.10x/tickets/done/2026-07-09-verify-local-birding-product.md`
 
 The sequence is intentional because the first four children touch overlapping configuration/runtime surfaces. Parent orchestration SHOULD avoid concurrent writers to the same worktree.
 
@@ -61,7 +61,11 @@ The sequence is intentional because the first four children touch overlapping co
 ## Progress and notes
 
 - 2026-07-09: User selected local React app, Python/Google ADK + Cloudflare Workers AI, repository-wide MotherDuck decommission, and required parallel Quack source loading.
+- 2026-07-09: Cloudflare Workers AI/ADK integration completed with offline evaluation and CI evidence; live smoke rerun remains for aggregate verification after correcting the local endpoint value shape.
+- 2026-07-09: Local React/FastAPI Trip Planner completed with controlled persisted-plan creation/reload, frontend state coverage, loopback launch verification, and bundle secret audit.
+- 2026-07-09: Aggregate verification completed in `.10x/tickets/done/2026-07-09-verify-local-birding-product.md`. Fresh full refresh/concurrency, SQLMesh production state and tests, 23 Soda contracts, CI, offline DeepEval, React/API/build, bundle and sensitive-value audits, loopback launch, docs, and active MotherDuck/Dive audit passed. Evidence: `.10x/evidence/2026-07-09-local-birding-product-aggregate-verification.md`.
+- 2026-07-09: Aggregate review `.10x/reviews/2026-07-09-local-birding-product-aggregate-review.md` found no unowned implementation defect, but returned concerns for parent closure because the live Cloudflare request again timed out. The verifier did not retry, change implementation, or select a fallback.
 
 ## Blockers
 
-None.
+The active `.10x/specs/cloudflare-workers-ai-local-agent.md` live-invocation acceptance criterion remains unsupported. `.10x/tickets/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md` owns the external availability/entitlement investigation. Keep this parent open until live success is evidenced or the acceptance contract is explicitly superseded/ratified.

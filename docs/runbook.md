@@ -10,10 +10,15 @@ task db:reset
 task full-refresh
 ```
 
-`task full-refresh` runs each dlt source through Dagster/Quack, then invokes the
-native SQLMesh CLI to restate prod. The expected local layout is one
-`data/databox.duckdb` with raw schemas plus SQLMesh schemas such as
-`environmental_observations` and `analytics`.
+`task full-refresh` starts one Quack server, launches every registered dlt
+source concurrently as an independent Dagster job, waits for all jobs, stops
+and deduplicates the warehouse, then invokes native SQLMesh only if every source
+succeeded. `SOURCE_START`/`SOURCE_END` lines and Dagster run IDs attribute the
+interleaved logs; overlap is calculated from cross-process timestamps around
+each actual dlt/Quack ingest session, not process startup time. The command also
+prints core raw row counts and requires `main_dlt_relations=0` before SQLMesh.
+The expected local layout is one `data/databox.duckdb` with raw schemas plus
+SQLMesh schemas such as `environmental_observations` and `analytics`.
 
 ## Smoke verification
 
@@ -22,8 +27,8 @@ task verify
 cd transforms/main && ../../.venv/bin/sqlmesh test
 ```
 
-`task verify` uses `DATABOX_SMOKE=1`, runs the source ingest jobs, then restates
-SQLMesh prod through the native CLI.
+`task verify` uses `DATABOX_SMOKE=1` with the same shared-server concurrent
+source path, then restates SQLMesh prod through the native CLI.
 
 ## SQLMesh dev loop
 

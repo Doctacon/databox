@@ -2,90 +2,68 @@
 
 Databox has one authoritative runtime-config surface:
 [`packages/databox/databox/config/settings.py`](https://github.com/Doctacon/databox/blob/main/packages/databox/databox/config/settings.py).
-The `DataboxSettings` Pydantic object owns every runtime knob. Every
-other file imports it rather than re-declaring values or calling
-`os.getenv` directly.
+The `DataboxSettings` Pydantic object owns every runtime knob. Other runtime
+code imports it rather than redeclaring values.
 
 ## Authoritative surface
 
 | Setting | Env var | Source | Notes |
 |---|---|---|---|
-| Backend | `DATABOX_BACKEND` | `settings.backend` | `quack` (default), `local` (legacy per-source files), or `motherduck` |
-| MotherDuck token | `MOTHERDUCK_TOKEN` | `settings.motherduck_token` | Required when backend = `motherduck` |
 | Quack URI | `DATABOX_QUACK_URI` | `settings.quack_uri` | Default `quack:localhost:9494` |
-| Quack token | `DATABOX_QUACK_TOKEN` | `settings.quack_token` | Default local token for Quack clients |
+| Quack token | `DATABOX_QUACK_TOKEN` | `settings.quack_token` | Local client/server token |
 | Log level | `LOG_LEVEL` | `settings.log_level` | Default `INFO` |
-| Smoke mode | `DATABOX_SMOKE` | `settings.smoke` | Boolean; limits dlt sources for fast runs |
+| Smoke mode | `DATABOX_SMOKE` | `settings.smoke` | Limits source rows for verification |
 | eBird window | `DATABOX_EBIRD_DAYS_BACK` | `settings.ebird_days_back` | Default 30 |
 | NOAA window | `DATABOX_NOAA_DAYS_BACK` | `settings.noaa_days_back` | Default 30 |
 | USGS window | `DATABOX_USGS_DAYS_BACK` | `settings.usgs_days_back` | Default 30 |
+| OpenLineage URL | `OPENLINEAGE_URL` | `settings.openlineage_url` | Optional; disabled when unset |
+| Workers AI API key | `CF_WORKERS_AI_API_KEY` | `settings.cf_workers_ai_api_key` | Secret; required for trip-plan synthesis |
+| Workers AI account | `CF_WORKERS_AI_ACCOUNT_ID` | `settings.cf_workers_ai_account_id` | Required for trip-plan synthesis |
+| Workers AI endpoint selector | `CF_WORKERS_AI_MODEL_BASE_URL` | `settings.cf_workers_ai_model_base_url` | Exact allowlisted model identifier or HTTP(S) Workers AI URL |
 
 ## Derived values
 
-The following are `@computed_field` properties on `DataboxSettings` —
-consumers read them, nothing sets them directly.
-
 | Derived value | Expression |
 |---|---|
-| `settings.gateway` | `"motherduck" if backend == "motherduck" else "local"` |
-| `settings.database_path` | `"md:databox"` on motherduck, `data/databox.duckdb` otherwise |
-| `settings.raw_catalog_path(name)` | `data/databox.duckdb` on quack, `"md:raw_<name>"` on motherduck, `data/raw_<name>.duckdb` on legacy local |
-| `settings.raw_dataset_name(name)` | `raw_<name>` on quack, `main` on motherduck and legacy local per-source files |
-| `settings.motherduck_database_names` | List of every MotherDuck database the stack expects (derived from the source registry) |
-| `settings.soda_datasource_yaml` | Rendered Soda datasource YAML using `database_path` |
-| `settings.sqlmesh_config()` | A `sqlmesh.core.config.Config` with the active gateway and `default_gateway` = current backend |
+| `settings.gateway` | Always `local` |
+| `settings.database_path` | `data/databox.duckdb` |
+| `settings.raw_catalog_path(name)` | `data/databox.duckdb` for every source |
+| `settings.raw_dataset_name(name)` | Source-specific `raw_<name>` schema |
+| `settings.soda_datasource_yaml` | DuckDB datasource using `database_path` |
+| `settings.sqlmesh_config()` | One local DuckDB gateway plus separate local SQLMesh state DB |
 
-## Where it's read
+## Where it is read
 
-- **SQLMesh** — `transforms/main/config.py` returns `settings.sqlmesh_config()`; SQLMesh auto-discovers this Python config file in place of a `config.yaml`.
-- **Dagster dlt ingest assets** — each source ingest job starts a local Quack server over `settings.database_path`, runs that one dlt source into its physical `raw_<source>` schema, stops Quack, and deduplicates append-loaded raw tables.
-- **Dagster** — `packages/databox/databox/orchestration/definitions.py` reads `settings.backend`, `settings.gateway`, `settings.raw_catalog_path(...)`, `settings.raw_dataset_name(...)`, `settings.dlt_data_dir`, `settings.days_back(...)`, and `settings.soda_datasource_yaml`.
-- **Streamlit explorer** — `app/main.py` uses `settings.database_path`.
-- **Data-dictionary generator** — `scripts/generate_docs.py` uses `settings.gateway`.
+- **SQLMesh** — `transforms/main/config.py` returns `settings.sqlmesh_config()`.
+- **Dagster dlt assets** — source jobs use Quack over `settings.database_path`
+  and write physical `raw_<source>` schemas.
+- **Dagster resources** — orchestration reads the local path, dlt data directory,
+  source windows, and Soda datasource.
+- **Local application** — local server-side code uses `settings.database_path` and reads Cloudflare Workers AI credentials. Browser code never receives these values.
+- **Data dictionary** — `scripts/generate_docs.py` uses the local gateway.
 
 ## Out-of-surface configuration
 
-Two classes of config live outside `DataboxSettings` on purpose:
+Per-source API tokens are read at request time in the source packages so dlt
+and pytest environment overrides work cleanly. Build metadata and tool settings
+remain in `pyproject.toml`.
 
-- **Per-source API tokens** (`EBIRD_API_TOKEN`, `NOAA_API_TOKEN`) are read at call time in `databox_sources/*/source.py`. Leaving them on `os.getenv` lets dlt's own config system and pytest's `monkeypatch.setenv` work cleanly. Migrating secrets off `.env` is tracked by `ticket:secrets-pluggable`.
-- **Build metadata in `pyproject.toml`** (package names, deps, Ruff/mypy config) is not runtime config.
+## Cloudflare Workers AI
+
+The local Python/Google ADK planner uses Cloudflare only for remote model
+inference. The runtime hard-allows exactly `@cf/zai-org/glm-4.7-flash`; it has
+no fallback model and does not deploy a Worker. `CF_WORKERS_AI_MODEL_BASE_URL`
+accepts either that exact identifier, which derives Cloudflare's official
+account-specific `/ai/v1/chat/completions` endpoint from
+`CF_WORKERS_AI_ACCOUNT_ID`, or an explicit HTTP(S) Workers AI base/endpoint URL.
+Every other non-HTTP value is rejected. Validate configured credentials
+explicitly with `task smoke:cloudflare-ai`. Default unit tests and `task
+eval:agent` use deterministic fake model clients and make no paid/live calls.
 
 ## SQLMesh state
 
-`sqlmesh_config()` points SQLMesh at a dedicated state DB
-(`data/sqlmesh_state.duckdb`) via `GatewayConfig.state_connection`, separate
-from the data catalogs. Both the local and MotherDuck gateways use this local
-file for state.
-
-Why it's split out:
-
-- The data-catalog connection loads the `h3` DuckDB extension. SQLMesh's state
-  pool opens the same file without extensions, which DuckDB refuses with
-  *"Can't open a connection to same database file with a different
-  configuration than existing connections."*
-- SQLMesh explicitly warns against using MotherDuck as the state backend for
-  production deployments. Keeping state on a local file satisfies that guidance
-  without adding infrastructure (e.g., a Postgres state store).
-
-`task db:reset` removes `data/sqlmesh_state.duckdb` alongside the catalog files
-so a reset leaves no orphan state.
-
-## Switching backends
-
-```bash
-# Quack local (default): all dlt sources write to data/databox.duckdb
-DATABOX_BACKEND=quack
-
-# Legacy local: per-source raw_*.duckdb files
-DATABOX_BACKEND=local
-
-# MotherDuck
-DATABOX_BACKEND=motherduck
-MOTHERDUCK_TOKEN=<token>
-```
-
-Flipping `DATABOX_BACKEND` flips SQLMesh's gateway, dlt destinations,
-raw dataset naming, and Soda's datasource connection without touching any
-other file. `task full-refresh` and `task verify` force `DATABOX_BACKEND=quack`
-for both Dagster ingest jobs and the native SQLMesh prod restatement so stale
-local `.env` files do not silently take the old path.
+SQLMesh state lives in `data/sqlmesh_state.duckdb`, separate from
+`data/databox.duckdb`. The data connection loads the `h3` extension while the
+state connection does not; separating them avoids incompatible concurrent
+DuckDB connection configuration. `task db:reset` removes both local database
+files and all persisted trip-plan state.

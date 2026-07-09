@@ -2,7 +2,7 @@
 
 Dataset-agnostic single-operator data platform. Ingests bird, weather, and
 streamflow sources with dlt, transforms with SQLMesh, validates with Soda
-contracts, and orchestrates with Quack-backed DuckDB / MotherDuck.
+contracts, and orchestrates with Quack-backed local DuckDB.
 
 ## What's here
 
@@ -26,9 +26,9 @@ Seven backfilled ADRs (Nygard format) explain the load-bearing choices:
 - [ADR-0001 — DuckDB as the primary warehouse](adr/0001-duckdb-as-primary-warehouse.md)
 - [ADR-0002 — SQLMesh over dbt](adr/0002-sqlmesh-over-dbt.md)
 - [ADR-0003 — Single SQLMesh project across all sources](adr/0003-single-sqlmesh-project.md)
-- [ADR-0004 — Per-source raw DuckDB catalogs](adr/0004-per-source-raw-catalogs.md) (legacy local fallback)
+- [ADR-0004 — Per-source raw DuckDB catalogs](adr/0004-per-source-raw-catalogs.md) (superseded)
 - [ADR-0005 — Dagster as the sole orchestrator](adr/0005-dagster-as-sole-orchestrator.md)
-- [ADR-0006 — MotherDuck as the cloud path](adr/0006-motherduck-as-cloud-path.md)
+- [ADR-0006 — MotherDuck as the cloud path](adr/0006-motherduck-as-cloud-path.md) (superseded; historical)
 - [ADR-0007 — Quack single-file local ingest](adr/0007-quack-single-file-local-ingest.md)
 
 The root README frames the platform as a case study with system and

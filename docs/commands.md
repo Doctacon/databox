@@ -42,7 +42,32 @@ This runs the deterministic DeepEval suite at
 `tests/evals/test_birding_trip_copilot_deepeval.py`. The target opts out of
 DeepEval telemetry, keeps the cache under the ignored `.cache/` tree, disables
 browser opening, and sets `PYTEST_ADDOPTS=--no-cov` so the focused eval run is
-not affected by the repository-wide coverage gate.
+not affected by the repository-wide coverage gate. It uses a fake model client
+and makes no live Cloudflare request.
+
+Opt in to one live credential/model check with:
+
+```bash
+task smoke:cloudflare-ai
+```
+
+The smoke command uses only `@cf/zai-org/glm-4.7-flash` and never prints
+Cloudflare credentials.
+
+## Local Trip Planner
+
+```bash
+task app:dev           # FastAPI :8000 + Vite :5173 with hot reload
+task app:check         # typecheck + tests + build + configured bundle audit
+task app:audit-bundle  # audit an existing build for configured names and values
+task app               # build and serve the complete app at http://127.0.0.1:8000
+```
+
+Both launch paths bind to loopback. Run `task verify` first to populate the
+local warehouse. The browser calls `/api/*`; only the Python process can access
+DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable
+`task app:audit-bundle` command checks the compiled files for all configured
+Cloudflare variable names and non-empty local values without printing secrets.
 
 ## SQLMesh
 

@@ -15,6 +15,11 @@ os.environ.setdefault("DEEPEVAL_TELEMETRY_OPT_OUT", "true")
 import duckdb
 from databox.agent_tools.open_meteo import ELEVATION_ENDPOINT, FORECAST_ENDPOINT
 from databox.agents.birding_trip_planner import BirdingTripPlanner, TripRequest
+from databox.agents.cloudflare_workers_ai import (
+    CLOUDFLARE_WORKERS_AI_MODEL,
+    GroundedSynthesisRequest,
+    GroundedSynthesisResult,
+)
 from deepeval.evaluate import assert_test
 from deepeval.metrics import BaseMetric, ToolCorrectnessMetric
 from deepeval.models.base_model import DeepEvalBaseLLM
@@ -28,6 +33,7 @@ EXPECTED_TOOL_NAMES = [
     "rank_likely_species",
     "lookup_xeno_canto_media_evidence",
     "build_trip_plan_evidence",
+    "synthesize_grounded_trip_plan",
     "persist_trip_plan",
 ]
 
@@ -58,6 +64,27 @@ class NoOpDeepEvalModel(DeepEvalBaseLLM):
 
 
 NOOP_MODEL = NoOpDeepEvalModel("noop-local")
+
+
+class FakeTripPlanModelClient:
+    model = CLOUDFLARE_WORKERS_AI_MODEL
+
+    def synthesize(self, request: GroundedSynthesisRequest) -> GroundedSynthesisResult:
+        return GroundedSynthesisResult.model_validate(
+            {
+                "action_ids": ["listen_first", "check_weather"],
+                "grounding": {
+                    "requested_location": request.requested_location,
+                    "window_start": request.window_start,
+                    "window_end": request.window_end,
+                    "duration_minutes": request.duration_minutes,
+                    "recommendation_ids": [
+                        item.recommendation_id for item in request.recommendations
+                    ],
+                    "caveats": list(request.caveats),
+                },
+            }
+        )
 
 
 class PersistedEvidenceMetric(BaseMetric):
@@ -442,6 +469,17 @@ def _metadata_for_trip(con: duckdb.DuckDBPyConnection, trip_plan_id: str) -> dic
             [trip_plan_id],
         ).fetchall()
     ]
+    model_trace_models = [
+        json.loads(row[0]).get("model")
+        for row in con.execute(
+            """
+            SELECT output_summary_json
+            FROM birding_agent.trip_plan_tool_traces
+            WHERE trip_plan_id = ? AND tool_name = 'synthesize_grounded_trip_plan'
+            """,
+            [trip_plan_id],
+        ).fetchall()
+    ]
     recommendation_rationales = [
         row[0]
         for row in con.execute(
@@ -465,6 +503,7 @@ def _metadata_for_trip(con: duckdb.DuckDBPyConnection, trip_plan_id: str) -> dic
         ),
         "unavailable_trace_tools": unavailable_trace_tools,
         "recommendation_rationales": recommendation_rationales,
+        "model_trace_models": model_trace_models,
         "personalization_mode": "no_life_list",
     }
 
@@ -472,7 +511,11 @@ def _metadata_for_trip(con: duckdb.DuckDBPyConnection, trip_plan_id: str) -> dic
 def test_thumb_butte_golden_trip_plan_uses_tools_and_persists_evidence() -> None:
     con = duckdb.connect(":memory:")
     _seed_planner_views(con)
-    planner = BirdingTripPlanner(con, weather_getter=_weather_response)
+    planner = BirdingTripPlanner(
+        con,
+        model_client=FakeTripPlanModelClient(),
+        weather_getter=_weather_response,
+    )
 
     result = planner.plan_trip(
         TripRequest(
@@ -486,6 +529,7 @@ def test_thumb_butte_golden_trip_plan_uses_tools_and_persists_evidence() -> None
     )
     metadata = _metadata_for_trip(con, result.trip_plan_id)
     metadata["plan_caveats"] = result.caveats
+    assert metadata["model_trace_models"] == [CLOUDFLARE_WORKERS_AI_MODEL]
 
     test_case = LLMTestCase(
         name="golden-thumb-butte-morning-trip-plan",
@@ -518,7 +562,11 @@ def test_thumb_butte_golden_trip_plan_uses_tools_and_persists_evidence() -> None
 
 def test_sparse_trip_plan_surfaces_unavailable_source_caveats() -> None:
     con = duckdb.connect(":memory:")
-    planner = BirdingTripPlanner(con, weather_getter=_weather_response)
+    planner = BirdingTripPlanner(
+        con,
+        model_client=FakeTripPlanModelClient(),
+        weather_getter=_weather_response,
+    )
 
     result = planner.plan_trip(
         TripRequest(
@@ -530,6 +578,7 @@ def test_sparse_trip_plan_surfaces_unavailable_source_caveats() -> None:
     )
     metadata = _metadata_for_trip(con, result.trip_plan_id)
     metadata["plan_caveats"] = result.caveats
+    assert metadata["model_trace_models"] == [CLOUDFLARE_WORKERS_AI_MODEL]
 
     test_case = LLMTestCase(
         name="sparse-location-source-unavailable-caveats",

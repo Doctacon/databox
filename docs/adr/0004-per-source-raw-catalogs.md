@@ -1,6 +1,9 @@
 # ADR-0004: Per-source raw DuckDB catalogs
 
-**Status:** Superseded for default local ingest by [ADR-0007](0007-quack-single-file-local-ingest.md) · 2026-07
+**Status:** Superseded by [ADR-0007](0007-quack-single-file-local-ingest.md) · 2026-07
+
+> Historical record only. Per-source database files and cloud catalogs are no
+> longer supported runtime paths.
 
 ## Context
 

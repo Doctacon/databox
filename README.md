@@ -9,8 +9,8 @@
 
 A single-operator data platform that ingests public APIs (eBird,
 NOAA, USGS) into one queryable cross-domain warehouse. Zero always-on
-infra: Quack-backed DuckDB locally, MotherDuck cloud with one environment
-flag. Every layer — ingest, transform, quality, orchestration, semantic
+infra: Quack-backed local DuckDB. Every layer — ingest, transform,
+quality, orchestration, semantic
 metrics, data dictionary — is wired end-to-end through the same
 open-source stack.
 
@@ -46,7 +46,7 @@ graph TB
         usgs_src[usgs source]
     end
 
-    subgraph Raw["Raw catalogs · DuckDB / MotherDuck"]
+    subgraph Raw["Raw schemas · DuckDB"]
         raw_ebird[(raw_ebird)]
         raw_noaa[(raw_noaa)]
         raw_usgs[(raw_usgs)]
@@ -63,7 +63,7 @@ graph TB
     end
 
     subgraph Consumer["Consumers"]
-        dashboard["MotherDuck Dive dashboards"]
+        dashboard["Local product"]
         dict["Data dictionary site (MkDocs)"]
     end
 
@@ -101,7 +101,7 @@ flowchart LR
     C -->|SQLMesh models| D[environmental_observations<br/>dimensions + facts]
     D -->|METRIC DDL| G[semantic metrics<br/>richness · counts]
     D -->|Soda asset check| H{quality gate}
-    H -->|pass| I[Dive dashboards]
+    H -->|pass| I[Local product]
     H -->|fail| J[block downstream · surface in Dagster]
 ```
 
@@ -117,7 +117,7 @@ Each claim is backed by a ticket and its evidence, not just prose.
 | **Schema-contract CI gate** — breaking changes to contracts require explicit opt-in | `scripts/schema_gate.py` runs on PRs, blocks column drops / type narrowings without `accept-breaking-change` marker | [ticket:schema-contract-ci](.loom/tickets/20260420-bsha1b91-schema-contract-ci.md) |
 | **Auto-generated data dictionary** — every model's columns, types, checks, and lineage discoverable without cloning | [doctacon.github.io/databox](https://doctacon.github.io/databox/), regenerated from `sqlmesh.Context` + Soda YAML | [ticket:data-dictionary-site](.loom/tickets/20260420-2ikjh1e2-data-dictionary-site.md) |
 | **Idempotent incremental ingest** — reruns do not double-count | Merge keys are declared; Quack append-loads are deduplicated post-load by the same keys | [ticket:incremental-load-audit](.loom/tickets/20260420-c1ogpdel-incremental-load-audit.md) · [incremental-loading doc](docs/incremental-loading.md) |
-| **Portable local ↔ cloud** — identical SQL, environment-variable switch | `DATABOX_BACKEND=quack` vs `=motherduck`; settings route local dlt through Quack and cloud through `md:` URIs | [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md) · [ADR-0007](docs/adr/0007-quack-single-file-local-ingest.md) |
+| **Single-file local warehouse** — one reproducible data and application-state database | Quack-backed dlt sources and SQLMesh models share `data/databox.duckdb` | [ADR-0007](docs/adr/0007-quack-single-file-local-ingest.md) |
 | **Single orchestration surface** — Dagster owns every run, no CLI drift | Every asset (ingest, transform, quality) visible in one DAG; `task` targets are thin wrappers | [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md) |
 
 ## Stack
@@ -125,7 +125,6 @@ Each claim is backed by a ticket and its evidence, not just prose.
 - **[dlt](https://dlthub.com/)** — Python-native ingestion, auto-schema inference
 - **[SQLMesh](https://sqlmesh.com/)** — SQL transforms with virtual environments, native metrics, column-level change detection (see [ADR-0002](docs/adr/0002-sqlmesh-over-dbt.md))
 - **[DuckDB](https://duckdb.org/)** — embedded analytical warehouse (see [ADR-0001](docs/adr/0001-duckdb-as-primary-warehouse.md))
-- **[MotherDuck](https://motherduck.com/)** — cloud DuckDB for the portfolio deploy (see [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md))
 - **[Dagster](https://dagster.io/)** — sole orchestrator; assets, schedules, sensors, asset checks (see [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md))
 - **[Soda Core](https://www.soda.io/soda-core)** — contract-based quality, run as asset checks
 - **[MkDocs-Material](https://squidfunk.github.io/mkdocs-material/)** — auto-generated data dictionary site
@@ -140,16 +139,16 @@ the rest of the design. Each one is under 200 lines.
 - [ADR-0003](docs/adr/0003-single-sqlmesh-project.md) — Single SQLMesh project across all sources
 - [ADR-0004](docs/adr/0004-per-source-raw-catalogs.md) — Per-source raw DuckDB catalogs (legacy local fallback)
 - [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md) — Dagster as the sole orchestrator
-- [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md) — MotherDuck as the cloud path
+- [ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md) — Superseded cloud path (historical)
 - [ADR-0007](docs/adr/0007-quack-single-file-local-ingest.md) — Quack single-file local ingest
 
 ## Quickstart
 
 ```bash
-# Install (requires uv)
+# Install (requires uv plus Node.js/npm for the React app)
 task install
 
-# Configure API keys — EBIRD_API_TOKEN and NOAA_API_TOKEN are free
+# Configure source keys plus Cloudflare Workers AI for the local trip planner
 cp .env.example .env && $EDITOR .env
 
 # Run everything headlessly (ingest → transform → quality)
@@ -163,14 +162,25 @@ task plan:dev      # materialize into ebird__dev, noaa__dev, ...
 task verify:dev    # Soda contracts run against __dev schemas
 task plan:prod     # promote verified changes — see docs/environments.md
 
-# Launch the Streamlit data explorer
-task streamlit
+# Optional: verify the configured agent model (@cf/zai-org/glm-4.7-flash)
+task smoke:cloudflare-ai
+
+# Launch the local Trip Planner (FastAPI + React) at localhost:5173
+task app:dev
+
+# Or build and serve it from one local process at localhost:8000
+task app
+
+# Re-audit an existing browser build for configured Cloudflare names/values
+task app:audit-bundle
 ```
 
-Dagster owns source ingestion as assets (`ebird_ingest`, `noaa_ingest`,
-`usgs_ingest`, `usgs_earthquakes_ingest`) plus schedules, sensors, and asset
-checks. `task full-refresh` runs those hermetic source assets through Quack,
-then invokes native SQLMesh for the prod restatement. See
+Dagster owns source ingestion as independent jobs (`ebird_ingest`,
+`gbif_ingest`, `xeno_canto_ingest`, `noaa_ingest`, `usgs_ingest`, and
+`usgs_earthquakes_ingest`) plus schedules, sensors, and asset checks.
+`task full-refresh` starts one Quack server, launches all registered source jobs
+concurrently as hermetic clients, stops/deduplicates the warehouse, then invokes
+native SQLMesh only after every source succeeds. See
 [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md) and
 [ADR-0007](docs/adr/0007-quack-single-file-local-ingest.md).
 
@@ -178,8 +188,8 @@ Per-mart staleness SLAs are declared in each domain module and validated
 by `last_update` asset checks; a sensor emits a structured warning line
 per violation. See [docs/freshness.md](docs/freshness.md).
 
-Four production-failure scenarios — blown DuckDB file, partial source
-backfill, MotherDuck point-in-time recovery, paused-schedule resumption
+Local recovery scenarios — blown DuckDB file, partial source
+backfill, and paused-schedule resumption
 — have copy-pasteable recovery commands in
 [docs/runbook.md](docs/runbook.md).
 
@@ -198,31 +208,14 @@ task init -- \
 
 See **[docs/template.md](docs/template.md)** for the full list of what's covered, what stays unchanged (Python package name, external deps), and how to extend the scaffold.
 
-## Backends
+## Local warehouse
 
-Flip between local and cloud via environment variables; the SQL never
-changes.
-
-```bash
-# Local (default) — Quack server, one data/databox.duckdb file, zero infra
-DATABOX_BACKEND=quack
-
-# Legacy local — pre-Quack per-source raw_*.duckdb files
-DATABOX_BACKEND=local
-
-# MotherDuck cloud — same SQL, md:* URIs
-DATABOX_BACKEND=motherduck
-MOTHERDUCK_TOKEN=<your_token>
-```
-
-`databox.config.settings` is the single source of truth: DuckDB paths,
-MotherDuck URIs, SQLMesh gateway selection, and the Soda datasource
-are all derived from `DATABOX_BACKEND`. See
+Databox uses one Quack-backed `data/databox.duckdb` file for raw schemas,
+SQLMesh models, and persisted application artifacts. `databox.config.settings`
+is the single source of truth for the local path and Soda datasource. See
 [docs/configuration.md](docs/configuration.md),
-[docs/secrets.md](docs/secrets.md),
-[ADR-0001](docs/adr/0001-duckdb-as-primary-warehouse.md),
-[ADR-0004](docs/adr/0004-per-source-raw-catalogs.md),
-[ADR-0006](docs/adr/0006-motherduck-as-cloud-path.md).
+[docs/secrets.md](docs/secrets.md), and
+[ADR-0007](docs/adr/0007-quack-single-file-local-ingest.md).
 
 ## Repository layout
 
@@ -232,7 +225,7 @@ packages/                  # uv workspace
 └── databox-sources/       # dlt ingestion + per-source configs
 
 transforms/main/           # Unified SQLMesh project (ADR-0003)
-├── config.py              # local + motherduck gateways
+├── config.py              # local SQLMesh gateway
 ├── metrics/               # semantic metrics registry
 └── models/
     ├── environmental_observations/ # CDM dimensions + facts

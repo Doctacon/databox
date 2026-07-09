@@ -16,7 +16,7 @@ Operational analytics models retained outside the CDM, such as platform health.
 
 ## `birding_agent`
 
-Planner-ready SQL interfaces for the Birding Trip Copilot agent and Dive.
+Planner-ready SQL interfaces for the Birding Trip Copilot agent and local product.
 
 | Model | Contract | Description |
 | --- | --- | --- |

@@ -9,13 +9,54 @@ from pathlib import Path
 from typing import Any, cast
 
 import duckdb
+import pytest
 from databox.agent_tools.open_meteo import ELEVATION_ENDPOINT, FORECAST_ENDPOINT
 from databox.agents.birding_trip_planner import (
     TripRequest,
     build_root_agent,
     main,
     run_trip_planner_agent,
+    run_trip_planner_agent_async,
 )
+from databox.agents.cloudflare_workers_ai import (
+    CLOUDFLARE_WORKERS_AI_MODEL,
+    CloudflareAuthenticationError,
+    GroundedSynthesisRequest,
+    GroundedSynthesisResult,
+)
+
+
+class FailingTripPlanModelClient:
+    model = CLOUDFLARE_WORKERS_AI_MODEL
+
+    def synthesize(self, request: GroundedSynthesisRequest) -> GroundedSynthesisResult:
+        _ = request
+        raise CloudflareAuthenticationError("Cloudflare Workers AI authentication failed")
+
+
+class FakeTripPlanModelClient:
+    model = CLOUDFLARE_WORKERS_AI_MODEL
+
+    def __init__(self) -> None:
+        self.requests: list[GroundedSynthesisRequest] = []
+
+    def synthesize(self, request: GroundedSynthesisRequest) -> GroundedSynthesisResult:
+        self.requests.append(request)
+        return GroundedSynthesisResult.model_validate(
+            {
+                "action_ids": ["listen_first", "scan_habitat_edges"],
+                "grounding": {
+                    "requested_location": request.requested_location,
+                    "window_start": request.window_start,
+                    "window_end": request.window_end,
+                    "duration_minutes": request.duration_minutes,
+                    "recommendation_ids": [
+                        item.recommendation_id for item in request.recommendations
+                    ],
+                    "caveats": list(request.caveats),
+                },
+            }
+        )
 
 
 def _weather_response(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
@@ -237,6 +278,7 @@ def test_build_root_agent_exposes_bounded_tool_contract() -> None:
         "fetch_open_meteo_trip_context_tool",
         "rank_likely_species_tool",
         "lookup_xeno_canto_media_evidence_tool",
+        "synthesize_grounded_trip_plan_tool",
         "persist_trip_plan_tool",
     } <= tool_names
     assert "life list" in cast(str, agent.instruction)
@@ -245,6 +287,7 @@ def test_build_root_agent_exposes_bounded_tool_contract() -> None:
 def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() -> None:
     con = duckdb.connect(":memory:")
     _seed_planner_views(con)
+    model_client = FakeTripPlanModelClient()
 
     result = run_trip_planner_agent(
         con,
@@ -257,9 +300,13 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
         ),
         trip_plan_id="trip-thumb-butte-test",
         weather_getter=_weather_response,
+        model_client=model_client,
     )
 
     assert result.trip_plan_id == "trip-thumb-butte-test"
+    assert len(model_client.requests) == 1
+    assert model_client.requests[0].duration_minutes == 90
+    assert model_client.requests[0].window_end == "2026-07-09T07:30:00"
     assert result.location.normalized_location_name == "Thumb Butte, Prescott, AZ"
     assert "High-likelihood species" in result.field_plan_text
     assert "Uncommon but plausible targets" in result.field_plan_text
@@ -284,7 +331,7 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
     assert counts["plans"] == 1
     assert counts["recommendations"] >= 3
     assert counts["evidence"] >= 5
-    assert counts["traces"] == 8
+    assert counts["traces"] == 9
 
     trace_tools = {
         row[0]
@@ -301,6 +348,7 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
         "rank_likely_species",
         "lookup_xeno_canto_media_evidence",
         "build_trip_plan_evidence",
+        "synthesize_grounded_trip_plan",
         "persist_trip_plan",
     } == trace_tools
     trace_statuses = {
@@ -315,6 +363,18 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
         ).fetchall()
     }
     assert trace_statuses == {"ok"}
+    model_trace = con.execute(
+        """
+        SELECT input_json, output_summary_json
+        FROM birding_agent.trip_plan_tool_traces
+        WHERE trip_plan_id = ? AND tool_name = 'synthesize_grounded_trip_plan'
+        """,
+        [result.trip_plan_id],
+    ).fetchone()
+    assert model_trace is not None
+    assert json.loads(model_trace[0])["model"] == CLOUDFLARE_WORKERS_AI_MODEL
+    assert json.loads(model_trace[1])["model"] == CLOUDFLARE_WORKERS_AI_MODEL
+    assert "api_key" not in (model_trace[0] + model_trace[1]).lower()
 
     weather_evidence = con.execute(
         """
@@ -326,6 +386,116 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
     assert weather_evidence is not None
     assert weather_evidence[0] == "available"
     assert json.loads(weather_evidence[1])["elevation_m"] == 1642.0
+
+
+@pytest.mark.asyncio
+async def test_async_adk_entry_runs_blocking_planner_without_blocking_loop() -> None:
+    con = duckdb.connect(":memory:")
+    _seed_planner_views(con)
+    result = await run_trip_planner_agent_async(
+        con,
+        request=TripRequest(
+            location="Thumb Butte",
+            start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+            duration_minutes=90,
+        ),
+        trip_plan_id="trip-async-test",
+        weather_getter=_weather_response,
+        model_client=FakeTripPlanModelClient(),
+    )
+    assert result.trip_plan_id == "trip-async-test"
+
+
+@pytest.mark.asyncio
+async def test_sync_adk_entry_rejects_active_event_loop() -> None:
+    con = duckdb.connect(":memory:")
+    with pytest.raises(RuntimeError, match="await run_trip_planner_agent_async"):
+        run_trip_planner_agent(
+            con,
+            request=TripRequest(
+                location="Thumb Butte",
+                start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+                duration_minutes=90,
+            ),
+            model_client=FakeTripPlanModelClient(),
+        )
+
+
+def test_persistence_failure_never_returns_successful_plan(monkeypatch: Any) -> None:
+    con = duckdb.connect(":memory:")
+    _seed_planner_views(con)
+    from databox.agents.birding_trip_planner import BirdingTripPlanner
+
+    planner = BirdingTripPlanner(
+        con,
+        model_client=FakeTripPlanModelClient(),
+        weather_getter=_weather_response,
+    )
+
+    def fail_persistence(*args: object, **kwargs: object) -> None:
+        raise duckdb.IOException("sensitive persistence detail")
+
+    monkeypatch.setattr(planner, "persist_trip_plan", fail_persistence)
+    with pytest.raises(RuntimeError, match="Trip plan persistence failed") as exc_info:
+        planner.plan_trip(
+            TripRequest(
+                location="Thumb Butte",
+                start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+                duration_minutes=90,
+            ),
+            trip_plan_id="trip-persistence-failed",
+        )
+    assert "sensitive persistence detail" not in str(exc_info.value)
+    assert con.execute(
+        "SELECT count(*) FROM birding_agent.trip_plans "
+        "WHERE trip_plan_id = 'trip-persistence-failed'"
+    ).fetchone() == (0,)
+
+
+def test_failed_model_call_persists_safe_trace_but_not_completed_plan() -> None:
+    con = duckdb.connect(":memory:")
+    _seed_planner_views(con)
+    request = TripRequest(
+        location="Thumb Butte",
+        start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+        duration_minutes=90,
+    )
+    run_trip_planner_agent(
+        con,
+        request=request,
+        trip_plan_id="trip-model-failed",
+        weather_getter=_weather_response,
+        model_client=FakeTripPlanModelClient(),
+    )
+
+    with pytest.raises(CloudflareAuthenticationError, match="authentication failed"):
+        run_trip_planner_agent(
+            con,
+            request=request,
+            trip_plan_id="trip-model-failed",
+            weather_getter=_weather_response,
+            model_client=FailingTripPlanModelClient(),
+        )
+
+    for table in ("trip_plans", "trip_plan_recommendations", "trip_plan_evidence"):
+        assert con.execute(
+            f"SELECT count(*) FROM birding_agent.{table} WHERE trip_plan_id = 'trip-model-failed'"
+        ).fetchone() == (0,)
+    trace = con.execute(
+        """
+        SELECT tool_status, output_summary_json, caveats_json
+        FROM birding_agent.trip_plan_tool_traces
+        WHERE trip_plan_id = 'trip-model-failed'
+          AND tool_name = 'synthesize_grounded_trip_plan'
+        """
+    ).fetchone()
+    assert trace is not None
+    assert trace[0] == "unavailable"
+    assert json.loads(trace[1]) == {
+        "error_code": "authentication_failed",
+        "model": CLOUDFLARE_WORKERS_AI_MODEL,
+    }
+    assert "CF_WORKERS_AI_API_KEY" not in trace[2]
 
 
 def test_adk_runtime_persists_source_unavailable_caveats_when_evidence_views_are_missing() -> None:
@@ -340,6 +510,7 @@ def test_adk_runtime_persists_source_unavailable_caveats_when_evidence_views_are
         ),
         trip_plan_id="trip-sparse-test",
         weather_getter=_weather_response,
+        model_client=FakeTripPlanModelClient(),
     )
 
     assert not result.recommendations
@@ -391,7 +562,8 @@ def test_cli_generates_sample_plan_against_duckdb_file(tmp_path: Path, capsys: A
             "--trip-plan-id",
             "trip-cli-test",
             "--mock-open-meteo",
-        ]
+        ],
+        model_client=FakeTripPlanModelClient(),
     )
 
     assert status == 0
@@ -407,5 +579,5 @@ def test_cli_generates_sample_plan_against_duckdb_file(tmp_path: Path, capsys: A
     assert plan_count_row is not None
     assert trace_count_row is not None
     assert plan_count_row[0] == 1
-    assert trace_count_row[0] == 8
+    assert trace_count_row[0] == 9
     con.close()

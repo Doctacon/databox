@@ -82,4 +82,5 @@ nav:
       - ADR-0003 Single SQLMesh project: adr/0003-single-sqlmesh-project.md
       - ADR-0004 Per-source raw catalogs: adr/0004-per-source-raw-catalogs.md
       - ADR-0005 Dagster sole orchestrator: adr/0005-dagster-as-sole-orchestrator.md
-      - ADR-0006 MotherDuck cloud path: adr/0006-motherduck-as-cloud-path.md
+      - ADR-0006 Superseded cloud path (historical): adr/0006-motherduck-as-cloud-path.md
+      - ADR-0007 Quack single-file local ingest: adr/0007-quack-single-file-local-ingest.md

@@ -2,7 +2,7 @@
 
 Open-Meteo is intentionally implemented as a request-time tool, not a dlt
 pipeline: trip plans use dynamic coordinates and future outing windows. The
-used response can be persisted as one trip-plan evidence row so later Dive and
+used response can be persisted as one trip-plan evidence row so later planning and
 evaluation surfaces can reproduce what the planner saw.
 """
 
@@ -200,7 +200,7 @@ def persist_open_meteo_evidence(
     """Persist one Open-Meteo context as a trip-plan evidence artifact.
 
     The table is intentionally generic evidence storage, not a scheduled raw
-    source table. Future planner/Dive work can join on ``trip_plan_id`` and
+    source table. Future planner work can join on ``trip_plan_id`` and
     inspect ``payload_json`` for the exact Open-Meteo context used by a plan.
     """
 

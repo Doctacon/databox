@@ -4,14 +4,16 @@ The runtime deliberately keeps the first implementation deterministic: a custom
 Google ADK ``BaseAgent`` runs bounded Python tools that gather evidence, rank
 species, write tool traces, and persist the plan. ``build_root_agent`` exposes
 the same tool contract for future LLM-backed orchestration without changing the
-persistence interface consumed by MotherDuck Dives and DeepEval.
+persistence interface consumed by the local product and DeepEval.
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import uuid
+from collections import Counter
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -35,6 +37,15 @@ from databox.agent_tools.persistence import (
     DuckDBConnection,
     ensure_birding_agent_persistence_tables,
 )
+from databox.agents.cloudflare_workers_ai import (
+    CLOUDFLARE_WORKERS_AI_MODEL,
+    CloudflareWorkersAIClient,
+    CloudflareWorkersAIError,
+    GroundedSynthesisRequest,
+    PlanActionId,
+    RecommendationPrompt,
+    TripPlanModelClient,
+)
 from databox.config.settings import settings
 
 DEFAULT_TIMEZONE = "America/Phoenix"
@@ -44,6 +55,15 @@ KNOWN_LOCATIONS: dict[str, tuple[str, float, float, str]] = {
     "thumb butte": ("Thumb Butte, Prescott, AZ", 34.5444, -112.5280, "US-AZ"),
     "watson lake": ("Watson Lake, Prescott, AZ", 34.5959, -112.4157, "US-AZ"),
     "prescott": ("Prescott, AZ", 34.5400, -112.4685, "US-AZ"),
+}
+
+_PLAN_ACTION_TEXT: dict[PlanActionId, str] = {
+    "listen_first": "Begin by listening before moving through the area.",
+    "scan_habitat_edges": "Scan habitat edges before changing position.",
+    "move_if_quiet": "Move to the next suitable area if activity stays quiet.",
+    "check_weather": "Recheck the recorded weather caveats before departure.",
+    "respect_access": "Stay within marked public access and posted restrictions.",
+    "review_call_examples": "Review the linked call examples before the outing.",
 }
 
 
@@ -155,11 +175,15 @@ class BirdingTripPlanner:
         self,
         connection: DuckDBConnection,
         *,
+        model_client: TripPlanModelClient,
         weather_getter: JsonGetter | None = None,
         now: Callable[[], datetime] | None = None,
         radius_km: float = DEFAULT_RADIUS_KM,
     ) -> None:
+        if model_client.model != CLOUDFLARE_WORKERS_AI_MODEL:
+            raise ValueError(f"Only {CLOUDFLARE_WORKERS_AI_MODEL} may synthesize trip plans")
         self.connection = connection
+        self.model_client = model_client
         self.weather_getter = weather_getter
         self.now = now or (lambda: datetime.now(UTC))
         self.radius_km = radius_km
@@ -296,20 +320,34 @@ class BirdingTripPlanner:
         caveats = self._plan_caveats(
             location, recent_rows, occurrence_rows, media_rows, weather_context
         )
+        try:
+            synthesis, trace = self._record_required_model_tool(
+                step_order=8,
+                request=request,
+                location=location,
+                weather_context=weather_context,
+                recommendations=ranked,
+                evidence=evidence,
+                caveats=caveats,
+            )
+        except CloudflareWorkersAIError as exc:
+            traces.append(cast(ToolTrace, exc.tool_trace))
+            self._delete_completed_plan(plan_id)
+            self._replace_tool_traces(plan_id, traces)
+            raise
+        traces.append(trace)
         field_plan_text = self.compose_field_plan(
-            request, location, weather_context, ranked, caveats
+            request,
+            location,
+            weather_context,
+            ranked,
+            caveats,
+            synthesis.action_ids,
         )
 
-        _, trace = self._record_tool(
-            step_order=8,
-            tool_name="persist_trip_plan",
-            tool_input={
-                "trip_plan_id": plan_id,
-                "recommendation_count": len(ranked),
-                "evidence_count": len(evidence),
-                "trace_count": len(traces) + 1,
-            },
-            call=lambda: self.persist_trip_plan(
+        persistence_started = self.now().isoformat()
+        try:
+            self.persist_trip_plan(
                 plan_id,
                 request,
                 location,
@@ -319,11 +357,47 @@ class BirdingTripPlanner:
                 [*traces],
                 field_plan_text,
                 caveats,
-            ),
-            summary=lambda _: {"trip_plan_id": plan_id, "status": "persisted"},
+            )
+        except Exception:
+            persistence_trace = ToolTrace(
+                step_order=9,
+                tool_name="persist_trip_plan",
+                tool_status="unavailable",
+                started_at=persistence_started,
+                completed_at=self.now().isoformat(),
+                input={
+                    "trip_plan_id": plan_id,
+                    "recommendation_count": len(ranked),
+                    "evidence_count": len(evidence),
+                    "trace_count": len(traces) + 1,
+                },
+                output_summary={"status": "failed"},
+                caveats=["Trip plan persistence failed"],
+            )
+            self._delete_completed_plan(plan_id)
+            self._replace_tool_traces(plan_id, [*traces, persistence_trace])
+            raise RuntimeError("Trip plan persistence failed") from None
+        traces.append(
+            ToolTrace(
+                step_order=9,
+                tool_name="persist_trip_plan",
+                tool_status="ok",
+                started_at=persistence_started,
+                completed_at=self.now().isoformat(),
+                input={
+                    "trip_plan_id": plan_id,
+                    "recommendation_count": len(ranked),
+                    "evidence_count": len(evidence),
+                    "trace_count": len(traces) + 1,
+                },
+                output_summary={"trip_plan_id": plan_id, "status": "persisted"},
+            )
         )
-        traces.append(trace)
-        self._replace_tool_traces(plan_id, traces)
+        try:
+            self._replace_tool_traces(plan_id, traces)
+        except Exception:
+            self._delete_completed_plan(plan_id)
+            raise RuntimeError("Trip plan persistence failed") from None
 
         return TripPlanResult(
             trip_plan_id=plan_id,
@@ -684,6 +758,7 @@ class BirdingTripPlanner:
         weather_context: OpenMeteoTripContext,
         recommendations: Sequence[SpeciesRecommendation],
         caveats: Sequence[str],
+        action_ids: Sequence[PlanActionId],
     ) -> str:
         high = [rec for rec in recommendations if rec.recommendation_group == "high_likelihood"]
         plausible = [
@@ -700,11 +775,11 @@ class BirdingTripPlanner:
             f" Constraints noted: {request.constraints_text}." if request.constraints_text else ""
         )
         caveat_text = " Caveats: " + "; ".join(caveats) if caveats else ""
+        action_text = " ".join(_PLAN_ACTION_TEXT[action_id] for action_id in action_ids)
         return (
             f"Plan {request.duration_minutes} minutes at {location.normalized_location_name} "
-            f"starting {request.start_at.isoformat()}. {weather_bits} Start with vocal birds and "
-            "edge/habitat transitions, then use the target list to decide whether to "
-            "linger or move. "
+            f"starting {request.start_at.isoformat()} and ending {request.end_at.isoformat()}. "
+            f"{weather_bits} {action_text} "
             f"High-likelihood species: {high_text}. "
             f"Uncommon but plausible targets: {plausible_text}."
             f"{constraint_text}{caveat_text}"
@@ -722,8 +797,38 @@ class BirdingTripPlanner:
         field_plan_text: str,
         caveats: Sequence[str],
     ) -> None:
-        now = self.now().isoformat()
         ensure_birding_agent_persistence_tables(self.connection)
+        self.connection.execute("BEGIN TRANSACTION")
+        try:
+            self._persist_trip_plan_rows(
+                trip_plan_id,
+                request,
+                location,
+                weather_context,
+                recommendations,
+                evidence,
+                tool_traces,
+                field_plan_text,
+                caveats,
+            )
+        except Exception:
+            self.connection.execute("ROLLBACK")
+            raise
+        self.connection.execute("COMMIT")
+
+    def _persist_trip_plan_rows(
+        self,
+        trip_plan_id: str,
+        request: TripRequest,
+        location: NormalizedLocation,
+        weather_context: OpenMeteoTripContext,
+        recommendations: Sequence[SpeciesRecommendation],
+        evidence: Sequence[EvidenceRecord],
+        tool_traces: Sequence[ToolTrace],
+        field_plan_text: str,
+        caveats: Sequence[str],
+    ) -> None:
+        now = self.now().isoformat()
         self.connection.execute(
             "DELETE FROM birding_agent.trip_plans WHERE trip_plan_id = ?", [trip_plan_id]
         )
@@ -857,6 +962,17 @@ class BirdingTripPlanner:
             )
         self._replace_tool_traces(trip_plan_id, tool_traces)
 
+    def _delete_completed_plan(self, trip_plan_id: str) -> None:
+        for table in (
+            "trip_plan_recommendations",
+            "trip_plan_evidence",
+            "trip_plans",
+        ):
+            self.connection.execute(
+                f"DELETE FROM birding_agent.{table} WHERE trip_plan_id = ?",
+                [trip_plan_id],
+            )
+
     def _replace_tool_traces(self, trip_plan_id: str, traces: Sequence[ToolTrace]) -> None:
         self.connection.execute(
             "DELETE FROM birding_agent.trip_plan_tool_traces WHERE trip_plan_id = ?", [trip_plan_id]
@@ -911,6 +1027,86 @@ class BirdingTripPlanner:
         caveats.extend(weather_context.caveats)
         return caveats
 
+    def _record_required_model_tool(
+        self,
+        *,
+        step_order: int,
+        request: TripRequest,
+        location: NormalizedLocation,
+        weather_context: OpenMeteoTripContext,
+        recommendations: Sequence[SpeciesRecommendation],
+        evidence: Sequence[EvidenceRecord],
+        caveats: Sequence[str],
+    ) -> tuple[Any, ToolTrace]:
+        started = self.now().isoformat()
+        evidence_counts = Counter(row.source for row in evidence)
+        evidence_counts["open_meteo"] += 1
+        model_request = GroundedSynthesisRequest(
+            requested_location=request.location,
+            normalized_location_name=location.normalized_location_name,
+            window_start=request.start_at.isoformat(),
+            window_end=request.end_at.isoformat(),
+            duration_minutes=request.duration_minutes,
+            skill_level=request.skill_level,
+            constraints_text=request.constraints_text,
+            weather_summary={
+                "status": weather_context.status,
+                "elevation_m": weather_context.elevation_m,
+                "hourly_rows": len(weather_context.hourly),
+                "caveats": list(weather_context.caveats),
+            },
+            recommendations=[
+                RecommendationPrompt(
+                    recommendation_id=rec.recommendation_id,
+                    common_name=rec.common_name,
+                    scientific_name=rec.scientific_name,
+                    recommendation_group=rec.recommendation_group,
+                    current_rationale=rec.rationale_text,
+                )
+                for rec in recommendations
+            ],
+            caveats=list(caveats),
+            evidence_source_counts=dict(sorted(evidence_counts.items())),
+        )
+        tool_input = {
+            "model": CLOUDFLARE_WORKERS_AI_MODEL,
+            "recommendation_count": len(recommendations),
+            "evidence_source_counts": model_request.evidence_source_counts,
+        }
+        try:
+            result = self.model_client.synthesize(model_request)
+        except CloudflareWorkersAIError as exc:
+            completed = self.now().isoformat()
+            trace = ToolTrace(
+                step_order=step_order,
+                tool_name="synthesize_grounded_trip_plan",
+                tool_status="unavailable",
+                started_at=started,
+                completed_at=completed,
+                input=tool_input,
+                output_summary={
+                    "model": CLOUDFLARE_WORKERS_AI_MODEL,
+                    "error_code": exc.code,
+                },
+                caveats=[str(exc)],
+            )
+            exc.tool_trace = trace
+            raise
+        completed = self.now().isoformat()
+        return result, ToolTrace(
+            step_order=step_order,
+            tool_name="synthesize_grounded_trip_plan",
+            tool_status="ok",
+            started_at=started,
+            completed_at=completed,
+            input=tool_input,
+            output_summary={
+                "model": CLOUDFLARE_WORKERS_AI_MODEL,
+                "action_ids": list(result.action_ids),
+                "recommendation_count": len(result.grounding.recommendation_ids),
+            },
+        )
+
     def _record_tool(
         self,
         *,
@@ -957,10 +1153,19 @@ class BirdingTripPlannerAdkAgent(BaseAgent):
     request: TripRequest = Field(exclude=True)
     trip_plan_id: str | None = None
     weather_getter: Any = Field(default=None, exclude=True)
+    model_client: Any = Field(exclude=True)
 
     async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
-        planner = BirdingTripPlanner(self.connection, weather_getter=self.weather_getter)
-        result = planner.plan_trip(self.request, trip_plan_id=self.trip_plan_id)
+        planner = BirdingTripPlanner(
+            self.connection,
+            model_client=cast(TripPlanModelClient, self.model_client),
+            weather_getter=self.weather_getter,
+        )
+        result = await asyncio.to_thread(
+            planner.plan_trip,
+            self.request,
+            trip_plan_id=self.trip_plan_id,
+        )
         yield Event(
             invocation_id=ctx.invocation_id,
             author=self.name,
@@ -972,17 +1177,16 @@ class BirdingTripPlannerAdkAgent(BaseAgent):
         )
 
 
-def build_root_agent(*, model: str = "") -> Agent:
-    """Build the Google ADK root agent that owns the trip-planning tool contract.
+def build_root_agent() -> Agent:
+    """Build the non-executed ADK tool-contract descriptor.
 
-    ``BirdingTripPlannerAdkAgent`` is the local executed ADK path used by tests
-    and the CLI. This LLM-capable root agent exposes the same bounded-tool names
-    and instructions so future ADK orchestration can reuse the same contract.
+    Live model inference is owned exclusively by ``CloudflareWorkersAIClient``;
+    this descriptor intentionally cannot accept an arbitrary ADK model.
     """
 
     return Agent(
         name="birding_trip_planner",
-        model=model,
+        model="",
         description="Evidence-backed birding trip planner for hobbyist birdwatchers.",
         instruction=(
             "Plan only birding trips. Use bounded tools for location normalization, "
@@ -997,6 +1201,7 @@ def build_root_agent(*, model: str = "") -> Agent:
             fetch_open_meteo_trip_context_tool,
             rank_likely_species_tool,
             lookup_xeno_canto_media_evidence_tool,
+            synthesize_grounded_trip_plan_tool,
             persist_trip_plan_tool,
         ],
     )
@@ -1053,35 +1258,43 @@ def lookup_xeno_canto_media_evidence_tool(species_names: list[str]) -> dict[str,
     return {"tool": "lookup_xeno_canto_media_evidence", "species_names": species_names}
 
 
+def synthesize_grounded_trip_plan_tool(recommendation_ids: list[str]) -> dict[str, Any]:
+    """Describe the required grounded Cloudflare synthesis tool contract."""
+
+    return {
+        "tool": "synthesize_grounded_trip_plan",
+        "model": CLOUDFLARE_WORKERS_AI_MODEL,
+        "recommendation_ids": recommendation_ids,
+    }
+
+
 def persist_trip_plan_tool(trip_plan_id: str) -> dict[str, Any]:
     """Describe the trip-plan persistence tool contract."""
 
     return {"tool": "persist_trip_plan", "trip_plan_id": trip_plan_id}
 
 
-def run_trip_planner_agent(
+async def run_trip_planner_agent_async(
     connection: DuckDBConnection,
     *,
     request: TripRequest,
     trip_plan_id: str | None = None,
     weather_getter: JsonGetter | None = None,
+    model_client: TripPlanModelClient | None = None,
 ) -> TripPlanResult:
-    """Run one deterministic trip plan through Google ADK's local runtime."""
+    """Run one bounded trip plan without blocking the caller's event loop."""
 
+    resolved_model_client = model_client or CloudflareWorkersAIClient.from_settings(settings)
     agent = BirdingTripPlannerAdkAgent(
         name="birding_trip_planner_runtime",
         connection=connection,
         request=request,
         trip_plan_id=trip_plan_id,
         weather_getter=weather_getter,
+        model_client=resolved_model_client,
     )
     runner = InMemoryRunner(agent=agent, app_name="databox_birding_trip_planner")
     session_id = trip_plan_id or f"session_{uuid.uuid4().hex}"
-    cast(Any, runner.session_service).create_session_sync(
-        app_name="databox_birding_trip_planner",
-        user_id="local_user",
-        session_id=session_id,
-    )
     message = types.Content(
         role="user",
         parts=[
@@ -1093,7 +1306,12 @@ def run_trip_planner_agent(
             )
         ],
     )
-    for event in runner.run(
+    await runner.session_service.create_session(
+        app_name="databox_birding_trip_planner",
+        user_id="local_user",
+        session_id=session_id,
+    )
+    async for event in runner.run_async(
         user_id="local_user",
         session_id=session_id,
         new_message=message,
@@ -1103,14 +1321,43 @@ def run_trip_planner_agent(
     raise RuntimeError("ADK trip planner completed without producing a trip plan")
 
 
+def run_trip_planner_agent(
+    connection: DuckDBConnection,
+    *,
+    request: TripRequest,
+    trip_plan_id: str | None = None,
+    weather_getter: JsonGetter | None = None,
+    model_client: TripPlanModelClient | None = None,
+) -> TripPlanResult:
+    """Synchronous CLI/test wrapper; async callers must use the async entry point."""
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(
+            run_trip_planner_agent_async(
+                connection,
+                request=request,
+                trip_plan_id=trip_plan_id,
+                weather_getter=weather_getter,
+                model_client=model_client,
+            )
+        )
+    raise RuntimeError(
+        "run_trip_planner_agent cannot run inside an active event loop; "
+        "await run_trip_planner_agent_async instead"
+    )
+
+
 def plan_trip(
     *,
     database_path: str,
     request: TripRequest,
     trip_plan_id: str | None = None,
     weather_getter: JsonGetter | None = None,
+    model_client: TripPlanModelClient | None = None,
 ) -> TripPlanResult:
-    """Generate and persist one trip plan against a DuckDB/MotherDuck database path."""
+    """Generate and persist one trip plan against the local DuckDB database path."""
 
     with duckdb.connect(database_path) as connection:
         return run_trip_planner_agent(
@@ -1118,10 +1365,15 @@ def plan_trip(
             request=request,
             trip_plan_id=trip_plan_id,
             weather_getter=weather_getter,
+            model_client=model_client,
         )
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    model_client: TripPlanModelClient | None = None,
+) -> int:
     parser = argparse.ArgumentParser(description="Generate a Birding Trip Copilot plan")
     parser.add_argument("--database-path", default=settings.database_path)
     parser.add_argument("--location", required=True)
@@ -1151,6 +1403,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         request=request,
         trip_plan_id=args.trip_plan_id,
         weather_getter=_sample_open_meteo_getter if args.mock_open_meteo else None,
+        model_client=model_client,
     )
     print(json.dumps(result.to_dict(), indent=2, sort_keys=True, default=str))
     return 0

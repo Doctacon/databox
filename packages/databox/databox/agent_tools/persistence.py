@@ -20,7 +20,7 @@ def ensure_birding_agent_persistence_tables(
 
     These tables are intentionally not SQLMesh-managed models because the ADK
     planner will append/update plan artifacts at request time. SQLMesh models
-    read source evidence for planning; the Dive and evals can query these stable
+    read source evidence for planning; the local product and evals can query these stable
     physical interfaces for generated plans, recommendations, evidence, and
     tool traces.
     """

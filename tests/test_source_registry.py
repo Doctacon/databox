@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
-from unittest.mock import patch
 
 import pytest
 from databox.config.settings import settings
@@ -63,16 +62,12 @@ def test_raw_catalogs_match_name() -> None:
         assert src.raw_catalog == f"raw_{src.name}"
 
 
-def test_quack_raw_dataset_matches_raw_schema() -> None:
-    with patch.object(settings, "backend", "quack"):
-        assert settings.raw_dataset_name("usgs") == "raw_usgs"
+def test_raw_dataset_matches_source_schema() -> None:
+    assert settings.raw_dataset_name("usgs") == "raw_usgs"
 
 
-def test_non_quack_raw_dataset_stays_main_schema() -> None:
-    with patch.object(settings, "backend", "motherduck"):
-        assert settings.raw_dataset_name("usgs") == "main"
-    with patch.object(settings, "backend", "local"):
-        assert settings.raw_dataset_name("usgs") == "main"
+def test_every_raw_catalog_uses_single_local_database() -> None:
+    assert {settings.raw_catalog_path(src.name) for src in SOURCES} == {settings.database_path}
 
 
 def test_analytics_anchor_is_single() -> None:

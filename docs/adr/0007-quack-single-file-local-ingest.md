@@ -1,61 +1,52 @@
 # ADR-0007: Quack single-file local ingest
 
-**Status:** Accepted · 2026-07
+**Status:** Accepted · 2026-07 · amended 2026-07 for the local-only platform
 
 ## Context
 
 ADR-0004 split raw dlt landing storage into one DuckDB file per source because
-DuckDB's native file format allowed only one writer process. That made parallel
-local ingest possible, but it weakened Databox's "one composable data stack"
-shape: the local warehouse was a bundle of raw files plus one transform file.
+DuckDB's native file format allows only one writer process. That layout made
+parallel ingest possible but weakened the single composable warehouse model.
 
-DuckDB Quack now provides client-server access to a DuckDB database. One server
-process owns the `.duckdb` file while multiple client processes can write
-through the `quack:` protocol.
+Quack provides client-server access to DuckDB: one server process owns the
+file while clients write through the `quack:` protocol.
 
 ## Decision
 
-Make Quack the default local ingest path.
+Quack is the only supported dlt write path, and `data/databox.duckdb` is the
+only supported warehouse and application-state database.
 
-- `DATABOX_BACKEND=quack` is the default.
-- Each dlt source is a Dagster ingest asset/job. For local Quack runs, that
-  source job starts a Quack server over `data/databox.duckdb`, runs exactly one
-  dlt source through Quack, stops Quack, then opens the file directly.
-- During the Quack load, dlt writes append-only physical tables in each
-  source's `raw_<source>` schema because Quack's beta attached-catalog path does
-  not yet support every DELETE statement dlt emits for merge loads.
-- After the Quack server stops, Databox deduplicates known raw tables by their
-  declared primary keys in place.
-- `task full-refresh` runs the source ingest jobs sequentially for hermeticity,
-  then invokes the native SQLMesh CLI to restate prod models from the refreshed
-  raw schemas.
-- SQLMesh reads raw sources using two-part names such as
-  `raw_ebird.recent_observations`; under Quack those are physical tables in the
-  primary `data/databox.duckdb` file, while MotherDuck and legacy local continue
-  to expose the same two-part names through one raw catalog/database per source.
-- The old `DATABOX_BACKEND=local` per-source-file path remains only as an escape
-  hatch.
+- Every source writes to a physical `raw_<source>` schema in that file.
+- Independent source jobs own a Quack server lifecycle when launched alone.
+- Full refresh starts exactly one Quack server, launches every registered source
+  as an independent concurrent Dagster job/client, waits for all clients, then
+  stops the server.
+- Transient `main._dlt_*` union views expose every source's physical metadata
+  tables during repeat loads without allowing concurrent clients to overwrite a
+  source-specific global view. The views are removed when the server stops.
+- dlt writes append-only physical tables because Quack's attached-catalog path
+  does not support every DELETE statement emitted for merge loads.
+- After the server stops, Databox deduplicates known raw tables by their
+  declared primary keys.
+- SQLMesh runs only after every required source job succeeds.
+- SQLMesh uses only its local gateway and reads source schemas from the shared
+  warehouse.
 
 ## Consequences
 
 **Positive:**
 
-- The local data stack is one DuckDB file again.
-- dlt sources write through Quack without direct multi-process file opens.
-- Each source ingest is a Dagster asset run with its own Quack lifecycle.
-- Adding a source means adding another raw schema, not another local database
-  file to track.
+- Raw data, transformed models, and local application state share one portable
+  DuckDB file.
+- dlt writes go through Quack rather than direct competing file connections.
+- Adding a source adds a raw schema rather than another database file or
+  backend configuration branch.
+- Runtime settings, SQLMesh, dlt, Dagster, and operational docs have one local
+  storage path.
 
 **Negative:**
 
-- Quack is beta, so this path is intentionally pragmatic rather than polished.
-- Local full refresh now has explicit per-source ingest phases before SQLMesh
-  restates modeled assets.
-- The dlt DuckDB destination does not yet expose first-class Quack connection
-  setup, so Databox uses a small destination helper that configures Quack via
-  DuckDB session setup SQL and then repairs append-only raw tables post-load.
-
-**Neutral:**
-
-- MotherDuck still uses one database per raw source.
-- Legacy `local` still supports the ADR-0004 layout for fallback/debugging.
+- Quack remains beta, so the destination helper requires DuckDB session setup
+  SQL and a post-load deduplication step.
+- Concurrent clients make source logs interleave; source-prefixed start/end
+  markers and independent Dagster run IDs provide attribution.

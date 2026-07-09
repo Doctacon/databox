@@ -7,10 +7,13 @@ inside that file.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
+import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -22,15 +25,11 @@ from databox.config.settings import DATA_DIR, settings
 
 def configure_quack_dlt() -> None:
     """Apply dlt config needed before constructing Quack-backed pipelines."""
-    if settings.backend == "quack":
-        os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
+    os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
 
 
 @contextmanager
 def _quack_dlt_env() -> Iterator[None]:
-    if settings.backend != "quack":
-        yield
-        return
     previous = os.environ.get("PIPELINES__RESTORE_FROM_DESTINATION")
     os.environ["PIPELINES__RESTORE_FROM_DESTINATION"] = "false"
     try:
@@ -90,12 +89,10 @@ class QuackServer:
         uri: str | None = None,
         token: str | None = None,
         db_path: str | None = None,
-        raw_schema: str | None = None,
     ) -> None:
         self.uri = uri or settings.quack_uri
         self.token = token or settings.quack_token
         self.db_path = db_path or settings.database_path
-        self.raw_schema = raw_schema
         self._con: Any | None = None
 
     def __enter__(self) -> QuackServer:
@@ -103,12 +100,19 @@ class QuackServer:
 
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._con = duckdb.connect(self.db_path)
-        _drop_legacy_raw_views(self._con)
-        _publish_quack_metadata_read_views(self._con, self.raw_schema)
-        _load_quack(self._con)
-        self._con.execute(
-            f"CALL quack_serve('{_sql_literal(self.uri)}', token='{_sql_literal(self.token)}')"
-        )
+        try:
+            _drop_legacy_raw_views(self._con)
+            _publish_quack_metadata_read_views(self._con)
+            _load_quack(self._con)
+            self._con.execute(
+                f"CALL quack_serve('{_sql_literal(self.uri)}', token='{_sql_literal(self.token)}')"
+            )
+        except BaseException:
+            with suppress(Exception):
+                _drop_quack_metadata_read_views(self._con)
+            self._con.close()
+            self._con = None
+            raise
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
@@ -151,13 +155,10 @@ def prepare_dlt_source(source: Any) -> Any:
     """Apply destination-specific dlt source tweaks.
 
     Quack's beta attached-catalog path currently handles INSERT/DDL but not the
-    DELETE statements dlt emits for merge loads. For the personal local Quack
-    path, force raw loads to append during ingest; the Dagster source asset runs
-    a direct post-load dedupe against each physical raw schema once its Quack
-    server stops. MotherDuck and legacy local keep declared dispositions.
+    DELETE statements dlt emits for merge loads. Force raw loads to append during
+    ingest; the source asset runs a direct post-load dedupe against each physical
+    raw schema once its Quack server stops.
     """
-    if settings.backend != "quack":
-        return source
     for resource in source.resources.values():
         resource.apply_hints(write_disposition="append")
     return source
@@ -168,23 +169,60 @@ def cleanup_quack_clients() -> None:
     shutil.rmtree(DATA_DIR / ".quack-clients", ignore_errors=True)
 
 
+def _record_ingest_timeline(
+    raw_schema: str | None,
+    started_monotonic: float,
+    finished_monotonic: float,
+    started_at: str,
+    finished_at: str,
+) -> None:
+    if not raw_schema or not settings.quack_timeline_dir:
+        return
+    timeline_dir = Path(settings.quack_timeline_dir)
+    timeline_dir.mkdir(parents=True, exist_ok=True)
+    target = timeline_dir / f"{raw_schema}.json"
+    temporary = target.with_suffix(".json.tmp")
+    temporary.write_text(
+        json.dumps(
+            {
+                "raw_schema": raw_schema,
+                "started_monotonic": started_monotonic,
+                "finished_monotonic": finished_monotonic,
+                "started_at": started_at,
+                "finished_at": finished_at,
+            }
+        )
+    )
+    temporary.replace(target)
+
+
 @contextmanager
 def quack_ingest_session(
     raw_schema: str | None = None, db_path: str | None = None
 ) -> Iterator[None]:
-    """Own Quack lifecycle around one hermetic dlt source asset run."""
-    if settings.backend != "quack":
-        yield
-        return
-
+    """Use a shared Quack server or own one for an independent source run."""
+    started_monotonic = time.monotonic()
+    started_at = datetime.now(UTC).isoformat()
     target = db_path or settings.database_path
     try:
-        with _quack_dlt_env(), QuackServer(db_path=target, raw_schema=raw_schema):
-            yield
-    except BaseException:
-        raise
-    else:
-        dedupe_quack_raw_tables(target)
+        if settings.quack_shared_server:
+            with _quack_dlt_env():
+                yield
+        else:
+            with _quack_dlt_env(), QuackServer(db_path=target):
+                yield
+            dedupe_quack_raw_tables(target)
+    finally:
+        finished_monotonic = time.monotonic()
+        _record_ingest_timeline(
+            raw_schema,
+            started_monotonic,
+            finished_monotonic,
+            started_at,
+            datetime.now(UTC).isoformat(),
+        )
+        if not settings.quack_shared_server:
+            cleanup_quack_clients()
 
 
 def _columns(con: Any, schema: str, table: str) -> set[str]:
@@ -232,20 +270,44 @@ def _drop_quack_metadata_read_views(con: Any) -> None:
             con.execute(f"DROP VIEW main.{table}")
 
 
-def _publish_quack_metadata_read_views(con: Any, raw_schema: str | None) -> None:
-    """Expose existing dlt metadata to Quack clients without keeping main tables.
+def _quote_identifier(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
 
-    Quack's attached-catalog beta path currently resolves scans through the main
-    schema even when the client search path is a physical raw schema. dlt reads
-    `_dlt_version` on repeat loads, so publish main-schema views while the server
-    is running and remove them when the hermetic source load finishes.
+
+def _publish_quack_metadata_read_views(con: Any) -> None:
+    """Expose all source-scoped dlt metadata through transient union views.
+
+    Quack's attached-catalog beta path resolves dlt's unqualified metadata scans
+    through ``main`` even when writes target ``raw_<source>``. A source-specific
+    view is unsafe for parallel clients because each source would replace the
+    same global relation. Union-by-name views let every client filter its own
+    schema/pipeline metadata while one server is shared. First loads need no
+    view because no destination metadata exists yet.
     """
     _drop_quack_metadata_read_views(con)
-    if not raw_schema:
-        return
     for table in _DLT_METADATA_TABLES:
-        if _base_table_exists(con, raw_schema, table):
-            con.execute(f"CREATE VIEW main.{table} AS SELECT * FROM {raw_schema}.{table}")
+        schemas = [
+            str(row[0])
+            for row in con.execute(
+                """
+                SELECT table_schema
+                FROM information_schema.tables
+                WHERE table_name = ?
+                  AND table_schema LIKE 'raw\\_%' ESCAPE '\\'
+                  AND table_type = 'BASE TABLE'
+                ORDER BY table_schema
+                """,
+                [table],
+            ).fetchall()
+        ]
+        if not schemas:
+            continue
+        selects = [
+            f"SELECT * FROM {_quote_identifier(schema)}.{_quote_identifier(table)}"
+            for schema in schemas
+        ]
+        union_sql = " UNION ALL BY NAME ".join(selects)
+        con.execute(f"CREATE VIEW main.{_quote_identifier(table)} AS {union_sql}")
 
 
 def _count_rows(con: Any, qualified_table: str) -> int:
@@ -298,9 +360,5 @@ def dedupe_quack_raw_tables(db_path: str) -> list[str]:
 
 
 def dlt_destination(db_path: str) -> Any:
-    """Return the dlt destination for the current Databox backend."""
-    if settings.backend == "motherduck":
-        return dlt.destinations.motherduck(credentials=db_path)
-    if settings.backend == "quack":
-        return dlt.destinations.duckdb(credentials=quack_credentials())
-    return dlt.destinations.duckdb(credentials=db_path)
+    """Return the Quack-backed dlt destination for the local warehouse."""
+    return dlt.destinations.duckdb(credentials=quack_credentials())

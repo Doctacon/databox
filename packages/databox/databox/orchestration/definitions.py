@@ -12,7 +12,6 @@ from dagster_sqlmesh import SQLMeshResource
 
 from databox.orchestration._factories import (
     DataboxConfig,
-    ensure_motherduck_databases,
     freshness_violation_sensor,
     openlineage_sensor_or_none,
     sqlmesh_project,
@@ -26,34 +25,12 @@ from databox.orchestration.domains import (
     usgs_earthquakes,
     xeno_canto,
 )
-
-ensure_motherduck_databases()
+from databox.orchestration.parallel_refresh import (
+    parallel_quack_full_refresh,
+    parallel_quack_schedule,
+)
 
 _openlineage_sensor = openlineage_sensor_or_none()
-
-sqlmesh_asset_selection = dg.AssetSelection.assets(
-    *ebird.sqlmesh_asset_keys,
-    *gbif.sqlmesh_asset_keys,
-    *xeno_canto.sqlmesh_asset_keys,
-    *noaa.sqlmesh_asset_keys,
-    *usgs.sqlmesh_asset_keys,
-    *usgs_earthquakes.sqlmesh_asset_keys,
-    *analytics.sqlmesh_asset_keys,
-)
-
-all_pipelines = dg.define_asset_job(
-    name="all_pipelines",
-    selection=dg.AssetSelection.assets(
-        *ebird.dlt_asset_keys,
-        *gbif.dlt_asset_keys,
-        *xeno_canto.dlt_asset_keys,
-        *noaa.dlt_asset_keys,
-        *usgs.dlt_asset_keys,
-        *usgs_earthquakes.dlt_asset_keys,
-    )
-    | sqlmesh_asset_selection,
-    executor_def=dg.in_process_executor,
-)
 
 defs = dg.Definitions(
     assets=[
@@ -87,7 +64,7 @@ defs = dg.Definitions(
         noaa.daily_pipeline,
         usgs.daily_pipeline,
         usgs_earthquakes.daily_pipeline,
-        all_pipelines,
+        parallel_quack_full_refresh,
     ],
     schedules=[
         ebird.schedule,
@@ -96,6 +73,7 @@ defs = dg.Definitions(
         noaa.schedule,
         usgs.schedule,
         usgs_earthquakes.schedule,
+        parallel_quack_schedule,
     ],
     sensors=[freshness_violation_sensor, *([_openlineage_sensor] if _openlineage_sensor else [])],
     resources={

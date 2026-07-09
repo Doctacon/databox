@@ -191,44 +191,6 @@ def openlineage_sensor_or_none() -> dg.SensorDefinition | None:
     return _openlineage_sensor
 
 
-def ensure_motherduck_databases() -> list[str]:
-    """Create any missing MotherDuck databases this stack references.
-
-    Called at Dagster startup. No-ops when the backend is local or when
-    `MOTHERDUCK_TOKEN` is empty. Returns the list of database names that
-    were ensured (for tests); the DDL itself is idempotent.
-
-    The connection must match the config SQLMesh later uses
-    (`{"custom_user_agent": f"SQLMesh/{__version__}"}`) — DuckDB caches a
-    process-global handle per `md:?motherduck_token=...` URL and rejects
-    subsequent opens with different config kwargs ("Can't open a connection
-    to same database file with a different configuration than existing
-    connections").
-    """
-    if settings.backend != "motherduck":
-        return []
-    if not settings.motherduck_token:
-        log.warning(
-            "ensure_motherduck_databases: MOTHERDUCK_TOKEN is empty, skipping CREATE DATABASE"
-        )
-        return []
-
-    import duckdb
-    from sqlmesh import __version__ as _sqlmesh_version
-
-    names = settings.motherduck_database_names
-    con = duckdb.connect(
-        database=f"md:?motherduck_token={settings.motherduck_token}",
-        config={"custom_user_agent": f"SQLMesh/{_sqlmesh_version}"},
-    )
-    try:
-        for db in names:
-            con.execute(f'CREATE DATABASE IF NOT EXISTS "{db}"')
-    finally:
-        con.close()
-    return names
-
-
 def dlt_translator(raw_schema: str) -> DagsterDltTranslator:
     class _Translator(DagsterDltTranslator):
         def get_asset_spec(self, data: DltResourceTranslatorData) -> dg.AssetSpec:

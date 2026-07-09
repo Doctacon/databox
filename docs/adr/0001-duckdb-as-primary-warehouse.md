@@ -1,7 +1,6 @@
 # ADR-0001: DuckDB as the primary warehouse
 
-**Status:** Accepted · 2026-02 · reaffirmed 2026-04 when MotherDuck cloud
-path was added (see ADR-0006).
+**Status:** Accepted · 2026-02 · reaffirmed 2026-07 for the local-only platform.
 
 ## Context
 
@@ -45,7 +44,3 @@ DuckDB; all marts live in DuckDB files under `data/`.
 - The `.duckdb` file is binary and doesn't diff cleanly — source of
   truth is always the raw ingest + transform code, never the database
   file itself.
-
-**Neutral:**
-- The cloud path is handled by MotherDuck (see ADR-0006), which accepts
-  the same DuckDB SQL. That keeps the local/cloud gap thin.

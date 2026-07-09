@@ -39,8 +39,8 @@ Use SQLMesh for all SQL transformations under `transforms/main/`.
   natively. dbt's Semantic Layer requires dbt Cloud.
 - **Python models work cleanly** without the dbt-python compatibility
   caveats.
-- **Same mental model for local and MotherDuck** via gateways
-  (see ADR-0006).
+- **One local gateway** keeps transformation configuration aligned with the
+  single supported DuckDB warehouse.
 
 **Negative:**
 - Smaller community than dbt. When looking up "how do I X in SQLMesh",

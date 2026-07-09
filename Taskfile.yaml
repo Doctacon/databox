@@ -66,48 +66,23 @@ tasks:
       DEEPEVAL_TELEMETRY_OPT_OUT: "true"
       PYTEST_ADDOPTS: "--no-cov"
     cmds: ["{{.VENV_DIR}}/bin/deepeval test run tests/evals/test_birding_trip_copilot_deepeval.py"]
+  smoke:cloudflare-ai:
+    desc: "Opt-in live Cloudflare Workers AI smoke using only @cf/zai-org/glm-4.7-flash"
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/smoke_cloudflare_ai.py"]
 
   full-refresh:
-    desc: "Dagster dlt source assets through Quack, then native SQLMesh prod restatement — logs to .logs/"
-    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_BACKEND: "quack" }
+    desc: "Concurrent Dagster dlt source jobs through one Quack server, then native SQLMesh — logs to .logs/"
+    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
     cmds:
-      - |
-        ./scripts/run-logged.sh full-refresh -- bash -lc '
-          set -euo pipefail
-          repo=$PWD
-          tmp=$(mktemp -d)
-          cleanup() { rm -rf "$tmp" "$repo/data/.quack-clients"; }
-          trap cleanup EXIT
-          export DATABOX_BACKEND=quack RUNTIME__DLTHUB_TELEMETRY=false SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}"
-          export VIRTUAL_ENV="$repo/{{.VENV_DIR}}"
-          export PATH="$VIRTUAL_ENV/bin:$PATH"
-          for job in ebird_ingest gbif_ingest xeno_canto_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
-            (cd "$tmp" && "$repo/{{.VENV_DIR}}/bin/dg" launch --target-path "$repo/packages/databox" --job "$job")
-          done
-          "$repo/scripts/sqlmesh_plan_prod.sh"
-        '
+      - "./scripts/run-logged.sh full-refresh -- {{.VENV_DIR}}/bin/python scripts/load_dlt_quack.py"
   verify:
-    desc: "Smoke Dagster dlt source assets through Quack, then native SQLMesh prod restatement — logs to .logs/"
-    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_BACKEND: "quack", DATABOX_SMOKE: "1" }
+    desc: "Smoke concurrent Dagster source jobs through one Quack server, then native SQLMesh — logs to .logs/"
+    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_SMOKE: "1" }
     cmds:
-      - |
-        ./scripts/run-logged.sh verify -- bash -lc '
-          set -euo pipefail
-          repo=$PWD
-          tmp=$(mktemp -d)
-          cleanup() { rm -rf "$tmp" "$repo/data/.quack-clients"; }
-          trap cleanup EXIT
-          export DATABOX_BACKEND=quack DATABOX_SMOKE=1 RUNTIME__DLTHUB_TELEMETRY=false SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}"
-          export VIRTUAL_ENV="$repo/{{.VENV_DIR}}"
-          export PATH="$VIRTUAL_ENV/bin:$PATH"
-          for job in ebird_ingest gbif_ingest xeno_canto_ingest noaa_ingest usgs_ingest usgs_earthquakes_ingest; do
-            (cd "$tmp" && "$repo/{{.VENV_DIR}}/bin/dg" launch --target-path "$repo/packages/databox" --job "$job")
-          done
-          "$repo/scripts/sqlmesh_plan_prod.sh"
-        '
+      - "./scripts/run-logged.sh verify -- {{.VENV_DIR}}/bin/python scripts/load_dlt_quack.py"
   dagster:dev:
     desc: "Launch Dagster UI on the default Quack backend"
-    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_BACKEND: "quack" }
+    env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
     cmds:
       - |
         bash -lc '
@@ -116,17 +91,38 @@ tasks:
           tmp=$(mktemp -d)
           cleanup() { rm -rf "$tmp"; }
           trap cleanup EXIT
-          export DATABOX_BACKEND=quack RUNTIME__DLTHUB_TELEMETRY=false SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}"
+          export RUNTIME__DLTHUB_TELEMETRY=false SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true PYTHONPATH="$repo${PYTHONPATH:+:$PYTHONPATH}"
           export VIRTUAL_ENV="$repo/{{.VENV_DIR}}"
           export PATH="$VIRTUAL_ENV/bin:$PATH"
           cd "$tmp"
           "$repo/{{.VENV_DIR}}/bin/dg" dev --target-path "$repo/packages/databox" --use-active-venv {{.CLI_ARGS}}
         '
 
-  streamlit:
-    desc: "Launch Databox Explorer"
+  app:install:
+    desc: "Install the local React app dependencies"
     dir: app
-    cmds: ["../{{.VENV_DIR}}/bin/streamlit run main.py"]
+    cmds: ["npm ci"]
+    sources: [package.json, package-lock.json]
+  app:check:
+    desc: "Typecheck, test, build, and audit the local React app"
+    deps: ["app:install"]
+    dir: app
+    cmds:
+      - "npm run typecheck"
+      - "npm test"
+      - "npm run build"
+      - "../{{.VENV_DIR}}/bin/python ../scripts/audit_app_bundle.py"
+  app:audit-bundle:
+    desc: "Audit the built browser bundle for configured Cloudflare names and values"
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/audit_app_bundle.py"]
+  app:dev:
+    desc: "Launch the loopback FastAPI and Vite development servers"
+    deps: ["app:install"]
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/run_local_app.py"]
+  app:
+    desc: "Build and launch Birding Trip Copilot at http://127.0.0.1:8000"
+    deps: ["app:check"]
+    cmds: ["{{.VENV_DIR}}/bin/uvicorn databox.api:app --host 127.0.0.1 --port 8000"]
   init:
     desc: "Rebrand a fresh fork from scaffold.yaml (see docs/template.md)"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/bootstrap.py {{.CLI_ARGS}}"]
@@ -135,7 +131,7 @@ tasks:
     cmds: ["{{.VENV_DIR}}/bin/python scripts/new_source.py {{.CLI_ARGS}}"]
 
   db:reset:
-    desc: "Delete local DuckDB files (MotherDuck dbs must be dropped manually)"
+    desc: "Delete local DuckDB files, including persisted trip plans"
     cmds: ["rm -rf data/*.duckdb data/*.duckdb.wal data/.quack-clients"]
   clean:
     desc: "Remove build + test + cache artifacts"
@@ -144,8 +140,7 @@ tasks:
         rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .coverage htmlcov/
         .mypy_cache/ .ruff_cache/ site/ logs/
         packages/databox/data/ transforms/main/data/ transforms/main/.cache/
-        .dive-preview/node_modules/ .dive-preview/.env
-        .dagster_state/ .dlt_state/ .duckdb_state/ .sqlmesh_state/
+        app/node_modules/ app/dist/ .dagster_state/ .dlt_state/ .duckdb_state/ .sqlmesh_state/
       - >-
         find . \( -path ./.git -o -path ./{{.VENV_DIR}} -o -path ./data -o -path ./.dagster -o -path ./.logs \) -prune
         -o -type d \( -name __pycache__ -o -name '*.egg-info' \) -exec rm -rf {} +

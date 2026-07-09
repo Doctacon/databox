@@ -14,7 +14,7 @@ module.
 ```python
 from databox.config.settings import settings
 
-print(settings.motherduck_token)  # read from MOTHERDUCK_TOKEN env var
+print(bool(settings.openlineage_api_key))  # read from OPENLINEAGE_API_KEY
 ```
 
 `SettingsConfigDict(env_file=".env")` means local dev can keep secrets in a
@@ -65,7 +65,7 @@ A ~30-line source that resolves `op://vault/item/field` references via the
 
 ```yaml
 # secret_refs.yaml
-motherduck_token: "op://databox/motherduck/token"
+openlineage_api_key: "op://databox/openlineage/api-key"
 ```
 
 ```python
@@ -149,7 +149,7 @@ decides what string to accept.
 
 `scripts/check_secrets.py` runs as a pre-commit hook and in CI. It treats
 external-ref schemes (`op://`, `vault://`, `aws-secrets://`, `doppler://`)
-as pointers, not plaintext. Committing `motherduck_token: "op://databox/motherduck/token"`
+as pointers, not plaintext. Committing `openlineage_api_key: "op://databox/openlineage/api-key"`
 in `secret_refs.yaml` is safe — the string is a lookup key, not a credential.
 
 If you introduce a new scheme, add it to `ALLOWED_VALUES` in

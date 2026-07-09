@@ -1,7 +1,8 @@
 # Incremental Loading
 
-Every dlt source in Databox writes to DuckDB (local Quack or MotherDuck) using a
-declared primary key and write disposition. This page documents, per resource:
+Every dlt source in Databox writes through Quack to the local DuckDB warehouse
+using a declared primary key and write disposition. This page documents, per
+resource:
 
 - **write disposition** — how new rows land: `merge`, `replace`, or `append`
 - **primary / merge key** — how dlt deduplicates on re-run
@@ -29,9 +30,8 @@ declared primary key and write disposition. This page documents, per resource:
 ## Idempotency model
 
 No resource uses dlt's `dlt.sources.incremental` cursor. Instead, every
-resource re-fetches a bounded window on each run. MotherDuck and legacy local
-rely on dlt merge keys; the Quack local path append-loads during concurrent
-writes and then deduplicates known raw tables directly after the server stops.
+resource re-fetches a bounded window on each run. The Quack path append-loads
+and then deduplicates known raw tables directly after the server stops.
 Consequences:
 
 - **merge-disposition resources** are fully idempotent: re-running with the
@@ -90,11 +90,11 @@ in place.
 
 ## Dagster backfill
 
-A partitioned Dagster backfill is not wired yet, but each source has a dlt
-ingest asset job (`ebird_ingest`, `noaa_ingest`, `usgs_ingest`,
-`usgs_earthquakes_ingest`). `task full-refresh` runs those jobs sequentially
-through Quack and then uses the native SQLMesh CLI to rebuild modeled tables
-from the refreshed raw schemas.
+A partitioned Dagster backfill is not wired yet, but each registered source has
+an independent dlt ingest asset job. `task full-refresh` starts one Quack server,
+runs all registered source jobs concurrently as clients, validates the raw row
+counts and absence of persistent `main._dlt*` relations, then uses the native
+SQLMesh CLI to rebuild modeled tables only after every source succeeds.
 
 ## When to rely on merge vs replace
 

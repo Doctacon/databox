@@ -9,6 +9,7 @@ wheels/
 # Virtual environments
 .venv
 node_modules/
+*.tsbuildinfo
 
 # IDE
 .idea/
