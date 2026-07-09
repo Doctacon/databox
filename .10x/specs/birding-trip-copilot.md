@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-08
-Updated: 2026-07-08
+Updated: 2026-07-09
 
 # Birding Trip Copilot
 
@@ -8,14 +8,15 @@ Updated: 2026-07-08
 
 The Birding Trip Copilot is Databox's first agentic birding workflow. It helps a hobbyist birder plan a local outing by turning a requested place/time window into an evidence-backed target list and field plan.
 
-This spec governs the user-visible trip-planning behavior and persisted trip-plan artifact shape. Source-specific data integration is governed by `.10x/specs/birding-agent-data-integrations.md`. The MotherDuck Dive surface is governed by `.10x/specs/birding-trip-plan-dive.md`. DeepEval behavior is governed by `.10x/specs/birding-agent-evaluations.md`.
+This spec governs the user-visible trip-planning behavior and persisted trip-plan artifact shape. Source-specific data integration is governed by `.10x/specs/birding-agent-data-integrations.md`. The local React/API surface is governed by `.10x/specs/local-birding-trip-copilot-app.md`. Cloudflare inference is governed by `.10x/specs/cloudflare-workers-ai-local-agent.md`. DeepEval behavior is governed by `.10x/specs/birding-agent-evaluations.md`.
 
 ## Ratified MVP boundaries
 
 - The first workflow MUST be trip planning.
 - The MVP MUST NOT include stored personal sightings, life-list ingestion, user accounts, or user profiles.
 - The MVP MUST use Python with Google ADK for the agent runtime.
-- The MVP MUST use persisted trip-plan outputs as the contract between the Python agent and the MotherDuck Dive.
+- The local product MUST use only Cloudflare Workers AI model `@cf/zai-org/glm-4.7-flash` for model-generated agent behavior; no fallback model is allowed.
+- The MVP MUST use persisted trip-plan outputs as the contract between the Python agent and the local React/API product surface.
 - The MVP MUST include DeepEval tests in the first implementation slice.
 - The MVP SHOULD use existing Databox eBird/weather/environmental data plus GBIF, Xeno-canto, and Open-Meteo context.
 
@@ -78,7 +79,7 @@ The final user-facing prose SHOULD be field-ready and concise. Detailed evidence
 
 ## Persisted artifact contract
 
-The implementation MUST persist agent outputs in DuckDB/MotherDuck tables or views suitable for SQL-first display in a MotherDuck Dive.
+The implementation MUST persist agent outputs in local DuckDB tables or views suitable for display through the local Python API and React app.
 
 At minimum, persisted artifacts MUST support these logical grains:
 
@@ -97,5 +98,5 @@ The persisted artifact MUST include enough stable identifiers for the Dive and e
 - The output includes weather/elevation context from Open-Meteo or an explicit source-unavailable caveat.
 - The output includes GBIF/Xeno-canto-derived context where those source integrations have data, or explicit caveats where they do not.
 - The output includes source/provenance evidence rather than only model prose.
-- The output is persisted into queryable DuckDB/MotherDuck artifacts that the MotherDuck Dive can read.
+- The output is persisted into queryable local DuckDB artifacts that the local Python API and React app can read.
 - DeepEval tests cover at least one golden trip-planning scenario and expected tool-use behavior.

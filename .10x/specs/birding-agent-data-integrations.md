@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-08
-Updated: 2026-07-08
+Updated: 2026-07-09
 
 # Birding Agent Data Integrations
 
@@ -13,7 +13,7 @@ This spec governs the first data-integration slice for the Birding Trip Copilot.
 - dlt remains the ingestion layer for durable source data.
 - SQLMesh remains the transformation/modeling layer.
 - Dagster remains the orchestrator for dlt ingestion, schedules, sensors, and checks.
-- Local Quack-backed DuckDB remains the default local warehouse path.
+- Local Quack-backed `data/databox.duckdb` is the only supported warehouse path.
 - Source domains are ingestion-only; cross-source CDM/planner modeling belongs in SQLMesh/analytics wiring.
 
 ## Source responsibilities

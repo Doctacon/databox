@@ -16,7 +16,7 @@ This parent ticket is a plan and was not implemented directly; child tickets own
 
 - `.10x/specs/birding-trip-copilot.md`
 - `.10x/specs/birding-agent-data-integrations.md`
-- `.10x/specs/birding-trip-plan-dive.md`
+- `.10x/specs/superseded/birding-trip-plan-dive.md`
 - `.10x/specs/birding-agent-evaluations.md`
 - `.10x/research/2026-07-08-birding-agent-system-shaping.md`
 - `docs/new-source.md`
@@ -50,7 +50,7 @@ Completed in dependency order:
 - New source/tool integrations satisfy `.10x/specs/birding-agent-data-integrations.md`: satisfied by child evidence for GBIF, Xeno-canto, Open-Meteo, and planner SQL interfaces.
 - Trip planner behavior satisfies `.10x/specs/birding-trip-copilot.md`: satisfied by ADK runtime/persistence tests, DeepEval scenarios, and aggregate validation.
 - DeepEval suite satisfies `.10x/specs/birding-agent-evaluations.md`: satisfied by `task eval:agent` with 2 passing deterministic scenarios.
-- MotherDuck Dive satisfies `.10x/specs/birding-trip-plan-dive.md`: satisfied by Dive SQL contract test and local Vite build.
+- MotherDuck Dive satisfies `.10x/specs/superseded/birding-trip-plan-dive.md`: satisfied by Dive SQL contract test and local Vite build.
 - `task ci` passes after all code tickets are complete: satisfied, `145 passed`.
 - A full local run can produce at least one persisted trip plan that the Dive can query: satisfied by ADK planner tests and Dive SQL contract test over the persisted artifact shape.
 - Evidence records map each child ticket's acceptance criteria to observed results: satisfied by child evidence and `.10x/evidence/2026-07-09-birding-trip-copilot-aggregate-validation.md`.

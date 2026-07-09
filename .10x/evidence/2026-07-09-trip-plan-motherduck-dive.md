@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-08-build-trip-plan-motherduck-dive.md, .10x/specs/birding-trip-plan-dive.md
+Relates-To: .10x/tickets/done/2026-07-08-build-trip-plan-motherduck-dive.md, .10x/specs/superseded/birding-trip-plan-dive.md
 
 # Evidence: Birding Trip Copilot MotherDuck Dive
 

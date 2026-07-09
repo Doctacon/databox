@@ -28,7 +28,7 @@ Out of scope:
 ## Acceptance criteria
 
 - The Dive renders from persisted trip-plan SQL artifacts without invoking the Python agent in-browser.
-- The Dive displays all required sections from `.10x/specs/birding-trip-plan-dive.md`.
+- The Dive displays all required sections from `.10x/specs/superseded/birding-trip-plan-dive.md`.
 - The Dive exposes evidence/provenance, not only the final generated prose.
 - The Dive handles loading, empty, and error states.
 - The Dive implementation contains no API secrets.

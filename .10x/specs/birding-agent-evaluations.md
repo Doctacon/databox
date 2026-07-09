@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-08
-Updated: 2026-07-08
+Updated: 2026-07-09
 
 # Birding Agent Evaluations
 
@@ -36,7 +36,7 @@ DeepEval tests SHOULD use tool-oriented metrics where possible, such as tool cor
 
 ## Quality expectations
 
-The first eval suite SHOULD prefer small, deterministic, local fixtures over live external API calls. Live API behavior MAY be covered by separate integration tests, but the DeepEval suite SHOULD remain stable enough for CI or local verification.
+The first eval suite SHOULD prefer small, deterministic, local fixtures over live external API calls. Cloudflare Workers AI MUST be replaced by a deterministic fake model client in default tests. Live Cloudflare behavior MAY be covered by a separate opt-in smoke test, but the DeepEval suite MUST remain offline and stable for CI or local verification.
 
 ## Acceptance criteria
 
@@ -45,4 +45,5 @@ The first eval suite SHOULD prefer small, deterministic, local fixtures over liv
 - The eval checks expected tool use rather than only final text similarity.
 - The eval checks that output includes evidence/provenance or references persisted evidence artifacts.
 - The eval checks that no stored personal history/life-list assumption is used in the MVP.
+- The default eval suite performs no paid/live model calls and verifies the configured model boundary does not fall back from `@cf/zai-org/glm-4.7-flash`.
 - The eval command/path is documented for future runs.

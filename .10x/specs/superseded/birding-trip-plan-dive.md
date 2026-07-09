@@ -1,8 +1,10 @@
-Status: active
+Status: superseded
 Created: 2026-07-08
-Updated: 2026-07-08
+Updated: 2026-07-09
 
 # Birding Trip Plan MotherDuck Dive
+
+Superseded by `.10x/specs/local-birding-trip-copilot-app.md` after the user selected a local React product and removed MotherDuck from the repository.
 
 ## Purpose and scope
 

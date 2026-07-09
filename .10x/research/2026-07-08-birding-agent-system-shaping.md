@@ -101,6 +101,6 @@ Captured 2026-07-08:
 
 - `.10x/specs/birding-trip-copilot.md`
 - `.10x/specs/birding-agent-data-integrations.md`
-- `.10x/specs/birding-trip-plan-dive.md`
+- `.10x/specs/superseded/birding-trip-plan-dive.md`
 - `.10x/specs/birding-agent-evaluations.md`
 - `.10x/tickets/done/2026-07-08-build-birding-trip-copilot.md`
