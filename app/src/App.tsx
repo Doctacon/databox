@@ -2,6 +2,7 @@ import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "rea
 import { createPlan, getPlan, listPlans } from "./api";
 import { BirdCatalogPage, BirdProfilePage } from "./BirdPages";
 import LocationCombobox from "./LocationCombobox";
+import { MyBirdsPage } from "./MyBirds";
 import type {
   CreatePlanInput,
   Evidence,
@@ -547,9 +548,10 @@ function PlannerPage() {
     </main>;
 }
 
-type Route = { page: "planner" } | { page: "birds" } | { page: "bird"; speciesCode: string };
+type Route = { page: "planner" } | { page: "birds" } | { page: "bird"; speciesCode: string } | { page: "my-birds" };
 
 function currentRoute(): Route {
+  if (window.location.pathname === "/my-birds") return { page: "my-birds" };
   if (window.location.pathname === "/birds") return { page: "birds" };
   const match = /^\/birds\/([^/]+)$/.exec(window.location.pathname);
   if (match) {
@@ -573,7 +575,9 @@ export default function App() {
       ? "Trip Planner · Databox"
       : route.page === "birds"
         ? "Arizona Birds · Databox"
-        : "Bird Profile · Arizona Birds · Databox";
+        : route.page === "my-birds"
+          ? "My Birds · Databox"
+          : "Bird Profile · Arizona Birds · Databox";
   }, [route]);
 
   function navigate(path: string) {
@@ -595,11 +599,13 @@ export default function App() {
       <nav aria-label="Primary navigation">
         <a href="/" aria-current={route.page === "planner" ? "page" : undefined} onClick={(event) => navClick(event, "/")}>Trip Planner</a>
         <a href="/birds" aria-current={birdsActive ? "page" : undefined} onClick={(event) => navClick(event, "/birds")}>Arizona Birds</a>
+        <a href="/my-birds" aria-current={route.page === "my-birds" ? "page" : undefined} onClick={(event) => navClick(event, "/my-birds")}>My Birds</a>
       </nav>
       <p>Local DuckDB · evidence-backed</p>
     </header>
     {route.page === "planner" && <PlannerPage />}
     {route.page === "birds" && <BirdCatalogPage navigate={navigate} />}
     {route.page === "bird" && <BirdProfilePage speciesCode={route.speciesCode} navigate={navigate} />}
+    {route.page === "my-birds" && <MyBirdsPage navigate={navigate} />}
   </>;
 }

@@ -120,6 +120,33 @@ th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e9e3; vert
 .location-list span { display: block; color: #536359; font-size: .84rem; line-height: 1.5; }
 .loading, .welcome { min-height: 320px; display: grid; place-content: center; text-align: center; color: #5f7065; }
 .welcome span { font-size: 3rem; color: #4a7d5f; }.welcome h2 { margin-bottom: 0; }
+.my-birds-main { display: block; min-height: calc(100vh - 64px); max-width: 1180px; margin: 0 auto; padding: 30px; }
+.collection-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.collection-tabs button { margin: 0; background: #e4ece5; color: #214530; }
+.collection-tabs button[aria-pressed="true"] { background: #176a43; color: #fff; }
+.collection-list { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; }
+.collection-list > li { border: 1px solid #dfe5dc; border-radius: 9px; padding: 15px; background: #fafcf9; display: grid; gap: 8px; }
+.collection-list > li > div:first-child { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.collection-list > li > span { color: #536359; font-size: .85rem; }
+.collection-list p { margin: 0; white-space: pre-wrap; }
+.collection-form { margin-top: 14px; max-width: 720px; }
+.inline-collection-form { grid-template-columns: minmax(220px, 1fr) auto; align-items: end; max-width: 760px; }
+.inline-collection-form label { grid-column: 1 / -1; }
+.inline-collection-form button { margin: 0; }
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.button-row button { margin-top: 8px; }
+button.secondary { background: #e5ece7; color: #20452f; }
+button.secondary:hover { background: #d3dfd6; }
+button.danger { background: #9b3427; }
+button.danger:hover { background: #7d281d; }
+.badge.warning { background: #fff0c7; color: #6d4c08; }
+.success { border: 1px solid #8fc5a3; background: #ecf8f0; color: #185c37; border-radius: 9px; padding: 12px 15px; }
+details > summary { cursor: pointer; color: #234b35; font-weight: 700; }
+.nested-panel { border-left: 4px solid #8ab69a; margin: 18px 0; padding: 15px 18px; background: #f4f8f4; }
+.modal-backdrop { position: fixed; z-index: 50; inset: 0; background: #10271c99; display: grid; place-items: center; padding: 20px; }
+.confirm-dialog { width: min(520px, 100%); background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 20px 60px #0005; }
+.confirm-dialog h2 { margin-top: 0; font-family: Georgia, serif; }
+.collection-profile-controls details { margin-top: 16px; border-top: 1px solid #dfe5dc; padding-top: 12px; }
 @media (max-width: 1100px) { .species-grid, .bird-catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 820px) { main { grid-template-columns: 1fr; }.planner-sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid #dfe5dc; }.summary-grid { grid-template-columns: repeat(2, 1fr); }.content, .birds-main, .bird-profile-main { padding: 18px; }.site-header p { display: none; }.catalog-controls { grid-template-columns: 1fr 1fr; }.catalog-controls button { grid-column: 1 / -1; }.site-header { flex-wrap: wrap; } }
-@media (max-width: 480px) { .summary-grid, .details-list, .species-grid, .bird-catalog-grid, .catalog-controls { grid-template-columns: 1fr; }.catalog-controls button { grid-column: auto; }.pagination { align-items: flex-start; flex-direction: column; }.site-header { padding: 10px 16px; }.site-header nav { order: 3; width: 100%; }.planner-sidebar { padding: 20px; } }
+@media (max-width: 820px) { main { grid-template-columns: 1fr; }.planner-sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid #dfe5dc; }.summary-grid { grid-template-columns: repeat(2, 1fr); }.content, .birds-main, .bird-profile-main, .my-birds-main { padding: 18px; }.site-header p { display: none; }.catalog-controls { grid-template-columns: 1fr 1fr; }.catalog-controls button { grid-column: 1 / -1; }.site-header { flex-wrap: wrap; } }
+@media (max-width: 480px) { .summary-grid, .details-list, .species-grid, .bird-catalog-grid, .catalog-controls, .inline-collection-form { grid-template-columns: 1fr; }.catalog-controls button { grid-column: auto; }.pagination { align-items: flex-start; flex-direction: column; }.site-header { padding: 10px 16px; }.site-header nav { order: 3; width: 100%; flex-wrap: wrap; }.planner-sidebar { padding: 20px; }.button-row { align-items: stretch; flex-direction: column; }.button-row button { width: 100%; } }

@@ -1,5 +1,6 @@
 import { FormEvent, MouseEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { getBird, listBirds } from "./birdApi";
+import { ProfileCollectionControls } from "./MyBirds";
 import type { BirdCatalogSummary, BirdProfile } from "./types";
 
 const BIRDS_PER_PAGE = 24;
@@ -145,6 +146,8 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
       <PageHeading>{bird.common_name || bird.scientific_name || bird.species_code}</PageHeading>
       {bird.common_name && bird.scientific_name && <p className="scientific">{bird.scientific_name}</p>}
     </header>
+
+    <ProfileCollectionControls key={bird.species_code} bird={bird} />
 
     <section className="panel"><h2>Identity and taxonomy</h2><DefinitionList rows={[
       ["Common name", fact(bird.common_name)], ["Scientific name", fact(bird.scientific_name)],

@@ -324,14 +324,15 @@ def test_bird_pages_have_deterministic_responsive_layout_contract() -> None:
     assert "@media (max-width: 1100px)" in styles
     assert ".species-grid, .bird-catalog-grid { grid-template-columns: repeat(2" in styles
     assert "@media (max-width: 820px)" in styles
-    assert ".content, .birds-main, .bird-profile-main { padding: 18px; }" in styles
+    assert ".content, .birds-main, .bird-profile-main, .my-birds-main { padding: 18px; }" in styles
     assert "@media (max-width: 480px)" in styles
     mobile_grid = (
         ".summary-grid, .details-list, .species-grid, .bird-catalog-grid, "
-        ".catalog-controls { grid-template-columns: 1fr; }"
+        ".catalog-controls, .inline-collection-form { grid-template-columns: 1fr; }"
     )
     assert mobile_grid in styles
-    assert ".site-header nav { order: 3; width: 100%; }" in styles
+    assert ".site-header nav { order: 3; width: 100%; flex-wrap: wrap; }" in styles
+    assert ".button-row { align-items: stretch; flex-direction: column; }" in styles
 
 
 def test_static_frontend_fallback_serves_direct_bird_routes(tmp_path: Path) -> None:
@@ -344,6 +345,7 @@ def test_static_frontend_fallback_serves_direct_bird_routes(tmp_path: Path) -> N
 
     assert client.get("/birds").text == "<main>local app shell</main>"
     assert client.get("/birds/bird000").text == "<main>local app shell</main>"
+    assert client.get("/my-birds").text == "<main>local app shell</main>"
 
 
 def test_invalid_not_found_busy_and_malformed_location_states_are_safe(

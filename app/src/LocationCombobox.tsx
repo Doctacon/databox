@@ -3,6 +3,7 @@ import { searchLocations } from "./api";
 import type { LocationSuggestion } from "./types";
 
 interface LocationComboboxProps {
+  inputId?: string;
   value: string;
   selected: LocationSuggestion | null;
   disabled: boolean;
@@ -13,13 +14,17 @@ interface LocationComboboxProps {
 const COORDINATE_PAIR = /^\s*[+-]?\d+(?:\.\d+)?\s*,\s*[+-]?\d+(?:\.\d+)?\s*$/;
 
 export default function LocationCombobox({
+  inputId = "location",
   value,
   selected,
   disabled,
   onChange,
   onSelect,
 }: LocationComboboxProps) {
-  const listboxId = useId();
+  const generatedId = useId();
+  const listboxId = `${generatedId}-listbox`;
+  const helpId = `${generatedId}-help`;
+  const statusId = `${generatedId}-status`;
   const [options, setOptions] = useState<LocationSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -100,14 +105,14 @@ export default function LocationCombobox({
   return (
     <div className="location-combobox">
       <input
-        id="location"
-        name="location"
+        id={inputId}
+        name={inputId}
         role="combobox"
         aria-autocomplete="list"
         aria-controls={listboxId}
         aria-expanded={open}
         aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
-        aria-describedby="location-help location-status"
+        aria-describedby={`${helpId} ${statusId}`}
         autoComplete="off"
         required
         maxLength={300}
@@ -139,8 +144,8 @@ export default function LocationCombobox({
           ))}
         </ul>
       )}
-      <small id="location-help">Arizona places only. Coordinates must include a negative longitude.</small>
-      <small id="location-status" className="location-status" aria-live="polite">{status}</small>
+      <small id={helpId}>Arizona places only. Coordinates must include a negative longitude.</small>
+      <small id={statusId} className="location-status" aria-live="polite">{status}</small>
     </div>
   );
 }

@@ -257,6 +257,74 @@ export interface BirdProfile extends BirdCatalogSummary {
   };
 }
 
+export interface BirdIdentity {
+  catalog_status: "current" | "stale";
+  common_name: string | null;
+  scientific_name: string | null;
+  taxonomic_category: "species" | "hybrid" | null;
+}
+
+export interface PersonalObservation {
+  observation_id: string;
+  species_code: string;
+  observation_date: string;
+  location: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  identity: BirdIdentity;
+}
+
+export interface LifeListEntry {
+  species_code: string;
+  first_observed_date: string;
+  latest_observed_date: string;
+  observation_count: number;
+  identity: BirdIdentity;
+}
+
+export interface WishlistEntry {
+  species_code: string;
+  created_at: string;
+  identity: BirdIdentity;
+}
+
+export interface BirdWatch {
+  species_code: string;
+  active: boolean;
+  center_name: string;
+  center_latitude: number;
+  center_longitude: number;
+  center_timezone: string;
+  radius_miles: number;
+  activated_at: string;
+  created_at: string;
+  updated_at: string;
+  identity: BirdIdentity;
+}
+
+export interface CollectionState {
+  species_code: string;
+  catalog_status: "current" | "stale";
+  observed: boolean;
+  observation_count: number;
+  wishlisted: boolean;
+  watched: boolean;
+  watch_active: boolean;
+}
+
+export interface ObservationInput {
+  species_code: string;
+  observation_date: string;
+  location: string | null;
+  notes: string | null;
+}
+
+export interface WatchInput {
+  center: LocationSuggestion;
+  radius_miles: number;
+}
+
 export interface CreatePlanInput {
   location: string;
   location_selection?: LocationSuggestion;
