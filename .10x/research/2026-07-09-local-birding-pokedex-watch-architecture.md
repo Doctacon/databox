@@ -91,9 +91,22 @@ Turbo-search is suitable for retrieving cited context from approved indexed sour
 5. Aggregate matches and persist an outbox before SMTP delivery; use stable iCalendar UID and no direct Google API.
 6. Separate factual match/routing from report prose. Model failure, SMTP failure, retries, deduplication, and event timing remain blocked semantics.
 
+## Species-profile source and turbo-search follow-up
+
+Licensing research found a safe first profile corpus boundary:
+
+- Wikidata structured data is suitable for mapping eBird taxon IDs (`P3444`), scientific names (`P225`), and English Wikipedia sitelinks.
+- English Wikipedia content is openly reusable under CC BY-SA subject to exact license checks, title/author/source/license attribution, change indication, and ShareAlike treatment for adaptations. A persisted generated dossier must retain source URL/revision/retrieval time/license and identify itself as adapted.
+- Encyclopedia of Life APIs are available, but every returned object carries its own upstream license/attribution. EOL adds a second per-object policy engine and is not needed in the first profile corpus.
+- Birds of the World requires advance permission for systematic downloading, derivative databases, comprehensive species accounts, and long-term storage. It must not be crawled/indexed for this product without a separate license grant. The same conservative exclusion applies to All About Birds content absent explicit reuse permission.
+- Existing GBIF/Xeno-canto media remains governed by the finite per-item license and identity validation already active in Databox.
+
+Current `turbo-search` supports one website base URL, GitHub repository, or local document. It does not accept a curated URL manifest. Whole-site Wikipedia crawling is neither bounded nor appropriate. The recommended reusable tool change is a URL-manifest source that fetches only allowlisted same-provider pages, preserves each canonical external URL as citation metadata, obeys robots/rate limits, and participates in the existing local plan/preflight/live-apply workflow. This would require an explicitly approved write boundary in the separate `turbo-search` repository and a separately approved turbopuffer live apply after exact page/chunk/upsert counts are reviewed.
+
 ## Limits and unresolved questions
 
 - The official eBird reference must be rechecked for exact current endpoint/result/radius limits before implementation.
 - AZFO material inspected did not establish a formal machine-readable checklist authority.
 - Gmail-specific invitation rendering/acceptance was not treated as a protocol guarantee.
-- Catalog category policy, observation required fields, target-planning distance units/limits, provisional-observation eligibility, freshness, deduplication, cadence, event timing, retry/failure behavior, retention, and operational ownership remain unratified.
+- The user has since ratified species+hybrid membership, species/date manual observations, per-request origin/radius, public reviewed matches, 48-hour freshness, confirmed-location clustering, post-full-refresh execution, one updateable event, deterministic degraded reports, bounded safe SMTP retries, and Proton Bridge transport.
+- Profile source approval, turbo-search cross-repository scope/live index write, exact morning scoring, observation edit/delete, retention, and delivery-unknown operations remain unresolved.
