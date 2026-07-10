@@ -69,6 +69,7 @@ Catalog/profile must precede personal collection and target workflows because th
 - 2026-07-09: Activated focused AVONET source and Arizona catalog/profile specifications and opened three dependency-ordered implementation tickets.
 - 2026-07-10: AVONET source child completed after critical repair from unsupported direct replacement to transient Quack staging plus validated atomic post-Quack publication; 105 focused tests and independent final review passed.
 - 2026-07-10: Trait/catalog model child completed after repairs for complete-snapshot membership and coherent public-location tuples; 13 SQLMesh tests, exact 706/624/82/600/24 coverage measurement, and independent final review passed.
+- 2026-07-10: Live AVONET bootstrap and production model apply completed. A production-only external-schema star-expansion lint blocker was repaired with explicit projections; prod now has no diff and live catalog counts/privacy/location checks pass.
 
 ## Blockers
 

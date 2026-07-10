@@ -4,7 +4,9 @@ from pathlib import Path
 
 import duckdb
 import pytest
+import sqlglot
 from databox_sources.avonet.source import _COLUMNS
+from sqlglot import exp
 
 _MODEL = Path(
     "transforms/main/models/environmental_observations/dimensions/dim_bird_species_traits.sql"
@@ -41,6 +43,26 @@ def _connection() -> duckdb.DuckDBPyConnection:
         """
     )
     return connection
+
+
+def test_avonet_normalization_projection_has_exact_columns_and_no_star() -> None:
+    query = sqlglot.parse_one(_model_query(), dialect="duckdb")
+    normalized = next(
+        cte.this for cte in query.find_all(exp.CTE) if cte.alias_or_name == "avonet_normalized"
+    )
+    assert isinstance(normalized, exp.Select)
+    assert not any(
+        expression.is_star
+        for select in query.find_all(exp.Select)
+        for expression in select.expressions
+    )
+    assert not any(isinstance(node, exp.Star) for node in normalized.walk())
+    assert [expression.alias_or_name for expression in normalized.expressions] == [
+        "species_natural_key",
+        *_COLUMNS,
+        "_dlt_load_id",
+        "_dlt_id",
+    ]
 
 
 def test_duplicate_normalized_avonet_keys_fail_even_when_unmatched() -> None:
