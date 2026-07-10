@@ -13,7 +13,7 @@ This spec governs the user-visible trip-planning behavior and persisted trip-pla
 ## Ratified MVP boundaries
 
 - The first workflow MUST be trip planning.
-- The MVP MUST NOT include stored personal sightings, life-list ingestion, user accounts, or user profiles.
+- The trip-planning workflow MUST NOT require user accounts or profiles. The broader local product MAY store manual personal observations and expose a life list under `.10x/decisions/local-single-user-birding-pokedex-expansion.md`, but this planner MUST NOT implicitly use that history without a separate ratified contract.
 - The MVP MUST use Python with Google ADK for the agent runtime.
 - The local product MUST use only Cloudflare Workers AI model `@cf/zai-org/glm-5.2` for model-generated agent behavior; no fallback model is allowed.
 - The MVP MUST use persisted trip-plan outputs as the contract between the Python agent and the local React/API product surface.
@@ -24,10 +24,7 @@ This spec governs the user-visible trip-planning behavior and persisted trip-pla
 
 The MVP MUST NOT include:
 
-- A separately user-facing species plausibility workflow.
-- A separately user-facing field ID helper.
-- A birding coach workflow.
-- Personal life-list or historical personal sighting personalization.
+- Personal life-list or historical sighting personalization inside this planner unless separately specified.
 - Image recognition.
 - Proprietary/closed data services when a viable open/free source exists.
 

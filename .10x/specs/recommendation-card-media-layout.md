@@ -19,11 +19,18 @@ After the persisted-plan hero and any plan-level caveat notice, the result MUST 
 5. Evidence and Provenance
 
 - The standalone Call and Media Examples section MUST be removed.
-- Evidence and Provenance MUST be the final result section.
-- Persisted Agent Workflow traces MUST remain available inside the final Evidence and Provenance section using an accessible native disclosure such as `<details><summary>`.
-- Evidence rows MUST remain visible independently of whether the workflow disclosure is expanded.
+- Evidence and Provenance MUST be the final result section and MUST use an accessible native disclosure that is collapsed by default.
+- Persisted Agent Workflow traces MUST remain available as a separately collapsed nested disclosure inside Evidence and Provenance.
+- Expanding Evidence and Provenance MUST expose the evidence rows independently of whether Agent Workflow is expanded.
+- Evidence rows MUST paginate at 20 rows by default. A native page-size control MUST offer exactly 20, 50, and 100 rows per page.
+- Evidence pagination MUST provide Previous and Next controls plus the visible range and total count. Boundary controls MUST be disabled when no preceding/following page exists.
+- Selecting another persisted plan or changing page size MUST reset evidence to its first valid page.
 
 ## Recommendation cards
+
+Each recommendation group MUST show at most four cards at a time and paginate independently in persisted rank order. Previous and Next controls plus the visible range and group total MUST be shown when navigation is useful. Boundary controls MUST be disabled rather than wrapping. Selecting another persisted plan MUST reset both groups to their first page. Global persisted rank labels MUST NOT be renumbered per page.
+
+Desktop presentation MUST NOT render a second card row for a group: the current page contains at most four cards. Responsive layouts MAY stack those same four cards at narrower breakpoints without loading additional cards.
 
 Every high-likelihood and uncommon-plausible recommendation card MUST use the same media structure:
 
@@ -79,9 +86,17 @@ Given a recommendation whose selected call uses global fallback, when the card r
 
 Given a valid photo and unavailable call, when the card renders, then the photo remains active and the call placeholder is visible. The inverse behaves equivalently.
 
+### Paginated recommendation groups
+
+Given more than four recommendations in either group, when the plan renders, then only the first four ranked cards in that group are shown. Next reveals the next group of up to four without changing global ranks or the other group's page; Previous returns toward the first page and boundary controls do not wrap.
+
+### Collapsed and paginated evidence
+
+Given a complete plan, when it first renders, then Evidence and Provenance is collapsed. Expanding it shows the first 20 evidence rows, a 20/50/100 page-size control, visible range/total, and bounded Previous/Next controls; Agent Workflow remains independently collapsed.
+
 ### Final order
 
-Given a complete plan, when reading top to bottom after the hero/caveats, then sections appear as Field Plan, Weather and Elevation, High-likelihood Species, Uncommon but Plausible Targets, and Evidence and Provenance. No standalone Call and Media Examples section exists, and Agent Workflow is available inside the final section.
+Given a complete plan, when reading top to bottom after the hero/caveats, then sections appear as Field Plan, Weather and Elevation, High-likelihood Species, Uncommon but Plausible Targets, and Evidence and Provenance. No standalone Call and Media Examples section exists, and Agent Workflow is available inside the final collapsed section.
 
 ### Existing plan after backfill
 

@@ -38,7 +38,7 @@ The app MUST let a user:
 
 The exact result order, recommendation-card media behavior, attribution, placeholders, and removal of the standalone media section are governed by `.10x/specs/recommendation-card-media-layout.md`.
 
-The app MUST NOT require a user account or personal life-list/history.
+The app MUST NOT require a user account. The broader local product MAY expose the manual observation, life-list, catalog, and watch surfaces ratified by `.10x/decisions/local-single-user-birding-pokedex-expansion.md`; those behaviors require focused specifications and MUST NOT silently alter existing trip plans.
 
 ## API contract
 
