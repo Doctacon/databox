@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/Doctacon/databox/compare/v0.4.0...v0.5.0) (2026-07-10)
+
+
+### Features
+
+* add media to bird recommendation cards ([698ad0a](https://github.com/Doctacon/databox/commit/698ad0ab357c67cd5b1d9a24ec38b981e69074e9))
+* **agentic:** deepeval, google adk, initial add ([3b87a8f](https://github.com/Doctacon/databox/commit/3b87a8f5224862207aea934dbe4b2e136a6a356a))
+* build local birding trip copilot ([7076b5c](https://github.com/Doctacon/databox/commit/7076b5cdb16e8264acf62a3def99c8d2d189973a))
+* improve trip planner location and results ([51bbd7c](https://github.com/Doctacon/databox/commit/51bbd7c3f209c719eda59d02cb1a02d42a4545fa))
+* replace cloudflare model with glm 5.2 ([f7d414b](https://github.com/Doctacon/databox/commit/f7d414b165e00c5059583b305f923b488adad98c))
+
 ## [0.4.0](https://github.com/Doctacon/databox/compare/v0.3.0...v0.4.0) (2026-07-08)
 
 
