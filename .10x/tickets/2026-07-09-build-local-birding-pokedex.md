@@ -1,4 +1,4 @@
-Status: blocked
+Status: open
 Created: 2026-07-09
 Updated: 2026-07-09
 Parent: None
@@ -19,9 +19,15 @@ This is a parent plan and is not executable directly.
 - `.10x/decisions/watched-bird-alert-delivery-policy.md`
 - `.10x/decisions/proton-bridge-smtp-for-bird-alerts.md`
 - `.10x/decisions/avonet-atomic-staged-publication.md`
+- `.10x/decisions/personal-collection-and-target-planning-lifecycle.md`
+- `.10x/decisions/bird-alert-retry-and-event-lifecycle.md`
 - `.10x/research/2026-07-09-local-birding-pokedex-watch-architecture.md`
 - `.10x/specs/avonet-bird-traits-source.md`
 - `.10x/specs/arizona-bird-catalog-and-profile.md`
+- `.10x/specs/personal-bird-collection.md`
+- `.10x/specs/target-bird-planning.md`
+- `.10x/specs/watched-bird-matching-and-reports.md`
+- `.10x/specs/bird-alert-calendar-and-smtp-delivery.md`
 - `.10x/specs/local-only-databox-platform.md`
 - `.10x/specs/local-birding-trip-copilot-app.md`
 - `.10x/specs/birding-agent-data-integrations.md`
@@ -32,11 +38,11 @@ This is a parent plan and is not executable directly.
 1. Add the AVONET source through `.10x/tickets/done/2026-07-09-add-avonet-bird-traits-source.md`.
 2. Build modeled traits/catalog through `.10x/tickets/done/2026-07-09-model-avonet-traits-and-arizona-catalog.md`.
 3. Build the read-only catalog/profile UI through `.10x/tickets/done/2026-07-09-build-arizona-bird-catalog-and-profile.md`.
-4. Specify manual observation records, derived life list, wishlist, and per-species watch management.
-5. Specify origin/radius target-bird planning and its relationship to species profiles and existing planner artifacts.
-6. Specify post-refresh watched-bird matching, report generation, calendar selection, outbox, SMTP delivery, update/cancel behavior, and operations.
-7. Create remaining bounded implementation children from those focused active specifications.
-8. Run aggregate data/privacy/security/accessibility/side-effect verification and independent review.
+4. Implement personal collection storage/API through `.10x/tickets/2026-07-10-implement-personal-bird-collection-storage-and-api.md`, then My Birds/profile controls through `.10x/tickets/2026-07-10-build-my-birds-and-profile-controls.md`.
+5. Implement species-first planning through `.10x/tickets/2026-07-10-implement-target-bird-planning.md` (parallelizable after catalog completion).
+6. Implement post-refresh matching/reporting through `.10x/tickets/2026-07-10-implement-watched-bird-evaluator-and-reports.md`.
+7. Build event/outbox mechanics through `.10x/tickets/2026-07-10-build-bird-alert-calendar-and-outbox.md`, then Proton Bridge delivery/operations through `.10x/tickets/2026-07-10-implement-proton-bridge-alert-delivery-and-operations.md`.
+8. Run aggregate verification through `.10x/tickets/2026-07-10-verify-local-birding-pokedex.md`.
 
 Catalog/profile must precede personal collection and target workflows because they require a stable conformed taxon identity. Watch management requires catalog identity and local personal-state APIs. Alert execution requires watches, transformed eBird evidence, persisted species profiles, and a hardened operational specification.
 
@@ -72,8 +78,8 @@ Catalog/profile must precede personal collection and target workflows because th
 - 2026-07-10: Live AVONET bootstrap and production model apply completed. A production-only external-schema star-expansion lint blocker was repaired with explicit projections; prod now has no diff and live catalog counts/privacy/location checks pass.
 - 2026-07-10: Read-only Arizona catalog/profile completed with exact 706/624/82 browser/API guards, 600 exact AVONET matches, accessible native routes, strict modeled profiles, privacy/access semantics, 27 focused Python tests, 72 browser tests, a green 307-test Python suite, and independent pass review.
 - 2026-07-10: User ratified manual observation edit plus hard delete, personal collection retention until explicit deletion, 90-day alert-history retention, existing planner date/time/duration inputs for target-bird planning, and freshness-first watched-bird morning selection.
+- 2026-07-10: User ratified 1–300-mile target radius, stable-UID sliding event updates, cancellation on paused/deleted watches, natural expiry, 1/5/15-minute pre-acceptance retries, and manual reconciliation of delivery-unknown outcomes. Four focused active specifications and seven dependency-ordered implementation/verification tickets now govern the remaining work.
 
 ## Blockers
 
-- Calendar update/expiration/cancellation semantics.
-- Retry timing and delivery-unknown operator workflow; Proton Bridge SMTP setup and bounded live-test authorization are complete.
+None; execute the open child tickets in dependency order.
