@@ -25,7 +25,7 @@ Every mutation MUST validate that the species code exists in the exact current A
 - Create MUST require species code and observation date; location and notes are optional.
 - Edit MUST allow species code, date, location, and notes to change atomically after validating the target species.
 - Delete MUST permanently remove exactly one observation after explicit confirmation in the UI.
-- IDs and created timestamps MUST remain stable across edits; updated timestamp changes.
+- IDs and created timestamps MUST remain stable across edits. Observation and watch `updated_at` MUST advance strictly on every actual mutation even if the process clock is equal to or earlier than the persisted timestamp.
 - Listing MUST use observation date descending, updated timestamp descending, and ID as a stable tie-break.
 - Life-list membership MUST be derived from at least one remaining observation. It MUST expose first-observed date, latest-observed date, and observation count per taxon.
 - Deleting the last observation MUST remove the taxon from the derived life list. No separate observed boolean may be authoritative.
@@ -38,7 +38,11 @@ Add and remove are idempotent. Wishlist state is independent from observations a
 
 A watch requires one catalog taxon, an Arizona center selected through the existing validated location boundary, and radius from 1 through 300 miles. The stored center is per watch; there is no global home location. Creating or replacing a watch MUST NOT itself evaluate sightings or send email.
 
-Pause retains the definition but prevents future match evaluation. Resume establishes a new activation boundary so pre-resume observations cannot trigger as new. Delete removes the definition and requests event cancellation through the separately governed alert lifecycle only if an accepted active event exists.
+Pause retains the definition but prevents future match evaluation. Resume MUST revalidate current Arizona catalog identity and establishes a new activation boundary so pre-resume observations cannot trigger as new; a stale watch may still pause or delete safely but cannot resume. Replacing an active watch with a changed center or radius also establishes a new activation boundary; an identical replacement is idempotent, and editing a paused watch does not reactivate it.
+
+Each watch MUST have an internal opaque stable watch ID and opaque activation generation. Creation establishes both; changed active replacement and resume create a new activation generation; identical replacement, pause, and paused edits preserve it. These fields are internal and MUST NOT enter collection API responses.
+
+Pause and delete MUST transactionally persist a side-effect-free cancellation-request tombstone on the actual state transition so deleted-watch taxon identity is not lost. Dedupe uses stable watch ID, activation generation, and reason—not a wall-clock timestamp. The tombstone exposes only opaque dedupe identity, species code, reason, and request time—never center or credentials. It is not an event, outbox, or SMTP intent. The evaluator/calendar child consumes it and conditionally creates cancellation intent only when an accepted unexpired event exists; otherwise it resolves it without a side effect.
 
 ## API
 

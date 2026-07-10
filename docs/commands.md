@@ -75,6 +75,14 @@ whose name includes `(private)` is shown with an access-restriction warning;
 eBird's modeled privacy flag, not the display-name suffix, governs observation
 privacy.
 
+The local personal-collection API stores runtime-owned tables in
+`birding_personal` inside the same DuckDB file. It exposes observation CRUD at
+`/api/observations`, the derived `/api/life-list`, idempotent `/api/wishlist`,
+per-species `/api/watches`, and `/api/birds/{species_code}/collection-state`.
+Observation deletion requires `confirm=true`; life-list membership is never an
+independent stored flag. Collection reads are network-free, and collection
+mutations do not evaluate watches or call weather, models, calendar, or SMTP.
+
 The browser calls `/api/*`; only the Python process can access
 DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable
 `task app:audit-bundle` command checks the compiled files for all configured
