@@ -233,9 +233,14 @@ def test_avonet_schema_artifacts_match_normalized_resource_and_annotations() -> 
     assert "1 dense, 2 semi-open, 3 open" in species_table
     assert "1 sedentary, 2 partial migrant, 3 migratory" in species_table
     taxonomy = json.loads((schema_dir / "taxonomy.json").read_text())
-    assert taxonomy["BirdSpeciesTraits"]["natural_key"] == "avibase_id"
+    assert taxonomy["BirdSpeciesTraits"]["natural_key"] == "normalized_scientific_name"
     assert taxonomy["BirdSpeciesTraits"]["tables"] == [
-        {"table": "species_traits", "source_pipeline": "avonet", "role": "primary"}
+        {"table": "species_traits", "source_pipeline": "avonet", "role": "primary"},
+        {
+            "table": "dim_bird_species_traits",
+            "source_pipeline": "environmental_observations",
+            "role": "modeled_dimension",
+        },
     ]
     ontology = (schema_dir / "ontology.md").read_text()
     assert "## BirdSpeciesTraits" in ontology

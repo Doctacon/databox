@@ -101,6 +101,32 @@ def _disable_dlt_telemetry(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_dlt_http_client(request, monkeypatch):
+    """Give every VCR test fresh HTTP pools bound only to its cassette.
+
+    dlt's module-level client shares one HTTPAdapter across thread-local sessions.
+    urllib3 pools created while vcrpy is active retain cassette-bound connection
+    classes, so reusing the adapter can route a later source through an earlier
+    source's cassette. A fresh public Client per marked test preserves dlt retry
+    behavior without carrying pooled connections across cassette lifetimes.
+    """
+    if request.node.get_closest_marker("vcr") is None:
+        yield
+        return
+
+    from dlt.sources.helpers import requests as dlt_requests
+
+    client = dlt_requests.Client()
+    monkeypatch.setattr(dlt_requests, "client", client)
+    for method in ("get", "post", "put", "patch", "delete", "options", "head", "request"):
+        monkeypatch.setattr(dlt_requests, method, getattr(client, method))
+
+    yield
+
+    client.session.close()
+
+
+@pytest.fixture(autouse=True)
 def _fake_api_tokens_when_missing(monkeypatch):
     """Inject dummy API tokens for CI replay runs.
 

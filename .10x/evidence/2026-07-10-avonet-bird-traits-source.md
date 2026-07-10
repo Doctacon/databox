@@ -30,4 +30,4 @@ This supports the pinned identity, bounded one-hop download, strict schema/grain
 - No AVONET load was run against the live warehouse.
 - No SQLMesh trait/catalog model, API, or UI behavior was implemented or tested.
 - Independent final review passed and is recorded at `.10x/reviews/2026-07-10-avonet-bird-traits-source-review.md`.
-- The unrelated order-dependent full-suite VCR/snapshot failures were not repaired because they are proven pre-existing and outside this ticket; they are owned by `.10x/tickets/2026-07-10-repair-source-vcr-and-schema-snapshot-suite.md`. The corrected focused 105-test suite and all non-pytest repository gates passed.
+- The unrelated order-dependent full-suite VCR/snapshot failures were not repaired because they are proven pre-existing and outside this ticket; they are owned by `.10x/tickets/done/2026-07-10-repair-source-vcr-and-schema-snapshot-suite.md`. The corrected focused 105-test suite and all non-pytest repository gates passed.
