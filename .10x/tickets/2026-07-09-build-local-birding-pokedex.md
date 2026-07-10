@@ -25,7 +25,7 @@ This is a parent plan and is not executable directly.
 
 ## Planned specification and delivery sequence
 
-0. Compact the existing planner independently through `.10x/tickets/2026-07-09-compact-and-paginate-trip-plan-results.md`.
+0. Compact the existing planner independently through `.10x/tickets/done/2026-07-09-compact-and-paginate-trip-plan-results.md`.
 1. Specify the local app shell/navigation and Arizona species catalog/profile.
 2. Specify manual observation records, derived life list, wishlist, and per-species watch management.
 3. Specify origin/radius target-bird planning and its relationship to species profiles and existing planner artifacts.
@@ -59,6 +59,7 @@ Catalog/profile must precede personal collection and target workflows because th
 - 2026-07-09: User ratified per-watch center/radius, 48-hour freshness, one updateable five-day event per watched taxon, best morning window, post-full-refresh execution, confirmed-location clustering, deterministic degraded report behavior, and bounded safe SMTP retries.
 - 2026-07-09: Existing source inspection established 706 Arizona regional taxa, daily/30-day eBird ingestion, source natural keys, reviewed/private flags, and the need for a durable watermark/match/outbox ledger.
 - 2026-07-09: User configured generic SMTP through local Proton Mail Bridge and authorized one bounded test message plus one bounded iCalendar invitation during verification. No configuration value or personal address was recorded.
+- 2026-07-09: Planner compaction completed with independent four-card recommendation pages, collapsed 20/50/100 evidence pagination, 58 frontend tests, and independent pass review.
 
 ## Blockers
 

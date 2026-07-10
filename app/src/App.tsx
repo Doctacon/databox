@@ -252,15 +252,56 @@ function CallArea({ row }: { row: Recommendation }) {
   </div>;
 }
 
-function RecommendationGroup({ title, rows }: { title: string; rows: Recommendation[] }) {
+const RECOMMENDATIONS_PER_PAGE = 4;
+const EVIDENCE_PAGE_SIZES = [20, 50, 100] as const;
+
+function PaginationControls({
+  label, start, end, total, previousDisabled, nextDisabled, onPrevious, onNext,
+}: {
+  label: string;
+  start: number;
+  end: number;
+  total: number;
+  previousDisabled: boolean;
+  nextDisabled: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}) {
+  return <nav className="pagination" aria-label={`${label} pagination`}>
+    <span>Showing {total === 0 ? "0" : `${start}–${end}`} of {total}</span>
+    <div>
+      <button type="button" aria-label={`Previous ${label} page`} disabled={previousDisabled} onClick={onPrevious}>Previous</button>
+      <button type="button" aria-label={`Next ${label} page`} disabled={nextDisabled} onClick={onNext}>Next</button>
+    </div>
+  </nav>;
+}
+
+function RecommendationGroup({
+  title, rows, planId,
+}: {
+  title: string;
+  rows: Recommendation[];
+  planId: string;
+}) {
+  const [page, setPage] = useState(0);
+  const lastPage = Math.max(0, Math.ceil(rows.length / RECOMMENDATIONS_PER_PAGE) - 1);
+  const currentPage = Math.min(page, lastPage);
+  const startIndex = currentPage * RECOMMENDATIONS_PER_PAGE;
+  const visible = rows.slice(startIndex, startIndex + RECOMMENDATIONS_PER_PAGE);
+
+  useEffect(() => setPage(0), [planId]);
+  useEffect(() => {
+    if (page > lastPage) setPage(lastPage);
+  }, [lastPage, page]);
+
   return (
     <section className="panel recommendation-group" aria-labelledby={`group-${title.replaceAll(" ", "-")}`}>
       <h2 id={`group-${title.replaceAll(" ", "-")}`}>{title}</h2>
       {rows.length === 0 ? (
         <p className="empty">No supported targets in this group.</p>
-      ) : (
+      ) : <>
         <ol className="species-grid">
-          {rows.map((row) => (
+          {visible.map((row) => (
             <li key={row.recommendation_id} className="species-card" data-recommendation-id={row.recommendation_id}>
               <PhotoArea row={row} />
               <div className="species-rank">#{row.rank_order}</div>
@@ -273,15 +314,37 @@ function RecommendationGroup({ title, rows }: { title: string; rows: Recommendat
             </li>
           ))}
         </ol>
-      )}
+        {rows.length > RECOMMENDATIONS_PER_PAGE && <PaginationControls
+          label={title}
+          start={startIndex + 1}
+          end={startIndex + visible.length}
+          total={rows.length}
+          previousDisabled={currentPage === 0}
+          nextDisabled={currentPage === lastPage}
+          onPrevious={() => setPage((value) => Math.max(0, value - 1))}
+          onNext={() => setPage((value) => Math.min(lastPage, value + 1))}
+        />}
+      </>}
     </section>
   );
 }
 
 function PlanView({ detail }: { detail: TripPlanDetail }) {
-  const high = detail.recommendations.filter((row) => row.recommendation_group === "high_likelihood");
-  const uncommon = detail.recommendations.filter((row) => row.recommendation_group === "uncommon_plausible");
+  const high = detail.recommendations
+    .filter((row) => row.recommendation_group === "high_likelihood")
+    .sort((left, right) => left.rank_order - right.rank_order);
+  const uncommon = detail.recommendations
+    .filter((row) => row.recommendation_group === "uncommon_plausible")
+    .sort((left, right) => left.rank_order - right.rank_order);
   const weather = presentWeather(detail.weather?.payload || {}, detail.weather?.summary || {});
+  const [evidencePage, setEvidencePage] = useState(0);
+  const [evidencePageSize, setEvidencePageSize] = useState<number>(20);
+  const lastEvidencePage = Math.max(0, Math.ceil(detail.evidence.length / evidencePageSize) - 1);
+  const currentEvidencePage = Math.min(evidencePage, lastEvidencePage);
+  const evidenceStart = currentEvidencePage * evidencePageSize;
+  const visibleEvidence = detail.evidence.slice(evidenceStart, evidenceStart + evidencePageSize);
+
+  useEffect(() => setEvidencePage(0), [detail.plan.trip_plan_id]);
 
   return (
     <div className="plan" aria-live="polite">
@@ -325,30 +388,55 @@ function PlanView({ detail }: { detail: TripPlanDetail }) {
         </> : <p className="empty">Open-Meteo context was not persisted.</p>}
       </section>
 
-      <RecommendationGroup title="High-likelihood Species" rows={high} />
-      <RecommendationGroup title="Uncommon but Plausible Targets" rows={uncommon} />
+      <RecommendationGroup title="High-likelihood Species" rows={high} planId={detail.plan.trip_plan_id} />
+      <RecommendationGroup title="Uncommon but Plausible Targets" rows={uncommon} planId={detail.plan.trip_plan_id} />
 
-      <section className="panel table-panel" aria-labelledby="evidence-heading">
-        <h2 id="evidence-heading">Evidence and Provenance</h2>
-        {detail.evidence.length === 0 ? <p className="empty">No evidence was persisted.</p> : (
-          <div className="table-scroll"><table>
-            <thead><tr><th>Source</th><th>Status</th><th>Type</th><th>Summary</th><th>Record</th></tr></thead>
-            <tbody>{detail.evidence.map((row) => <tr key={row.evidence_id}>
-              <td>{row.source}</td><td>{row.status}</td><td>{row.evidence_type.replaceAll("_", " ")}</td>
-              <td>{evidenceSummary(row)}</td><td>{row.source_record_id || "—"}</td>
-            </tr>)}</tbody>
-          </table></div>
-        )}
-        <details className="workflow-disclosure">
-          <summary>Agent Workflow</summary>
-          <ol className="timeline">{detail.tool_traces.map((trace) => <li key={trace.tool_trace_id}>
-            <span className={`status-dot ${trace.tool_status}`} aria-hidden="true" />
-            <div><strong>{trace.step_order}. {trace.tool_name.replaceAll("_", " ")}</strong>
-            <span>{trace.tool_status}</span>
-            {trace.caveats.map((item) => <p className="caveat" key={item}>{item}</p>)}</div>
-          </li>)}</ol>
-        </details>
-      </section>
+      <details className="panel table-panel evidence-disclosure">
+        <summary><h2>Evidence and Provenance</h2></summary>
+        <div className="evidence-content">
+          <div className="page-size-control">
+            <label htmlFor={`evidence-page-size-${detail.plan.trip_plan_id}`}>Evidence rows per page</label>
+            <select
+              id={`evidence-page-size-${detail.plan.trip_plan_id}`}
+              value={evidencePageSize}
+              onChange={(event) => {
+                setEvidencePageSize(Number(event.target.value));
+                setEvidencePage(0);
+              }}
+            >
+              {EVIDENCE_PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+            </select>
+          </div>
+          {detail.evidence.length === 0 ? <p className="empty">No evidence was persisted.</p> : (
+            <div className="table-scroll"><table>
+              <thead><tr><th>Source</th><th>Status</th><th>Type</th><th>Summary</th><th>Record</th></tr></thead>
+              <tbody>{visibleEvidence.map((row) => <tr key={row.evidence_id}>
+                <td>{row.source}</td><td>{row.status}</td><td>{row.evidence_type.replaceAll("_", " ")}</td>
+                <td>{evidenceSummary(row)}</td><td>{row.source_record_id || "—"}</td>
+              </tr>)}</tbody>
+            </table></div>
+          )}
+          <PaginationControls
+            label="evidence"
+            start={evidenceStart + 1}
+            end={evidenceStart + visibleEvidence.length}
+            total={detail.evidence.length}
+            previousDisabled={currentEvidencePage === 0}
+            nextDisabled={currentEvidencePage === lastEvidencePage}
+            onPrevious={() => setEvidencePage((value) => Math.max(0, value - 1))}
+            onNext={() => setEvidencePage((value) => Math.min(lastEvidencePage, value + 1))}
+          />
+          <details className="workflow-disclosure">
+            <summary>Agent Workflow</summary>
+            <ol className="timeline">{detail.tool_traces.map((trace) => <li key={trace.tool_trace_id}>
+              <span className={`status-dot ${trace.tool_status}`} aria-hidden="true" />
+              <div><strong>{trace.step_order}. {trace.tool_name.replaceAll("_", " ")}</strong>
+              <span>{trace.tool_status}</span>
+              {trace.caveats.map((item) => <p className="caveat" key={item}>{item}</p>)}</div>
+            </li>)}</ol>
+          </details>
+        </div>
+      </details>
     </div>
   );
 }
@@ -455,7 +543,7 @@ export default function App() {
       <section className="content" aria-busy={loadingPlan}>
         {error && <div className="error" role="alert"><strong>Could not complete that request.</strong><span>{error}</span></div>}
         {loadingPlan && <div className="loading" role="status">Gathering local evidence and building your field plan…</div>}
-        {!loadingPlan && detail && <PlanView detail={detail} />}
+        {!loadingPlan && detail && <PlanView key={detail.plan.trip_plan_id} detail={detail} />}
         {!loadingPlan && !detail && !error && <div className="welcome"><span aria-hidden="true">⌁</span><h2>No trip selected</h2><p>Create a plan or choose a saved plan to see recommendations, evidence, and the agent workflow.</p></div>}
       </section>
     </main>

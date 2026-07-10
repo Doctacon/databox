@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import type { RecommendationCall, RecommendationPhoto, TripPlanDetail } from "./types";
+import type { Evidence, Recommendation, RecommendationCall, RecommendationPhoto, TripPlanDetail } from "./types";
 
 const unavailablePhoto: RecommendationPhoto = {
   status: "unavailable", source_record_id: null, species_name: null, display_url: null,
@@ -57,6 +57,56 @@ function response(body: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
 }
 
+function recommendation(group: "high_likelihood" | "uncommon_plausible", index: number): Recommendation {
+  const prefix = group === "high_likelihood" ? "High" : "Uncommon";
+  return {
+    recommendation_id: `${group}-${index}`,
+    species_code: `${prefix.toLowerCase()}-${index}`,
+    common_name: `${prefix} Bird ${index}`,
+    scientific_name: `Avis ${prefix.toLowerCase()}-${index}`,
+    recommendation_group: group,
+    rank_order: group === "high_likelihood" ? index : 100 + index,
+    confidence_label: "evidence-backed",
+    rationale_text: `${prefix} rationale ${index}`,
+    caveats: [],
+    photo: unavailablePhoto,
+    call: unavailableCall,
+  };
+}
+
+function evidenceRow(index: number): Evidence {
+  return {
+    evidence_id: `evidence-${index}`,
+    recommendation_id: null,
+    source: `source-${index}`,
+    source_table: null,
+    source_record_id: `record-${index}`,
+    evidence_type: `evidence_type_${index}`,
+    status: "available",
+    retrieved_at: null,
+    summary: { location_name: `Evidence Place ${index}` },
+    payload: {},
+    caveats: [],
+  };
+}
+
+function paginatedDetail(
+  planId: string,
+  highCount: number,
+  uncommonCount: number,
+  evidenceCount: number,
+): TripPlanDetail {
+  const result = structuredClone(detail);
+  result.plan.trip_plan_id = planId;
+  result.plan.normalized_location_name = `Plan ${planId}`;
+  result.recommendations = [
+    ...Array.from({ length: highCount }, (_, index) => recommendation("high_likelihood", index + 1)),
+    ...Array.from({ length: uncommonCount }, (_, index) => recommendation("uncommon_plausible", index + 1)),
+  ];
+  result.evidence = Array.from({ length: evidenceCount }, (_, index) => evidenceRow(index + 1));
+  return result;
+}
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -74,8 +124,8 @@ describe("Birding Trip Copilot", () => {
     expect(await screen.findByRole("heading", { name: "Thumb Butte, Prescott, AZ" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "High-likelihood Species" })).toBeVisible();
     expect(screen.getByText("Mexican Jay", { selector: "h3" })).toBeVisible();
-    const panelHeadings = Array.from(document.querySelectorAll(".plan > .panel > h2"))
-      .map((heading) => heading.textContent);
+    const panelHeadings = Array.from(document.querySelectorAll(".plan > .panel"))
+      .map((panel) => panel.querySelector("h2")?.textContent);
     expect(panelHeadings).toEqual([
       "Field Plan",
       "Weather and Elevation",
@@ -118,6 +168,12 @@ describe("Birding Trip Copilot", () => {
       "href", availablePhoto.source_url,
     );
     expect(screen.getByText("Weather changes quickly")).toBeVisible();
+    const evidenceSummary = screen.getByText("Evidence and Provenance").closest("summary");
+    const evidenceDisclosure = evidenceSummary?.closest("details");
+    expect(evidenceDisclosure).not.toHaveAttribute("open");
+    expect(screen.getByText("recent observation")).not.toBeVisible();
+    fireEvent.click(evidenceSummary!);
+    expect(evidenceDisclosure).toHaveAttribute("open");
     expect(screen.getByText("recent observation")).toBeVisible();
     const workflowSummary = screen.getByText("Agent Workflow");
     expect(workflowSummary.tagName).toBe("SUMMARY");
@@ -199,6 +255,7 @@ describe("Birding Trip Copilot", () => {
     expect(await screen.findByText("Xeno-canto evidence is unavailable")).toBeVisible();
     expect(screen.getAllByText("No licensed call example is available.")).toHaveLength(2);
     expect(screen.queryByRole("heading", { name: /Call and media examples/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Evidence and Provenance").closest("summary")!);
     expect(screen.getByText("unavailable", { selector: "td" })).toBeVisible();
     expect(screen.queryByRole("link", { name: /unavailable/i })).not.toBeInTheDocument();
   });
@@ -597,6 +654,133 @@ describe("Birding Trip Copilot", () => {
     expect(getComputedStyle(metadata!).overflowWrap).toBe("anywhere");
     expect(getComputedStyle(metadata!).wordBreak).toBe("break-word");
     expect(card!.closest(".species-grid")).not.toBeNull();
+  });
+
+  it.each([
+    [0, 0],
+    [3, 3],
+    [4, 4],
+  ])("renders %s recommendation cards without an unnecessary pager", async (count, expected) => {
+    const compact = paginatedDetail("boundary", count, 0, 0);
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
+      String(input) === "/api/trip-plans" ? response({ plans: [compact.plan] }) : response(compact),
+    );
+    render(<App />);
+    const heading = await screen.findByRole("heading", { name: "High-likelihood Species" });
+    const group = heading.closest("section");
+    expect(group).not.toBeNull();
+    expect(group!.querySelectorAll(".species-card")).toHaveLength(expected);
+    expect(within(group!).queryByRole("navigation")).not.toBeInTheDocument();
+    if (count === 0) expect(within(group!).getByText("No supported targets in this group.")).toBeVisible();
+  });
+
+  it("paginates recommendation groups independently with global ranks and plan reset", async () => {
+    const user = userEvent.setup();
+    const first = paginatedDetail("plan-a", 6, 5, 1);
+    const second = paginatedDetail("plan-b", 6, 5, 1);
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/trip-plans") return response({ plans: [first.plan, second.plan] });
+      return response(url.endsWith("plan-b") ? second : first);
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan plan-a" });
+    const high = screen.getByRole("heading", { name: "High-likelihood Species" }).closest("section")!;
+    const uncommon = screen.getByRole("heading", { name: "Uncommon but Plausible Targets" }).closest("section")!;
+    expect(high.querySelectorAll(".species-card")).toHaveLength(4);
+    expect(uncommon.querySelectorAll(".species-card")).toHaveLength(4);
+    expect(within(high).getByText("Showing 1–4 of 6")).toBeVisible();
+    expect(within(uncommon).getByText("Showing 1–4 of 5")).toBeVisible();
+    expect(within(high).getByRole("button", { name: "Previous High-likelihood Species page" })).toBeDisabled();
+    expect(within(high).getByRole("button", { name: "Next High-likelihood Species page" })).toBeEnabled();
+    expect(getComputedStyle(high.querySelector(".species-grid")!).gridTemplateColumns).toContain("repeat(4");
+
+    await user.click(within(high).getByRole("button", { name: "Next High-likelihood Species page" }));
+    expect(within(high).getByText("High Bird 5")).toBeVisible();
+    expect(within(high).getByText("#5")).toBeVisible();
+    expect(within(high).getByText("#6")).toBeVisible();
+    expect(within(high).getByText("Showing 5–6 of 6")).toBeVisible();
+    expect(within(high).getByRole("button", { name: "Next High-likelihood Species page" })).toBeDisabled();
+    expect(within(uncommon).getByText("Uncommon Bird 1")).toBeVisible();
+
+    await user.click(within(uncommon).getByRole("button", { name: "Next Uncommon but Plausible Targets page" }));
+    expect(within(uncommon).getByText("Uncommon Bird 5")).toBeVisible();
+    expect(within(uncommon).getByText("#105")).toBeVisible();
+    expect(within(high).getByText("High Bird 5")).toBeVisible();
+
+    await user.selectOptions(screen.getByLabelText("Previous plans"), "plan-b");
+    await screen.findByRole("heading", { name: "Plan plan-b" });
+    const resetHigh = screen.getByRole("heading", { name: "High-likelihood Species" }).closest("section")!;
+    const resetUncommon = screen.getByRole("heading", { name: "Uncommon but Plausible Targets" }).closest("section")!;
+    expect(within(resetHigh).getByText("High Bird 1")).toBeVisible();
+    expect(within(resetHigh).queryByText("High Bird 5")).not.toBeInTheDocument();
+    expect(within(resetUncommon).getByText("Uncommon Bird 1")).toBeVisible();
+    expect(within(resetHigh).getByRole("button", { name: "Previous High-likelihood Species page" })).toBeDisabled();
+    expect(within(resetUncommon).getByRole("button", { name: "Previous Uncommon but Plausible Targets page" })).toBeDisabled();
+  });
+
+  it.each([
+    [0, 0, "Showing 0 of 0"],
+    [7, 7, "Showing 1–7 of 7"],
+    [20, 20, "Showing 1–20 of 20"],
+  ])("keeps evidence collapsed and bounds a %s-row first page", async (count, visible, range) => {
+    const compact = paginatedDetail("evidence-boundary", 1, 1, count);
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
+      String(input) === "/api/trip-plans" ? response({ plans: [compact.plan] }) : response(compact),
+    );
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan evidence-boundary" });
+    const summary = screen.getByText("Evidence and Provenance").closest("summary")!;
+    const disclosure = summary.closest("details")!;
+    expect(disclosure).not.toHaveAttribute("open");
+    expect(within(disclosure).getByText("Agent Workflow").closest("details")).not.toHaveAttribute("open");
+    await userEvent.click(summary);
+    expect(disclosure).toHaveAttribute("open");
+    expect(disclosure.querySelectorAll("tbody tr")).toHaveLength(visible);
+    expect(within(disclosure).getByText(range)).toBeVisible();
+    expect(within(disclosure).getByRole("button", { name: "Previous evidence page" })).toBeDisabled();
+    expect(within(disclosure).getByRole("button", { name: "Next evidence page" })).toBeDisabled();
+    const size = within(disclosure).getByRole("combobox", { name: "Evidence rows per page" });
+    expect(Array.from((size as HTMLSelectElement).options).map((option) => option.value)).toEqual(["20", "50", "100"]);
+    expect(size).toHaveValue("20");
+  });
+
+  it("paginates evidence at exact boundaries and resets on size and plan changes", async () => {
+    const user = userEvent.setup();
+    const first = paginatedDetail("evidence-a", 1, 1, 105);
+    const second = paginatedDetail("evidence-b", 1, 1, 60);
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/trip-plans") return response({ plans: [first.plan, second.plan] });
+      return response(url.endsWith("evidence-b") ? second : first);
+    });
+    render(<App />);
+    await screen.findByRole("heading", { name: "Plan evidence-a" });
+    let disclosure = screen.getByText("Evidence and Provenance").closest("details")!;
+    await user.click(within(disclosure).getByText("Evidence and Provenance"));
+    const next = within(disclosure).getByRole("button", { name: "Next evidence page" });
+    for (let page = 0; page < 5; page += 1) await user.click(next);
+    expect(within(disclosure).getByText("Showing 101–105 of 105")).toBeVisible();
+    expect(next).toBeDisabled();
+    expect(within(disclosure).getByRole("button", { name: "Previous evidence page" })).toBeEnabled();
+    expect(disclosure.querySelectorAll("tbody tr")).toHaveLength(5);
+
+    const size = within(disclosure).getByRole("combobox", { name: "Evidence rows per page" });
+    await user.selectOptions(size, "50");
+    expect(within(disclosure).getByText("Showing 1–50 of 105")).toBeVisible();
+    expect(within(disclosure).getByRole("button", { name: "Previous evidence page" })).toBeDisabled();
+    await user.selectOptions(size, "100");
+    expect(within(disclosure).getByText("Showing 1–100 of 105")).toBeVisible();
+    await user.click(within(disclosure).getByRole("button", { name: "Next evidence page" }));
+    expect(within(disclosure).getByText("Showing 101–105 of 105")).toBeVisible();
+
+    await user.selectOptions(screen.getByLabelText("Previous plans"), "evidence-b");
+    await screen.findByRole("heading", { name: "Plan evidence-b" });
+    disclosure = screen.getByText("Evidence and Provenance").closest("details")!;
+    expect(disclosure).not.toHaveAttribute("open");
+    await user.click(within(disclosure).getByText("Evidence and Provenance"));
+    expect(within(disclosure).getByText("Showing 1–20 of 60")).toBeVisible();
+    expect(within(disclosure).getByRole("combobox", { name: "Evidence rows per page" })).toHaveValue("20");
   });
 
   it("searches Arizona places and supports keyboard selection", async () => {
