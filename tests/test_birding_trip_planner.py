@@ -90,6 +90,11 @@ def _weather_response(endpoint: str, params: Mapping[str, object]) -> dict[str, 
     raise AssertionError(f"unexpected endpoint {endpoint}")
 
 
+def _empty_media_response(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+    _ = params
+    return {"results": []} if "gbif" in endpoint else {"recordings": []}
+
+
 def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("CREATE SCHEMA IF NOT EXISTS birding_agent")
     con.execute(
@@ -316,6 +321,9 @@ def test_ranked_gbif_recommendations_keep_conformed_names_and_do_not_duplicate()
         duckdb.connect(":memory:"),
         model_client=FakeTripPlanModelClient(),
         weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
     )
     occurrence_rows = [
         {
@@ -367,7 +375,7 @@ def test_build_root_agent_exposes_bounded_tool_contract() -> None:
         "lookup_gbif_occurrence_evidence_tool",
         "fetch_open_meteo_trip_context_tool",
         "rank_likely_species_tool",
-        "lookup_xeno_canto_media_evidence_tool",
+        "enrich_recommendation_media_tool",
         "synthesize_grounded_trip_plan_tool",
         "persist_trip_plan_tool",
     } <= tool_names
@@ -390,6 +398,9 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
         ),
         trip_plan_id="trip-thumb-butte-test",
         weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
         model_client=model_client,
     )
 
@@ -436,7 +447,7 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
         "lookup_gbif_occurrence_evidence",
         "fetch_open_meteo_trip_context",
         "rank_likely_species",
-        "lookup_xeno_canto_media_evidence",
+        "enrich_recommendation_media",
         "build_trip_plan_evidence",
         "synthesize_grounded_trip_plan",
         "persist_trip_plan",
@@ -478,6 +489,127 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
     assert json.loads(weather_evidence[1])["elevation_m"] == 1642.0
 
 
+def test_request_time_media_persists_exact_cardinality_without_changing_model_grounding() -> None:
+    con = duckdb.connect(":memory:")
+    _seed_planner_views(con)
+    model = FakeTripPlanModelClient()
+    gbif_ids: dict[str, int] = {}
+    xeno_ids: dict[str, int] = {}
+
+    def gbif(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+        species = str(params["scientificName"])
+        occurrence_id = gbif_ids.setdefault(species, 1000 + len(gbif_ids))
+        return {
+            "results": [
+                {
+                    "key": occurrence_id,
+                    "species": species,
+                    "acceptedScientificName": species,
+                    "countryCode": "US",
+                    "country": "United States",
+                    "stateProvince": "Arizona",
+                    "publishingOrgKey": "Arizona archive",
+                    "media": [
+                        {
+                            "type": "StillImage",
+                            "format": "image/jpeg",
+                            "identifier": (f"https://images.inaturalist.org/{occurrence_id}.jpg"),
+                            "license": "https://creativecommons.org/licenses/by/4.0/",
+                            "creator": "Fixture Photographer",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    def xeno(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+        query = str(params["query"])
+        quoted = [part.split('"')[1] for part in query.split()[:2]]
+        species = " ".join(quoted)
+        recording_id = xeno_ids.setdefault(species, 2000 + len(xeno_ids))
+        genus, epithet = species.split()
+        return {
+            "recordings": [
+                {
+                    "id": str(recording_id),
+                    "gen": genus,
+                    "sp": epithet,
+                    "rec": "Fixture Recordist",
+                    "cnt": "United States",
+                    "loc": "Arizona",
+                    "type": "call",
+                    "q": "A",
+                    "url": f"https://xeno-canto.org/{recording_id}",
+                    "file": f"https://xeno-canto.org/{recording_id}/download",
+                    "lic": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+                }
+            ]
+        }
+
+    request = TripRequest(
+        location="Thumb Butte",
+        start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+        duration_minutes=90,
+    )
+    for _ in range(2):
+        result = run_trip_planner_agent(
+            con,
+            request=request,
+            trip_plan_id="trip-media-cardinality",
+            weather_getter=_weather_response,
+            media_gbif_getter=gbif,
+            media_xeno_getter=xeno,
+            xeno_api_key="secret-fixture-key",
+            model_client=model,
+        )
+        cardinality = con.execute(
+            """
+            SELECT recommendation_id,
+                   count(*) FILTER (WHERE evidence_type = 'recommendation_photo'),
+                   count(*) FILTER (WHERE evidence_type = 'recommendation_call'),
+                   count(*) FILTER (WHERE status = 'available')
+            FROM birding_agent.trip_plan_evidence
+            WHERE trip_plan_id = ? AND recommendation_id IS NOT NULL
+              AND evidence_type IN ('recommendation_photo', 'recommendation_call')
+            GROUP BY recommendation_id
+            """,
+            [result.trip_plan_id],
+        ).fetchall()
+        assert len(cardinality) == len(result.recommendations)
+        assert all(row[1:] == (1, 1, 2) for row in cardinality)
+        assert [rec.rank_order for rec in result.recommendations] == list(
+            range(1, len(result.recommendations) + 1)
+        )
+
+    assert len(model.requests) == 2
+    prompt_semantics = [
+        [
+            (
+                rec.common_name,
+                rec.scientific_name,
+                rec.recommendation_group,
+                rec.current_rationale,
+            )
+            for rec in request.recommendations
+        ]
+        for request in model.requests
+    ]
+    assert prompt_semantics[0] == prompt_semantics[1]
+    assert model.requests[0].evidence_source_counts == model.requests[1].evidence_source_counts
+    assert "xeno_canto" not in model.requests[0].evidence_source_counts
+    media_trace = con.execute(
+        """
+        SELECT input_json, output_summary_json
+        FROM birding_agent.trip_plan_tool_traces
+        WHERE trip_plan_id = ? AND tool_name = 'enrich_recommendation_media'
+        """,
+        [result.trip_plan_id],
+    ).fetchone()
+    assert media_trace is not None
+    assert json.loads(media_trace[1])["available_calls"] == len(result.recommendations)
+    assert "secret-fixture-key" not in (media_trace[0] + media_trace[1])
+
+
 @pytest.mark.asyncio
 async def test_async_adk_entry_runs_blocking_planner_without_blocking_loop() -> None:
     con = duckdb.connect(":memory:")
@@ -491,6 +623,9 @@ async def test_async_adk_entry_runs_blocking_planner_without_blocking_loop() -> 
         ),
         trip_plan_id="trip-async-test",
         weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
         model_client=FakeTripPlanModelClient(),
     )
     assert result.trip_plan_id == "trip-async-test"
@@ -520,6 +655,9 @@ def test_persistence_failure_never_returns_successful_plan(monkeypatch: Any) -> 
         con,
         model_client=FakeTripPlanModelClient(),
         weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
     )
 
     def fail_persistence(*args: object, **kwargs: object) -> None:
@@ -555,6 +693,9 @@ def test_failed_model_call_persists_safe_trace_but_not_completed_plan() -> None:
         request=request,
         trip_plan_id="trip-model-failed",
         weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
         model_client=FakeTripPlanModelClient(),
     )
 
@@ -564,6 +705,9 @@ def test_failed_model_call_persists_safe_trace_but_not_completed_plan() -> None:
             request=request,
             trip_plan_id="trip-model-failed",
             weather_getter=_weather_response,
+            media_gbif_getter=_empty_media_response,
+            media_xeno_getter=_empty_media_response,
+            xeno_api_key="test-key",
             model_client=FailingTripPlanModelClient(),
         )
 
@@ -600,13 +744,15 @@ def test_adk_runtime_persists_source_unavailable_caveats_when_evidence_views_are
         ),
         trip_plan_id="trip-sparse-test",
         weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
         model_client=FakeTripPlanModelClient(),
     )
 
     assert not result.recommendations
     assert "No recent eBird evidence" in " ".join(result.caveats)
     assert "No GBIF occurrence context" in " ".join(result.caveats)
-    assert "No Xeno-canto media examples" in " ".join(result.caveats)
 
     statuses = con.execute(
         """
@@ -617,7 +763,7 @@ def test_adk_runtime_persists_source_unavailable_caveats_when_evidence_views_are
         """,
         [result.trip_plan_id],
     ).fetchall()
-    assert {row[0] for row in statuses} == {"ebird", "gbif", "open_meteo", "xeno_canto"}
+    assert {row[0] for row in statuses} == {"ebird", "gbif", "open_meteo"}
     assert any(row[1] == "unavailable" for row in statuses)
 
     failed_traces = con.execute(
@@ -633,7 +779,13 @@ def test_adk_runtime_persists_source_unavailable_caveats_when_evidence_views_are
     assert ("lookup_gbif_occurrence_evidence",) in failed_traces
 
 
-def test_cli_generates_sample_plan_against_duckdb_file(tmp_path: Path, capsys: Any) -> None:
+def test_cli_generates_sample_plan_against_duckdb_file(
+    tmp_path: Path, capsys: Any, monkeypatch: Any
+) -> None:
+    from databox.agent_tools import recommendation_media
+
+    monkeypatch.setattr(recommendation_media, "_get_json", _empty_media_response)
+    monkeypatch.delenv("XENO_CANTO_API_KEY", raising=False)
     db_path = tmp_path / "planner.duckdb"
     con = duckdb.connect(str(db_path))
     _seed_planner_views(con)

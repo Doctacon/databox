@@ -94,6 +94,26 @@ native audio controls with `preload="none"` and no autoplay. Audio bytes stream
 directly from Xeno-canto only after user interaction; Databox does not proxy,
 download, cache, or store audio.
 
+Existing persisted recommendations are enriched only by an explicit local
+maintenance command. Stop source refresh and the local API writer first, inspect
+the bounded target set, then apply once:
+
+```bash
+task media:backfill -- --dry-run
+task media:backfill -- --apply
+```
+
+Dry-run opens `data/databox.duckdb` read-only and performs no discovery. Apply
+uses DuckDB's single-writer transaction and the same validated GBIF/Xeno-canto
+selector used for new plans. It inserts only missing photo/call JSON metadata,
+including durable unavailable results; a one-time compatibility repair replaces
+only exact `media_backfill_v2_` GBIF rows having the defective unavailable status
+and caveat from before the reviewed HTTP-license and `United States of America`
+normalization fix. It does not invoke the model,
+alter plan content, or download/proxy media bytes. Re-running apply is a no-op after
+every recommendation has one current photo and one call result. `--database-path` may target a
+test copy; it does not create a missing database.
+
 ## SQLMesh
 
 Run from `transforms/main/` — SQLMesh picks up `config.py` there.

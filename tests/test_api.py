@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import socket
 from collections.abc import Mapping
@@ -130,6 +131,11 @@ def _geocoding(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
     }
 
 
+def _empty_media(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+    _ = params
+    return {"results": []} if "gbif" in endpoint else {"recordings": []}
+
+
 def _client(
     tmp_path: Path,
     model: object | None = None,
@@ -142,6 +148,9 @@ def _client(
             model_client=model or FakeModelClient(),  # type: ignore[arg-type]
             weather_getter=weather_getter,  # type: ignore[arg-type]
             geocoding_getter=geocoding_getter,  # type: ignore[arg-type]
+            media_gbif_getter=_empty_media,
+            media_xeno_getter=_empty_media,
+            xeno_api_key="test-key",
             static_dir=tmp_path / "missing-dist",
         )
     )
@@ -177,6 +186,41 @@ RECOMMENDATION_KEYS = {
     "rank_order",
     "confidence_label",
     "rationale_text",
+    "caveats",
+    "photo",
+    "call",
+}
+PHOTO_KEYS = {
+    "status",
+    "source_record_id",
+    "species_name",
+    "display_url",
+    "source_url",
+    "creator",
+    "rights_holder",
+    "publisher",
+    "format",
+    "license_text",
+    "license_url",
+    "selection_reason",
+    "caveats",
+}
+CALL_KEYS = {
+    "status",
+    "source_record_id",
+    "recording_id",
+    "species_name",
+    "geographic_scope",
+    "recording_type",
+    "quality",
+    "recordist",
+    "locality",
+    "country",
+    "source_url",
+    "audio_url",
+    "license_text",
+    "license_url",
+    "selection_reason",
     "caveats",
 }
 EVIDENCE_KEYS = {
@@ -225,6 +269,8 @@ def _assert_detail_contract(detail: dict[str, Any]) -> None:
     assert set(detail) == {"plan", "recommendations", "evidence", "weather", "media", "tool_traces"}
     assert set(detail["plan"]) == PLAN_KEYS
     assert all(set(row) == RECOMMENDATION_KEYS for row in detail["recommendations"])
+    assert all(set(row["photo"]) == PHOTO_KEYS for row in detail["recommendations"])
+    assert all(set(row["call"]) == CALL_KEYS for row in detail["recommendations"])
     assert all(set(row) == EVIDENCE_KEYS for row in detail["evidence"])
     assert detail["weather"] is None or set(detail["weather"]) == EVIDENCE_KEYS
     assert all(set(row) == MEDIA_KEYS for row in detail["media"])
@@ -381,12 +427,65 @@ def test_source_scientific_name_survives_lookup_persistence_and_api_reload(
         """
     )
     connection.close()
+    media_calls = 0
+
+    def gbif_media(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+        nonlocal media_calls
+        media_calls += 1
+        species = str(params["scientificName"])
+        return {
+            "results": [
+                {
+                    "key": 5938231789,
+                    "species": species,
+                    "acceptedScientificName": species,
+                    "countryCode": "US",
+                    "country": "United States",
+                    "stateProvince": "Arizona",
+                    "publishingOrgKey": "Fixture publisher",
+                    "media": [
+                        {
+                            "type": "StillImage",
+                            "format": "image/jpeg",
+                            "identifier": "https://images.inaturalist.org/bluebird.jpg",
+                            "license": "https://creativecommons.org/licenses/by/4.0/",
+                            "creator": "Fixture Photographer",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    def xeno_media(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+        nonlocal media_calls
+        media_calls += 1
+        return {
+            "recordings": [
+                {
+                    "id": "314",
+                    "gen": "Sialia",
+                    "sp": "mexicana",
+                    "rec": "Fixture Recordist",
+                    "cnt": "United States",
+                    "loc": "Arizona",
+                    "type": "call",
+                    "q": "A",
+                    "url": "https://xeno-canto.org/314",
+                    "file": "https://xeno-canto.org/314/download",
+                    "lic": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+                }
+            ]
+        }
+
     client = TestClient(
         create_app(
             database_path=str(database_path),
             model_client=FakeModelClient(),
             weather_getter=_weather,
             geocoding_getter=_geocoding,
+            media_gbif_getter=gbif_media,
+            media_xeno_getter=xeno_media,
+            xeno_api_key="test-key",
             static_dir=tmp_path / "missing-dist",
         )
     )
@@ -406,7 +505,39 @@ def test_source_scientific_name_survives_lookup_persistence_and_api_reload(
         row for row in created["recommendations"] if row["common_name"] == "Western Bluebird"
     )
     assert recommendation["scientific_name"] == "Sialia mexicana"
-    gbif_evidence = next(row for row in created["evidence"] if row["source"] == "gbif")
+    assert recommendation["photo"] == {
+        "status": "available",
+        "source_record_id": "5938231789",
+        "species_name": "Sialia mexicana",
+        "display_url": (
+            "https://api.gbif.org/v1/image/cache/500x500/occurrence/5938231789/media/"
+            + hashlib.md5(
+                b"https://images.inaturalist.org/bluebird.jpg", usedforsecurity=False
+            ).hexdigest()
+        ),
+        "source_url": "https://www.gbif.org/occurrence/5938231789",
+        "creator": "Fixture Photographer",
+        "rights_holder": None,
+        "publisher": "Fixture publisher",
+        "format": "image/jpeg",
+        "license_text": "CC BY 4.0",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "selection_reason": (
+            "Exact Arizona species image with complete attribution, supported CC license, "
+            "and GBIF cache URL derived from occurrence key plus identifier MD5"
+        ),
+        "caveats": [],
+    }
+    assert recommendation["call"]["status"] == "available"
+    assert recommendation["call"]["recording_id"] == "314"
+    assert recommendation["call"]["geographic_scope"] == "Arizona"
+    assert recommendation["call"]["audio_url"] == "https://xeno-canto.org/314/download"
+    assert media_calls == 2
+    gbif_evidence = next(
+        row
+        for row in created["evidence"]
+        if row["source"] == "gbif" and row["evidence_type"] == "occurrence_context"
+    )
     expected_names = {
         "common_name": "Western Bluebird",
         "scientific_name": "Sialia mexicana",
@@ -422,9 +553,34 @@ def test_source_scientific_name_survives_lookup_persistence_and_api_reload(
 
     loaded = client.get(f"/api/trip-plans/{created['plan']['trip_plan_id']}")
     assert loaded.status_code == 200
-    loaded_gbif = next(row for row in loaded.json()["evidence"] if row["source"] == "gbif")
+    assert loaded.json()["recommendations"][0]["photo"] == recommendation["photo"]
+    assert loaded.json()["recommendations"][0]["call"] == recommendation["call"]
+    assert media_calls == 2
+    loaded_gbif = next(
+        row
+        for row in loaded.json()["evidence"]
+        if row["source"] == "gbif" and row["evidence_type"] == "occurrence_context"
+    )
     assert loaded_gbif["summary"] == gbif_evidence["summary"]
     assert loaded_gbif["payload"] == gbif_evidence["payload"]
+
+    persisted_photo = next(
+        row for row in created["evidence"] if row["evidence_type"] == "recommendation_photo"
+    )
+    assert "original_media_identifier" not in persisted_photo["payload"]
+    assert "original_media_identifier_md5" in persisted_photo["payload"]
+    tampered_summary = dict(persisted_photo["summary"])
+    tampered_summary["display_url"] = "https://api.gbif.org/v1/occurrence/search"
+    connection = duckdb.connect(str(database_path))
+    connection.execute(
+        "UPDATE birding_agent.trip_plan_evidence SET summary_json = ? WHERE evidence_id = ?",
+        [json.dumps(tampered_summary), persisted_photo["evidence_id"]],
+    )
+    connection.close()
+    tampered = client.get(f"/api/trip-plans/{created['plan']['trip_plan_id']}")
+    assert tampered.status_code == 200
+    assert tampered.json()["recommendations"][0]["photo"]["status"] == "unavailable"
+    assert tampered.json()["recommendations"][0]["photo"]["display_url"] is None
 
 
 def test_create_list_and_reload_persisted_trip_plan(tmp_path: Path) -> None:
@@ -463,10 +619,7 @@ def test_create_list_and_reload_persisted_trip_plan(tmp_path: Path) -> None:
         "persist_trip_plan",
     }
     assert created["media"] == []
-    assert any(
-        row["source"] == "xeno_canto" and row["status"] == "unavailable"
-        for row in created["evidence"]
-    )
+    assert created["recommendations"] == []
 
     listed = client.get("/api/trip-plans")
     assert listed.status_code == 200
@@ -620,6 +773,24 @@ def test_media_response_sanitizes_source_and_audio_independently(tmp_path: Path)
             "unavailable",
             "CC BY 4.0",
         ),
+        (
+            "unknown-cc-license",
+            "https://xeno-canto.org/15",
+            "https://xeno-canto.org/15/download",
+            "https://creativecommons.org/licenses/sampling/1.0/",
+        ),
+        (
+            "insane-cc-version",
+            "https://xeno-canto.org/16",
+            "https://xeno-canto.org/16/download",
+            "https://creativecommons.org/licenses/by/999.999/",
+        ),
+        (
+            "malformed-cc-version",
+            "https://xeno-canto.org/17",
+            "https://xeno-canto.org/17/download",
+            "https://creativecommons.org/licenses/by/4..0/",
+        ),
     ]
     connection = duckdb.connect(str(tmp_path / "databox.duckdb"))
     for index, (name, source_url, audio_url, license_value) in enumerate(cases, start=1):
@@ -694,8 +865,17 @@ def test_media_response_sanitizes_source_and_audio_independently(tmp_path: Path)
         media["media-www-safe"]["license_url"]
         == "https://creativecommons.org/licenses/by-nc-sa/4.0/"
     )
-    assert media["media-unsafe-license"]["license_text"] == "License link unavailable"
-    assert media["media-unsafe-license"]["license_url"] is None
+    for name in (
+        "unsafe-license",
+        "unknown-cc-license",
+        "insane-cc-version",
+        "malformed-cc-version",
+    ):
+        assert media[f"media-{name}"]["status"] == "unavailable"
+        assert media[f"media-{name}"]["license_text"] == "License link unavailable"
+        assert media[f"media-{name}"]["license_url"] is None
+        assert media[f"media-{name}"]["source_url"] is None
+        assert media[f"media-{name}"]["audio_url"] is None
     assert media["media-audio-missing"]["source_url"] == "https://xeno-canto.org/13"
     assert media["media-audio-missing"]["audio_url"] is None
     assert media["media-audio-unavailable"]["source_url"] == "https://xeno-canto.org/14"

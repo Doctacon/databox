@@ -23,6 +23,10 @@ from databox.agent_tools.open_meteo_geocoding import (
     OpenMeteoGeocodingError,
     search_arizona_locations,
 )
+from databox.agent_tools.recommendation_media import (
+    parse_creative_commons_license,
+    safe_gbif_photo_url,
+)
 from databox.agents.birding_trip_planner import (
     NormalizedLocation,
     TripRequest,
@@ -139,6 +143,41 @@ class TripPlanResponse(PlanSummaryResponse):
     field_plan_text: str | None
 
 
+class RecommendationPhotoResponse(BaseModel):
+    status: Literal["available", "unavailable"]
+    source_record_id: str | None
+    species_name: str | None
+    display_url: str | None
+    source_url: str | None
+    creator: str | None
+    rights_holder: str | None
+    publisher: str | None
+    format: str | None
+    license_text: str | None
+    license_url: str | None
+    selection_reason: str | None
+    caveats: list[str]
+
+
+class RecommendationCallResponse(BaseModel):
+    status: Literal["available", "unavailable"]
+    source_record_id: str | None
+    recording_id: str | None
+    species_name: str | None
+    geographic_scope: Literal["Arizona", "Global example"] | None
+    recording_type: str | None
+    quality: str | None
+    recordist: str | None
+    locality: str | None
+    country: str | None
+    source_url: str | None
+    audio_url: str | None
+    license_text: str | None
+    license_url: str | None
+    selection_reason: str | None
+    caveats: list[str]
+
+
 class RecommendationResponse(BaseModel):
     recommendation_id: str
     species_code: str | None
@@ -149,6 +188,8 @@ class RecommendationResponse(BaseModel):
     confidence_label: str | None
     rationale_text: str | None
     caveats: list[str]
+    photo: RecommendationPhotoResponse
+    call: RecommendationCallResponse
 
 
 class EvidenceResponse(BaseModel):
@@ -237,8 +278,6 @@ _XENO_CANTO_HOSTS = frozenset({"xeno-canto.org", "www.xeno-canto.org"})
 _XENO_RECORDING_ID = re.compile(r"^(?:XC)?(\d+)$")
 _XENO_SOURCE_PATH = re.compile(r"^/(\d+)/?$")
 _XENO_AUDIO_PATH = re.compile(r"^/(\d+)/download/?$")
-_CREATIVE_COMMONS_HOSTS = frozenset({"creativecommons.org", "www.creativecommons.org"})
-_CREATIVE_COMMONS_PATH = re.compile(r"^/licenses/([a-z0-9-]+)/([0-9.]+)/?$")
 _UNAVAILABLE_VALUES = frozenset({"unavailable", "not available", "none", "null", "n/a"})
 
 
@@ -322,56 +361,216 @@ def _media_url(
     return safe[0]
 
 
-def _license(value: object) -> tuple[str, str | None]:
-    raw = _text(value)
-    if raw is None:
+def _license(value: object, *, allow_audio_nd: bool = True) -> tuple[str, str | None]:
+    if _text(value) is None:
         return "License not reported", None
-    candidate = f"https:{raw}" if raw.startswith("//") else raw
-    try:
-        parsed = urlsplit(candidate)
-        if parsed.port is not None:
-            return "License link unavailable", None
-    except ValueError:
+    parsed = parse_creative_commons_license(value, allow_audio_nd=allow_audio_nd)
+    if parsed is None:
         return "License link unavailable", None
-    if parsed.scheme or parsed.netloc:
-        match = _CREATIVE_COMMONS_PATH.fullmatch(parsed.path)
-        if (
-            parsed.scheme == "https"
-            and parsed.hostname in _CREATIVE_COMMONS_HOSTS
-            and parsed.username is None
-            and parsed.password is None
-            and not parsed.query
-            and not parsed.fragment
-            and match is not None
-        ):
-            return f"CC {match.group(1).upper()} {match.group(2)}", candidate
-        return "License link unavailable", None
-    return raw, None
+    code, url, _ = parsed
+    return code, url
 
 
 def _media_response(row: EvidenceResponse) -> MediaResponse:
     recording_id = _recording_id(row)
-    source = _media_url(row, field="recording_url", kind="source")
-    audio = _media_url(row, field="audio_file_url", kind="audio")
+    source = _media_url(row, field="recording_url", kind="source") or _media_url(
+        row, field="source_url", kind="source"
+    )
+    audio = _media_url(row, field="audio_file_url", kind="audio") or _media_url(
+        row, field="audio_url", kind="audio"
+    )
     source_matches = recording_id is not None and source is not None and source[1] == recording_id
     audio_matches = recording_id is not None and audio is not None and audio[1] == recording_id
-    license_text, license_url = _license(row.summary.get("license") or row.payload.get("license"))
+    license_text, license_url = _license(
+        row.summary.get("license") or row.payload.get("license") or row.summary.get("license_url")
+    )
+    license_valid = license_url is not None
+    active = row.status == "available" and license_valid
     return MediaResponse(
         evidence_id=row.evidence_id,
         recommendation_id=row.recommendation_id,
         source_record_id=row.source_record_id,
         recording_id=recording_id,
-        status=row.status,
+        status="available" if active else "unavailable",
         species_name=_text(row.summary.get("english_name"))
-        or _text(row.payload.get("english_name")),
+        or _text(row.payload.get("english_name"))
+        or _text(row.summary.get("species_name")),
         recording_type=_text(row.summary.get("recording_type"))
         or _text(row.payload.get("recording_type")),
         quality=_text(row.summary.get("quality")) or _text(row.payload.get("quality")),
         recordist=_text(row.summary.get("recordist")) or _text(row.payload.get("recordist")),
         license_text=license_text,
         license_url=license_url,
-        source_url=source[0] if source_matches and source is not None else None,
-        audio_url=audio[0] if audio_matches and audio is not None else None,
+        source_url=source[0] if active and source_matches and source is not None else None,
+        audio_url=audio[0] if active and audio_matches and audio is not None else None,
+        caveats=row.caveats,
+    )
+
+
+def _safe_gbif_source_url(value: object, occurrence_id: str | None) -> str | None:
+    raw = _text(value)
+    if raw is None or occurrence_id is None or not occurrence_id.isdigit():
+        return None
+    try:
+        parsed = urlsplit(raw)
+        if parsed.port is not None:
+            return None
+    except ValueError:
+        return None
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in {"gbif.org", "www.gbif.org"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path.rstrip("/") != f"/occurrence/{occurrence_id}"
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    return raw
+
+
+def _unavailable_photo(caveats: list[str]) -> RecommendationPhotoResponse:
+    return RecommendationPhotoResponse(
+        status="unavailable",
+        source_record_id=None,
+        species_name=None,
+        display_url=None,
+        source_url=None,
+        creator=None,
+        rights_holder=None,
+        publisher=None,
+        format=None,
+        license_text=None,
+        license_url=None,
+        selection_reason=None,
+        caveats=caveats,
+    )
+
+
+def _recommendation_photo(
+    row: EvidenceResponse | None, scientific_name: str | None
+) -> RecommendationPhotoResponse:
+    if row is None or row.status != "available":
+        return _unavailable_photo(
+            row.caveats if row is not None else ["Photo was not enriched for this plan"]
+        )
+    occurrence_id = _text(row.source_record_id)
+    species_name = _text(row.summary.get("species_name"))
+    display_url = safe_gbif_photo_url(
+        row.summary.get("display_url"),
+        occurrence_id=occurrence_id or "",
+        original_identifier=row.payload.get("original_media_identifier"),
+    )
+    source_url = _safe_gbif_source_url(row.summary.get("source_url"), occurrence_id)
+    creator = _text(row.summary.get("creator"))
+    rights_holder = _text(row.summary.get("rights_holder"))
+    license_text, license_url = _license(row.summary.get("license_url"), allow_audio_nd=False)
+    identity_matches = (
+        scientific_name is not None
+        and species_name is not None
+        and scientific_name.casefold() == species_name.casefold()
+    )
+    if (
+        display_url is None
+        or source_url is None
+        or (creator is None and rights_holder is None)
+        or license_url is None
+        or not identity_matches
+    ):
+        return _unavailable_photo(
+            [*row.caveats, "Persisted photo metadata failed safety validation"]
+        )
+    return RecommendationPhotoResponse(
+        status="available",
+        source_record_id=occurrence_id,
+        species_name=species_name,
+        display_url=display_url,
+        source_url=source_url,
+        creator=creator,
+        rights_holder=rights_holder,
+        publisher=_text(row.summary.get("publisher")),
+        format=_text(row.summary.get("format")),
+        license_text=license_text,
+        license_url=license_url,
+        selection_reason=_text(row.summary.get("selection_reason")),
+        caveats=row.caveats,
+    )
+
+
+def _unavailable_call(caveats: list[str]) -> RecommendationCallResponse:
+    return RecommendationCallResponse(
+        status="unavailable",
+        source_record_id=None,
+        recording_id=None,
+        species_name=None,
+        geographic_scope=None,
+        recording_type=None,
+        quality=None,
+        recordist=None,
+        locality=None,
+        country=None,
+        source_url=None,
+        audio_url=None,
+        license_text=None,
+        license_url=None,
+        selection_reason=None,
+        caveats=caveats,
+    )
+
+
+def _recommendation_call(
+    row: EvidenceResponse | None, scientific_name: str | None
+) -> RecommendationCallResponse:
+    if row is None or row.status != "available":
+        return _unavailable_call(
+            row.caveats if row is not None else ["Call was not enriched for this plan"]
+        )
+    recording_id = _recording_id(row)
+    source = _safe_xeno_canto_url(row.summary.get("source_url"), kind="source")
+    audio = _safe_xeno_canto_url(row.summary.get("audio_url"), kind="audio")
+    species_name = _text(row.summary.get("species_name"))
+    scope = _text(row.summary.get("geographic_scope"))
+    recordist = _text(row.summary.get("recordist"))
+    license_text, license_url = _license(row.summary.get("license_url"))
+    identity_matches = (
+        scientific_name is not None
+        and species_name is not None
+        and scientific_name.casefold() == species_name.casefold()
+    )
+    valid_scope = scope in {"Arizona", "Global example"}
+    urls_match = (
+        recording_id is not None
+        and source is not None
+        and audio is not None
+        and source[1] == recording_id
+        and audio[1] == recording_id
+    )
+    if (
+        not urls_match
+        or not identity_matches
+        or not valid_scope
+        or not recordist
+        or not license_url
+    ):
+        return _unavailable_call([*row.caveats, "Persisted call metadata failed safety validation"])
+    assert source is not None and audio is not None
+    return RecommendationCallResponse(
+        status="available",
+        source_record_id=row.source_record_id,
+        recording_id=recording_id,
+        species_name=species_name,
+        geographic_scope=cast(Literal["Arizona", "Global example"], scope),
+        recording_type=_text(row.summary.get("recording_type")),
+        quality=_text(row.summary.get("quality")),
+        recordist=recordist,
+        locality=_text(row.summary.get("locality")),
+        country=_text(row.summary.get("country")),
+        source_url=source[0],
+        audio_url=audio[0],
+        license_text=license_text,
+        license_url=license_url,
+        selection_reason=_text(row.summary.get("selection_reason")),
         caveats=row.caveats,
     )
 
@@ -453,7 +652,6 @@ def _plan_detail(
     )
     for row in recommendation_rows:
         row["caveats"] = _json_strings(row.pop("caveats_json", None))
-    recommendations = [RecommendationResponse.model_validate(row) for row in recommendation_rows]
 
     evidence_rows = _rows(
         connection.execute(
@@ -473,6 +671,24 @@ def _plan_detail(
         row["payload"] = _json_object(row.pop("payload_json", None))
         row["caveats"] = _json_strings(row.pop("caveats_json", None))
     evidence = [EvidenceResponse.model_validate(row) for row in evidence_rows]
+    media_by_recommendation = {
+        (row.recommendation_id, row.evidence_type): row
+        for row in evidence
+        if row.recommendation_id is not None
+        and row.evidence_type in {"recommendation_photo", "recommendation_call"}
+    }
+    for row in recommendation_rows:
+        recommendation_id = cast(str, row["recommendation_id"])
+        scientific_name = cast(str | None, row.get("scientific_name"))
+        row["photo"] = _recommendation_photo(
+            media_by_recommendation.get((recommendation_id, "recommendation_photo")),
+            scientific_name,
+        )
+        row["call"] = _recommendation_call(
+            media_by_recommendation.get((recommendation_id, "recommendation_call")),
+            scientific_name,
+        )
+    recommendations = [RecommendationResponse.model_validate(row) for row in recommendation_rows]
 
     trace_rows = _rows(
         connection.execute(
@@ -492,6 +708,20 @@ def _plan_detail(
         row["caveats"] = _json_strings(row.pop("caveats_json", None))
     traces = [ToolTraceResponse.model_validate(row) for row in trace_rows]
 
+    public_evidence = [
+        row.model_copy(
+            update={
+                "payload": {
+                    key: value
+                    for key, value in row.payload.items()
+                    if key != "original_media_identifier"
+                }
+            }
+        )
+        if row.evidence_type == "recommendation_photo"
+        else row
+        for row in evidence
+    ]
     weather = next((row for row in evidence if row.source == "open_meteo"), None)
     if weather is not None:
         weather_timezone = weather.payload.get("timezone")
@@ -505,7 +735,7 @@ def _plan_detail(
     return TripPlanDetailResponse(
         plan=plan,
         recommendations=recommendations,
-        evidence=evidence,
+        evidence=public_evidence,
         weather=weather,
         media=media,
         tool_traces=traces,
@@ -549,6 +779,9 @@ def create_app(
     model_client: TripPlanModelClient | None = None,
     weather_getter: JsonGetter | None = None,
     geocoding_getter: JsonGetter | None = None,
+    media_gbif_getter: JsonGetter | None = None,
+    media_xeno_getter: JsonGetter | None = None,
+    xeno_api_key: str | None = None,
     static_dir: Path | None = None,
 ) -> FastAPI:
     """Create the local API; injected clients keep tests offline and deterministic."""
@@ -700,6 +933,9 @@ def create_app(
                     ),
                     model_client=model_client,
                     weather_getter=weather_getter,
+                    media_gbif_getter=media_gbif_getter,
+                    media_xeno_getter=media_xeno_getter,
+                    xeno_api_key=xeno_api_key,
                 )
                 detail = _plan_detail(connection, result.trip_plan_id)
                 if detail is None:

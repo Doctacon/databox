@@ -119,6 +119,9 @@ tasks:
     desc: "Launch the loopback FastAPI and Vite development servers"
     deps: ["app:install"]
     cmds: ["{{.VENV_DIR}}/bin/python scripts/run_local_app.py"]
+  media:backfill:
+    desc: "Dry-run or apply persisted recommendation media backfill"
+    cmds: ["{{.VENV_DIR}}/bin/python -m databox.agent_tools.recommendation_media_backfill {{.CLI_ARGS}}"]
   app:
     desc: "Build and launch Birding Trip Copilot at http://127.0.0.1:8000"
     deps: ["app:check"]

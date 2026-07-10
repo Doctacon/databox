@@ -30,11 +30,13 @@ The app MUST let a user:
 3. submit a trip-planning request,
 4. see clear running/success/failure state,
 5. view the persisted field plan,
-6. inspect high-likelihood and uncommon-plausible species,
-7. inspect weather/elevation context,
-8. inspect evidence/provenance and media/license links,
-9. inspect agent tool traces,
+6. inspect weather/elevation context,
+7. inspect high-likelihood and uncommon-plausible species with one persisted photo and call result per recommendation,
+8. inspect evidence/provenance as the final result section,
+9. inspect agent tool traces inside an accessible disclosure within Evidence and Provenance,
 10. select and revisit previous persisted plans.
+
+The exact result order, recommendation-card media behavior, attribution, placeholders, and removal of the standalone media section are governed by `.10x/specs/recommendation-card-media-layout.md`.
 
 The app MUST NOT require a user account or personal life-list/history.
 
@@ -80,7 +82,7 @@ A single documented task SHOULD launch the local API and React dev server. A pro
 ## Acceptance criteria
 
 - A user can create and revisit a trip plan entirely through the local React app.
-- The app renders persisted recommendations, evidence, weather context, media links, caveats, and tool traces.
+- The app renders persisted recommendations, weather context, recommendation-centric photo/call media, evidence, caveats, and tool traces in the order governed by `.10x/specs/recommendation-card-media-layout.md`.
 - Only the local Python process accesses DuckDB and Cloudflare credentials.
 - The app handles loading, empty, invalid-input, model-unavailable, source-unavailable, and database-busy states.
 - Frontend type/build tests and Python API tests pass.

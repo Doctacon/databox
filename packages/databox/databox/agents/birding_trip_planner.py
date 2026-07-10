@@ -38,6 +38,13 @@ from databox.agent_tools.persistence import (
     DuckDBConnection,
     ensure_birding_agent_persistence_tables,
 )
+from databox.agent_tools.recommendation_media import (
+    JsonGetter as MediaJsonGetter,
+)
+from databox.agent_tools.recommendation_media import (
+    RecommendationMediaEvidence,
+    enrich_recommendation_media,
+)
 from databox.agents.cloudflare_workers_ai import (
     CLOUDFLARE_WORKERS_AI_MODEL,
     CloudflareWorkersAIClient,
@@ -183,6 +190,9 @@ class BirdingTripPlanner:
         *,
         model_client: TripPlanModelClient,
         weather_getter: JsonGetter | None = None,
+        media_gbif_getter: MediaJsonGetter | None = None,
+        media_xeno_getter: MediaJsonGetter | None = None,
+        xeno_api_key: str | None = None,
         now: Callable[[], datetime] | None = None,
         radius_km: float = DEFAULT_RADIUS_KM,
     ) -> None:
@@ -191,6 +201,9 @@ class BirdingTripPlanner:
         self.connection = connection
         self.model_client = model_client
         self.weather_getter = weather_getter
+        self.media_gbif_getter = media_gbif_getter
+        self.media_xeno_getter = media_xeno_getter
+        self.xeno_api_key = xeno_api_key
         self.now = now or (lambda: datetime.now(UTC))
         self.radius_km = radius_km
 
@@ -295,38 +308,50 @@ class BirdingTripPlanner:
         )
         traces.append(trace)
 
-        media_rows, trace = self._record_tool(
+        media_batch, trace = self._record_tool(
             step_order=6,
-            tool_name="lookup_xeno_canto_media_evidence",
-            tool_input={"recommended_species": [self._species_label(rec) for rec in ranked]},
-            call=lambda: self.lookup_xeno_canto_media_evidence(ranked),
-            summary=lambda rows: {"row_count": len(rows)},
+            tool_name="enrich_recommendation_media",
+            tool_input={"recommendation_count": len(ranked)},
+            call=lambda: enrich_recommendation_media(
+                ranked,
+                gbif_getter=self.media_gbif_getter,
+                xeno_getter=self.media_xeno_getter,
+                xeno_api_key=self.xeno_api_key,
+            ),
+            summary=lambda batch: {
+                "lookup_count": batch.lookup_count,
+                "result_count": len(batch.evidence),
+                "available_photos": batch.available_photos,
+                "available_calls": batch.available_calls,
+                "arizona_calls": batch.arizona_calls,
+                "global_calls": batch.global_calls,
+                "unavailable_results": sum(row.status == "unavailable" for row in batch.evidence),
+                "caveat_count": len(batch.caveats),
+            },
         )
         traces.append(trace)
 
-        evidence, trace = self._record_tool(
+        core_evidence, trace = self._record_tool(
             step_order=7,
             tool_name="build_trip_plan_evidence",
             tool_input={
                 "recent_observation_rows": len(recent_rows),
                 "gbif_occurrence_rows": len(occurrence_rows),
-                "media_rows": len(media_rows),
                 "weather_status": weather_context.status,
             },
             call=lambda: self.build_evidence_records(
                 recent_rows,
                 occurrence_rows,
-                media_rows,
                 ranked,
                 weather_context,
             ),
             summary=lambda rows: {"evidence_rows": len(rows)},
         )
         traces.append(trace)
+        media_evidence = [_media_evidence_record(row) for row in media_batch.evidence]
+        evidence = [*core_evidence, *media_evidence]
 
-        caveats = self._plan_caveats(
-            location, recent_rows, occurrence_rows, media_rows, weather_context
-        )
+        caveats = self._plan_caveats(location, recent_rows, occurrence_rows, weather_context)
         try:
             synthesis, trace = self._record_required_model_tool(
                 step_order=8,
@@ -334,7 +359,7 @@ class BirdingTripPlanner:
                 location=location,
                 weather_context=weather_context,
                 recommendations=ranked,
-                evidence=evidence,
+                evidence=core_evidence,
                 caveats=caveats,
             )
         except CloudflareWorkersAIError as exc:
@@ -528,54 +553,6 @@ class BirdingTripPlanner:
             ],
         )
 
-    def lookup_xeno_canto_media_evidence(
-        self, recommendations: Sequence[SpeciesRecommendation], *, limit: int = 100
-    ) -> list[dict[str, Any]]:
-        names = sorted(
-            {
-                name.lower()
-                for rec in recommendations
-                for name in (rec.common_name, rec.scientific_name)
-                if name
-            }
-        )
-        if not names:
-            return []
-        clauses = " OR ".join(
-            ["lower(english_name) = ? OR lower(genus || ' ' || species) = ?" for _ in names]
-        )
-        params: list[object] = []
-        for name in names:
-            params.extend([name, name])
-        params.append(limit)
-        query = f"""
-            SELECT
-                media_evidence_id,
-                source_table,
-                source_record_id,
-                recording_id,
-                english_name,
-                genus,
-                species,
-                recordist,
-                country,
-                locality,
-                latitude,
-                longitude,
-                recording_type,
-                recording_url,
-                audio_file_url,
-                license,
-                quality,
-                recording_date,
-                loaded_at
-            FROM birding_agent.xeno_canto_media_evidence
-            WHERE {clauses}
-            ORDER BY quality ASC NULLS LAST, loaded_at DESC NULLS LAST
-            LIMIT ?
-        """
-        return _fetch_dicts(self.connection, query, params)
-
     def rank_likely_species(
         self,
         recent_rows: Sequence[Mapping[str, Any]],
@@ -649,7 +626,6 @@ class BirdingTripPlanner:
         self,
         recent_rows: Sequence[Mapping[str, Any]],
         occurrence_rows: Sequence[Mapping[str, Any]],
-        media_rows: Sequence[Mapping[str, Any]],
         recommendations: Sequence[SpeciesRecommendation],
         weather_context: OpenMeteoTripContext,
     ) -> list[EvidenceRecord]:
@@ -708,35 +684,6 @@ class BirdingTripPlanner:
         if not occurrence_rows:
             evidence.append(_missing_evidence("gbif", "occurrence_context", "No GBIF rows found"))
 
-        for row in media_rows[:20]:
-            media_name = _lower_or_none(row.get("english_name")) or _lower_or_none(
-                _scientific_from_media(row)
-            )
-            evidence.append(
-                EvidenceRecord(
-                    source="xeno_canto",
-                    source_table=_string_or_none(row.get("source_table")),
-                    source_record_id=_string_or_none(row.get("source_record_id")),
-                    evidence_type="media_context",
-                    status="available",
-                    latitude=_float_or_none(row.get("latitude")),
-                    longitude=_float_or_none(row.get("longitude")),
-                    recommendation_id=rec_by_species.get(media_name),
-                    summary={
-                        "english_name": row.get("english_name"),
-                        "recording_type": row.get("recording_type"),
-                        "quality": row.get("quality"),
-                        "license": row.get("license"),
-                        "recording_url": row.get("recording_url"),
-                    },
-                    payload=dict(row),
-                )
-            )
-        if not media_rows:
-            evidence.append(
-                _missing_evidence("xeno_canto", "media_context", "No Xeno-canto rows found")
-            )
-
         return evidence
 
     def compose_field_plan(
@@ -785,6 +732,7 @@ class BirdingTripPlanner:
         field_plan_text: str,
         caveats: Sequence[str],
     ) -> None:
+        _validate_recommendation_media_cardinality(recommendations, evidence)
         ensure_birding_agent_persistence_tables(self.connection)
         self.connection.execute("BEGIN TRANSACTION")
         try:
@@ -1000,7 +948,6 @@ class BirdingTripPlanner:
         location: NormalizedLocation,
         recent_rows: Sequence[Mapping[str, Any]],
         occurrence_rows: Sequence[Mapping[str, Any]],
-        media_rows: Sequence[Mapping[str, Any]],
         weather_context: OpenMeteoTripContext,
     ) -> list[str]:
         caveats = list(location.caveats)
@@ -1008,10 +955,6 @@ class BirdingTripPlanner:
             caveats.append("No recent eBird evidence was available for the requested location")
         if not occurrence_rows:
             caveats.append("No GBIF occurrence context was available for the requested location")
-        if not media_rows:
-            caveats.append(
-                "No Xeno-canto media examples were available for the recommended species"
-            )
         caveats.extend(weather_context.caveats)
         return caveats
 
@@ -1141,6 +1084,9 @@ class BirdingTripPlannerAdkAgent(BaseAgent):
     request: TripRequest = Field(exclude=True)
     trip_plan_id: str | None = None
     weather_getter: Any = Field(default=None, exclude=True)
+    media_gbif_getter: Any = Field(default=None, exclude=True)
+    media_xeno_getter: Any = Field(default=None, exclude=True)
+    xeno_api_key: str | None = Field(default=None, exclude=True)
     model_client: Any = Field(exclude=True)
 
     async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
@@ -1148,6 +1094,9 @@ class BirdingTripPlannerAdkAgent(BaseAgent):
             self.connection,
             model_client=cast(TripPlanModelClient, self.model_client),
             weather_getter=self.weather_getter,
+            media_gbif_getter=self.media_gbif_getter,
+            media_xeno_getter=self.media_xeno_getter,
+            xeno_api_key=self.xeno_api_key,
         )
         result = await asyncio.to_thread(
             planner.plan_trip,
@@ -1179,7 +1128,7 @@ def build_root_agent() -> Agent:
         instruction=(
             "Plan only birding trips. Use bounded tools for location normalization, "
             "recent eBird evidence, GBIF occurrence context, Open-Meteo weather/elevation, "
-            "Xeno-canto media context, ranking, and persistence. Never assume a personal "
+            "request-time recommendation media, ranking, and persistence. Never assume a personal "
             "life list or stored user history. Surface source-unavailable caveats."
         ),
         tools=[
@@ -1188,7 +1137,7 @@ def build_root_agent() -> Agent:
             lookup_gbif_occurrence_evidence_tool,
             fetch_open_meteo_trip_context_tool,
             rank_likely_species_tool,
-            lookup_xeno_canto_media_evidence_tool,
+            enrich_recommendation_media_tool,
             synthesize_grounded_trip_plan_tool,
             persist_trip_plan_tool,
         ],
@@ -1240,10 +1189,10 @@ def rank_likely_species_tool() -> dict[str, Any]:
     return {"tool": "rank_likely_species"}
 
 
-def lookup_xeno_canto_media_evidence_tool(species_names: list[str]) -> dict[str, Any]:
-    """Describe the Xeno-canto media evidence lookup tool contract."""
+def enrich_recommendation_media_tool(recommendation_ids: list[str]) -> dict[str, Any]:
+    """Describe the bounded request-time media-enrichment tool contract."""
 
-    return {"tool": "lookup_xeno_canto_media_evidence", "species_names": species_names}
+    return {"tool": "enrich_recommendation_media", "recommendation_ids": recommendation_ids}
 
 
 def synthesize_grounded_trip_plan_tool(recommendation_ids: list[str]) -> dict[str, Any]:
@@ -1268,6 +1217,9 @@ async def run_trip_planner_agent_async(
     request: TripRequest,
     trip_plan_id: str | None = None,
     weather_getter: JsonGetter | None = None,
+    media_gbif_getter: MediaJsonGetter | None = None,
+    media_xeno_getter: MediaJsonGetter | None = None,
+    xeno_api_key: str | None = None,
     model_client: TripPlanModelClient | None = None,
 ) -> TripPlanResult:
     """Run one bounded trip plan without blocking the caller's event loop."""
@@ -1279,6 +1231,9 @@ async def run_trip_planner_agent_async(
         request=request,
         trip_plan_id=trip_plan_id,
         weather_getter=weather_getter,
+        media_gbif_getter=media_gbif_getter,
+        media_xeno_getter=media_xeno_getter,
+        xeno_api_key=xeno_api_key,
         model_client=resolved_model_client,
     )
     runner = InMemoryRunner(agent=agent, app_name="databox_birding_trip_planner")
@@ -1315,6 +1270,9 @@ def run_trip_planner_agent(
     request: TripRequest,
     trip_plan_id: str | None = None,
     weather_getter: JsonGetter | None = None,
+    media_gbif_getter: MediaJsonGetter | None = None,
+    media_xeno_getter: MediaJsonGetter | None = None,
+    xeno_api_key: str | None = None,
     model_client: TripPlanModelClient | None = None,
 ) -> TripPlanResult:
     """Synchronous CLI/test wrapper; async callers must use the async entry point."""
@@ -1328,6 +1286,9 @@ def run_trip_planner_agent(
                 request=request,
                 trip_plan_id=trip_plan_id,
                 weather_getter=weather_getter,
+                media_gbif_getter=media_gbif_getter,
+                media_xeno_getter=media_xeno_getter,
+                xeno_api_key=xeno_api_key,
                 model_client=model_client,
             )
         )
@@ -1343,6 +1304,9 @@ def plan_trip(
     request: TripRequest,
     trip_plan_id: str | None = None,
     weather_getter: JsonGetter | None = None,
+    media_gbif_getter: MediaJsonGetter | None = None,
+    media_xeno_getter: MediaJsonGetter | None = None,
+    xeno_api_key: str | None = None,
     model_client: TripPlanModelClient | None = None,
 ) -> TripPlanResult:
     """Generate and persist one trip plan against the local DuckDB database path."""
@@ -1353,6 +1317,9 @@ def plan_trip(
             request=request,
             trip_plan_id=trip_plan_id,
             weather_getter=weather_getter,
+            media_gbif_getter=media_gbif_getter,
+            media_xeno_getter=media_xeno_getter,
+            xeno_api_key=xeno_api_key,
             model_client=model_client,
         )
 
@@ -1536,6 +1503,37 @@ def _rationale(group_name: str, recent_count: int, gbif_count: int) -> str:
     )
 
 
+def _validate_recommendation_media_cardinality(
+    recommendations: Sequence[SpeciesRecommendation], evidence: Sequence[EvidenceRecord]
+) -> None:
+    expected = {
+        (recommendation.recommendation_id, evidence_type)
+        for recommendation in recommendations
+        for evidence_type in ("recommendation_photo", "recommendation_call")
+    }
+    counts = Counter(
+        (row.recommendation_id, row.evidence_type)
+        for row in evidence
+        if row.evidence_type in {"recommendation_photo", "recommendation_call"}
+    )
+    if set(counts) != expected or any(count != 1 for count in counts.values()):
+        raise ValueError("Each recommendation requires exactly one photo and one call result")
+
+
+def _media_evidence_record(row: RecommendationMediaEvidence) -> EvidenceRecord:
+    return EvidenceRecord(
+        source=row.source,
+        source_table=None,
+        source_record_id=row.source_record_id,
+        evidence_type=row.evidence_type,
+        status=row.status,
+        summary=row.summary,
+        payload=row.payload,
+        caveats=row.caveats,
+        recommendation_id=row.recommendation_id,
+    )
+
+
 def _missing_evidence(source: str, evidence_type: str, caveat: str) -> EvidenceRecord:
     return EvidenceRecord(
         source=source,
@@ -1566,14 +1564,6 @@ def _weather_sentence(context: OpenMeteoTripContext) -> str:
         bits.append(f"max precip chance {precip}%")
     weather = ", ".join(bits) or f"status {context.status}"
     return f"Open-Meteo context{elevation}: {weather}."
-
-
-def _scientific_from_media(row: Mapping[str, Any]) -> str | None:
-    genus = _string_or_none(row.get("genus"))
-    species = _string_or_none(row.get("species"))
-    if genus and species:
-        return f"{genus} {species}"
-    return None
 
 
 def _lower_or_none(value: object) -> str | None:

@@ -31,7 +31,7 @@ EXPECTED_TOOL_NAMES = [
     "lookup_gbif_occurrence_evidence",
     "fetch_open_meteo_trip_context",
     "rank_likely_species",
-    "lookup_xeno_canto_media_evidence",
+    "enrich_recommendation_media",
     "build_trip_plan_evidence",
     "synthesize_grounded_trip_plan",
     "persist_trip_plan",
@@ -208,7 +208,10 @@ class SourceUnavailableCaveatMetric(BaseMetric):
         }
         missing_sources = sorted(self.unavailable_sources - unavailable)
         missing_tools = sorted(expected_tools - trace_failures)
-        has_caveat_text = all(source in caveat_text for source in ("ebird", "gbif", "xeno-canto"))
+        display_names = {"ebird": "ebird", "gbif": "gbif", "xeno_canto": "xeno-canto"}
+        has_caveat_text = all(
+            display_names[source] in caveat_text for source in self.unavailable_sources
+        )
         passed = not missing_sources and not missing_tools and has_caveat_text
         self.score = 1.0 if passed else 0.0
         self.success = passed
@@ -260,6 +263,11 @@ def _weather_response(endpoint: str, params: Mapping[str, object]) -> dict[str, 
             },
         }
     raise AssertionError(f"unexpected endpoint {endpoint}")
+
+
+def _empty_media_response(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+    _ = params
+    return {"results": []} if "gbif" in endpoint else {"recordings": []}
 
 
 def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
@@ -519,6 +527,9 @@ def test_thumb_butte_golden_trip_plan_uses_tools_and_persists_evidence() -> None
         con,
         model_client=FakeTripPlanModelClient(),
         weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
     )
 
     result = planner.plan_trip(
@@ -570,6 +581,9 @@ def test_sparse_trip_plan_surfaces_unavailable_source_caveats() -> None:
         con,
         model_client=FakeTripPlanModelClient(),
         weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
     )
 
     result = planner.plan_trip(
@@ -606,7 +620,7 @@ def test_sparse_trip_plan_surfaces_unavailable_source_caveats() -> None:
                 should_exact_match=True,
                 model=NOOP_MODEL,
             ),
-            SourceUnavailableCaveatMetric(unavailable_sources={"ebird", "gbif", "xeno_canto"}),
+            SourceUnavailableCaveatMetric(unavailable_sources={"ebird", "gbif"}),
             NoPersonalHistoryAssumptionMetric(),
         ],
         run_async=False,

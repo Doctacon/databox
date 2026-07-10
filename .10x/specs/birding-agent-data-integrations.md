@@ -34,6 +34,8 @@ The Xeno-canto integration SHOULD land durable metadata through dlt into a `raw_
 
 The integration MUST preserve species names/codes, recording IDs or URLs, quality/rating fields where available, location/date metadata where available, license fields where available, and attribution/provenance metadata.
 
+Scheduled source data is supplemented by the user-ratified bounded request-time media behavior in `.10x/specs/recommendation-media-enrichment.md`. Exact GBIF/Xeno-canto lookup for the fixed recommendation set MUST persist selected metadata and unavailable states in the same DuckDB before display; it does not replace or weaken independently runnable dlt/Quack source jobs.
+
 ### Open-Meteo
 
 Open-Meteo SHOULD provide request-time weather forecast and elevation context for a specific trip location/time.
@@ -70,4 +72,5 @@ Every new durable source integration MUST include:
 - Open-Meteo weather/elevation context can be retrieved for a requested trip location/time and persisted as trip evidence.
 - New raw schemas do not break existing `task verify`, `task ci`, or existing source jobs.
 - Planner-ready SQL interfaces exist for species/occurrence/media/weather evidence needed by `.10x/specs/birding-trip-copilot.md`.
+- Bounded request-time recommendation media enrichment follows `.10x/specs/recommendation-media-enrichment.md` and persists exact selected metadata in the single DuckDB.
 - Source provenance and license/attribution fields are preserved where upstream APIs provide them.

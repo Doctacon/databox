@@ -27,6 +27,41 @@ export interface TripPlan extends PlanSummary {
   field_plan_text: string | null;
 }
 
+export interface RecommendationPhoto {
+  status: "available" | "unavailable";
+  source_record_id: string | null;
+  species_name: string | null;
+  display_url: string | null;
+  source_url: string | null;
+  creator: string | null;
+  rights_holder: string | null;
+  publisher: string | null;
+  format: string | null;
+  license_text: string | null;
+  license_url: string | null;
+  selection_reason: string | null;
+  caveats: string[];
+}
+
+export interface RecommendationCall {
+  status: "available" | "unavailable";
+  source_record_id: string | null;
+  recording_id: string | null;
+  species_name: string | null;
+  geographic_scope: "Arizona" | "Global example" | null;
+  recording_type: string | null;
+  quality: string | null;
+  recordist: string | null;
+  locality: string | null;
+  country: string | null;
+  source_url: string | null;
+  audio_url: string | null;
+  license_text: string | null;
+  license_url: string | null;
+  selection_reason: string | null;
+  caveats: string[];
+}
+
 export interface Recommendation {
   recommendation_id: string;
   species_code: string | null;
@@ -37,6 +72,8 @@ export interface Recommendation {
   confidence_label: string | null;
   rationale_text: string | null;
   caveats: string[];
+  photo: RecommendationPhoto;
+  call: RecommendationCall;
 }
 
 export interface Evidence {
