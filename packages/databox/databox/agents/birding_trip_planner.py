@@ -1211,6 +1211,9 @@ def persist_trip_plan_tool(trip_plan_id: str) -> dict[str, Any]:
     return {"tool": "persist_trip_plan", "trip_plan_id": trip_plan_id}
 
 
+_ADK_APP_NAME = "agents"
+
+
 async def run_trip_planner_agent_async(
     connection: DuckDBConnection,
     *,
@@ -1236,7 +1239,7 @@ async def run_trip_planner_agent_async(
         xeno_api_key=xeno_api_key,
         model_client=resolved_model_client,
     )
-    runner = InMemoryRunner(agent=agent, app_name="databox_birding_trip_planner")
+    runner = InMemoryRunner(agent=agent, app_name=_ADK_APP_NAME)
     session_id = trip_plan_id or f"session_{uuid.uuid4().hex}"
     message = types.Content(
         role="user",
@@ -1250,18 +1253,21 @@ async def run_trip_planner_agent_async(
         ],
     )
     await runner.session_service.create_session(
-        app_name="databox_birding_trip_planner",
+        app_name=_ADK_APP_NAME,
         user_id="local_user",
         session_id=session_id,
     )
+    result: TripPlanResult | None = None
     async for event in runner.run_async(
         user_id="local_user",
         session_id=session_id,
         new_message=message,
     ):
-        if isinstance(event.output, TripPlanResult):
-            return event.output
-    raise RuntimeError("ADK trip planner completed without producing a trip plan")
+        if result is None and isinstance(event.output, TripPlanResult):
+            result = event.output
+    if result is None:
+        raise RuntimeError("ADK trip planner completed without producing a trip plan")
+    return result
 
 
 def run_trip_planner_agent(

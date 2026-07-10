@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +28,7 @@ from databox.agents.cloudflare_workers_ai import (
     GroundedSynthesisRequest,
     GroundedSynthesisResult,
 )
+from google.adk.runners import InMemoryRunner
 
 
 class FailingTripPlanModelClient:
@@ -610,25 +613,46 @@ def test_request_time_media_persists_exact_cardinality_without_changing_model_gr
     assert "secret-fixture-key" not in (media_trace[0] + media_trace[1])
 
 
-@pytest.mark.asyncio
-async def test_async_adk_entry_runs_blocking_planner_without_blocking_loop() -> None:
-    con = duckdb.connect(":memory:")
-    _seed_planner_views(con)
-    result = await run_trip_planner_agent_async(
-        con,
-        request=TripRequest(
-            location="Thumb Butte",
-            start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
-            duration_minutes=90,
-        ),
-        trip_plan_id="trip-async-test",
-        weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
-        media_xeno_getter=_empty_media_response,
-        xeno_api_key="test-key",
-        model_client=FakeTripPlanModelClient(),
-    )
+def test_async_adk_entry_drains_real_runner_without_cleanup_logs(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exhausted = False
+    original_run_async = InMemoryRunner.run_async
+
+    async def tracked_run_async(self: InMemoryRunner, **kwargs: Any):
+        nonlocal exhausted
+        async for event in original_run_async(self, **kwargs):
+            yield event
+        exhausted = True
+
+    monkeypatch.setattr(InMemoryRunner, "run_async", tracked_run_async)
+    caplog.set_level(logging.WARNING)
+
+    async def run_scenario():
+        con = duckdb.connect(":memory:")
+        _seed_planner_views(con)
+        return await run_trip_planner_agent_async(
+            con,
+            request=TripRequest(
+                location="Thumb Butte",
+                start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+                duration_minutes=90,
+            ),
+            trip_plan_id="trip-async-test",
+            weather_getter=_weather_response,
+            media_gbif_getter=_empty_media_response,
+            media_xeno_getter=_empty_media_response,
+            xeno_api_key="test-key",
+            model_client=FakeTripPlanModelClient(),
+        )
+
+    result = asyncio.run(run_scenario())
     assert result.trip_plan_id == "trip-async-test"
+    # asyncio.run has completed shutdown_asyncgens and closed the loop before log checks.
+    assert "App name mismatch detected" not in caplog.text
+    assert "Failed to detach context" not in caplog.text
+    assert "GeneratorExit" not in caplog.text
+    assert exhausted is True
 
 
 @pytest.mark.asyncio
