@@ -59,6 +59,7 @@ CDM fact: one row per eBird observation submission id across recent and notable 
 
 **Downstream**
 
+- [`birding_agent.arizona_species_catalog`](../birding_agent/arizona_species_catalog.md)
 - [`birding_agent.recent_observation_evidence`](../birding_agent/recent_observation_evidence.md)
 
 ## Example query

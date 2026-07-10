@@ -36,6 +36,137 @@ Table dim_species [note: 'table_type:dimension; surrogate_key:species_sk; scd_ty
   loaded_at timestamp
 }
 
+Table dim_bird_species_traits [note: 'table_type:dimension; surrogate_key:bird_species_traits_sk; scd_type:1; conformed:true; source_entity:BirdSpeciesTraits; natural_key:normalized_scientific_name; match_policy:exact_governed_normalization_only; scope:global_species_average'] {
+  bird_species_traits_sk varchar [pk]
+  species_sk varchar [not null, unique, ref: > dim_species.species_sk]
+  species_natural_key varchar [not null, unique]
+  source_scientific_name varchar [not null]
+  family varchar [not null]
+  order_name varchar [not null]
+  avibase_id varchar [not null, unique]
+  total_individuals bigint
+  female_individuals bigint
+  male_individuals bigint
+  unknown_sex_individuals bigint
+  complete_measures bigint
+  beak_length_culmen_mm double
+  beak_length_nares_mm double
+  beak_width_mm double
+  beak_depth_mm double
+  tarsus_length_mm double
+  wing_length_mm double
+  kipps_distance_mm double
+  secondary_length_mm double
+  hand_wing_index double [note: 'dimensionless']
+  tail_length_mm double
+  mass_g double
+  mass_source varchar
+  mass_reference_other varchar
+  inference bool
+  traits_inferred varchar
+  reference_species varchar
+  habitat varchar
+  habitat_density_code bigint [note: '1 dense; 2 semi-open; 3 open']
+  habitat_density_label varchar
+  migration_code bigint [note: '1 sedentary; 2 partial migrant; 3 migratory']
+  migration_label varchar
+  trophic_level varchar
+  trophic_niche varchar
+  primary_lifestyle varchar
+  dataset_doi varchar
+  dataset_version varchar
+  dataset_license varchar
+  source_file_id bigint
+  source_file_md5 varchar
+  source_url varchar
+  loaded_at timestamp
+  dlt_load_id varchar
+  dlt_id varchar
+}
+
+Table arizona_species_catalog [note: 'schema:birding_agent; table_type:interface; grain:one row per taxon in the single latest complete eBird US-AZ species-list snapshot; taxonomy:single latest complete global eBird taxonomy snapshot; membership:eBird species code; duplicate snapshot species codes fail; missing evidence never removes membership; order:taxonomic_order then species_code'] {
+  arizona_species_catalog_id varchar [pk]
+  species_code varchar [not null, unique]
+  region_code varchar [not null, note: 'US-AZ']
+  common_name varchar
+  scientific_name varchar
+  species_natural_key varchar
+  taxonomic_category varchar [note: 'species or hybrid']
+  taxonomic_order double
+  order_name varchar
+  family_code varchar
+  family_common_name varchar
+  family_scientific_name varchar
+  report_as varchar
+  extinct bool
+  extinct_year bigint
+  species_sk varchar [ref: > dim_species.species_sk]
+  traits_status varchar [not null, note: 'available only for exact AVONET normalized scientific-name match; otherwise unavailable']
+  bird_species_traits_sk varchar [ref: > dim_bird_species_traits.bird_species_traits_sk]
+  source_scientific_name varchar
+  avonet_family varchar
+  avonet_order_name varchar
+  avibase_id varchar
+  total_individuals bigint
+  female_individuals bigint
+  male_individuals bigint
+  unknown_sex_individuals bigint
+  complete_measures bigint
+  beak_length_culmen_mm double
+  beak_length_nares_mm double
+  beak_width_mm double
+  beak_depth_mm double
+  tarsus_length_mm double
+  wing_length_mm double
+  kipps_distance_mm double
+  secondary_length_mm double
+  hand_wing_index double
+  tail_length_mm double
+  mass_g double
+  mass_source varchar
+  mass_reference_other varchar
+  inference bool
+  traits_inferred varchar
+  reference_species varchar
+  habitat varchar
+  habitat_density_code bigint
+  habitat_density_label varchar
+  migration_code bigint
+  migration_label varchar
+  trophic_level varchar
+  trophic_niche varchar
+  primary_lifestyle varchar
+  dataset_doi varchar
+  dataset_version varchar
+  dataset_license varchar
+  source_file_id bigint
+  source_file_md5 varchar
+  avonet_source_url varchar
+  avonet_loaded_at timestamp
+  avonet_dlt_load_id varchar
+  avonet_dlt_id varchar
+  recent_public_observation_count bigint [not null, note: 'valid, reviewed, non-private US-AZ observation records only']
+  latest_public_observation_at timestamp
+  public_location_count bigint [not null]
+  recent_public_notable_count bigint [not null]
+  top_public_locations_json varchar [note: 'at most ten public locations ordered by observation count, newest observation, name, and location id; name/latitude/longitude come together from one deterministic newest qualifying public observation row']
+  gbif_occurrence_count bigint [not null]
+  gbif_latest_event_date date
+  xeno_canto_recording_count bigint [not null]
+  xeno_canto_latest_recording_date date
+  representative_recording_id varchar
+  representative_recordist varchar
+  representative_recording_type varchar
+  representative_recording_quality varchar
+  representative_recording_license varchar
+  species_list_loaded_at timestamp
+  taxonomy_loaded_at timestamp
+  ebird_observations_loaded_at timestamp
+  gbif_loaded_at timestamp
+  xeno_canto_loaded_at timestamp
+  catalog_freshness_at timestamp
+}
+
 Table dim_bird_hotspot [note: 'table_type:dimension; surrogate_key:bird_hotspot_sk; scd_type:1; conformed:false; source_entity:BirdHotspot'] {
   bird_hotspot_sk varchar [pk, note: 'Stable string hash of source_pipeline and loc_id; UNKNOWN sentinel is present']
   source_pipeline varchar [not null]

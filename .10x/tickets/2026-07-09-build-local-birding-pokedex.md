@@ -30,7 +30,7 @@ This is a parent plan and is not executable directly.
 
 0. Compact the existing planner independently through `.10x/tickets/done/2026-07-09-compact-and-paginate-trip-plan-results.md`.
 1. Add the AVONET source through `.10x/tickets/done/2026-07-09-add-avonet-bird-traits-source.md`.
-2. Build modeled traits/catalog through `.10x/tickets/2026-07-09-model-avonet-traits-and-arizona-catalog.md`.
+2. Build modeled traits/catalog through `.10x/tickets/done/2026-07-09-model-avonet-traits-and-arizona-catalog.md`.
 3. Build the read-only catalog/profile UI through `.10x/tickets/2026-07-09-build-arizona-bird-catalog-and-profile.md`.
 4. Specify manual observation records, derived life list, wishlist, and per-species watch management.
 5. Specify origin/radius target-bird planning and its relationship to species profiles and existing planner artifacts.
@@ -68,6 +68,7 @@ Catalog/profile must precede personal collection and target workflows because th
 - 2026-07-09: User rejected external narrative profiles and selected AVONET v7 as the only new modeled bird-trait source. Source inspection established CC BY 4.0, exact pinned file identity, 10,661 eBird-aligned rows, and current exact Arizona coverage of 600/624 species with 24 taxonomy-drift species and 82 hybrids explicitly unavailable.
 - 2026-07-09: Activated focused AVONET source and Arizona catalog/profile specifications and opened three dependency-ordered implementation tickets.
 - 2026-07-10: AVONET source child completed after critical repair from unsupported direct replacement to transient Quack staging plus validated atomic post-Quack publication; 105 focused tests and independent final review passed.
+- 2026-07-10: Trait/catalog model child completed after repairs for complete-snapshot membership and coherent public-location tuples; 13 SQLMesh tests, exact 706/624/82/600/24 coverage measurement, and independent final review passed.
 
 ## Blockers
 

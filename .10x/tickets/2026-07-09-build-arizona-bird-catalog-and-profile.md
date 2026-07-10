@@ -2,7 +2,7 @@ Status: open
 Created: 2026-07-09
 Updated: 2026-07-09
 Parent: .10x/tickets/2026-07-09-build-local-birding-pokedex.md
-Depends-On: .10x/tickets/2026-07-09-model-avonet-traits-and-arizona-catalog.md
+Depends-On: .10x/tickets/done/2026-07-09-model-avonet-traits-and-arizona-catalog.md
 
 # Build Arizona bird catalog and modeled profile
 
@@ -42,4 +42,4 @@ Record API contracts/cardinality/privacy, rendered navigation/list/detail/filter
 
 ## Blockers
 
-Depends on the modeled Arizona catalog and AVONET trait interface.
+None; the modeled Arizona catalog and AVONET trait interface are complete and independently reviewed.

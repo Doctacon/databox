@@ -12,7 +12,8 @@ EarthquakeEvent	EarthquakeEvent	false	No cross-source natural key/stitching stra
 
 BirdOccurrence	BirdOccurrence	false	No cross-source natural key/stitching strategy required.
 BirdSoundRecording	BirdSoundRecording	false	No cross-source natural key/stitching strategy required. Audio remains an external linked artifact; CDM stores metadata and URLs only.
-BirdSpeciesTraits	BirdSpeciesTraits	false	Natural key: avibase_id. Global AVONET species-average traits; no taxonomy guess or Arizona-specific claim. Authoritative rows are atomically published only from a fully validated transient Quack staging snapshot.
+BirdSpeciesTraits	BirdSpeciesTraits	false	Natural key: normalized_scientific_name after exact modeled conformance; source avibase_id retained. Global AVONET species-average traits; no taxonomy guess or Arizona-specific claim.
+ArizonaBirdCatalog	ArizonaBirdCatalog	false	Natural key: eBird species_code. Membership and taxonomy come from their single latest complete snapshots; older-only codes are absent, duplicate selected-snapshot codes fail, and missing evidence never removes a current row.
 
 nodes.Attribute
 entity	name	type	master_source	also_in	note
@@ -313,6 +314,30 @@ entity	name	type	master_source	also_in	note
 :Entity:BirdSpeciesTraits	_dlt_load_id	text	avonet.species_traits		dlt metadata, not null
 :Entity:BirdSpeciesTraits	_dlt_id	text	avonet.species_traits		dlt metadata, not null, row_key, unique
 
+:Entity:BirdSpeciesTraits	bird_species_traits_sk	text	environmental_observations.dim_bird_species_traits		modeled key, not null, unique
+:Entity:BirdSpeciesTraits	species_sk	text	environmental_observations.dim_bird_species_traits		exact conformed species reference, not null, unique
+:Entity:BirdSpeciesTraits	species_natural_key	text	environmental_observations.dim_bird_species_traits		governed exact normalized name, not null, unique
+:Entity:BirdSpeciesTraits	habitat_density_label	text	environmental_observations.dim_bird_species_traits		Dense, Semi-open, or Open
+:Entity:BirdSpeciesTraits	migration_label	text	environmental_observations.dim_bird_species_traits		Sedentary, Partial migrant, or Migratory
+:Entity:ArizonaBirdCatalog	arizona_species_catalog_id	text	birding_agent.arizona_species_catalog		modeled key, not null, unique
+:Entity:ArizonaBirdCatalog	species_code	text	birding_agent.arizona_species_catalog		eBird identity, not null, unique
+:Entity:ArizonaBirdCatalog	region_code	text	birding_agent.arizona_species_catalog		US-AZ
+:Entity:ArizonaBirdCatalog	common_name	text	birding_agent.arizona_species_catalog		latest eBird taxonomy
+:Entity:ArizonaBirdCatalog	scientific_name	text	birding_agent.arizona_species_catalog		latest eBird taxonomy
+:Entity:ArizonaBirdCatalog	taxonomic_category	text	birding_agent.arizona_species_catalog		species or hybrid
+:Entity:ArizonaBirdCatalog	taxonomic_order	double	birding_agent.arizona_species_catalog		default order with species-code tie-break
+:Entity:ArizonaBirdCatalog	traits_status	text	birding_agent.arizona_species_catalog		available only for exact AVONET match
+:Entity:ArizonaBirdCatalog	recent_public_observation_count	bigint	birding_agent.arizona_species_catalog		valid reviewed non-private US-AZ only
+:Entity:ArizonaBirdCatalog	latest_public_observation_at	timestamp	birding_agent.arizona_species_catalog
+:Entity:ArizonaBirdCatalog	public_location_count	bigint	birding_agent.arizona_species_catalog		distinct public location IDs
+:Entity:ArizonaBirdCatalog	recent_public_notable_count	bigint	birding_agent.arizona_species_catalog
+:Entity:ArizonaBirdCatalog	top_public_locations_json	text	birding_agent.arizona_species_catalog		at most ten deterministically ordered public locations; each metadata tuple comes from one existing ranked public observation
+:Entity:ArizonaBirdCatalog	gbif_occurrence_count	bigint	birding_agent.arizona_species_catalog		zero when unavailable
+:Entity:ArizonaBirdCatalog	gbif_latest_event_date	date	birding_agent.arizona_species_catalog
+:Entity:ArizonaBirdCatalog	xeno_canto_recording_count	bigint	birding_agent.arizona_species_catalog		zero when unavailable
+:Entity:ArizonaBirdCatalog	representative_recording_id	text	birding_agent.arizona_species_catalog		deterministically selected metadata only
+:Entity:ArizonaBirdCatalog	catalog_freshness_at	timestamp	birding_agent.arizona_species_catalog		greatest available source freshness
+
 edges.OBSERVED_AT
 from	to	via	inferred
 :Entity:BirdObservation	:Entity:BirdHotspot	ebird_api.recent_observations.loc_id -> ebird_api.hotspots.loc_id	true
@@ -332,3 +357,11 @@ from	to	via	inferred
 edges.DESCRIBES_SPECIES
 from	to	via	inferred
 :Entity:BirdSpeciesTraits	:Entity:Species	avonet.species_traits.source_scientific_name -> Species.normalized_scientific_name after governed normalization	true
+
+edges.HAS_TRAITS
+from	to	via	inferred
+:Entity:ArizonaBirdCatalog	:Entity:BirdSpeciesTraits	exact normalized scientific name	true
+
+edges.CATALOGS_SPECIES
+from	to	via	inferred
+:Entity:ArizonaBirdCatalog	:Entity:Species	eBird species_code membership plus exact normalized scientific name	true

@@ -323,13 +323,47 @@
         "table": "species_traits",
         "source_pipeline": "avonet",
         "role": "primary"
+      },
+      {
+        "table": "dim_bird_species_traits",
+        "source_pipeline": "environmental_observations",
+        "role": "modeled_dimension"
       }
     ],
-    "natural_key": "avibase_id",
+    "natural_key": "normalized_scientific_name",
     "assumptions": [
       "Trait values remain global species-average AVONET measurements and ecology categories; they are not Arizona-specific claims.",
       "Species conformance is performed only by the separately governed exact normalized scientific-name model; ingestion does not guess taxonomy mappings.",
-      "Authoritative raw traits are atomically published only from a complete transient Quack staging snapshot after exact row, unique-key, column, and metadata validation."
+      "Authoritative raw traits are atomically published only from a complete transient Quack staging snapshot after exact row, unique-key, column, and metadata validation.",
+      "Modeled traits contain only exact governed normalized-scientific-name matches to the conformed species dimension; unmatched AVONET rows and unmatched current taxa are not guessed together."
+    ]
+  },
+  "ArizonaBirdCatalog": {
+    "description": "Every latest eBird US-AZ regional taxon with stable eBird identity, exact optional AVONET traits, public reviewed Arizona activity, and optional GBIF/Xeno-canto aggregates.",
+    "use_cases": [
+      "local Arizona bird catalog",
+      "modeled bird species profiles"
+    ],
+    "references": [
+      "arizona_species_catalog",
+      "species_code",
+      "traits_status",
+      "recent_public_observation_count",
+      "top_public_locations_json"
+    ],
+    "tables": [
+      {
+        "table": "arizona_species_catalog",
+        "source_pipeline": "birding_agent",
+        "role": "primary"
+      }
+    ],
+    "natural_key": "species_code",
+    "assumptions": [
+      "Membership comes only from the single latest complete eBird US-AZ species-list snapshot, taxonomy comes only from the single latest complete global eBird taxonomy snapshot, and duplicate species codes in either selected snapshot fail.",
+      "Missing AVONET, observation, GBIF, or Xeno-canto evidence never removes a current snapshot row.",
+      "Only valid, reviewed, non-private US-AZ observations contribute activity and bounded public-location detail; each exposed location name/latitude/longitude tuple comes from one deterministic existing qualifying observation row.",
+      "Hybrids and taxonomy-drift taxa remain separate eBird catalog rows; no parent or historical-name trait mapping is inferred."
     ]
   },
   "_excluded": [

@@ -1,0 +1,113 @@
+dataset: databox/birding_agent/arizona_species_catalog
+
+columns:
+  - name: arizona_species_catalog_id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: species_code
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: region_code
+    checks:
+      - missing:
+          must_be: 0
+      - invalid:
+          valid_values: [US-AZ]
+          must_be: 0
+  - name: common_name
+  - name: scientific_name
+  - name: species_natural_key
+  - name: taxonomic_category
+    checks:
+      - invalid:
+          valid_values: [species, hybrid]
+          must_be: 0
+  - name: taxonomic_order
+  - name: order_name
+  - name: family_code
+  - name: family_common_name
+  - name: family_scientific_name
+  - name: report_as
+  - name: extinct
+  - name: extinct_year
+  - name: species_sk
+  - name: traits_status
+    checks:
+      - missing:
+          must_be: 0
+      - invalid:
+          valid_values: [available, unavailable]
+          must_be: 0
+  - name: bird_species_traits_sk
+  - name: source_scientific_name
+  - name: avonet_family
+  - name: avonet_order_name
+  - name: avibase_id
+  - name: total_individuals
+  - name: female_individuals
+  - name: male_individuals
+  - name: unknown_sex_individuals
+  - name: complete_measures
+  - name: beak_length_culmen_mm
+  - name: beak_length_nares_mm
+  - name: beak_width_mm
+  - name: beak_depth_mm
+  - name: tarsus_length_mm
+  - name: wing_length_mm
+  - name: kipps_distance_mm
+  - name: secondary_length_mm
+  - name: hand_wing_index
+  - name: tail_length_mm
+  - name: mass_g
+  - name: mass_source
+  - name: mass_reference_other
+  - name: inference
+  - name: traits_inferred
+  - name: reference_species
+  - name: habitat
+  - name: habitat_density_code
+  - name: habitat_density_label
+  - name: migration_code
+  - name: migration_label
+  - name: trophic_level
+  - name: trophic_niche
+  - name: primary_lifestyle
+  - name: dataset_doi
+  - name: dataset_version
+  - name: dataset_license
+  - name: source_file_id
+  - name: source_file_md5
+  - name: avonet_source_url
+  - name: avonet_loaded_at
+  - name: avonet_dlt_load_id
+  - name: avonet_dlt_id
+  - name: recent_public_observation_count
+  - name: latest_public_observation_at
+  - name: public_location_count
+  - name: recent_public_notable_count
+  - name: top_public_locations_json
+  - name: gbif_occurrence_count
+  - name: gbif_latest_event_date
+  - name: xeno_canto_recording_count
+  - name: xeno_canto_latest_recording_date
+  - name: representative_recording_id
+  - name: representative_recordist
+  - name: representative_recording_type
+  - name: representative_recording_quality
+  - name: representative_recording_license
+  - name: species_list_loaded_at
+  - name: taxonomy_loaded_at
+  - name: ebird_observations_loaded_at
+  - name: gbif_loaded_at
+  - name: xeno_canto_loaded_at
+  - name: catalog_freshness_at
+
+checks:
+  - row_count:
+      must_be: 706

@@ -95,6 +95,10 @@ CDM fact: one row per GBIF bird occurrence key.
 - [`environmental_observations.dim_species`](dim_species.md)
 - `raw_gbif.occurrences` (external)
 
+**Downstream**
+
+- [`birding_agent.arizona_species_catalog`](../birding_agent/arizona_species_catalog.md)
+
 ## Example query
 
 ```sql

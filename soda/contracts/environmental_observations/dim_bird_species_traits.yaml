@@ -1,0 +1,80 @@
+dataset: databox/environmental_observations/dim_bird_species_traits
+
+columns:
+  - name: bird_species_traits_sk
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: species_sk
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: species_natural_key
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: source_scientific_name
+  - name: family
+  - name: order_name
+  - name: avibase_id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: total_individuals
+  - name: female_individuals
+  - name: male_individuals
+  - name: unknown_sex_individuals
+  - name: complete_measures
+  - name: beak_length_culmen_mm
+  - name: beak_length_nares_mm
+  - name: beak_width_mm
+  - name: beak_depth_mm
+  - name: tarsus_length_mm
+  - name: wing_length_mm
+  - name: kipps_distance_mm
+  - name: secondary_length_mm
+  - name: hand_wing_index
+  - name: tail_length_mm
+  - name: mass_g
+  - name: mass_source
+  - name: mass_reference_other
+  - name: inference
+  - name: traits_inferred
+  - name: reference_species
+  - name: habitat
+  - name: habitat_density_code
+    checks:
+      - invalid:
+          valid_values: [1, 2, 3]
+          must_be: 0
+  - name: habitat_density_label
+    checks:
+      - invalid:
+          valid_values: [Dense, Semi-open, Open]
+          must_be: 0
+  - name: migration_code
+  - name: migration_label
+  - name: trophic_level
+  - name: trophic_niche
+  - name: primary_lifestyle
+  - name: dataset_doi
+  - name: dataset_version
+  - name: dataset_license
+  - name: source_file_id
+  - name: source_file_md5
+  - name: source_url
+  - name: loaded_at
+  - name: dlt_load_id
+  - name: dlt_id
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

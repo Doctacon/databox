@@ -144,12 +144,16 @@ AVONET v7 eBird-aligned species-average morphology, ecology, measurement provena
 | Pipeline | Table | Role |
 |---|---|---|
 | `avonet` | `species_traits` | primary |
+| `environmental_observations` | `dim_bird_species_traits` | modeled_dimension |
 
 ### Attributes
 
 | Name | Type | Source | Notes |
 |---|---|---|---|
-| `source_scientific_name` | `text` | `avonet.species_traits` | Source scientific name for exact conformance; not an Arizona-range claim. |
+| `bird_species_traits_sk` | `text` | `environmental_observations.dim_bird_species_traits` | Stable modeled trait key; unique and not null. |
+| `species_sk` | `text` | `environmental_observations.dim_bird_species_traits` | Exact conformed species reference; unique and not null. |
+| `species_natural_key` | `text` | `environmental_observations.dim_bird_species_traits` | Governed normalized scientific name; unique and not null. |
+| `source_scientific_name` | `text` | `avonet.species_traits`<br>`environmental_observations.dim_bird_species_traits` | Source scientific name for exact conformance; not an Arizona-range claim. |
 | `family` | `text` | `avonet.species_traits` | AVONET taxonomic family. |
 | `order_name` | `text` | `avonet.species_traits` | AVONET taxonomic order. |
 | `avibase_id` | `text` | `avonet.species_traits` | not null, primary_key |
@@ -175,8 +179,10 @@ AVONET v7 eBird-aligned species-average morphology, ecology, measurement provena
 | `traits_inferred` | `text` | `avonet.species_traits` | Exact semicolon-delimited source list. |
 | `reference_species` | `text` | `avonet.species_traits` | Source species used for inference. |
 | `habitat` | `text` | `avonet.species_traits` | Exact habitat category. |
-| `habitat_density_code` | `bigint` | `avonet.species_traits` | 1 dense; 2 semi-open; 3 open. |
-| `migration_code` | `bigint` | `avonet.species_traits` | 1 sedentary; 2 partial migrant; 3 migratory. |
+| `habitat_density_code` | `bigint` | `avonet.species_traits`<br>`environmental_observations.dim_bird_species_traits` | 1 dense; 2 semi-open; 3 open. |
+| `habitat_density_label` | `text` | `environmental_observations.dim_bird_species_traits` | Dense, Semi-open, or Open. |
+| `migration_code` | `bigint` | `avonet.species_traits`<br>`environmental_observations.dim_bird_species_traits` | 1 sedentary; 2 partial migrant; 3 migratory. |
+| `migration_label` | `text` | `environmental_observations.dim_bird_species_traits` | Sedentary, Partial migrant, or Migratory. |
 | `trophic_level` | `text` | `avonet.species_traits` | Exact trophic-level category. |
 | `trophic_niche` | `text` | `avonet.species_traits` | Exact trophic-niche category. |
 | `primary_lifestyle` | `text` | `avonet.species_traits` | Exact primary-lifestyle category. |
@@ -203,6 +209,62 @@ AVONET v7 eBird-aligned species-average morphology, ecology, measurement provena
 - Traits are global AVONET species averages and MUST NOT be represented as Arizona-specific range or phenotype claims.
 - No taxonomy mapping is guessed during ingestion; the modeled exact normalized-name join is separately governed.
 - The authoritative table is published only after a complete Quack staging load passes exact row, unique-key, column, and metadata validation; transient staging is not a business entity.
+- The modeled dimension contains only exact governed normalized-name matches to `Species`; duplicate AVONET normalized keys or duplicate matched species fail instead of selecting a row.
+
+## ArizonaBirdCatalog
+
+Every taxon from the single latest complete eBird `US-AZ` regional-list snapshot, enriched from the single latest complete global eBird taxonomy snapshot, with stable eBird identity, optional exact AVONET traits, privacy-filtered Arizona activity, and optional GBIF/Xeno-canto aggregates.
+
+### Source tables
+
+| Pipeline | Table | Role |
+|---|---|---|
+| `birding_agent` | `arizona_species_catalog` | primary |
+
+### Attributes
+
+| Name | Type | Source | Notes |
+|---|---|---|---|
+| `arizona_species_catalog_id` | `text` | `birding_agent.arizona_species_catalog` | Stable hash key; not null and unique. |
+| `species_code` | `text` | `birding_agent.arizona_species_catalog` | eBird regional-taxon identity; natural key, not null and unique. |
+| `region_code` | `text` | `birding_agent.arizona_species_catalog` | Always `US-AZ`. |
+| `common_name` | `text` | `birding_agent.arizona_species_catalog` | Latest eBird taxonomy common name. |
+| `scientific_name` | `text` | `birding_agent.arizona_species_catalog` | Latest eBird taxonomy scientific name. |
+| `taxonomic_category` | `text` | `birding_agent.arizona_species_catalog` | Species or hybrid; membership categories remain distinct. |
+| `taxonomic_order` | `double` | `birding_agent.arizona_species_catalog` | Persisted default ordering, with species code as total tie-break. |
+| `traits_status` | `text` | `birding_agent.arizona_species_catalog` | Available only for an exact modeled AVONET match; otherwise unavailable. |
+| `recent_public_observation_count` | `bigint` | `birding_agent.arizona_species_catalog` | Valid, reviewed, non-private `US-AZ` observation records only. |
+| `latest_public_observation_at` | `timestamp` | `birding_agent.arizona_species_catalog` | Latest qualifying public observation. |
+| `public_location_count` | `bigint` | `birding_agent.arizona_species_catalog` | Distinct qualifying public location IDs. |
+| `recent_public_notable_count` | `bigint` | `birding_agent.arizona_species_catalog` | Qualifying notable observation records. |
+| `top_public_locations_json` | `text` | `birding_agent.arizona_species_catalog` | At most ten public locations ordered by count, newest observation, name, then location ID; each name/latitude/longitude tuple comes from one deterministically ranked qualifying public observation row. |
+| `gbif_occurrence_count` | `bigint` | `birding_agent.arizona_species_catalog` | Zero when no conformed GBIF occurrence exists. |
+| `gbif_latest_event_date` | `date` | `birding_agent.arizona_species_catalog` | Latest modeled conformed GBIF event date. |
+| `xeno_canto_recording_count` | `bigint` | `birding_agent.arizona_species_catalog` | Zero when no conformed Xeno-canto recording exists. |
+| `representative_recording_id` | `text` | `birding_agent.arizona_species_catalog` | Deterministically selected metadata only; no catalog-wide media enrichment. |
+| `species_list_loaded_at` | `timestamp` | `birding_agent.arizona_species_catalog` | eBird regional-list freshness. |
+| `taxonomy_loaded_at` | `timestamp` | `birding_agent.arizona_species_catalog` | eBird taxonomy freshness. |
+| `ebird_observations_loaded_at` | `timestamp` | `birding_agent.arizona_species_catalog` | Qualifying observation freshness. |
+| `avonet_loaded_at` | `timestamp` | `birding_agent.arizona_species_catalog` | Exact matched trait freshness. |
+| `gbif_loaded_at` | `timestamp` | `birding_agent.arizona_species_catalog` | Conformed occurrence freshness. |
+| `xeno_canto_loaded_at` | `timestamp` | `birding_agent.arizona_species_catalog` | Conformed recording freshness. |
+| `catalog_freshness_at` | `timestamp` | `birding_agent.arizona_species_catalog` | Greatest available source freshness timestamp. |
+
+All AVONET measurement, inference, ecology, code/label, and dataset-provenance attributes from `dim_bird_species_traits` are also exposed when `traits_status=available`.
+
+### Relationships
+
+| Relationship | Target | Via | Inferred |
+|---|---|---|---|
+| CATALOGS_SPECIES | `Species` | exact normalized scientific name plus stable eBird species code membership | true |
+| HAS_TRAITS | `BirdSpeciesTraits` | exact normalized scientific name only | true |
+
+### Assumptions
+
+- Membership comes only from the single latest complete eBird `US-AZ` species-list snapshot, and taxonomy comes only from the single latest complete global eBird taxonomy snapshot; codes present only in older snapshots are absent and duplicate codes in either selected snapshot fail.
+- Missing AVONET, observations, GBIF, or Xeno-canto evidence never removes a current snapshot row.
+- Hybrids and taxonomy-drift species remain explicit unavailable rows unless AVONET itself has the exact governed scientific-name key; no parent or historical mapping is guessed.
+- Private, invalid, or unreviewed observations contribute neither activity counts nor exposed location detail.
 
 ## BirdHotspot
 

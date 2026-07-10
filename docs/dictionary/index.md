@@ -2,8 +2,8 @@
 
 Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/generate_docs.py`.
 
-- **Models:** 16
-- **Soda contracts:** 23
+- **Models:** 18
+- **Soda contracts:** 25
 - **Lineage:** [browse the dependency graph](lineage.md)
 
 ## `analytics`
@@ -20,6 +20,7 @@ Planner-ready SQL interfaces for the Birding Trip Copilot agent and local produc
 
 | Model | Contract | Description |
 | --- | --- | --- |
+| [`birding_agent.arizona_species_catalog`](birding_agent/arizona_species_catalog.md) | yes | One row per taxon from the single latest complete eBird US-AZ snapshot, with latest complete taxonomy, exact AVONET traits, and coherent public evidence aggregates. |
 | [`birding_agent.gbif_occurrence_evidence`](birding_agent/gbif_occurrence_evidence.md) | yes | Planner-ready GBIF bird occurrence evidence conformed to eBird-first species names with location, license, and source provenance. |
 | [`birding_agent.recent_observation_evidence`](birding_agent/recent_observation_evidence.md) | yes | Planner-ready recent eBird observation evidence from the environmental observations CDM. |
 | [`birding_agent.species_lookup`](birding_agent/species_lookup.md) | yes | Planner-ready bird species lookup from the conformed environmental observations species dimension. |
@@ -32,6 +33,7 @@ Canonical environmental-observations CDM models generated from the .schema workf
 | Model | Contract | Description |
 | --- | --- | --- |
 | [`environmental_observations.dim_bird_hotspot`](environmental_observations/dim_bird_hotspot.md) | yes | CDM eBird hotspot dimension. |
+| [`environmental_observations.dim_bird_species_traits`](environmental_observations/dim_bird_species_traits.md) | yes | Exact scientific-name-conformed AVONET v7 species-average bird traits with measurement and dataset provenance. |
 | [`environmental_observations.dim_species`](environmental_observations/dim_species.md) | yes | Conformed CDM species dimension from eBird taxonomy, GBIF occurrence taxonomy, and Xeno-canto recording metadata. |
 | [`environmental_observations.dim_streamgage_site`](environmental_observations/dim_streamgage_site.md) | yes | CDM USGS streamgage site dimension. |
 | [`environmental_observations.dim_weather_station`](environmental_observations/dim_weather_station.md) | yes | CDM NOAA weather station dimension. |

@@ -1,0 +1,624 @@
+test_dim_bird_species_traits_exact_match_and_codebook:
+  model: environmental_observations.dim_bird_species_traits
+  inputs:
+    environmental_observations.dim_species:
+      rows:
+        - species_sk: "species-cardinal"
+          species_natural_key: "cardinalis cardinalis"
+          source_pipeline: "ebird_api"
+          loaded_at: "2025-07-21 10:00:00"
+        - species_sk: "species-drift"
+          species_natural_key: "newus taxonus"
+          source_pipeline: "ebird_api"
+          loaded_at: "2025-07-21 10:00:00"
+        - species_sk: "species-unknown"
+          species_natural_key: null
+          source_pipeline: "sentinel"
+          loaded_at: null
+    raw_avonet.species_traits:
+      rows:
+        - source_scientific_name: "Cardinalis cardinalis (Linnaeus)"
+          family: "Cardinalidae"
+          order_name: "Passeriformes"
+          avibase_id: "AVIBASE-CARDINAL"
+          total_individuals: 12
+          female_individuals: 5
+          male_individuals: 6
+          unknown_sex_individuals: 1
+          complete_measures: 10
+          beak_length_culmen_mm: 18.1
+          beak_length_nares_mm: 12.2
+          beak_width_mm: 9.3
+          beak_depth_mm: 10.1
+          tarsus_length_mm: 25.0
+          wing_length_mm: 95.0
+          kipps_distance_mm: 20.0
+          secondary_length_mm: 75.0
+          hand_wing_index: 21.1
+          tail_length_mm: 90.0
+          mass_g: 44.0
+          mass_source: "Dunning"
+          mass_reference_other: "Fixture citation"
+          inference: true
+          traits_inferred: "Body Mass"
+          reference_species: "Cardinalis phoeniceus"
+          habitat: "Woodland"
+          habitat_density_code: 2
+          migration_code: 1
+          trophic_level: "Omnivore"
+          trophic_niche: "Omnivore"
+          primary_lifestyle: "Insessorial"
+          dataset_doi: "10.6084/m9.figshare.16586228.v7"
+          dataset_version: "v7"
+          dataset_license: "CC BY 4.0"
+          source_file_id: 34480856
+          source_file_md5: "1445afdcfb6df784010c2ca034544bc8"
+          source_url: "https://ndownloader.figshare.com/files/34480856"
+          loaded_at: "2025-07-22T10:00:00+00:00"
+          _dlt_load_id: "load-avonet"
+          _dlt_id: "row-avonet-cardinal"
+        - source_scientific_name: "Oldus taxonus"
+          family: "Oldidae"
+          order_name: "Passeriformes"
+          avibase_id: "AVIBASE-OLD"
+          total_individuals: 1
+          female_individuals: 0
+          male_individuals: 0
+          unknown_sex_individuals: 1
+          complete_measures: 1
+          beak_length_culmen_mm: 10.0
+          beak_length_nares_mm: 8.0
+          beak_width_mm: 4.0
+          beak_depth_mm: 4.0
+          tarsus_length_mm: 12.0
+          wing_length_mm: 50.0
+          kipps_distance_mm: 10.0
+          secondary_length_mm: 40.0
+          hand_wing_index: 20.0
+          tail_length_mm: 30.0
+          mass_g: 12.0
+          mass_source: "Dunning"
+          mass_reference_other: "Fixture citation"
+          inference: false
+          traits_inferred: null
+          reference_species: null
+          habitat: "Forest"
+          habitat_density_code: 1
+          migration_code: 3
+          trophic_level: "Carnivore"
+          trophic_niche: "Invertivore"
+          primary_lifestyle: "Insessorial"
+          dataset_doi: "10.6084/m9.figshare.16586228.v7"
+          dataset_version: "v7"
+          dataset_license: "CC BY 4.0"
+          source_file_id: 34480856
+          source_file_md5: "1445afdcfb6df784010c2ca034544bc8"
+          source_url: "https://ndownloader.figshare.com/files/34480856"
+          loaded_at: "2025-07-22T10:00:00+00:00"
+          _dlt_load_id: "load-avonet"
+          _dlt_id: "row-avonet-old"
+  outputs:
+    partial: true
+    query:
+      rows:
+        - bird_species_traits_sk: "6da313e3cdeb4d8cddda4bf11c1f0c38"
+          species_sk: "species-cardinal"
+          species_natural_key: "cardinalis cardinalis"
+          source_scientific_name: "Cardinalis cardinalis (Linnaeus)"
+          avibase_id: "AVIBASE-CARDINAL"
+          habitat_density_code: 2
+          habitat_density_label: "Semi-open"
+          migration_code: 1
+          migration_label: "Sedentary"
+          mass_g: 44.0
+          inference: true
+          traits_inferred: "Body Mass"
+          reference_species: "Cardinalis phoeniceus"
+          dataset_version: "v7"
+          dataset_license: "CC BY 4.0"
+          dlt_load_id: "load-avonet"
+          dlt_id: "row-avonet-cardinal"
+
+test_arizona_species_catalog_membership_privacy_and_optional_evidence:
+  model: birding_agent.arizona_species_catalog
+  inputs:
+    raw_ebird.species_list:
+      rows:
+        - species_code: "norcar"
+          region: "US-AZ"
+          order: 100
+          _loaded_at: "2025-07-20T10:00:00+00:00"
+          _dlt_load_id: "list-old"
+          _dlt_id: "list-old-norcar"
+        - species_code: "removed"
+          region: "US-AZ"
+          order: 99
+          _loaded_at: "2025-07-20T10:00:00+00:00"
+          _dlt_load_id: "list-old"
+          _dlt_id: "list-old-removed"
+        - species_code: "norcar"
+          region: "US-AZ"
+          order: 101
+          _loaded_at: "2025-07-22T10:00:00+00:00"
+          _dlt_load_id: "list-new"
+          _dlt_id: "list-new-norcar"
+        - species_code: "hybrid1"
+          region: "US-AZ"
+          order: 102
+          _loaded_at: "2025-07-22T10:00:00+00:00"
+          _dlt_load_id: "list-new"
+          _dlt_id: "list-hybrid"
+        - species_code: "drift1"
+          region: "US-AZ"
+          order: 103
+          _loaded_at: "2025-07-22T10:00:00+00:00"
+          _dlt_load_id: "list-new"
+          _dlt_id: "list-drift"
+        - species_code: "outside"
+          region: "US-CA"
+          order: 104
+          _loaded_at: "2025-07-22T10:00:00+00:00"
+          _dlt_load_id: "list-new"
+          _dlt_id: "list-outside"
+    raw_ebird.taxonomy:
+      rows:
+        - species_code: "norcar"
+          com_name: "Old Northern Cardinal"
+          sci_name: "Cardinalis cardinalis"
+          category: "species"
+          taxon_order: 100
+          order: "Passeriformes"
+          family_code: "cardin1"
+          family_com_name: "Cardinals and Allies"
+          family_sci_name: "Cardinalidae"
+          report_as: "norcar"
+          extinct: false
+          extinct_year: 0
+          _loaded_at: "2025-07-20T11:00:00+00:00"
+          _dlt_load_id: "taxonomy-old"
+          _dlt_id: "taxonomy-old-norcar"
+        - species_code: "removed"
+          com_name: "Removed Bird"
+          sci_name: "Removedus birdus"
+          category: "species"
+          taxon_order: 99
+          order: "Passeriformes"
+          family_code: "removed1"
+          family_com_name: "Removed Birds"
+          family_sci_name: "Removedidae"
+          report_as: null
+          extinct: false
+          extinct_year: 0
+          _loaded_at: "2025-07-20T11:00:00+00:00"
+          _dlt_load_id: "taxonomy-old"
+          _dlt_id: "taxonomy-old-removed"
+        - species_code: "norcar"
+          com_name: "Northern Cardinal"
+          sci_name: "Cardinalis cardinalis"
+          category: "species"
+          taxon_order: 101
+          order: "Passeriformes"
+          family_code: "cardin1"
+          family_com_name: "Cardinals and Allies"
+          family_sci_name: "Cardinalidae"
+          report_as: "norcar"
+          extinct: false
+          extinct_year: 0
+          _loaded_at: "2025-07-22T11:00:00+00:00"
+          _dlt_load_id: "taxonomy-new"
+          _dlt_id: "taxonomy-norcar"
+        - species_code: "hybrid1"
+          com_name: "Cardinal x Pyrrhuloxia hybrid"
+          sci_name: "Cardinalis cardinalis x Pyrrhuloxia sinuata"
+          category: "hybrid"
+          taxon_order: 102
+          order: "Passeriformes"
+          family_code: "cardin1"
+          family_com_name: "Cardinals and Allies"
+          family_sci_name: "Cardinalidae"
+          report_as: null
+          extinct: false
+          extinct_year: 0
+          _loaded_at: "2025-07-22T11:00:00+00:00"
+          _dlt_load_id: "taxonomy-new"
+          _dlt_id: "taxonomy-hybrid"
+        - species_code: "drift1"
+          com_name: "Renamed Bird"
+          sci_name: "Newus taxonus"
+          category: "species"
+          taxon_order: 103
+          order: "Passeriformes"
+          family_code: "newidae"
+          family_com_name: "New Birds"
+          family_sci_name: "Newidae"
+          report_as: null
+          extinct: false
+          extinct_year: 0
+          _loaded_at: "2025-07-22T11:00:00+00:00"
+          _dlt_load_id: "taxonomy-new"
+          _dlt_id: "taxonomy-drift"
+    environmental_observations.dim_species:
+      rows:
+        - species_sk: "species-cardinal"
+          species_natural_key: "cardinalis cardinalis"
+          source_pipeline: "ebird_api"
+          loaded_at: "2025-07-22 11:00:00"
+        - species_sk: "species-hybrid"
+          species_natural_key: "cardinalis cardinalis x pyrrhuloxia sinuata"
+          source_pipeline: "ebird_api"
+          loaded_at: "2025-07-22 11:00:00"
+        - species_sk: "species-drift"
+          species_natural_key: "newus taxonus"
+          source_pipeline: "ebird_api"
+          loaded_at: "2025-07-22 11:00:00"
+    environmental_observations.dim_bird_species_traits:
+      rows:
+        - bird_species_traits_sk: "trait-cardinal"
+          species_sk: "species-cardinal"
+          species_natural_key: "cardinalis cardinalis"
+          source_scientific_name: "Cardinalis cardinalis"
+          family: "Cardinalidae"
+          order_name: "Passeriformes"
+          avibase_id: "AVIBASE-CARDINAL"
+          total_individuals: 12
+          female_individuals: 5
+          male_individuals: 6
+          unknown_sex_individuals: 1
+          complete_measures: 10
+          beak_length_culmen_mm: 18.1
+          beak_length_nares_mm: 12.2
+          beak_width_mm: 9.3
+          beak_depth_mm: 10.1
+          tarsus_length_mm: 25.0
+          wing_length_mm: 95.0
+          kipps_distance_mm: 20.0
+          secondary_length_mm: 75.0
+          hand_wing_index: 21.1
+          tail_length_mm: 90.0
+          mass_g: 44.0
+          mass_source: "Dunning"
+          mass_reference_other: "Fixture citation"
+          inference: true
+          traits_inferred: "Body Mass"
+          reference_species: "Cardinalis phoeniceus"
+          habitat: "Woodland"
+          habitat_density_code: 2
+          habitat_density_label: "Semi-open"
+          migration_code: 1
+          migration_label: "Sedentary"
+          trophic_level: "Omnivore"
+          trophic_niche: "Omnivore"
+          primary_lifestyle: "Insessorial"
+          dataset_doi: "10.6084/m9.figshare.16586228.v7"
+          dataset_version: "v7"
+          dataset_license: "CC BY 4.0"
+          source_file_id: 34480856
+          source_file_md5: "1445afdcfb6df784010c2ca034544bc8"
+          source_url: "https://ndownloader.figshare.com/files/34480856"
+          loaded_at: "2025-07-22 12:00:00"
+          dlt_load_id: "avonet-load"
+          dlt_id: "avonet-row"
+    environmental_observations.fact_bird_observation:
+      rows:
+        - species_code: "norcar"
+          source_observation_id: "OBS-01"
+          bird_observation_sk: "observation-01"
+          dlt_id: "observation-dlt-01"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-20 08:00:00"
+          location_id: "L1"
+          location_name: "Desert Park"
+          latitude: 33.5
+          longitude: -112.0
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-02"
+          bird_observation_sk: "observation-02"
+          dlt_id: "observation-dlt-02"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-21 08:00:00"
+          location_id: "L1"
+          location_name: "Renamed Desert Park"
+          latitude: 33.6
+          longitude: -112.1
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: true
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-03"
+          bird_observation_sk: "observation-03"
+          dlt_id: "observation-dlt-03"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-19 08:00:00"
+          location_id: "L0"
+          location_name: "Alpha Wash"
+          latitude: 33.1
+          longitude: -111.9
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-04"
+          bird_observation_sk: "observation-04"
+          dlt_id: "observation-dlt-04"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-22 09:00:00"
+          location_id: "L1"
+          location_name: "Private Override"
+          latitude: 35.0
+          longitude: -110.0
+          is_valid: true
+          is_reviewed: true
+          is_location_private: true
+          is_notable: true
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-05"
+          bird_observation_sk: "observation-05"
+          dlt_id: "observation-dlt-05"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-22 10:00:00"
+          location_id: "INVALID"
+          location_name: "Invalid Place"
+          latitude: 34.0
+          longitude: -111.0
+          is_valid: false
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-06"
+          bird_observation_sk: "observation-06"
+          dlt_id: "observation-dlt-06"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-22 11:00:00"
+          location_id: "UNREVIEWED"
+          location_name: "Unreviewed Place"
+          latitude: 34.0
+          longitude: -111.0
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-07"
+          bird_observation_sk: "observation-07"
+          dlt_id: "observation-dlt-07"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-18 08:00:00"
+          location_id: "L2"
+          location_name: "Location 02"
+          latitude: 33.02
+          longitude: -112.02
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-08"
+          bird_observation_sk: "observation-08"
+          dlt_id: "observation-dlt-08"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-17 08:00:00"
+          location_id: "L3"
+          location_name: "Location 03"
+          latitude: 33.03
+          longitude: -112.03
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-09"
+          bird_observation_sk: "observation-09"
+          dlt_id: "observation-dlt-09"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-16 08:00:00"
+          location_id: "L4"
+          location_name: "Location 04"
+          latitude: 33.04
+          longitude: -112.04
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-10"
+          bird_observation_sk: "observation-10"
+          dlt_id: "observation-dlt-10"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-15 08:00:00"
+          location_id: "L5"
+          location_name: "Location 05"
+          latitude: 33.05
+          longitude: -112.05
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-11"
+          bird_observation_sk: "observation-11"
+          dlt_id: "observation-dlt-11"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-14 08:00:00"
+          location_id: "L6"
+          location_name: "Location 06"
+          latitude: 33.06
+          longitude: -112.06
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-12"
+          bird_observation_sk: "observation-12"
+          dlt_id: "observation-dlt-12"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-13 08:00:00"
+          location_id: "L7"
+          location_name: "Location 07"
+          latitude: 33.07
+          longitude: -112.07
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-13"
+          bird_observation_sk: "observation-13"
+          dlt_id: "observation-dlt-13"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-12 08:00:00"
+          location_id: "L8"
+          location_name: "Location 08"
+          latitude: 33.08
+          longitude: -112.08
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-14"
+          bird_observation_sk: "observation-14"
+          dlt_id: "observation-dlt-14"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-11 08:00:00"
+          location_id: "L9"
+          location_name: "Location 09"
+          latitude: 33.09
+          longitude: -112.09
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+        - species_code: "norcar"
+          source_observation_id: "OBS-15"
+          bird_observation_sk: "observation-15"
+          dlt_id: "observation-dlt-15"
+          region_code: "US-AZ"
+          observation_datetime: "2025-07-10 08:00:00"
+          location_id: "L10"
+          location_name: "Location 10"
+          latitude: 33.10
+          longitude: -112.10
+          is_valid: true
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          loaded_at: "2025-07-22 13:00:00"
+    environmental_observations.fact_bird_occurrence:
+      rows:
+        - species_sk: "species-cardinal"
+          event_date: "2025-07-10"
+          loaded_at: "2025-07-22 14:00:00"
+        - species_sk: "species-cardinal"
+          event_date: "2025-07-12"
+          loaded_at: "2025-07-22 14:00:00"
+    environmental_observations.fact_bird_sound_recording:
+      rows:
+        - species_sk: "species-cardinal"
+          recording_id: "XC-B"
+          recordist: "Recordist B"
+          recording_type: "call"
+          quality: "B"
+          license: "CC BY-NC 4.0"
+          recording_date: "2025-07-15"
+          loaded_at: "2025-07-22 15:00:00"
+        - species_sk: "species-cardinal"
+          recording_id: "XC-A"
+          recordist: "Recordist A"
+          recording_type: "song"
+          quality: "A"
+          license: "CC BY 4.0"
+          recording_date: "2025-07-14"
+          loaded_at: "2025-07-22 15:00:00"
+  outputs:
+    partial: true
+    query:
+      rows:
+        - arizona_species_catalog_id: "49aabf28c971b1b153d0ee120ccdd3c3"
+          species_code: "norcar"
+          region_code: "US-AZ"
+          common_name: "Northern Cardinal"
+          scientific_name: "Cardinalis cardinalis"
+          species_natural_key: "cardinalis cardinalis"
+          taxonomic_category: "species"
+          taxonomic_order: 101
+          traits_status: "available"
+          avibase_id: "AVIBASE-CARDINAL"
+          habitat_density_code: 2
+          habitat_density_label: "Semi-open"
+          migration_code: 1
+          migration_label: "Sedentary"
+          recent_public_observation_count: 12
+          latest_public_observation_at: "2025-07-21 08:00:00"
+          public_location_count: 11
+          recent_public_notable_count: 1
+          top_public_locations_json: '[{"location_id":"L1","location_name":"Renamed Desert Park","latitude":33.6,"longitude":-112.1,"observation_count":2,"latest_observation_at":"2025-07-21 08:00:00","notable_count":1},{"location_id":"L0","location_name":"Alpha Wash","latitude":33.1,"longitude":-111.9,"observation_count":1,"latest_observation_at":"2025-07-19 08:00:00","notable_count":0},{"location_id":"L2","location_name":"Location 02","latitude":33.02,"longitude":-112.02,"observation_count":1,"latest_observation_at":"2025-07-18 08:00:00","notable_count":0},{"location_id":"L3","location_name":"Location 03","latitude":33.03,"longitude":-112.03,"observation_count":1,"latest_observation_at":"2025-07-17 08:00:00","notable_count":0},{"location_id":"L4","location_name":"Location 04","latitude":33.04,"longitude":-112.04,"observation_count":1,"latest_observation_at":"2025-07-16 08:00:00","notable_count":0},{"location_id":"L5","location_name":"Location 05","latitude":33.05,"longitude":-112.05,"observation_count":1,"latest_observation_at":"2025-07-15 08:00:00","notable_count":0},{"location_id":"L6","location_name":"Location 06","latitude":33.06,"longitude":-112.06,"observation_count":1,"latest_observation_at":"2025-07-14 08:00:00","notable_count":0},{"location_id":"L7","location_name":"Location 07","latitude":33.07,"longitude":-112.07,"observation_count":1,"latest_observation_at":"2025-07-13 08:00:00","notable_count":0},{"location_id":"L8","location_name":"Location 08","latitude":33.08,"longitude":-112.08,"observation_count":1,"latest_observation_at":"2025-07-12 08:00:00","notable_count":0},{"location_id":"L9","location_name":"Location 09","latitude":33.09,"longitude":-112.09,"observation_count":1,"latest_observation_at":"2025-07-11 08:00:00","notable_count":0}]'
+          gbif_occurrence_count: 2
+          gbif_latest_event_date: "2025-07-12"
+          xeno_canto_recording_count: 2
+          xeno_canto_latest_recording_date: "2025-07-15"
+          representative_recording_id: "XC-A"
+          representative_recordist: "Recordist A"
+          representative_recording_quality: "A"
+          species_list_loaded_at: "2025-07-22 10:00:00"
+          taxonomy_loaded_at: "2025-07-22 11:00:00"
+          ebird_observations_loaded_at: "2025-07-22 13:00:00"
+          avonet_loaded_at: "2025-07-22 12:00:00"
+          gbif_loaded_at: "2025-07-22 14:00:00"
+          xeno_canto_loaded_at: "2025-07-22 15:00:00"
+          catalog_freshness_at: "2025-07-22 15:00:00"
+        - arizona_species_catalog_id: "6d0091e29c4e74bfcbb8247ae4a5fc1c"
+          species_code: "hybrid1"
+          region_code: "US-AZ"
+          common_name: "Cardinal x Pyrrhuloxia hybrid"
+          scientific_name: "Cardinalis cardinalis x Pyrrhuloxia sinuata"
+          species_natural_key: "cardinalis cardinalis x pyrrhuloxia sinuata"
+          taxonomic_category: "hybrid"
+          taxonomic_order: 102
+          traits_status: "unavailable"
+          recent_public_observation_count: 0
+          public_location_count: 0
+          recent_public_notable_count: 0
+          gbif_occurrence_count: 0
+          xeno_canto_recording_count: 0
+          species_list_loaded_at: "2025-07-22 10:00:00"
+          taxonomy_loaded_at: "2025-07-22 11:00:00"
+          catalog_freshness_at: "2025-07-22 11:00:00"
+        - arizona_species_catalog_id: "aafb4e4aeab01eb80397f505a139485d"
+          species_code: "drift1"
+          region_code: "US-AZ"
+          common_name: "Renamed Bird"
+          scientific_name: "Newus taxonus"
+          species_natural_key: "newus taxonus"
+          taxonomic_category: "species"
+          taxonomic_order: 103
+          traits_status: "unavailable"
+          recent_public_observation_count: 0
+          public_location_count: 0
+          recent_public_notable_count: 0
+          gbif_occurrence_count: 0
+          xeno_canto_recording_count: 0
+          species_list_loaded_at: "2025-07-22 10:00:00"
+          taxonomy_loaded_at: "2025-07-22 11:00:00"
+          catalog_freshness_at: "2025-07-22 11:00:00"
