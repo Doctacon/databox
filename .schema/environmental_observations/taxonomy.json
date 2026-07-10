@@ -44,7 +44,10 @@
       "taxon_key",
       "genus",
       "english_name",
-      "normalized_scientific_name"
+      "normalized_scientific_name",
+      "species_traits",
+      "source_scientific_name",
+      "avibase_id"
     ],
     "tables": [
       {
@@ -81,6 +84,11 @@
         "table": "recordings",
         "source_pipeline": "xeno_canto_api",
         "role": "media_context"
+      },
+      {
+        "table": "species_traits",
+        "source_pipeline": "avonet",
+        "role": "trait_context"
       }
     ],
     "natural_key": "normalized_scientific_name",
@@ -297,6 +305,33 @@
       "Xeno-canto audio remains an external linked artifact; the source stores recording metadata and media links only."
     ]
   },
+  "BirdSpeciesTraits": {
+    "description": "AVONET v7 eBird-aligned species-average morphology, ecology, measurement provenance, and pinned dataset provenance.",
+    "use_cases": [
+      "birding species trait profiles"
+    ],
+    "references": [
+      "species_traits",
+      "source_scientific_name",
+      "avibase_id",
+      "hand_wing_index",
+      "habitat_density_code",
+      "migration_code"
+    ],
+    "tables": [
+      {
+        "table": "species_traits",
+        "source_pipeline": "avonet",
+        "role": "primary"
+      }
+    ],
+    "natural_key": "avibase_id",
+    "assumptions": [
+      "Trait values remain global species-average AVONET measurements and ecology categories; they are not Arizona-specific claims.",
+      "Species conformance is performed only by the separately governed exact normalized scientific-name model; ingestion does not guess taxonomy mappings.",
+      "Authoritative raw traits are atomically published only from a complete transient Quack staging snapshot after exact row, unique-key, column, and metadata validation."
+    ]
+  },
   "_excluded": [
     {
       "table": "_dlt_version",
@@ -381,6 +416,16 @@
     {
       "table": "_dlt_loads",
       "source_pipeline": "xeno_canto_api",
+      "reason": "dlt internal load tracking table"
+    },
+    {
+      "table": "_dlt_version",
+      "source_pipeline": "avonet",
+      "reason": "dlt internal schema version table"
+    },
+    {
+      "table": "_dlt_loads",
+      "source_pipeline": "avonet",
       "reason": "dlt internal load tracking table"
     }
   ]

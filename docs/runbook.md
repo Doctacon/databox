@@ -10,8 +10,9 @@ task db:reset
 task full-refresh
 ```
 
-`task full-refresh` starts one Quack server, launches every registered dlt
-source concurrently as an independent Dagster job, waits for all jobs, stops
+`task full-refresh` starts one Quack server, launches every source marked
+`parallel_refresh=True` concurrently as an independent Dagster job, waits for
+all jobs, stops
 and deduplicates the warehouse, then invokes native SQLMesh only if every source
 succeeded. `SOURCE_START`/`SOURCE_END` lines and Dagster run IDs attribute the
 interleaved logs; overlap is calculated from cross-process timestamps around
@@ -19,6 +20,14 @@ each actual dlt/Quack ingest session, not process startup time. The command also
 prints core raw row counts and requires `main_dlt_relations=0` before SQLMesh.
 The expected local layout is one `data/databox.duckdb` with raw schemas plus
 SQLMesh schemas such as `environmental_observations` and `analytics`.
+
+Static pinned AVONET is deliberately not part of this six-source refresh. Run
+its independent `avonet_ingest` Dagster job explicitly when a validated
+`raw_avonet.species_traits` bootstrap is required; it has no recurring schedule.
+The job clears crash residue, append-loads Quack-owned `raw_avonet_staging`,
+stops Quack, then validates and atomically publishes the complete final snapshot
+in one single-writer transaction. Failures preserve the prior final snapshot and
+remove staging best-effort; generic raw dedupe is not used for AVONET.
 
 ## Smoke verification
 

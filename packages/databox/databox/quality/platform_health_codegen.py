@@ -1,8 +1,10 @@
 """Codegen for `transforms/main/models/analytics/platform_health.sql`.
 
-The model is a fan-out over every source in `databox.config.sources.SOURCES`:
-one `*_loads` CTE per source (joined via UNION ALL) and one `*_rows` CTE per
-source that sums dlt-load row counts across that source's raw tables.
+The model is a fan-out over standard parallel-refresh members in
+`databox.config.sources.SOURCES`: one `*_loads` CTE per source (joined via UNION
+ALL) and one `*_rows` CTE per source that sums dlt-load row counts across that
+source's raw tables. Explicit static/bootstrap jobs are excluded because their
+raw schema may legitimately be absent from a normal full refresh.
 
 Keeping this hand-written would mean that adding a fifth source requires two
 edit sites (registry + SQL). The codegen resolves that by making the registry
@@ -55,7 +57,11 @@ def _rows_cte(src: Source) -> str:
 
 
 def render(sources: list[Source] | None = None) -> str:
-    srcs = sources if sources is not None else SOURCES
+    srcs = (
+        sources
+        if sources is not None
+        else [source for source in SOURCES if source.parallel_refresh]
+    )
     loads_ctes = ",\n".join(_loads_cte(s) for s in srcs)
     all_loads = "\n  UNION ALL ".join(f"SELECT * FROM {s.name}_loads" for s in srcs)
     rows_ctes = ",\n".join(_rows_cte(s) for s in srcs)

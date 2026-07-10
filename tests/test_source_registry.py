@@ -16,22 +16,20 @@ import pytest
 from databox.config.settings import settings
 from databox.config.sources import SOURCES
 
-EXPECTED_DOMAIN_EXPORTS = (
-    "dlt_asset_keys",
-    "sqlmesh_asset_keys",
-    "daily_pipeline",
-    "schedule",
-)
+EXPECTED_DOMAIN_EXPORTS = ("dlt_asset_keys", "sqlmesh_asset_keys", "ingest_job")
 
 
-@pytest.mark.parametrize("source_name", [s.name for s in SOURCES])
-def test_every_registered_source_has_a_domain_module(source_name: str) -> None:
+@pytest.mark.parametrize("source", SOURCES, ids=lambda source: source.name)
+def test_every_registered_source_has_a_domain_module(source) -> None:
+    source_name = source.name
     module = importlib.import_module(f"databox.orchestration.domains.{source_name}")
     for attr in EXPECTED_DOMAIN_EXPORTS:
         assert hasattr(module, attr), f"{source_name}.py missing `{attr}`"
     assert hasattr(module, f"{source_name}_dlt_assets"), (
         f"{source_name}.py must export `{source_name}_dlt_assets` for smoke + definitions wiring"
     )
+    assert hasattr(module, "daily_pipeline") is source.scheduled
+    assert hasattr(module, "schedule") is source.scheduled
 
 
 def test_every_domain_module_is_registered() -> None:
@@ -68,6 +66,12 @@ def test_raw_dataset_matches_source_schema() -> None:
 
 def test_every_raw_catalog_uses_single_local_database() -> None:
     assert {settings.raw_catalog_path(src.name) for src in SOURCES} == {settings.database_path}
+
+
+def test_static_sources_are_not_scheduled_or_parallel() -> None:
+    avonet = next(source for source in SOURCES if source.name == "avonet")
+    assert avonet.scheduled is False
+    assert avonet.parallel_refresh is False
 
 
 def test_analytics_anchor_is_single() -> None:

@@ -16,7 +16,8 @@ packages/databox-sources/databox_sources/<name>/
   └── config.yaml            # pipeline config and source-specific options
 
 packages/databox/databox/orchestration/domains/<name>.py
-                             # Dagster dlt asset, ingest job, schedule
+                             # Dagster dlt asset and independent ingest job;
+                             # recurring sources also expose a schedule
 ```
 
 SQLMesh implementation happens later, after annotation/ontology/CDM review:
@@ -45,7 +46,14 @@ fail CI. Do not use the marker to silence drift in a finished source.
 |---|---|
 | `source.py` | Anchor file — if this doesn't exist, the source isn't loadable. |
 | `config.yaml` | Pipeline configuration and source-specific options. |
-| `domains/<name>.py` | Dagster wiring for dlt asset, ingest job, and schedule. |
+| `domains/<name>.py` | Dagster wiring for a dlt asset and independent ingest job; recurring sources also expose a schedule. |
+
+Static pinned sources set `scheduled=False` and `parallel_refresh=False` in the
+source registry when they must remain explicit bootstrap jobs. AVONET is the
+current example: `avonet_ingest` is independently runnable, has no daily
+schedule, and is intentionally absent from the shared full refresh. Its dlt
+load targets transient `raw_avonet_staging`; final `raw_avonet` is published
+atomically only after the independent Quack server stops.
 
 ## Adding model behavior
 

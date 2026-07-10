@@ -18,7 +18,7 @@ This is a parent plan and is not executable directly.
 - `.10x/decisions/arizona-catalog-observation-and-watch-match-boundaries.md`
 - `.10x/decisions/watched-bird-alert-delivery-policy.md`
 - `.10x/decisions/proton-bridge-smtp-for-bird-alerts.md`
-- `.10x/decisions/avonet-only-modeled-bird-traits.md`
+- `.10x/decisions/avonet-atomic-staged-publication.md`
 - `.10x/research/2026-07-09-local-birding-pokedex-watch-architecture.md`
 - `.10x/specs/avonet-bird-traits-source.md`
 - `.10x/specs/arizona-bird-catalog-and-profile.md`
@@ -29,7 +29,7 @@ This is a parent plan and is not executable directly.
 ## Planned specification and delivery sequence
 
 0. Compact the existing planner independently through `.10x/tickets/done/2026-07-09-compact-and-paginate-trip-plan-results.md`.
-1. Add the AVONET source through `.10x/tickets/2026-07-09-add-avonet-bird-traits-source.md`.
+1. Add the AVONET source through `.10x/tickets/done/2026-07-09-add-avonet-bird-traits-source.md`.
 2. Build modeled traits/catalog through `.10x/tickets/2026-07-09-model-avonet-traits-and-arizona-catalog.md`.
 3. Build the read-only catalog/profile UI through `.10x/tickets/2026-07-09-build-arizona-bird-catalog-and-profile.md`.
 4. Specify manual observation records, derived life list, wishlist, and per-species watch management.
@@ -67,6 +67,7 @@ Catalog/profile must precede personal collection and target workflows because th
 - 2026-07-09: Planner compaction completed with independent four-card recommendation pages, collapsed 20/50/100 evidence pagination, 58 frontend tests, and independent pass review.
 - 2026-07-09: User rejected external narrative profiles and selected AVONET v7 as the only new modeled bird-trait source. Source inspection established CC BY 4.0, exact pinned file identity, 10,661 eBird-aligned rows, and current exact Arizona coverage of 600/624 species with 24 taxonomy-drift species and 82 hybrids explicitly unavailable.
 - 2026-07-09: Activated focused AVONET source and Arizona catalog/profile specifications and opened three dependency-ordered implementation tickets.
+- 2026-07-10: AVONET source child completed after critical repair from unsupported direct replacement to transient Quack staging plus validated atomic post-Quack publication; 105 focused tests and independent final review passed.
 
 ## Blockers
 

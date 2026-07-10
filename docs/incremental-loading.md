@@ -26,6 +26,7 @@ resource:
 | noaa | `datasets` | replace | `id` | none — full snapshot |
 | usgs | `daily_values` | merge | `(site_no, parameter_cd, observation_date)` | rolling `days_back` window, chunked to 90-day API calls |
 | usgs | `sites` | merge | `site_no` | none — full snapshot |
+| avonet | `species_traits` | Quack append to transient staging, atomic snapshot publish | `avibase_id` plus unique source scientific name | none — pinned full snapshot |
 
 ## Idempotency model
 
@@ -39,8 +40,12 @@ Consequences:
 - **replace-disposition resources** (`species_list`, `taxonomy`, `datasets`)
   drop and reload the table every run; idempotency is trivial because the
   row set is always "whatever the API returned this time."
-- No resource uses `append` — we accept the rate-limit cost of re-fetching
-  over the complexity of durable cursor state.
+- **AVONET complete snapshot** is a deliberate exception to generic dedupe:
+  Quack append-loads only into freshly cleared `raw_avonet_staging`. After
+  Quack stops, a single-writer transaction validates exact row count, unique
+  identifiers/names, columns, and dlt metadata before atomically replacing
+  final `raw_avonet` and dropping staging. Any failure preserves the prior
+  final snapshot and cleans staging best-effort.
 
 The merge-disposition guarantee is validated in CI by
 `packages/databox-sources/tests/<source>/test_idempotency.py`: each test
@@ -83,7 +88,8 @@ in place.
   window are touched. Existing rows outside the window are untouched.
 - **replace resources**: the entire table is dropped and reloaded on every
   run, so a backfill on `days_back` has no effect on these (they always
-  reflect the current full snapshot).
+  reflect the current full snapshot). AVONET reaches the same authoritative
+  snapshot result through its separately validated staging/publish transaction.
 - **downstream SQLMesh CDM models**: all are declarative views/tables over the
   raw layer. A backfill at the source layer is picked up on the next
   `task full-refresh` (or native SQLMesh restatement).
@@ -92,9 +98,11 @@ in place.
 
 A partitioned Dagster backfill is not wired yet, but each registered source has
 an independent dlt ingest asset job. `task full-refresh` starts one Quack server,
-runs all registered source jobs concurrently as clients, validates the raw row
+runs only sources marked `parallel_refresh=True` concurrently as clients,
+validates the raw row
 counts and absence of persistent `main._dlt*` relations, then uses the native
-SQLMesh CLI to rebuild modeled tables only after every source succeeds.
+SQLMesh CLI to rebuild modeled tables only after every source succeeds. Static
+AVONET remains an explicit `avonet_ingest` bootstrap job with no daily schedule.
 
 ## When to rely on merge vs replace
 

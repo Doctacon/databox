@@ -176,11 +176,14 @@ task app:audit-bundle
 ```
 
 Dagster owns source ingestion as independent jobs (`ebird_ingest`,
-`gbif_ingest`, `xeno_canto_ingest`, `noaa_ingest`, `usgs_ingest`, and
-`usgs_earthquakes_ingest`) plus schedules, sensors, and asset checks.
-`task full-refresh` starts one Quack server, launches all registered source jobs
-concurrently as hermetic clients, stops/deduplicates the warehouse, then invokes
-native SQLMesh only after every source succeeds. See
+`gbif_ingest`, `xeno_canto_ingest`, `noaa_ingest`, `usgs_ingest`,
+`usgs_earthquakes_ingest`, and the explicit static `avonet_ingest`) plus
+schedules, sensors, and asset checks. `task full-refresh` starts one Quack
+server, launches the original six refresh-member jobs concurrently as hermetic
+clients, stops/deduplicates the warehouse, then invokes native SQLMesh only
+after every source succeeds. AVONET has no daily schedule and is not a member
+of that parallel refresh; its independent job Quack-loads transient staging and
+atomically publishes the validated complete snapshot only after Quack stops. See
 [ADR-0005](docs/adr/0005-dagster-as-sole-orchestrator.md) and
 [ADR-0007](docs/adr/0007-quack-single-file-local-ingest.md).
 

@@ -17,7 +17,7 @@ regular upstream source.
 |---|---|---|
 | `sqlmesh/raw_*/*` | matching source registry entry | Raw dlt assets follow their source cadence. |
 | `sqlmesh/environmental_observations/*` | analytics anchor source | CDM facts/dimensions depend on multiple sources and should not claim freshness faster than the slowest anchor. |
-| `sqlmesh/analytics/platform_health` | analytics anchor source | Operational model over source load metadata. |
+| `sqlmesh/analytics/platform_health` | analytics anchor source | Operational model over standard parallel-refresh source load metadata; explicit static/bootstrap jobs are excluded. |
 
 ## Violation sensor
 

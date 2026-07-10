@@ -9,14 +9,16 @@
 - `.schema/environmental_observations/usgs_earthquakes_api.dbml`
 - `.schema/environmental_observations/xeno_canto_api.dbml`
 - `.schema/environmental_observations/gbif_api.dbml`
+- `.schema/environmental_observations/avonet.dbml`
 
 ## Summary
 
-- Natural keys: `Species.normalized_scientific_name` conforms eBird, GBIF, and Xeno-canto species where a scientific-name key is available.
+- Natural keys: `Species.normalized_scientific_name` conforms eBird, GBIF, Xeno-canto, and AVONET species where a scientific-name key is available; `BirdSpeciesTraits.avibase_id` preserves the AVONET source identity.
 - Inferred structural relationships: included per user confirmation; all are marked `inferred=true`.
 - dlt operational columns: included as attributes with `dlt metadata` notes per user confirmation.
 - Semantic gaps: none identified from the confirmed taxonomy/use case.
 - GBIF occurrences and Xeno-canto recording metadata are modeled as separate fact entities that reference the conformed `Species` dimension when a normalized scientific-name key is available.
+- AVONET traits remain global species-average measurements and categorical ecology, not Arizona-specific claims.
 
 ## BirdObservation
 
@@ -69,7 +71,7 @@ Individual eBird observation records with species, observation date/time, locati
 
 ## Species
 
-Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF occurrence taxonomy, and Xeno-canto recording metadata.
+Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF occurrence taxonomy, Xeno-canto recording metadata, and AVONET species-trait identity.
 
 ### Source tables
 
@@ -82,6 +84,7 @@ Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF o
 | `ebird_api` | `taxonomy__banding_codes` | child |
 | `xeno_canto_api` | `recordings` | media_context |
 | `gbif_api` | `occurrences` | secondary_taxonomy |
+| `avonet` | `species_traits` | trait_context |
 
 ### Attributes
 
@@ -117,6 +120,8 @@ Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF o
 | `recording_url` | `text` | `xeno_canto_api.recordings` | Xeno-canto external recording link |
 | `audio_file_url` | `text` | `xeno_canto_api.recordings` | Xeno-canto external media link; audio not downloaded |
 | `license` | `text` | `gbif_api.occurrences`<br>`xeno_canto_api.recordings` | License/provenance context |
+| `source_scientific_name` | `text` | `avonet.species_traits` | AVONET source scientific name used only for governed exact normalization. |
+| `avibase_id` | `text` | `avonet.species_traits` | AVONET source identifier; primary key at the raw trait grain. |
 
 ### Relationships
 
@@ -126,9 +131,78 @@ Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF o
 
 ### Assumptions
 
-- Natural key: `normalized_scientific_name` from eBird `sci_name`, GBIF `accepted_scientific_name`/`scientific_name`/`species`, and Xeno-canto `genus || ' ' || species`; normalization lowercases, trims, and strips trailing parenthetical authorship.
-- eBird wins descriptive conflicts; GBIF fills taxon identifiers/gaps; Xeno-canto supplies media context.
+- Natural key: `normalized_scientific_name` from eBird `sci_name`, GBIF `accepted_scientific_name`/`scientific_name`/`species`, Xeno-canto `genus || ' ' || species`, and AVONET `source_scientific_name`; normalization lowercases, trims, and strips trailing parenthetical authorship.
+- eBird wins descriptive conflicts; GBIF fills taxon identifiers/gaps; Xeno-canto supplies media context; AVONET supplies species-average trait context only after an exact governed match.
 - Coverage is a union of species from any source; source rows without a usable scientific-name key remain source-scoped.
+
+## BirdSpeciesTraits
+
+AVONET v7 eBird-aligned species-average morphology, ecology, measurement provenance, and pinned dataset provenance.
+
+### Source tables
+
+| Pipeline | Table | Role |
+|---|---|---|
+| `avonet` | `species_traits` | primary |
+
+### Attributes
+
+| Name | Type | Source | Notes |
+|---|---|---|---|
+| `source_scientific_name` | `text` | `avonet.species_traits` | Source scientific name for exact conformance; not an Arizona-range claim. |
+| `family` | `text` | `avonet.species_traits` | AVONET taxonomic family. |
+| `order_name` | `text` | `avonet.species_traits` | AVONET taxonomic order. |
+| `avibase_id` | `text` | `avonet.species_traits` | not null, primary_key |
+| `total_individuals` | `bigint` | `avonet.species_traits` | Contributing-individual count. |
+| `female_individuals` | `bigint` | `avonet.species_traits` | Identified-female count. |
+| `male_individuals` | `bigint` | `avonet.species_traits` | Identified-male count. |
+| `unknown_sex_individuals` | `bigint` | `avonet.species_traits` | Unknown-sex count. |
+| `complete_measures` | `bigint` | `avonet.species_traits` | Complete-measurement count. |
+| `beak_length_culmen_mm` | `double` | `avonet.species_traits` | millimetres |
+| `beak_length_nares_mm` | `double` | `avonet.species_traits` | millimetres |
+| `beak_width_mm` | `double` | `avonet.species_traits` | millimetres |
+| `beak_depth_mm` | `double` | `avonet.species_traits` | millimetres |
+| `tarsus_length_mm` | `double` | `avonet.species_traits` | millimetres |
+| `wing_length_mm` | `double` | `avonet.species_traits` | millimetres |
+| `kipps_distance_mm` | `double` | `avonet.species_traits` | millimetres |
+| `secondary_length_mm` | `double` | `avonet.species_traits` | millimetres |
+| `hand_wing_index` | `double` | `avonet.species_traits` | Dimensionless index. |
+| `tail_length_mm` | `double` | `avonet.species_traits` | millimetres |
+| `mass_g` | `double` | `avonet.species_traits` | grams |
+| `mass_source` | `text` | `avonet.species_traits` | Exact AVONET categorical value. |
+| `mass_reference_other` | `text` | `avonet.species_traits` | Other source citation when supplied. |
+| `inference` | `bool` | `avonet.species_traits` | True only for source value YES. |
+| `traits_inferred` | `text` | `avonet.species_traits` | Exact semicolon-delimited source list. |
+| `reference_species` | `text` | `avonet.species_traits` | Source species used for inference. |
+| `habitat` | `text` | `avonet.species_traits` | Exact habitat category. |
+| `habitat_density_code` | `bigint` | `avonet.species_traits` | 1 dense; 2 semi-open; 3 open. |
+| `migration_code` | `bigint` | `avonet.species_traits` | 1 sedentary; 2 partial migrant; 3 migratory. |
+| `trophic_level` | `text` | `avonet.species_traits` | Exact trophic-level category. |
+| `trophic_niche` | `text` | `avonet.species_traits` | Exact trophic-niche category. |
+| `primary_lifestyle` | `text` | `avonet.species_traits` | Exact primary-lifestyle category. |
+| `dataset_doi` | `text` | `avonet.species_traits` | `10.6084/m9.figshare.16586228.v7` |
+| `dataset_version` | `text` | `avonet.species_traits` | `v7` |
+| `dataset_license` | `text` | `avonet.species_traits` | `CC BY 4.0` |
+| `source_file_id` | `bigint` | `avonet.species_traits` | `34480856` |
+| `source_file_md5` | `text` | `avonet.species_traits` | Validated pinned workbook MD5. |
+| `source_url` | `text` | `avonet.species_traits` | Fixed Figshare URL; signed redirect omitted. |
+| `loaded_at` | `timestamp` | `avonet.species_traits` | Snapshot load timestamp. |
+| `_dlt_load_id` | `text` | `avonet.species_traits` | dlt metadata, not null |
+| `_dlt_id` | `text` | `avonet.species_traits` | dlt metadata, not null, row_key, unique |
+
+### Relationships
+
+| Relationship | Target | Via | Inferred |
+|---|---|---|---|
+| DESCRIBES_SPECIES | `Species` | `avonet.species_traits.source_scientific_name -> Species.normalized_scientific_name` after governed normalization | true |
+
+### Assumptions
+
+- Natural key at the source grain is `avibase_id`; scientific names and Avibase IDs are independently unique in the pinned worksheet.
+- Blank and exact `NA` values are null; categorical/code values otherwise remain exact.
+- Traits are global AVONET species averages and MUST NOT be represented as Arizona-specific range or phenotype claims.
+- No taxonomy mapping is guessed during ingestion; the modeled exact normalized-name join is separately governed.
+- The authoritative table is published only after a complete Quack staging load passes exact row, unique-key, column, and metadata validation; transient staging is not a business entity.
 
 ## BirdHotspot
 

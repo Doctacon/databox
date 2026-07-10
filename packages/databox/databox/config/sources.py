@@ -36,12 +36,16 @@ class Source:
         derived from this source (via `_factories.apply_freshness`).
       analytics_anchor: if True, this source's freshness policy is inherited
         by cross-domain CDM/analytics SQLMesh assets (the slowest upstream wins).
+      scheduled: whether the source has a recurring daily pipeline and schedule.
+      parallel_refresh: whether the source participates in the shared full refresh.
     """
 
     name: str
     raw_tables: tuple[str, ...]
     freshness_policy: dg.FreshnessPolicy = _DEFAULT_FRESHNESS
     analytics_anchor: bool = False
+    scheduled: bool = True
+    parallel_refresh: bool = True
 
     @property
     def raw_catalog(self) -> str:
@@ -59,6 +63,12 @@ SOURCES: list[Source] = [
         ),
     ),
     Source(name="gbif", raw_tables=("occurrences",)),
+    Source(
+        name="avonet",
+        raw_tables=("species_traits",),
+        scheduled=False,
+        parallel_refresh=False,
+    ),
     Source(name="xeno_canto", raw_tables=("recordings",)),
     Source(
         name="noaa",

@@ -12,6 +12,7 @@ EarthquakeEvent	EarthquakeEvent	false	No cross-source natural key/stitching stra
 
 BirdOccurrence	BirdOccurrence	false	No cross-source natural key/stitching strategy required.
 BirdSoundRecording	BirdSoundRecording	false	No cross-source natural key/stitching strategy required. Audio remains an external linked artifact; CDM stores metadata and URLs only.
+BirdSpeciesTraits	BirdSpeciesTraits	false	Natural key: avibase_id. Global AVONET species-average traits; no taxonomy guess or Arizona-specific claim. Authoritative rows are atomically published only from a fully validated transient Quack staging snapshot.
 
 nodes.Attribute
 entity	name	type	master_source	also_in	note
@@ -66,6 +67,8 @@ entity	name	type	master_source	also_in	note
 :Entity:Species	recording_url	text	xeno_canto_api.recordings		Xeno-canto external recording link
 :Entity:Species	audio_file_url	text	xeno_canto_api.recordings		Xeno-canto external media link; audio not downloaded
 :Entity:Species	license	text	gbif_api.occurrences	xeno_canto_api.recordings	License/provenance context
+:Entity:Species	source_scientific_name	text	avonet.species_traits		AVONET scientific name for exact governed conformance
+:Entity:Species	avibase_id	text	avonet.species_traits		AVONET source identifier
 :Entity:BirdHotspot	_dlt_id	text	ebird_api.hotspots		dlt metadata, not null, row_key, unique
 :Entity:BirdHotspot	_dlt_load_id	text	ebird_api.hotspots		dlt metadata, not null
 :Entity:BirdHotspot	_loaded_at	timestamp	ebird_api.hotspots
@@ -269,6 +272,47 @@ entity	name	type	master_source	also_in	note
 :Entity:BirdSoundRecording	_dlt_load_id	text	xeno_canto_api.recordings		dlt metadata, not null
 :Entity:BirdSoundRecording	_dlt_id	text	xeno_canto_api.recordings		dlt metadata, not null, row_key, unique
 
+:Entity:BirdSpeciesTraits	source_scientific_name	text	avonet.species_traits		source scientific name
+:Entity:BirdSpeciesTraits	family	text	avonet.species_traits		taxonomic family
+:Entity:BirdSpeciesTraits	order_name	text	avonet.species_traits		taxonomic order
+:Entity:BirdSpeciesTraits	avibase_id	text	avonet.species_traits		not null, primary_key
+:Entity:BirdSpeciesTraits	total_individuals	bigint	avonet.species_traits		contributing-individual count
+:Entity:BirdSpeciesTraits	female_individuals	bigint	avonet.species_traits		identified-female count
+:Entity:BirdSpeciesTraits	male_individuals	bigint	avonet.species_traits		identified-male count
+:Entity:BirdSpeciesTraits	unknown_sex_individuals	bigint	avonet.species_traits		unknown-sex count
+:Entity:BirdSpeciesTraits	complete_measures	bigint	avonet.species_traits		complete-measurement count
+:Entity:BirdSpeciesTraits	beak_length_culmen_mm	double	avonet.species_traits		millimetres
+:Entity:BirdSpeciesTraits	beak_length_nares_mm	double	avonet.species_traits		millimetres
+:Entity:BirdSpeciesTraits	beak_width_mm	double	avonet.species_traits		millimetres
+:Entity:BirdSpeciesTraits	beak_depth_mm	double	avonet.species_traits		millimetres
+:Entity:BirdSpeciesTraits	tarsus_length_mm	double	avonet.species_traits		millimetres
+:Entity:BirdSpeciesTraits	wing_length_mm	double	avonet.species_traits		millimetres
+:Entity:BirdSpeciesTraits	kipps_distance_mm	double	avonet.species_traits		millimetres
+:Entity:BirdSpeciesTraits	secondary_length_mm	double	avonet.species_traits		millimetres
+:Entity:BirdSpeciesTraits	hand_wing_index	double	avonet.species_traits		dimensionless
+:Entity:BirdSpeciesTraits	tail_length_mm	double	avonet.species_traits		millimetres
+:Entity:BirdSpeciesTraits	mass_g	double	avonet.species_traits		grams
+:Entity:BirdSpeciesTraits	mass_source	text	avonet.species_traits		exact AVONET categorical value
+:Entity:BirdSpeciesTraits	mass_reference_other	text	avonet.species_traits		other cited source
+:Entity:BirdSpeciesTraits	inference	bool	avonet.species_traits		true only for YES
+:Entity:BirdSpeciesTraits	traits_inferred	text	avonet.species_traits		exact source list
+:Entity:BirdSpeciesTraits	reference_species	text	avonet.species_traits		inference reference
+:Entity:BirdSpeciesTraits	habitat	text	avonet.species_traits		exact source category
+:Entity:BirdSpeciesTraits	habitat_density_code	bigint	avonet.species_traits		1 dense; 2 semi-open; 3 open
+:Entity:BirdSpeciesTraits	migration_code	bigint	avonet.species_traits		1 sedentary; 2 partial migrant; 3 migratory
+:Entity:BirdSpeciesTraits	trophic_level	text	avonet.species_traits		exact source category
+:Entity:BirdSpeciesTraits	trophic_niche	text	avonet.species_traits		exact source category
+:Entity:BirdSpeciesTraits	primary_lifestyle	text	avonet.species_traits		exact source category
+:Entity:BirdSpeciesTraits	dataset_doi	text	avonet.species_traits		10.6084/m9.figshare.16586228.v7
+:Entity:BirdSpeciesTraits	dataset_version	text	avonet.species_traits		v7
+:Entity:BirdSpeciesTraits	dataset_license	text	avonet.species_traits		CC BY 4.0
+:Entity:BirdSpeciesTraits	source_file_id	bigint	avonet.species_traits		34480856
+:Entity:BirdSpeciesTraits	source_file_md5	text	avonet.species_traits		validated pinned MD5
+:Entity:BirdSpeciesTraits	source_url	text	avonet.species_traits		fixed Figshare URL
+:Entity:BirdSpeciesTraits	loaded_at	timestamp	avonet.species_traits		UTC snapshot load time
+:Entity:BirdSpeciesTraits	_dlt_load_id	text	avonet.species_traits		dlt metadata, not null
+:Entity:BirdSpeciesTraits	_dlt_id	text	avonet.species_traits		dlt metadata, not null, row_key, unique
+
 edges.OBSERVED_AT
 from	to	via	inferred
 :Entity:BirdObservation	:Entity:BirdHotspot	ebird_api.recent_observations.loc_id -> ebird_api.hotspots.loc_id	true
@@ -284,3 +328,7 @@ from	to	via	inferred
 edges.STITCHED_BY
 from	to	via	inferred
 :Entity:Species	:Entity:Species	normalized_scientific_name	false
+
+edges.DESCRIBES_SPECIES
+from	to	via	inferred
+:Entity:BirdSpeciesTraits	:Entity:Species	avonet.species_traits.source_scientific_name -> Species.normalized_scientific_name after governed normalization	true

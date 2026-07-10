@@ -1,8 +1,10 @@
-Status: active
+Status: superseded
 Created: 2026-07-09
-Updated: 2026-07-09
+Updated: 2026-07-10
 
 # Use AVONET as the only new bird-trait source
+
+Superseded by `.10x/decisions/avonet-atomic-staged-publication.md` after implementation proved Quack's prepared dlt path forces append semantics and therefore cannot directly provide the replacement behavior assumed below.
 
 ## Context
 

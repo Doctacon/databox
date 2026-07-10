@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-09
-Updated: 2026-07-09
+Updated: 2026-07-10
 
 # AVONET bird-traits source and model
 
@@ -10,7 +10,7 @@ This specification governs ingestion of the pinned AVONET v7 eBird-aligned speci
 
 ## Source contract
 
-The source MUST use the exact dataset identity in `.10x/decisions/avonet-only-modeled-bird-traits.md` and MUST:
+The source MUST use the exact dataset identity in `.10x/decisions/avonet-atomic-staged-publication.md` and MUST:
 
 - fetch only the fixed HTTPS Figshare file URL for file ID `34480856`,
 - use bounded connect/read timeouts and a response cap above the expected 21,524,673-byte file but no greater than 24 MiB,
@@ -40,11 +40,14 @@ Units and codebook meanings MUST be documented in `.schema/environmental_observa
 ## Pipeline behavior
 
 - `avonet` MUST be registered as an independently runnable source and Dagster ingest job.
-- It MUST use the existing Quack destination and physical `raw_avonet` schema; no direct concurrent DuckDB writer is allowed.
-- The resource MUST use replacement semantics because the pinned species-average snapshot is complete at its grain.
+- dlt MUST use the existing Quack destination and append only into transient internal schema `raw_avonet_staging`; it MUST NOT write directly to authoritative `raw_avonet`.
+- Before each run, crash residue in `raw_avonet_staging` MUST be removed before the independent Quack server starts.
+- After a successful dlt load and Quack server stop, one direct single-writer DuckDB transaction MUST validate exactly 10,661 rows, 10,661 distinct non-null Avibase IDs, 10,661 distinct non-null source scientific names, the exact normalized business-table columns, and required source-scoped dlt metadata. Only then may it atomically create or replace `raw_avonet.species_traits` and its metadata from staging.
+- Successful publication MUST remove `raw_avonet_staging`. Download, parse, extraction, dlt load, validation, or publication failure MUST leave authoritative `raw_avonet` unchanged and remove staging best-effort; any crash residue MUST be safely cleared before the next run.
+- This post-Quack transaction is the only direct DuckDB write allowed for AVONET and MUST occur only after Quack releases ownership. Generic raw deduplication MUST NOT substitute for complete-snapshot publication.
 - The static pinned source MUST NOT add a redundant daily schedule. It MAY run explicitly and as a required bootstrap/precondition for catalog modeling.
 - Existing six-source parallel refresh overlap/schedules MUST remain unchanged unless a later active decision adds AVONET to that lifecycle.
-- Failed download/hash/schema/parsing MUST fail the source job and preserve the last successful physical table; partial replacement MUST NOT become authoritative.
+- Failed download/hash/schema/parsing/load/validation/publication MUST fail the source job and preserve the last successful physical table and metadata; partial staging data MUST NOT become authoritative.
 
 ## SQLMesh model
 
@@ -75,11 +78,11 @@ Given any of the 82 Arizona hybrid taxa, when the catalog model runs, then the h
 
 ### Tampered source
 
-Given a response with the wrong size/hash, unapproved redirect, missing worksheet, duplicate source key, or changed column contract, when ingestion runs, then the job fails before authoritative replacement and logs no workbook content.
+Given a response with the wrong size/hash, unapproved redirect, missing worksheet, duplicate source key, changed column contract, incomplete staging load, or failed publication, when ingestion runs, then the job fails before authoritative replacement, preserves any prior final snapshot, removes staging best-effort, and logs no workbook content.
 
 ## Explicit exclusions
 
 - No Wikipedia, turbo-search bird corpus, EOL, AVONICHE, AvianHWI, EltonTraits, Birds of the World, All About Birds, or inferred visual field marks.
 - No raw individual specimen table.
 - No automatic taxonomy crosswalk beyond exact governed normalization.
-- No new daily schedule, direct DuckDB write, or browser/request-time download.
+- No new daily schedule, concurrent/direct ingestion bypass, direct DuckDB write while Quack owns the file, or browser/request-time download. The bounded post-Quack atomic publication transaction specified above is required.

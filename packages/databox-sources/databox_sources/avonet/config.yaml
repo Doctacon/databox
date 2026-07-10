@@ -1,0 +1,13 @@
+source:
+  name: avonet
+  dataset_name: raw_avonet
+  internal_staging_schema: raw_avonet_staging
+  doi: 10.6084/m9.figshare.16586228.v7
+  version: v7
+  license: CC BY 4.0
+  source_url: https://ndownloader.figshare.com/files/34480856
+  file_id: 34480856
+  expected_size_bytes: 21524673
+  expected_md5: 1445afdcfb6df784010c2ca034544bc8
+  worksheet: AVONET2_eBird
+  expected_rows: 10661

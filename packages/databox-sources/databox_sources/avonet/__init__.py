@@ -1,0 +1,1 @@
+"""AVONET bird-trait source."""

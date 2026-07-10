@@ -2,7 +2,7 @@ Status: open
 Created: 2026-07-09
 Updated: 2026-07-09
 Parent: .10x/tickets/2026-07-09-build-local-birding-pokedex.md
-Depends-On: .10x/tickets/2026-07-09-add-avonet-bird-traits-source.md
+Depends-On: .10x/tickets/done/2026-07-09-add-avonet-bird-traits-source.md
 
 # Model AVONET traits and Arizona bird catalog
 
@@ -43,4 +43,4 @@ Record source-to-model row counts, exact/missing match sets by category, duplica
 
 ## Blockers
 
-Depends on successful AVONET source ingestion.
+None; AVONET source ingestion is complete and independently reviewed.

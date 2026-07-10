@@ -18,6 +18,7 @@ from databox.orchestration._factories import (
 )
 from databox.orchestration.domains import (
     analytics,
+    avonet,
     ebird,
     gbif,
     noaa,
@@ -34,6 +35,7 @@ _openlineage_sensor = openlineage_sensor_or_none()
 
 defs = dg.Definitions(
     assets=[
+        avonet.avonet_dlt_assets,
         ebird.ebird_dlt_assets,
         gbif.gbif_dlt_assets,
         xeno_canto.xeno_canto_dlt_assets,
@@ -43,6 +45,7 @@ defs = dg.Definitions(
         sqlmesh_project,
     ],
     asset_checks=[
+        *avonet.asset_checks,
         *ebird.asset_checks,
         *gbif.asset_checks,
         *xeno_canto.asset_checks,
@@ -52,6 +55,7 @@ defs = dg.Definitions(
         *analytics.asset_checks,
     ],
     jobs=[
+        avonet.ingest_job,
         ebird.ingest_job,
         gbif.ingest_job,
         xeno_canto.ingest_job,

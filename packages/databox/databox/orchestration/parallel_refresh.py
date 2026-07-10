@@ -255,12 +255,13 @@ def execute_parallel_refresh(
     run_transform: bool = True,
 ) -> ParallelRefreshResult:
     """Run registered Dagster source jobs concurrently against one Quack server."""
-    names = list(source_names or [source.name for source in SOURCES])
+    eligible_sources = [source for source in SOURCES if source.parallel_refresh]
+    names = list(source_names or [source.name for source in eligible_sources])
     if not names:
         raise ValueError("At least one source is required")
     if len(set(names)) != len(names):
         raise ValueError("Source names must be unique")
-    known = {source.name for source in SOURCES}
+    known = {source.name for source in eligible_sources}
     unknown = sorted(set(names) - known)
     if unknown:
         raise ValueError(f"Unknown sources: {', '.join(unknown)}")
