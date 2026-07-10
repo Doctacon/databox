@@ -6,7 +6,7 @@ import asyncio
 import json
 import re
 from collections.abc import Callable, Mapping
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
 from urllib.parse import urlsplit
@@ -16,7 +16,7 @@ from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from databox.agent_tools.open_meteo_geocoding import (
     ArizonaLocationSuggestion,
@@ -246,6 +246,168 @@ class TripPlanDetailResponse(BaseModel):
 
 class PlanListResponse(BaseModel):
     plans: list[PlanSummaryResponse]
+
+
+class BirdCatalogSummaryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    species_code: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9]+$")
+    common_name: str | None = Field(default=None, max_length=200)
+    scientific_name: str | None = Field(default=None, max_length=200)
+    taxonomic_category: Literal["species", "hybrid"]
+    taxonomic_order: float
+    order_name: str | None = Field(default=None, max_length=200)
+    family_common_name: str | None = Field(default=None, max_length=200)
+    family_scientific_name: str | None = Field(default=None, max_length=200)
+    traits_status: Literal["available", "unavailable"]
+    recent_public_observation_count: int = Field(ge=0)
+    latest_public_observation_at: datetime | None
+
+
+class BirdCatalogResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    birds: list[BirdCatalogSummaryResponse] = Field(min_length=706, max_length=706)
+
+
+class BirdTaxonomyResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    family_code: str | None = Field(default=None, max_length=64)
+    report_as: str | None = Field(default=None, max_length=64)
+    extinct: bool | None
+    extinct_year: int | None
+
+
+class BirdTraitSampleResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    total_individuals: int | None = Field(default=None, ge=0)
+    female_individuals: int | None = Field(default=None, ge=0)
+    male_individuals: int | None = Field(default=None, ge=0)
+    unknown_sex_individuals: int | None = Field(default=None, ge=0)
+    complete_measures: int | None = Field(default=None, ge=0)
+
+
+class BirdMorphologyResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    beak_length_culmen_mm: float | None
+    beak_length_nares_mm: float | None
+    beak_width_mm: float | None
+    beak_depth_mm: float | None
+    tarsus_length_mm: float | None
+    wing_length_mm: float | None
+    kipps_distance_mm: float | None
+    secondary_length_mm: float | None
+    hand_wing_index: float | None
+    tail_length_mm: float | None
+    mass_g: float | None
+
+
+class BirdEcologyResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    habitat: str | None = Field(default=None, max_length=200)
+    habitat_density_code: int | None
+    habitat_density_label: str | None = Field(default=None, max_length=200)
+    migration_code: int | None
+    migration_label: str | None = Field(default=None, max_length=200)
+    trophic_level: str | None = Field(default=None, max_length=200)
+    trophic_niche: str | None = Field(default=None, max_length=200)
+    primary_lifestyle: str | None = Field(default=None, max_length=200)
+
+
+class BirdTraitProvenanceResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dataset_doi: str | None = Field(default=None, max_length=200)
+    dataset_version: str | None = Field(default=None, max_length=64)
+    dataset_license: str | None = Field(default=None, max_length=64)
+    source_file_id: int | None = Field(default=None, ge=0)
+    source_file_md5: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
+    loaded_at: datetime | None
+
+
+class BirdTraitsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["available", "unavailable"]
+    source_scientific_name: str | None = Field(default=None, max_length=200)
+    avonet_family: str | None = Field(default=None, max_length=200)
+    avonet_order_name: str | None = Field(default=None, max_length=200)
+    avibase_id: str | None = Field(default=None, max_length=64)
+    inference: bool | None
+    traits_inferred: str | None = Field(default=None, max_length=1000)
+    reference_species: str | None = Field(default=None, max_length=200)
+    mass_source: str | None = Field(default=None, max_length=500)
+    mass_reference_other: str | None = Field(default=None, max_length=1000)
+    sample: BirdTraitSampleResponse
+    morphology: BirdMorphologyResponse
+    ecology: BirdEcologyResponse
+    provenance: BirdTraitProvenanceResponse
+
+
+class BirdPublicLocationResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    location_id: str = Field(min_length=1, max_length=128)
+    location_name: str | None = Field(default=None, max_length=300)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    observation_count: int = Field(ge=0)
+    latest_observation_at: datetime | None
+    notable_count: int = Field(ge=0)
+
+
+class BirdArizonaActivityResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    recent_public_observation_count: int = Field(ge=0)
+    latest_public_observation_at: datetime | None
+    public_location_count: int = Field(ge=0)
+    recent_public_notable_count: int = Field(ge=0)
+    top_public_locations: list[BirdPublicLocationResponse] = Field(max_length=10)
+
+
+class BirdGbifResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    occurrence_count: int = Field(ge=0)
+    latest_event_date: date | None
+
+
+class BirdXenoCantoResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    recording_count: int = Field(ge=0)
+    latest_recording_date: date | None
+    representative_recording_id: str | None = Field(default=None, max_length=64)
+    representative_recordist: str | None = Field(default=None, max_length=300)
+    representative_recording_type: str | None = Field(default=None, max_length=300)
+    representative_recording_quality: str | None = Field(default=None, max_length=64)
+    representative_recording_license: str | None = Field(default=None, max_length=500)
+
+
+class BirdFreshnessResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    species_list_loaded_at: datetime | None
+    taxonomy_loaded_at: datetime | None
+    ebird_observations_loaded_at: datetime | None
+    gbif_loaded_at: datetime | None
+    xeno_canto_loaded_at: datetime | None
+    catalog_freshness_at: datetime | None
+
+
+class BirdProfileResponse(BirdCatalogSummaryResponse):
+    region_code: Literal["US-AZ"]
+    taxonomy: BirdTaxonomyResponse
+    traits: BirdTraitsResponse
+    arizona_activity: BirdArizonaActivityResponse
+    gbif: BirdGbifResponse
+    xeno_canto: BirdXenoCantoResponse
+    freshness: BirdFreshnessResponse
 
 
 def _error(code: str, message: str, status: int) -> JSONResponse:
@@ -749,6 +911,195 @@ def _is_database_busy(exc: BaseException) -> bool:
     )
 
 
+_BIRD_SUMMARY_COLUMNS = """
+    species_code, common_name, scientific_name, taxonomic_category,
+    taxonomic_order, order_name, family_common_name, family_scientific_name,
+    traits_status, recent_public_observation_count, latest_public_observation_at
+"""
+
+_BIRD_PROFILE_COLUMNS = f"""
+    {_BIRD_SUMMARY_COLUMNS}, region_code, family_code, report_as, extinct, extinct_year,
+    source_scientific_name, avonet_family, avonet_order_name, avibase_id,
+    total_individuals, female_individuals, male_individuals,
+    unknown_sex_individuals, complete_measures, beak_length_culmen_mm,
+    beak_length_nares_mm, beak_width_mm, beak_depth_mm, tarsus_length_mm,
+    wing_length_mm, kipps_distance_mm, secondary_length_mm, hand_wing_index,
+    tail_length_mm, mass_g, mass_source, mass_reference_other, inference,
+    traits_inferred, reference_species, habitat, habitat_density_code,
+    habitat_density_label, migration_code, migration_label, trophic_level,
+    trophic_niche, primary_lifestyle, dataset_doi, dataset_version,
+    dataset_license, source_file_id, source_file_md5, avonet_loaded_at,
+    public_location_count, recent_public_notable_count, top_public_locations_json,
+    gbif_occurrence_count, gbif_latest_event_date, xeno_canto_recording_count,
+    xeno_canto_latest_recording_date, representative_recording_id,
+    representative_recordist, representative_recording_type,
+    representative_recording_quality, representative_recording_license,
+    species_list_loaded_at, taxonomy_loaded_at, ebird_observations_loaded_at,
+    gbif_loaded_at, xeno_canto_loaded_at, catalog_freshness_at
+"""
+
+
+def _bird_summaries(
+    connection: duckdb.DuckDBPyConnection,
+) -> list[BirdCatalogSummaryResponse]:
+    rows = _rows(
+        connection.execute(
+            f"""
+            SELECT {_BIRD_SUMMARY_COLUMNS}
+            FROM birding_agent.arizona_species_catalog
+            ORDER BY taxonomic_order, species_code
+            LIMIT 707
+            """
+        )
+    )
+    if len(rows) != 706:
+        raise ValueError("Arizona bird catalog must contain exactly 706 taxa")
+    species_codes = [str(row["species_code"]) for row in rows]
+    if len(set(species_codes)) != len(species_codes):
+        raise ValueError("Arizona bird catalog species codes must be unique")
+    summaries = [BirdCatalogSummaryResponse.model_validate(row) for row in rows]
+    categories = [summary.taxonomic_category for summary in summaries]
+    if categories.count("species") != 624 or categories.count("hybrid") != 82:
+        raise ValueError("Arizona bird catalog must contain 624 species and 82 hybrids")
+    return summaries
+
+
+def _bird_public_locations(value: object) -> list[BirdPublicLocationResponse]:
+    if value is None:
+        return []
+    if not isinstance(value, str):
+        raise ValueError("Modeled top locations must be JSON text")
+    parsed = json.loads(value)
+    if not isinstance(parsed, list) or len(parsed) > 10:
+        raise ValueError("Modeled top locations must be a list of at most ten rows")
+    return [BirdPublicLocationResponse.model_validate(row) for row in parsed]
+
+
+def _bird_profile(
+    connection: duckdb.DuckDBPyConnection, species_code: str
+) -> BirdProfileResponse | None:
+    rows = _rows(
+        connection.execute(
+            f"""
+            SELECT {_BIRD_PROFILE_COLUMNS}
+            FROM birding_agent.arizona_species_catalog
+            WHERE species_code = ?
+            LIMIT 2
+            """,
+            [species_code],
+        )
+    )
+    if not rows:
+        return None
+    if len(rows) != 1:
+        raise ValueError("Arizona bird catalog species code is not unique")
+    row = rows[0]
+    summary = {key.strip() for key in _BIRD_SUMMARY_COLUMNS.split(",")}
+    profile = {key: row[key] for key in summary}
+    profile.update(
+        {
+            "region_code": row["region_code"],
+            "taxonomy": {
+                "family_code": row["family_code"],
+                "report_as": row["report_as"],
+                "extinct": row["extinct"],
+                "extinct_year": row["extinct_year"],
+            },
+            "traits": {
+                "status": row["traits_status"],
+                "source_scientific_name": row["source_scientific_name"],
+                "avonet_family": row["avonet_family"],
+                "avonet_order_name": row["avonet_order_name"],
+                "avibase_id": row["avibase_id"],
+                "inference": row["inference"],
+                "traits_inferred": row["traits_inferred"],
+                "reference_species": row["reference_species"],
+                "mass_source": row["mass_source"],
+                "mass_reference_other": row["mass_reference_other"],
+                "sample": {
+                    key: row[key]
+                    for key in (
+                        "total_individuals",
+                        "female_individuals",
+                        "male_individuals",
+                        "unknown_sex_individuals",
+                        "complete_measures",
+                    )
+                },
+                "morphology": {
+                    key: row[key]
+                    for key in (
+                        "beak_length_culmen_mm",
+                        "beak_length_nares_mm",
+                        "beak_width_mm",
+                        "beak_depth_mm",
+                        "tarsus_length_mm",
+                        "wing_length_mm",
+                        "kipps_distance_mm",
+                        "secondary_length_mm",
+                        "hand_wing_index",
+                        "tail_length_mm",
+                        "mass_g",
+                    )
+                },
+                "ecology": {
+                    key: row[key]
+                    for key in (
+                        "habitat",
+                        "habitat_density_code",
+                        "habitat_density_label",
+                        "migration_code",
+                        "migration_label",
+                        "trophic_level",
+                        "trophic_niche",
+                        "primary_lifestyle",
+                    )
+                },
+                "provenance": {
+                    "dataset_doi": row["dataset_doi"],
+                    "dataset_version": row["dataset_version"],
+                    "dataset_license": row["dataset_license"],
+                    "source_file_id": row["source_file_id"],
+                    "source_file_md5": row["source_file_md5"],
+                    "loaded_at": row["avonet_loaded_at"],
+                },
+            },
+            "arizona_activity": {
+                "recent_public_observation_count": row["recent_public_observation_count"],
+                "latest_public_observation_at": row["latest_public_observation_at"],
+                "public_location_count": row["public_location_count"],
+                "recent_public_notable_count": row["recent_public_notable_count"],
+                "top_public_locations": _bird_public_locations(row["top_public_locations_json"]),
+            },
+            "gbif": {
+                "occurrence_count": row["gbif_occurrence_count"],
+                "latest_event_date": row["gbif_latest_event_date"],
+            },
+            "xeno_canto": {
+                "recording_count": row["xeno_canto_recording_count"],
+                "latest_recording_date": row["xeno_canto_latest_recording_date"],
+                "representative_recording_id": row["representative_recording_id"],
+                "representative_recordist": row["representative_recordist"],
+                "representative_recording_type": row["representative_recording_type"],
+                "representative_recording_quality": row["representative_recording_quality"],
+                "representative_recording_license": row["representative_recording_license"],
+            },
+            "freshness": {
+                key: row[key]
+                for key in (
+                    "species_list_loaded_at",
+                    "taxonomy_loaded_at",
+                    "ebird_observations_loaded_at",
+                    "gbif_loaded_at",
+                    "xeno_canto_loaded_at",
+                    "catalog_freshness_at",
+                )
+            },
+        }
+    )
+    return BirdProfileResponse.model_validate(profile)
+
+
 def _selected_location(payload: CreateTripPlanRequest) -> NormalizedLocation | None:
     selected = payload.location_selection
     if selected is None:
@@ -821,6 +1172,63 @@ def create_app(
             database_ready=database_ready,
             model_ready=model_ready,
         )
+
+    @app.get(
+        "/api/birds",
+        response_model=BirdCatalogResponse,
+        responses={503: {"model": ErrorResponse}},
+    )
+    async def list_birds() -> BirdCatalogResponse | JSONResponse:
+        connection: duckdb.DuckDBPyConnection | None = None
+        try:
+            if not Path(db_path).exists():
+                return _error("database_unavailable", "The local bird catalog is unavailable", 503)
+            connection = duckdb.connect(db_path, read_only=True)
+            return BirdCatalogResponse(birds=_bird_summaries(connection))
+        except duckdb.Error as exc:
+            if _is_database_busy(exc):
+                return _error(
+                    "database_busy", "The warehouse is refreshing; try again shortly", 503
+                )
+            return _error("database_unavailable", "The local bird catalog is unavailable", 503)
+        except (TypeError, ValueError, ValidationError):
+            return _error("database_unavailable", "The local bird catalog is unavailable", 503)
+        finally:
+            if connection is not None:
+                connection.close()
+
+    @app.get(
+        "/api/birds/{species_code}",
+        response_model=BirdProfileResponse,
+        responses={
+            400: {"model": ErrorResponse},
+            404: {"model": ErrorResponse},
+            503: {"model": ErrorResponse},
+        },
+    )
+    async def get_bird(species_code: str) -> BirdProfileResponse | JSONResponse:
+        if len(species_code) > 64 or re.fullmatch(r"[A-Za-z0-9]+", species_code) is None:
+            return _error("invalid_request", "Invalid bird species code", 400)
+        connection: duckdb.DuckDBPyConnection | None = None
+        try:
+            if not Path(db_path).exists():
+                return _error("database_unavailable", "The local bird catalog is unavailable", 503)
+            connection = duckdb.connect(db_path, read_only=True)
+            profile = _bird_profile(connection, species_code)
+            if profile is None:
+                return _error("not_found", "Bird not found in the Arizona catalog", 404)
+            return profile
+        except duckdb.Error as exc:
+            if _is_database_busy(exc):
+                return _error(
+                    "database_busy", "The warehouse is refreshing; try again shortly", 503
+                )
+            return _error("database_unavailable", "The local bird catalog is unavailable", 503)
+        except (TypeError, ValueError, ValidationError):
+            return _error("database_unavailable", "The local bird catalog is unavailable", 503)
+        finally:
+            if connection is not None:
+                connection.close()
 
     @app.get(
         "/api/locations",

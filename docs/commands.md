@@ -64,7 +64,18 @@ task app               # build and serve the complete app at http://127.0.0.1:80
 ```
 
 Both launch paths bind to loopback. Run `task verify` first to populate the
-local warehouse. The browser calls `/api/*`; only the Python process can access
+local warehouse. The Trip Planner remains at `/`; the read-only Arizona Birds
+catalog is available at `/birds`, with direct modeled profiles at
+`/birds/{species_code}`. Native browser history supports direct reload,
+back, and forward without a routing dependency. Catalog search, species/hybrid
+filtering, and 24-row pagination operate entirely on the bounded 706-row API
+snapshot; profile pages use only persisted modeled facts and public Arizona
+locations, with no request-time discovery or mutation. A public modeled location
+whose name includes `(private)` is shown with an access-restriction warning;
+eBird's modeled privacy flag, not the display-name suffix, governs observation
+privacy.
+
+The browser calls `/api/*`; only the Python process can access
 DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable
 `task app:audit-bundle` command checks the compiled files for all configured
 Cloudflare variable names and non-empty local values without printing secrets.

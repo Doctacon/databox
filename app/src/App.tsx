@@ -1,5 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPlan, getPlan, listPlans } from "./api";
+import { BirdCatalogPage, BirdProfilePage } from "./BirdPages";
 import LocationCombobox from "./LocationCombobox";
 import type {
   CreatePlanInput,
@@ -441,7 +442,8 @@ function PlanView({ detail }: { detail: TripPlanDetail }) {
   );
 }
 
-export default function App() {
+function PlannerPage() {
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [detail, setDetail] = useState<TripPlanDetail | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -460,6 +462,7 @@ export default function App() {
   }
 
   useEffect(() => {
+    headingRef.current?.focus();
     refreshPlans(true).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not load plans"))
       .finally(() => setLoadingHistory(false));
   }, []);
@@ -493,14 +496,9 @@ export default function App() {
     } finally { setLoadingPlan(false); }
   }
 
-  return <>
-    <header className="site-header">
-      <div><span className="brand-mark" aria-hidden="true">◉</span><strong>Birding Trip Copilot</strong></div>
-      <p>Local DuckDB · evidence-backed · Cloudflare GLM</p>
-    </header>
-    <main>
+  return <main>
       <aside className="planner-sidebar" aria-labelledby="planner-heading">
-        <p className="eyebrow">Trip planner</p><h1 id="planner-heading">{heading}</h1>
+        <p className="eyebrow">Trip planner</p><h1 ref={headingRef} id="planner-heading" tabIndex={-1}>{heading}</h1>
         <form onSubmit={submit}>
           <label htmlFor="location">Location</label>
           <LocationCombobox
@@ -546,6 +544,62 @@ export default function App() {
         {!loadingPlan && detail && <PlanView key={detail.plan.trip_plan_id} detail={detail} />}
         {!loadingPlan && !detail && !error && <div className="welcome"><span aria-hidden="true">⌁</span><h2>No trip selected</h2><p>Create a plan or choose a saved plan to see recommendations, evidence, and the agent workflow.</p></div>}
       </section>
-    </main>
+    </main>;
+}
+
+type Route = { page: "planner" } | { page: "birds" } | { page: "bird"; speciesCode: string };
+
+function currentRoute(): Route {
+  if (window.location.pathname === "/birds") return { page: "birds" };
+  const match = /^\/birds\/([^/]+)$/.exec(window.location.pathname);
+  if (match) {
+    try { return { page: "bird", speciesCode: decodeURIComponent(match[1]) }; }
+    catch { return { page: "bird", speciesCode: "invalid-species-code" }; }
+  }
+  return { page: "planner" };
+}
+
+export default function App() {
+  const [route, setRoute] = useState<Route>(() => currentRoute());
+
+  useEffect(() => {
+    const handlePopState = () => setRoute(currentRoute());
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    document.title = route.page === "planner"
+      ? "Trip Planner · Databox"
+      : route.page === "birds"
+        ? "Arizona Birds · Databox"
+        : "Bird Profile · Arizona Birds · Databox";
+  }, [route]);
+
+  function navigate(path: string) {
+    if (window.location.pathname !== path) window.history.pushState(null, "", path);
+    setRoute(currentRoute());
+  }
+
+  function navClick(event: MouseEvent<HTMLAnchorElement>, path: string) {
+    if (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+      event.preventDefault();
+      navigate(path);
+    }
+  }
+
+  const birdsActive = route.page === "birds" || route.page === "bird";
+  return <>
+    <header className="site-header">
+      <div className="site-brand"><span className="brand-mark" aria-hidden="true">◉</span><strong>Birding Trip Copilot</strong></div>
+      <nav aria-label="Primary navigation">
+        <a href="/" aria-current={route.page === "planner" ? "page" : undefined} onClick={(event) => navClick(event, "/")}>Trip Planner</a>
+        <a href="/birds" aria-current={birdsActive ? "page" : undefined} onClick={(event) => navClick(event, "/birds")}>Arizona Birds</a>
+      </nav>
+      <p>Local DuckDB · evidence-backed</p>
+    </header>
+    {route.page === "planner" && <PlannerPage />}
+    {route.page === "birds" && <BirdCatalogPage navigate={navigate} />}
+    {route.page === "bird" && <BirdProfilePage speciesCode={route.speciesCode} navigate={navigate} />}
   </>;
 }

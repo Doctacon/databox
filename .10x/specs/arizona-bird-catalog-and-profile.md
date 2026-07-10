@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-09
-Updated: 2026-07-09
+Updated: 2026-07-10
 
 # Arizona bird catalog and modeled species profile
 
@@ -54,7 +54,7 @@ A profile MUST display only modeled facts and clearly separate:
 
 1. **Identity and taxonomy** — names, category, family/order, species code.
 2. **Physical traits** — available AVONET measurements with source units, measurement sample/provenance, and inferred-trait disclosure.
-3. **Ecology** — modeled habitat, habitat-density label, migration label, trophic level/niche, primary lifestyle, and global range metrics; global values MUST NOT be presented as Arizona-specific.
+3. **Ecology** — modeled habitat, habitat-density label, migration label, trophic level/niche, and primary lifestyle. Global range metrics are outside the governed AVONET source fields and MUST be disclosed as unavailable rather than inferred or presented as Arizona-specific.
 4. **Arizona activity** — bounded recent public observation summary and public locations with dates/counts/notable labels.
 5. **Occurrence and sound context** — modeled GBIF/Xeno facts and safely validated media/links only where already available in the warehouse.
 6. **Evidence and provenance** — eBird/AVONET/GBIF/Xeno source status, timestamps, dataset DOI/version/license, and caveats.

@@ -165,7 +165,8 @@ task plan:prod     # promote verified changes — see docs/environments.md
 # Optional: verify the configured agent model (@cf/zai-org/glm-5.2)
 task smoke:cloudflare-ai
 
-# Launch the local Trip Planner (FastAPI + React) at localhost:5173
+# Launch the local Trip Planner and read-only Arizona Birds catalog
+# (FastAPI + React) at localhost:5173; catalog route: /birds
 task app:dev
 
 # Or build and serve it from one local process at localhost:8000

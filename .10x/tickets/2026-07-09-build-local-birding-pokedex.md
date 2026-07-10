@@ -31,7 +31,7 @@ This is a parent plan and is not executable directly.
 0. Compact the existing planner independently through `.10x/tickets/done/2026-07-09-compact-and-paginate-trip-plan-results.md`.
 1. Add the AVONET source through `.10x/tickets/done/2026-07-09-add-avonet-bird-traits-source.md`.
 2. Build modeled traits/catalog through `.10x/tickets/done/2026-07-09-model-avonet-traits-and-arizona-catalog.md`.
-3. Build the read-only catalog/profile UI through `.10x/tickets/2026-07-09-build-arizona-bird-catalog-and-profile.md`.
+3. Build the read-only catalog/profile UI through `.10x/tickets/done/2026-07-09-build-arizona-bird-catalog-and-profile.md`.
 4. Specify manual observation records, derived life list, wishlist, and per-species watch management.
 5. Specify origin/radius target-bird planning and its relationship to species profiles and existing planner artifacts.
 6. Specify post-refresh watched-bird matching, report generation, calendar selection, outbox, SMTP delivery, update/cancel behavior, and operations.
@@ -70,10 +70,10 @@ Catalog/profile must precede personal collection and target workflows because th
 - 2026-07-10: AVONET source child completed after critical repair from unsupported direct replacement to transient Quack staging plus validated atomic post-Quack publication; 105 focused tests and independent final review passed.
 - 2026-07-10: Trait/catalog model child completed after repairs for complete-snapshot membership and coherent public-location tuples; 13 SQLMesh tests, exact 706/624/82/600/24 coverage measurement, and independent final review passed.
 - 2026-07-10: Live AVONET bootstrap and production model apply completed. A production-only external-schema star-expansion lint blocker was repaired with explicit projections; prod now has no diff and live catalog counts/privacy/location checks pass.
+- 2026-07-10: Read-only Arizona catalog/profile completed with exact 706/624/82 browser/API guards, 600 exact AVONET matches, accessible native routes, strict modeled profiles, privacy/access semantics, 27 focused Python tests, 72 browser tests, a green 307-test Python suite, and independent pass review.
+- 2026-07-10: User ratified manual observation edit plus hard delete, personal collection retention until explicit deletion, 90-day alert-history retention, existing planner date/time/duration inputs for target-bird planning, and freshness-first watched-bird morning selection.
 
 ## Blockers
 
-- AVONET source and catalog/profile contracts are settled; no external narrative or turbo-search bird corpus will be used.
-- Exact morning-window scoring and calendar update/expiration/cancellation semantics.
-- Manual observation edit/delete behavior and personal/alert retention policy.
+- Calendar update/expiration/cancellation semantics.
 - Retry timing and delivery-unknown operator workflow; Proton Bridge SMTP setup and bounded live-test authorization are complete.
