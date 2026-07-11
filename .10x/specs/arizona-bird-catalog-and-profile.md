@@ -1,12 +1,12 @@
 Status: active
 Created: 2026-07-09
-Updated: 2026-07-10
+Updated: 2026-07-11
 
 # Arizona bird catalog and modeled species profile
 
 ## Purpose and scope
 
-This specification governs the local Arizona Birds page, selectable species/hybrid detail pages, modeled warehouse interface, and read-only API. It uses only facts already ingested and transformed into `data/databox.duckdb`.
+This specification governs the local Arizona Birds page, selectable species/hybrid detail pages, modeled warehouse interface, and read-only API. Profile facts use only data already ingested and transformed into `data/databox.duckdb`; representative runtime media metadata is separately governed by `.10x/specs/arizona-catalog-media.md`.
 
 ## Catalog membership and identity
 
@@ -46,7 +46,7 @@ The list response MUST be bounded to the 706-row regional catalog; browser pagin
 - `/birds` MUST support browser back/forward and direct local reload.
 - The catalog MUST provide case-insensitive search over common name, scientific name, and species code plus category filtering for all/species/hybrids.
 - Browser pagination MUST show 24 taxa by default with bounded Previous/Next, accurate range/total, and reset to the first page when search/filter changes.
-- Selecting a catalog card MUST navigate to `/birds/{species_code}`. Cards MUST show common/scientific names, category, family when available, modeled-traits availability, and recent-observation availability without inventing missing content.
+- Selecting a catalog card MUST navigate to `/birds/{species_code}`. Cards MUST show common/scientific names, category, family when available, modeled-traits availability, recent-observation availability, and exact representative media or explicit unavailable placeholders governed by `.10x/specs/arizona-catalog-media.md`, without inventing missing content.
 
 ## Species profile
 
@@ -92,4 +92,4 @@ Given public and private eBird observations for a taxon, when list/detail APIs a
 
 - No Wikipedia, turbo-search bird corpus, EOL, unmodeled narrative profile, request-time bird-fact discovery, map, image recognition, field-mark inference, or browser database access.
 - No life-list/wishlist/watch mutation in this specification; those actions are governed by a subsequent focused personal-collection specification.
-- No catalog-wide media backfill or promise of photo/call coverage for every taxon.
+- No promise of available photo/call coverage for every taxon; explicit catalog media enrichment and unavailable behavior are governed by `.10x/specs/arizona-catalog-media.md`.

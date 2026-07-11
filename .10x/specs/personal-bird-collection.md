@@ -1,20 +1,21 @@
 Status: active
 Created: 2026-07-10
-Updated: 2026-07-10
+Updated: 2026-07-11
 
 # Personal bird collection
 
 ## Purpose and scope
 
-This specification governs local manual observation events, derived life-list membership, wishlist state, and watch definitions for the single local user. It uses `birding_agent.arizona_species_catalog.species_code` as taxon identity and never creates an account or remote profile.
+This specification governs local manual observation events, derived life-list membership, and watch definitions for the single local user. It uses `birding_agent.arizona_species_catalog.species_code` as taxon identity and never creates an account or remote profile.
 
 ## Data ownership and model
 
 Runtime-owned physical DuckDB tables MUST store personal state separately from SQLMesh models:
 
 - observation: immutable ID, species code, observation date, optional location text, optional notes, created/updated UTC timestamps;
-- wishlist: species code plus created UTC timestamp, unique by species code;
 - watch: species code, active state, Arizona center latitude/longitude plus display name, radius miles, created/updated UTC timestamps, unique by species code.
+
+The former wishlist state is removed. Watch is the sole prospective-interest state; existing wishlist rows are deleted by an explicit idempotent migration and MUST NOT be converted into watches because a valid watch requires user-ratified center/radius semantics.
 
 Observation date is a calendar date and MUST NOT be reinterpreted as a timestamp. Location and notes are user text, not evidence or geocoding claims. Text MUST be trimmed and bounded; empty optional text becomes null. Personal state persists until explicit mutation.
 
@@ -29,10 +30,6 @@ Every mutation MUST validate that the species code exists in the exact current A
 - Listing MUST use observation date descending, updated timestamp descending, and ID as a stable tie-break.
 - Life-list membership MUST be derived from at least one remaining observation. It MUST expose first-observed date, latest-observed date, and observation count per taxon.
 - Deleting the last observation MUST remove the taxon from the derived life list. No separate observed boolean may be authoritative.
-
-## Wishlist behavior
-
-Add and remove are idempotent. Wishlist state is independent from observations and watches: observing a bird MUST NOT remove it, and adding/removing it MUST NOT change another state.
 
 ## Watch behavior
 
@@ -50,7 +47,6 @@ Typed bounded endpoints MUST support:
 
 - observation create/list/get/edit/delete;
 - derived life-list list;
-- wishlist list/add/remove;
 - watches list/create-or-replace/pause/resume/delete;
 - a combined per-species collection-state read for profile presentation.
 
@@ -58,20 +54,20 @@ Mutations MUST be serialized within the single local app, use explicit DuckDB tr
 
 ## Browser behavior
 
-“My Birds” MUST provide accessible Life List, Observations, Wishlist, and Watches views. Forms use native labels, date input, validation, confirmation for hard deletion, and visible success/error states. Species selection MUST come from the local catalog. Species profiles MAY expose explicit add-observation, wishlist, and watch controls governed here; no implicit mutation is allowed.
+“My Birds” MUST provide accessible Life List, Observations, and Watches views. Forms use native labels, date input, validation, confirmation for hard deletion, and visible success/error states. Species selection MUST come from the local catalog. Species profiles MAY expose explicit add-observation, wishlist, and watch controls governed here; no implicit mutation is allowed.
 
 No personal location, notes, origin, watch center, or recipient data may appear in logs, model prompts, traces, bundles, committed fixtures, or catalog/public evidence responses.
 
 ## Retention
 
-Observations, wishlist, and watches persist until explicit user edit/delete. Hard-deleted observation content is not retained by this feature. Database backups are outside the application deletion guarantee and MUST be described as an operational limit if backups are later introduced.
+Observations and watches persist until explicit user edit/delete. Hard-deleted observation content is not retained by this feature. Database backups are outside the application deletion guarantee and MUST be described as an operational limit if backups are later introduced.
 
 ## Acceptance scenarios
 
 - Two observations for one species yield one life-list taxon with count two and correct first/latest dates.
 - Editing one event updates derived dates/counts; deleting the last event removes membership.
-- Wishlist remains after observation creation and watch removal.
-- A hybrid can be observed, wished, and watched without parent inference.
+- Observed and watched state remain independent; observing a bird does not create or remove a watch.
+- A hybrid can be observed and watched without parent inference.
 - Pause/resume changes activation boundaries without evaluating or delivering an alert during the request.
 - Invalid/stale species, invalid date, non-Arizona watch center, radius outside 1–300, busy database, and missing IDs return safe explicit states.
 - API and UI expose no credential, raw arbitrary payload, or personal data outside the requested local surface.
