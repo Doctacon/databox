@@ -54,7 +54,7 @@ Mutations MUST be serialized within the single local app, use explicit DuckDB tr
 
 ## Browser behavior
 
-“My Birds” MUST provide accessible Life List, Observations, and Watches views. Forms use native labels, date input, validation, confirmation for hard deletion, and visible success/error states. Species selection MUST come from the local catalog. Species profiles MAY expose explicit add-observation, wishlist, and watch controls governed here; no implicit mutation is allowed.
+“My Birds” MUST provide accessible Life List, Observations, and Watches views. Forms use native labels, date input, validation, confirmation for hard deletion, and visible success/error states. Species selection MUST come from the local catalog. Species profiles MAY expose explicit add-observation and watch controls governed here; no implicit mutation is allowed.
 
 No personal location, notes, origin, watch center, or recipient data may appear in logs, model prompts, traces, bundles, committed fixtures, or catalog/public evidence responses.
 

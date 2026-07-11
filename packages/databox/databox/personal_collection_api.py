@@ -16,7 +16,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from databox.agents.birding_trip_planner import NormalizedLocation, resolve_arizona_location
 from databox.personal_collection import (
     CollectionStorageMigrationError,
-    add_wishlist,
     backfill_runtime_identities,
     collection_state,
     create_observation,
@@ -28,9 +27,7 @@ from databox.personal_collection import (
     list_life_list,
     list_observations,
     list_watches,
-    list_wishlist,
     put_watch,
-    remove_wishlist,
     request_watch_cancellation,
     runtime_identity_migration_required,
     set_watch_active,
@@ -106,20 +103,6 @@ class LifeListResponse(BaseModel):
     birds: list[LifeListEntryResponse] = Field(max_length=10000)
 
 
-class WishlistEntryResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    species_code: str
-    created_at: datetime
-    identity: BirdIdentityResponse
-
-
-class WishlistResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    birds: list[WishlistEntryResponse] = Field(max_length=10000)
-
-
 class WatchCenterInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -174,7 +157,6 @@ class CollectionStateResponse(BaseModel):
     catalog_status: Literal["current", "stale"]
     observed: bool
     observation_count: int = Field(ge=0)
-    wishlisted: bool
     watched: bool
     watch_active: bool
 
@@ -436,79 +418,6 @@ def register_personal_collection_routes(
             if connection is not None:
                 connection.close()
 
-    @app.get("/api/wishlist", response_model=WishlistResponse)
-    async def wishlist() -> WishlistResponse | JSONResponse:
-        if not Path(database_path).exists():
-            return WishlistResponse(birds=[])
-        connection = None
-        try:
-            connection = read_connection()
-            return WishlistResponse(birds=list_wishlist(connection))
-        except duckdb.Error as exc:
-            return _error(
-                "database_busy" if _busy(exc) else "database_unavailable",
-                "The local collection is unavailable",
-                503,
-            )
-        finally:
-            if connection is not None:
-                connection.close()
-
-    async def change_wishlist(
-        species_code: str, *, add: bool
-    ) -> WishlistEntryResponse | RemovedResponse | JSONResponse:
-        if not re.fullmatch(r"[A-Za-z0-9]{1,64}", species_code):
-            return _error("invalid_request", "Invalid bird species code", 400)
-        if mutation_lock.locked():
-            return _error("collection_busy", "Another collection change is in progress", 409)
-        async with mutation_lock:
-            connection = None
-            transaction = False
-            try:
-                connection = write_connection()
-                _begin_collection_transaction(connection)
-                transaction = True
-                ensure_tables(connection)
-                result = add_wishlist(connection, species_code) if add else None
-                if not add:
-                    remove_wishlist(connection, species_code)
-                connection.execute("COMMIT")
-                transaction = False
-                return (
-                    WishlistEntryResponse.model_validate(result)
-                    if add
-                    else RemovedResponse(removed=True)
-                )
-            except LookupError:
-                if transaction and connection is not None:
-                    connection.execute("ROLLBACK")
-                return _error(
-                    "species_not_found", "Bird not found in the current Arizona catalog", 404
-                )
-            except CollectionStorageMigrationError:
-                if transaction and connection is not None:
-                    connection.execute("ROLLBACK")
-                return _error("database_unavailable", "The local collection is unavailable", 503)
-            except duckdb.Error as exc:
-                if transaction and connection is not None:
-                    connection.execute("ROLLBACK")
-                return _error(
-                    "database_busy" if _busy(exc) else "database_unavailable",
-                    "The local collection is unavailable",
-                    503,
-                )
-            finally:
-                if connection is not None:
-                    connection.close()
-
-    @app.put("/api/wishlist/{species_code}", response_model=WishlistEntryResponse)
-    async def wish(species_code: str) -> WishlistEntryResponse | RemovedResponse | JSONResponse:
-        return await change_wishlist(species_code, add=True)
-
-    @app.delete("/api/wishlist/{species_code}", response_model=RemovedResponse)
-    async def unwish(species_code: str) -> WishlistEntryResponse | RemovedResponse | JSONResponse:
-        return await change_wishlist(species_code, add=False)
-
     @app.get("/api/watches", response_model=WatchListResponse)
     async def watches() -> WatchListResponse | JSONResponse:
         if not Path(database_path).exists():
@@ -679,7 +588,6 @@ def register_personal_collection_routes(
             if (
                 result["catalog_status"] == "stale"
                 and result["observation_count"] == 0
-                and not result["wishlisted"]
                 and not result["watched"]
             ):
                 return _error("not_found", "Bird not found in the current Arizona catalog", 404)

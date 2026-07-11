@@ -1169,7 +1169,6 @@ def create_app(
         suffix = f": {', '.join(fields)}" if fields else ""
         collection_paths = (
             "/api/observations",
-            "/api/wishlist",
             "/api/watches",
             "/api/life-list",
         )

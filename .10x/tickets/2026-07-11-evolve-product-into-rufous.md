@@ -25,7 +25,7 @@ This is a parent plan and is not executable directly.
 
 ## Delivery sequence
 
-1. Remove Wishlist through `.10x/tickets/2026-07-11-remove-wishlist-and-consolidate-watches.md`.
+1. Remove Wishlist through `.10x/tickets/done/2026-07-11-remove-wishlist-and-consolidate-watches.md`.
 2. Implement catalog media storage/batch/API through `.10x/tickets/2026-07-11-implement-catalog-media-enrichment.md`.
 3. Add catalog/profile media presentation through `.10x/tickets/2026-07-11-add-catalog-card-and-profile-media.md`.
 4. Implement trip-plan calendar state/API/transport through `.10x/tickets/2026-07-11-implement-trip-plan-calendar-invitations.md`.

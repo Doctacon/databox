@@ -265,15 +265,6 @@ def ensure_tables(connection: duckdb.DuckDBPyConnection) -> None:
     )
     connection.execute(
         f"""
-        CREATE TABLE IF NOT EXISTS {SCHEMA}.wishlist (
-            species_code VARCHAR PRIMARY KEY,
-            created_at VARCHAR NOT NULL,
-            CHECK (length(species_code) BETWEEN 1 AND 64)
-        )
-        """
-    )
-    connection.execute(
-        f"""
         CREATE TABLE IF NOT EXISTS {SCHEMA}.watches (
             species_code VARCHAR PRIMARY KEY,
             watch_id VARCHAR NOT NULL,
@@ -516,38 +507,6 @@ def list_life_list(connection: duckdb.DuckDBPyConnection) -> list[dict[str, Any]
     return rows
 
 
-def list_wishlist(connection: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
-    if not _table_exists(connection, "wishlist"):
-        return []
-    rows = _rows(
-        connection.execute(
-            f"""
-            SELECT w.*, {_identity_columns()}
-            FROM {SCHEMA}.wishlist AS w
-            LEFT JOIN birding_agent.arizona_species_catalog AS c USING (species_code)
-            ORDER BY w.created_at, w.species_code
-            """
-        )
-    )
-    for row in rows:
-        row["identity"] = _identity(row)
-    return rows
-
-
-def add_wishlist(connection: duckdb.DuckDBPyConnection, species_code: str) -> dict[str, Any]:
-    if catalog_species(connection, species_code) is None:
-        raise LookupError("species")
-    connection.execute(
-        f"INSERT OR IGNORE INTO {SCHEMA}.wishlist VALUES (?, ?)", [species_code, _now()]
-    )
-    return next(row for row in list_wishlist(connection) if row["species_code"] == species_code)
-
-
-def remove_wishlist(connection: duckdb.DuckDBPyConnection, species_code: str) -> None:
-    if _table_exists(connection, "wishlist"):
-        connection.execute(f"DELETE FROM {SCHEMA}.wishlist WHERE species_code = ?", [species_code])
-
-
 def list_watches(connection: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
     if not _table_exists(connection, "watches"):
         return []
@@ -765,12 +724,6 @@ def collection_state(connection: duckdb.DuckDBPyConnection, species_code: str) -
         ).fetchone()
         assert count_row is not None
         observed_count = int(count_row[0])
-    wishlisted = bool(
-        _table_exists(connection, "wishlist")
-        and connection.execute(
-            f"SELECT 1 FROM {SCHEMA}.wishlist WHERE species_code = ?", [species_code]
-        ).fetchone()
-    )
     watched = False
     watch_active = False
     if _table_exists(connection, "watches"):
@@ -784,7 +737,6 @@ def collection_state(connection: duckdb.DuckDBPyConnection, species_code: str) -
         "catalog_status": "current" if current else "stale",
         "observed": observed_count > 0,
         "observation_count": observed_count,
-        "wishlisted": wishlisted,
         "watched": watched,
         "watch_active": watch_active,
     }

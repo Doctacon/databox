@@ -74,15 +74,15 @@ locations, with no request-time discovery or mutation. A public modeled location
 whose name includes `(private)` is shown with an access-restriction warning;
 eBird's modeled privacy flag, not the display-name suffix, governs observation
 privacy. The private local collection UI is available at `/my-birds` with Life
-List, Observations, Wishlist, and Watches surfaces. Species profiles expose only
-explicit collection mutations. Watch centers are per-watch Arizona selections;
+List, Observations, and Watches surfaces. Species profiles expose only explicit
+observation and watch mutations. Watch centers are per-watch Arizona selections;
 the browser stores no global home location, and none of these controls evaluate
 matches or trigger weather, model, calendar, or SMTP work.
 
 The local personal-collection API stores runtime-owned tables in
 `birding_personal` inside the same DuckDB file. It exposes observation CRUD at
-`/api/observations`, the derived `/api/life-list`, idempotent `/api/wishlist`,
-per-species `/api/watches`, and `/api/birds/{species_code}/collection-state`.
+`/api/observations`, the derived `/api/life-list`, per-species `/api/watches`,
+and `/api/birds/{species_code}/collection-state`.
 Observation deletion requires `confirm=true`; life-list membership is never an
 independent stored flag. Collection reads are network-free, and collection
 mutations do not evaluate watches or call weather, models, calendar, or SMTP.

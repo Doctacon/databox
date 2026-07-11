@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getCollectionState, listLifeList, listObservations, listWatches, listWishlist } from "./collectionApi";
+import { getCollectionState, listLifeList, listObservations, listWatches } from "./collectionApi";
 
 function response(body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }));
@@ -59,30 +59,36 @@ describe("strict collection response validation", () => {
   });
 
   it.each([
-    { observed: false, observation_count: 1, wishlisted: false, watched: false, watch_active: false },
-    { observed: true, observation_count: 0, wishlisted: false, watched: false, watch_active: false },
-    { observed: false, observation_count: 0, wishlisted: false, watched: false, watch_active: true },
+    { observed: false, observation_count: 1, watched: false, watch_active: false },
+    { observed: true, observation_count: 0, watched: false, watch_active: false },
+    { observed: false, observation_count: 0, watched: false, watch_active: true },
   ])("rejects inconsistent collection state %#", async (state) => {
     await rejects({ species_code: "bird001", catalog_status: "current", ...state }, () => getCollectionState("bird001"));
   });
 
-  it("accepts independent wishlist state and a paused watch", async () => {
+  it("accepts independent observation state and a paused watch", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response({
       species_code: "bird001", catalog_status: "current", observed: false, observation_count: 0,
-      wishlisted: true, watched: true, watch_active: false,
+      watched: true, watch_active: false,
     }));
-    await expect(getCollectionState("bird001")).resolves.toMatchObject({ wishlisted: true, watched: true, watch_active: false });
+    await expect(getCollectionState("bird001")).resolves.toMatchObject({ observed: false, watched: true, watch_active: false });
   });
 
   it("rejects collection state for a different requested species", async () => {
     await rejects({
       species_code: "bird002", catalog_status: "current", observed: false, observation_count: 0,
-      wishlisted: false, watched: false, watch_active: false,
+      watched: false, watch_active: false,
     }, () => getCollectionState("bird001"));
   });
 
-  it("requires stale identities to omit current catalog metadata", async () => {
-    await rejects({ birds: [{ species_code: "bird001", created_at: "2026-07-10T01:00:00Z", identity: { ...currentIdentity, catalog_status: "stale" } }] }, listWishlist);
+  it("requires stale watch identities to omit current catalog metadata", async () => {
+    const watch = {
+      species_code: "bird001", active: false, center_name: "Prescott", center_latitude: 34.5,
+      center_longitude: -112.4, center_timezone: "America/Phoenix", radius_miles: 25,
+      activated_at: "2026-07-10T01:00:00Z", created_at: "2026-07-10T01:00:00Z",
+      updated_at: "2026-07-10T01:00:00Z", identity: { ...currentIdentity, catalog_status: "stale" },
+    };
+    await rejects({ watches: [watch] }, listWatches);
   });
 
   it("rejects watch timestamp ordering and malformed UTC timestamps", async () => {

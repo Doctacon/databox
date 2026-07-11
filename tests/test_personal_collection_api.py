@@ -84,8 +84,10 @@ def test_empty_reads_are_network_free_and_do_not_create_tables(
     client = _client(path)
     assert client.get("/api/observations").json() == {"observations": []}
     assert client.get("/api/life-list").json() == {"birds": []}
-    assert client.get("/api/wishlist").json() == {"birds": []}
     assert client.get("/api/watches").json() == {"watches": []}
+    assert client.get("/api/wishlist").status_code == 404
+    assert client.put("/api/wishlist/gambqu").status_code == 404
+    assert client.delete("/api/wishlist/gambqu").status_code == 404
     assert hashlib.sha256(path.read_bytes()).hexdigest() == before
 
 
@@ -138,7 +140,7 @@ def test_observations_derive_life_list_and_hard_delete_last_event(tmp_path: Path
     assert client.get(f"/api/observations/{original_id}").status_code == 404
 
 
-def test_wishlist_watch_and_observed_state_are_independent_and_idempotent(
+def test_watch_and_observed_state_are_independent_and_idempotent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = _database(tmp_path)
@@ -149,9 +151,6 @@ def test_wishlist_watch_and_observed_state_are_independent_and_idempotent(
     monkeypatch.setattr(socket, "create_connection", forbidden)
     client = _client(path)
 
-    assert client.put("/api/wishlist/gambqu").status_code == 200
-    created_at = client.put("/api/wishlist/gambqu").json()["created_at"]
-    assert client.get("/api/wishlist").json()["birds"][0]["created_at"] == created_at
     assert client.post("/api/observations", json=_observation()).status_code == 201
 
     watch = client.put("/api/watches/gambqu", json=_watch())
@@ -172,17 +171,15 @@ def test_wishlist_watch_and_observed_state_are_independent_and_idempotent(
         "catalog_status": "current",
         "observed": True,
         "observation_count": 1,
-        "wishlisted": True,
         "watched": True,
         "watch_active": True,
     }
 
     assert client.delete("/api/watches/gambqu").json() == {"removed": True}
     assert client.delete("/api/watches/gambqu").json() == {"removed": True}
-    assert client.delete("/api/wishlist/gambqu").json() == {"removed": True}
     state = client.get("/api/birds/gambqu/collection-state").json()
     assert state["observed"] is True
-    assert state["wishlisted"] is state["watched"] is False
+    assert state["watched"] is False
 
 
 def test_validation_catalog_and_arizona_boundaries_are_safe(tmp_path: Path) -> None:
@@ -199,7 +196,6 @@ def test_validation_catalog_and_arizona_boundaries_are_safe(tmp_path: Path) -> N
         ).status_code
         == 422
     )
-    assert client.put("/api/wishlist/missing").status_code == 404
     assert client.put("/api/watches/gambqu", json=_watch(0.9)).status_code == 422
     assert client.put("/api/watches/gambqu", json=_watch(301)).status_code == 422
     outside = _watch()
@@ -243,7 +239,7 @@ def test_transaction_failure_rolls_back_and_busy_mutation_is_rejected(
     app = create_app(database_path=str(path), static_dir=path.parent / "missing")
     asyncio.run(app.state.collection_lock.acquire())
     try:
-        busy = TestClient(app).put("/api/wishlist/gambqu")
+        busy = TestClient(app).put("/api/watches/gambqu", json=_watch())
     finally:
         app.state.collection_lock.release()
     assert busy.status_code == 409
@@ -748,8 +744,8 @@ def test_legacy_identity_conflicts_are_safe_repeatable_and_rolled_back(
         ]
     else:
         responses = [
-            client.put("/api/wishlist/gambqu"),
-            client.put("/api/wishlist/gambqu"),
+            client.put(f"/api/watches/{species_code}", json=_watch()),
+            client.put(f"/api/watches/{species_code}", json=_watch()),
         ]
 
     for response in responses:
@@ -776,13 +772,11 @@ def test_legacy_identity_conflicts_are_safe_repeatable_and_rolled_back(
     observation_count = connection.execute(
         "SELECT count(*) FROM birding_personal.observations"
     ).fetchone()
-    wishlist_count = connection.execute("SELECT count(*) FROM birding_personal.wishlist").fetchone()
     connection.close()
     legacy_row = next(row for row in rows if row[0] == legacy_id)
     assert legacy_row[1:] == (None, None)
     assert any(row[0] == target_id for row in rows)
     assert observation_count == (0,)
-    assert wishlist_count == (0,)
 
 
 def test_runtime_schema_constraints_and_no_downstream_side_effect_tables(tmp_path: Path) -> None:
@@ -802,7 +796,6 @@ def test_runtime_schema_constraints_and_no_downstream_side_effect_tables(tmp_pat
     connection.close()
     assert tables == {
         "observations",
-        "wishlist",
         "watches",
         "watch_cancellation_requests",
     }

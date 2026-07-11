@@ -6,7 +6,6 @@ import type {
   ObservationInput,
   PersonalObservation,
   WatchInput,
-  WishlistEntry,
 } from "./types";
 
 type Row = Record<string, unknown>;
@@ -79,12 +78,6 @@ function lifeEntry(value: unknown): LifeListEntry {
   return { ...(row as unknown as Omit<LifeListEntry, "identity">), identity: identity(row.identity) };
 }
 
-function wishEntry(value: unknown): WishlistEntry {
-  const row = exact(value, ["species_code", "created_at", "identity"]);
-  if (!code(row.species_code) || !timestamp(row.created_at)) throw new Error("Invalid local collection response");
-  return { ...(row as unknown as Omit<WishlistEntry, "identity">), identity: identity(row.identity) };
-}
-
 function watch(value: unknown): BirdWatch {
   const row = exact(value, ["species_code", "active", "center_name", "center_latitude", "center_longitude", "center_timezone", "radius_miles", "activated_at", "created_at", "updated_at", "identity"]);
   if (!code(row.species_code) || typeof row.active !== "boolean" || !text(row.center_name, 300)
@@ -146,9 +139,6 @@ export async function listObservations(): Promise<PersonalObservation[]> {
 export async function listLifeList(): Promise<LifeListEntry[]> {
   return boundedList(await request("/api/life-list"), "birds").map(lifeEntry);
 }
-export async function listWishlist(): Promise<WishlistEntry[]> {
-  return boundedList(await request("/api/wishlist"), "birds").map(wishEntry);
-}
 export async function listWatches(): Promise<BirdWatch[]> {
   return boundedList(await request("/api/watches"), "watches").map(watch);
 }
@@ -162,13 +152,6 @@ export async function deleteObservation(id: string): Promise<void> {
   const row = exact(await request(`/api/observations/${encodeURIComponent(id)}?confirm=true`, { method: "DELETE" }), ["removed"]);
   if (row.removed !== true) throw new Error("Invalid local collection response");
 }
-export async function addWishlist(speciesCode: string): Promise<WishlistEntry> {
-  return wishEntry(await request(`/api/wishlist/${encodeURIComponent(speciesCode)}`, { method: "PUT" }));
-}
-export async function removeWishlist(speciesCode: string): Promise<void> {
-  const row = exact(await request(`/api/wishlist/${encodeURIComponent(speciesCode)}`, { method: "DELETE" }), ["removed"]);
-  if (row.removed !== true) throw new Error("Invalid local collection response");
-}
 export async function saveWatch(speciesCode: string, input: WatchInput): Promise<BirdWatch> {
   return watch(await request(`/api/watches/${encodeURIComponent(speciesCode)}`, { method: "PUT", body: JSON.stringify(input) }));
 }
@@ -180,12 +163,12 @@ export async function deleteWatch(speciesCode: string): Promise<void> {
   if (row.removed !== true) throw new Error("Invalid local collection response");
 }
 export async function getCollectionState(speciesCode: string): Promise<CollectionState> {
-  const row = exact(await request(`/api/birds/${encodeURIComponent(speciesCode)}/collection-state`), ["species_code", "catalog_status", "observed", "observation_count", "wishlisted", "watched", "watch_active"]);
+  const row = exact(await request(`/api/birds/${encodeURIComponent(speciesCode)}/collection-state`), ["species_code", "catalog_status", "observed", "observation_count", "watched", "watch_active"]);
   if (!code(row.species_code) || row.species_code !== speciesCode
     || (row.catalog_status !== "current" && row.catalog_status !== "stale")
     || typeof row.observed !== "boolean" || !count(row.observation_count)
     || row.observed !== (row.observation_count > 0)
-    || typeof row.wishlisted !== "boolean" || typeof row.watched !== "boolean" || typeof row.watch_active !== "boolean"
+    || typeof row.watched !== "boolean" || typeof row.watch_active !== "boolean"
     || (row.watch_active && !row.watched)) {
     throw new Error("Invalid local collection response");
   }

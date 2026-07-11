@@ -137,7 +137,7 @@ describe("Arizona bird catalog and modeled profiles", () => {
       if (path === "/api/trip-plans") return response({ plans: [] });
       if (path === "/api/birds") return response({ birds: rows });
       if (path === "/api/birds/bird000") return response(profile(rows[0]));
-      if (path === "/api/birds/bird000/collection-state") return response({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, wishlisted: false, watched: false, watch_active: false });
+      if (path === "/api/birds/bird000/collection-state") return response({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
       throw new Error(`Unexpected request ${path}`);
     });
     render(<App />);
@@ -175,7 +175,7 @@ describe("Arizona bird catalog and modeled profiles", () => {
       const path = String(input);
       if (path === "/api/birds/bird000/collection-state") return response({
         species_code: "bird000", catalog_status: "current", observed: false,
-        observation_count: 0, wishlisted: false, watched: false, watch_active: false,
+        observation_count: 0, watched: false, watch_active: false,
       });
       if (path === "/api/watches") return response({ watches: [] });
       return response(modeledProfile);
@@ -210,7 +210,6 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(screen.getByText("Exact trait match available")).toBeVisible();
     expect(screen.getByText("Modeled occurrence evidence available")).toBeVisible();
     expect(screen.getByText("Modeled recording evidence available")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Add to wishlist" })).toBeVisible();
     expect(screen.getByText(/do not run matching, weather, a model, calendar, or email/i)).toBeVisible();
     expect(document.querySelector("audio, img, iframe")).toBeNull();
     expect(screen.queryByText(/map/i)).not.toBeInTheDocument();

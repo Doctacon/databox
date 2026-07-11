@@ -283,12 +283,6 @@ export interface LifeListEntry {
   identity: BirdIdentity;
 }
 
-export interface WishlistEntry {
-  species_code: string;
-  created_at: string;
-  identity: BirdIdentity;
-}
-
 export interface BirdWatch {
   species_code: string;
   active: boolean;
@@ -308,7 +302,6 @@ export interface CollectionState {
   catalog_status: "current" | "stale";
   observed: boolean;
   observation_count: number;
-  wishlisted: boolean;
   watched: boolean;
   watch_active: boolean;
 }

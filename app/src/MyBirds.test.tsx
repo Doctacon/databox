@@ -45,7 +45,6 @@ function emptyCollectionMock() {
     if (path === "/api/birds") return json({ birds });
     if (path === "/api/observations") return json({ observations: [] });
     if (path === "/api/life-list") return json({ birds: [] });
-    if (path === "/api/wishlist") return json({ birds: [] });
     if (path === "/api/watches") return json({ watches: [] });
     if (path === "/api/alert-deliveries") return json({ deliveries: [] });
     throw new Error(`Unexpected request ${path}`);
@@ -64,8 +63,6 @@ describe("My Birds and profile collection controls", () => {
     await userEvent.click(screen.getByRole("button", { name: "Observations" }));
     expect(screen.getByRole("heading", { name: "Observations" })).toBeVisible();
     expect(screen.getByText("No observations recorded yet.")).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Wishlist" }));
-    expect(screen.getByText("Your wishlist is empty.")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Watches" }));
     expect(screen.getByText("You are not watching any birds.")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Alert Delivery" }));
@@ -79,7 +76,7 @@ describe("My Birds and profile collection controls", () => {
       const path = String(input);
       if (path === "/api/birds") return json({ error: { code: "database_unavailable", message: "The local bird catalog is unavailable" } }, 503);
       if (path === "/api/observations") return json({ observations: [] });
-      if (path === "/api/life-list" || path === "/api/wishlist") return json({ birds: [] });
+      if (path === "/api/life-list") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: [] });
       if (path === "/api/alert-deliveries") return json({ error: { code: "database_unavailable", message: "raw secret" } }, 503);
       throw new Error(`Unexpected request ${path}`);
@@ -90,7 +87,6 @@ describe("My Birds and profile collection controls", () => {
     expect(screen.queryByText(/life list is empty/i)).not.toBeInTheDocument();
     for (const [tab, absent] of [
       ["Observations", "No observations recorded yet."],
-      ["Wishlist", "Your wishlist is empty."],
       ["Watches", "You are not watching any birds."],
     ]) {
       await userEvent.click(screen.getByRole("button", { name: tab }));
@@ -123,7 +119,7 @@ describe("My Birds and profile collection controls", () => {
       const path = String(input);
       if (path === "/api/birds") return json({ birds });
       if (path === "/api/observations") return json({ observations: [] });
-      if (path === "/api/life-list" || path === "/api/wishlist") return json({ birds: [] });
+      if (path === "/api/life-list") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: [] });
       if (path === "/api/alert-deliveries") return json({ deliveries: [delivery, inactiveDelivery] });
       if (path.includes("/retry?confirm=true") && init?.method === "POST") return retryResponse;
@@ -161,7 +157,6 @@ describe("My Birds and profile collection controls", () => {
       if (path === "/api/observations/obs-1?confirm=true" && init?.method === "DELETE") { rows = []; return json({ removed: true }); }
       if (path === "/api/observations") return json({ observations: rows });
       if (path === "/api/life-list") return json({ birds: rows.length ? [{ species_code: "bird000", first_observed_date: rows[0].observation_date, latest_observed_date: rows[0].observation_date, observation_count: 1, identity }] : [] });
-      if (path === "/api/wishlist") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: [] });
       throw new Error(`Unexpected request ${path}`);
     });
@@ -198,16 +193,13 @@ describe("My Birds and profile collection controls", () => {
     expect(calls).toContain("DELETE /api/observations/obs-1?confirm=true");
   });
 
-  it("keeps wishlist and watch controls independent, supports edit/pause/resume, and marks stale state", async () => {
-    const birds = catalog(); let wishlisted = false; let currentWatch: BirdWatch | null = { ...watched(), identity: staleIdentity };
+  it("keeps observation and watch state independent, supports edit/pause/resume, and marks stale state", async () => {
+    const birds = catalog(); let currentWatch: BirdWatch | null = { ...watched(), identity: staleIdentity };
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
       const path = String(input);
       if (path === "/api/birds") return json({ birds });
       if (path === "/api/observations") return json({ observations: [] });
       if (path === "/api/life-list") return json({ birds: [] });
-      if (path === "/api/wishlist/bird000" && init?.method === "PUT") { wishlisted = true; return json({ species_code: "bird000", created_at: "2026-07-10T01:00:00Z", identity }); }
-      if (path === "/api/wishlist/bird000" && init?.method === "DELETE") { wishlisted = false; return json({ removed: true }); }
-      if (path === "/api/wishlist") return json({ birds: wishlisted ? [{ species_code: "bird000", created_at: "2026-07-10T01:00:00Z", identity }] : [] });
       if (path === "/api/watches/bird000/pause" && init?.method === "POST") { currentWatch = { ...currentWatch!, active: false }; return json(currentWatch); }
       if (path === "/api/watches/bird000/resume" && init?.method === "POST") return json({ error: { code: "species_not_found", message: "ignored" } }, 404);
       if (path === "/api/watches/bird000" && init?.method === "PUT") { const body = JSON.parse(String(init.body)); currentWatch = { ...currentWatch!, center_name: body.center.display_name, radius_miles: body.radius_miles }; return json(currentWatch); }
@@ -215,12 +207,7 @@ describe("My Birds and profile collection controls", () => {
       throw new Error(`Unexpected request ${path}`);
     });
     render(<App />);
-    await userEvent.click(await screen.findByRole("button", { name: "Wishlist" }));
-    await userEvent.selectOptions(screen.getByLabelText("Add a bird"), "bird000");
-    await userEvent.click(screen.getByRole("button", { name: "Add to wishlist" }));
-    expect(await screen.findByText("Bird added to wishlist.")).toBeVisible();
-    expect(screen.getByText("Arizona Bird 000", { selector: "strong" })).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Watches" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Watches" }));
     expect(screen.getByText("No longer in the current Arizona catalog")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Pause" }));
     expect(await screen.findByText("Watch paused.")).toBeVisible();
@@ -231,8 +218,6 @@ describe("My Birds and profile collection controls", () => {
     await userEvent.click(within(edit).getByRole("button", { name: "Save watch" }));
     expect(await screen.findByText("Watch updated.")).toBeVisible();
     expect(screen.getByText(/40 miles/)).toBeVisible();
-    await userEvent.click(screen.getByRole("button", { name: "Wishlist" }));
-    expect(screen.getByText("Arizona Bird 000", { selector: "strong" })).toBeVisible();
   });
 
   it("creates and confirmed-deletes a per-watch Arizona center and radius without a global origin", async () => {
@@ -242,7 +227,6 @@ describe("My Birds and profile collection controls", () => {
       if (path === "/api/birds") return json({ birds });
       if (path === "/api/observations") return json({ observations: [] });
       if (path === "/api/life-list") return json({ birds: [] });
-      if (path === "/api/wishlist") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: currentWatch ? [currentWatch] : [] });
       if (path === "/api/locations?q=Prescott") return json({ locations: [{ display_name: "Prescott, Arizona", latitude: 34.54, longitude: -112.47, timezone: "America/Phoenix", region_code: "US-AZ" }] });
       if (path === "/api/watches/bird000" && init?.method === "PUT") { const body = JSON.parse(String(init.body)); currentWatch = { ...watched(), center_name: body.center.display_name, radius_miles: body.radius_miles }; return json(currentWatch); }
@@ -268,14 +252,13 @@ describe("My Birds and profile collection controls", () => {
     expect(calls.some((call) => call.includes("smtp") || call.includes("calendar") || call.includes("weather"))).toBe(false);
   });
 
-  it("exposes explicit profile controls without implicit mutations or downstream calls", async () => {
-    window.history.replaceState(null, "", "/birds/bird000"); const birds = catalog(); let wishlisted = false; const calls: string[] = [];
+  it("exposes explicit profile observation/watch controls without implicit mutations or downstream calls", async () => {
+    window.history.replaceState(null, "", "/birds/bird000"); const birds = catalog(); const calls: string[] = [];
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
       const path = String(input); calls.push(`${init?.method || "GET"} ${path}`);
       if (path === "/api/birds/bird000") return json(profile());
-      if (path === "/api/birds/bird000/collection-state") return json({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, wishlisted, watched: false, watch_active: false });
+      if (path === "/api/birds/bird000/collection-state") return json({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
       if (path === "/api/watches") return json({ watches: [] });
-      if (path === "/api/wishlist/bird000" && init?.method === "PUT") { wishlisted = true; return json({ species_code: "bird000", created_at: "2026-07-10T01:00:00Z", identity }); }
       if (path === "/api/observations" && init?.method === "POST") return json(observation({ observation_date: "2026-07-09" }), 201);
       if (path === "/api/birds") return json({ birds });
       throw new Error(`Unexpected request ${path}`);
@@ -283,10 +266,9 @@ describe("My Birds and profile collection controls", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Your collection" })).toBeVisible();
     expect(screen.getByText("Observed: No")).toBeVisible();
+    expect(screen.getByText("Watch: None")).toBeVisible();
+    expect(screen.getByText("Create a watch")).toBeVisible();
     expect(calls.filter((call) => !call.startsWith("GET "))).toEqual([]);
-    await userEvent.click(screen.getByRole("button", { name: "Add to wishlist" }));
-    expect(await screen.findByText("Added to wishlist.")).toBeVisible();
-    expect(screen.getByText("Wishlist: Yes")).toBeVisible();
     expect(calls.some((call) => call.includes("weather") || call.includes("trip-plan") || call.includes("smtp") || call.includes("calendar"))).toBe(false);
   });
 
@@ -295,17 +277,17 @@ describe("My Birds and profile collection controls", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
       const path = String(input);
       if (path === "/api/birds") return json({ birds });
+      if (path === "/api/observations" && init?.method === "POST") return json({ error: { code: "database_busy", message: "/private/local.duckdb", detail: "secret" } }, 503);
       if (path === "/api/observations") return json({ observations: [] });
       if (path === "/api/life-list") return json({ birds: [] });
-      if (path === "/api/wishlist") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: [] });
-      if (path === "/api/wishlist/bird000" && init?.method === "PUT") return json({ error: { code: "database_busy", message: "/private/local.duckdb", detail: "secret" } }, 503);
       throw new Error(`Unexpected request ${path}`);
     });
     render(<App />);
-    await userEvent.click(await screen.findByRole("button", { name: "Wishlist" }));
-    await userEvent.selectOptions(screen.getByLabelText("Add a bird"), "bird000");
-    await userEvent.click(screen.getByRole("button", { name: "Add to wishlist" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Observations" }));
+    await userEvent.selectOptions(screen.getByLabelText("Bird"), "bird000");
+    await userEvent.type(screen.getByLabelText("Observation date"), "2026-07-11");
+    await userEvent.click(screen.getByRole("button", { name: "Record observation" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("The local collection is unavailable");
     expect(alert).not.toHaveTextContent("/private/local.duckdb");
@@ -318,7 +300,6 @@ describe("My Birds and profile collection controls", () => {
       if (path === "/api/birds") return json({ birds: catalog() });
       if (path === "/api/observations") return json({ observations: [{ observation_id: "bad", private_path: "/private/secret" }] });
       if (path === "/api/life-list") return json({ birds: [] });
-      if (path === "/api/wishlist") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: [] });
       throw new Error(`Unexpected request ${path}`);
     });
@@ -338,7 +319,6 @@ describe("My Birds and profile collection controls", () => {
       if (path === "/api/observations/obs-1" && init?.method === "PUT") return json({ error: { code: "database_busy", message: "hidden" } }, 503);
       if (path === "/api/observations") return json({ observations: [existing] });
       if (path === "/api/life-list") return json({ birds: [{ species_code: "bird000", first_observed_date: "2026-07-09", latest_observed_date: "2026-07-09", observation_count: 1, identity }] });
-      if (path === "/api/wishlist") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: [] });
       throw new Error(`Unexpected request ${path}`);
     });
@@ -390,7 +370,6 @@ describe("My Birds and profile collection controls", () => {
       }
       if (path === "/api/observations") return json({ observations: rows });
       if (path === "/api/life-list") return json({ birds: [] });
-      if (path === "/api/wishlist") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: [] });
       throw new Error(`Unexpected request ${path}`);
     });
@@ -425,7 +404,6 @@ describe("My Birds and profile collection controls", () => {
       if (path === "/api/birds") return json({ birds });
       if (path === "/api/observations") return json({ observations: [] });
       if (path === "/api/life-list") return json({ birds: [] });
-      if (path === "/api/wishlist") return json({ birds: [] });
       if (path === "/api/watches/bird001" && init?.method === "PUT") {
         updates.push(path);
         const body = JSON.parse(String(init.body));
@@ -455,25 +433,25 @@ describe("My Birds and profile collection controls", () => {
     const birds = catalog();
     let release: ((value: Response) => void) | undefined;
     const pending = new Promise<Response>((resolve) => { release = resolve; });
-    let addCalls = 0;
+    let createCalls = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
       const path = String(input);
       if (path === "/api/birds") return json({ birds });
+      if (path === "/api/observations" && init?.method === "POST") { createCalls += 1; return pending; }
       if (path === "/api/observations") return json({ observations: [observation()] });
       if (path === "/api/life-list") return json({ birds: [{ species_code: "bird000", first_observed_date: "2026-07-09", latest_observed_date: "2026-07-09", observation_count: 1, identity }] });
-      if (path === "/api/wishlist/bird000" && init?.method === "PUT") { addCalls += 1; return pending; }
-      if (path === "/api/wishlist") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: [watched()] });
       throw new Error(`Unexpected request ${path}`);
     });
     render(<App />);
-    await userEvent.click(await screen.findByRole("button", { name: "Wishlist" }));
-    const add = screen.getByRole("button", { name: "Add to wishlist" });
-    await userEvent.click(add);
-    expect(add).toBeDisabled();
-    expect(addCalls).toBe(1);
-
-    await userEvent.click(screen.getByRole("button", { name: "Observations" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Observations" }));
+    await userEvent.click(screen.getByText("Record a new observation"));
+    await userEvent.selectOptions(screen.getByLabelText("Bird"), "bird000");
+    await userEvent.type(screen.getByLabelText("Observation date"), "2026-07-11");
+    const create = screen.getByRole("button", { name: "Record observation" });
+    await userEvent.click(create);
+    expect(create).toBeDisabled();
+    expect(createCalls).toBe(1);
     expect(screen.getByRole("button", { name: "Edit" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete permanently" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Watches" }));
@@ -481,12 +459,12 @@ describe("My Birds and profile collection controls", () => {
     expect(screen.getByRole("button", { name: "Pause" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete watch" })).toBeDisabled();
 
-    release?.(new Response(JSON.stringify({ species_code: "bird000", created_at: "2026-07-10T01:00:00Z", identity }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    release?.(new Response(JSON.stringify(observation({ observation_date: "2026-07-11" })), { status: 200, headers: { "Content-Type": "application/json" } }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Pause" })).toBeEnabled());
-    expect(addCalls).toBe(1);
+    expect(createCalls).toBe(1);
   });
 
-  it("does not invalidate collection reads after a failed mutation", async () => {
+  it("does not invalidate collection reads after a failed observation mutation", async () => {
     window.history.replaceState(null, "", "/birds/bird000");
     let stateReads = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
@@ -494,37 +472,35 @@ describe("My Birds and profile collection controls", () => {
       if (path === "/api/birds/bird000") return json(profile());
       if (path === "/api/birds/bird000/collection-state") {
         stateReads += 1;
-        return json({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, wishlisted: false, watched: false, watch_active: false });
+        return json({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
       }
-      if (path === "/api/wishlist/bird000" && init?.method === "PUT") return json({ error: { code: "database_busy", message: "hidden" } }, 503);
+      if (path === "/api/observations" && init?.method === "POST") return json({ error: { code: "database_busy", message: "hidden" } }, 503);
       throw new Error(`Unexpected request ${path}`);
     });
 
     render(<App />);
-    await userEvent.click(await screen.findByRole("button", { name: "Add to wishlist" }));
+    await userEvent.click(await screen.findByText("Record an observation"));
+    await userEvent.type(screen.getByLabelText("Observation date"), "2026-07-11");
+    await userEvent.click(screen.getByRole("button", { name: "Record observation" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("warehouse is refreshing");
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(stateReads).toBe(1);
-    expect(screen.getByText("Wishlist: No")).toBeVisible();
+    expect(screen.getByText("Observed: No")).toBeVisible();
   });
 
-  it("ignores stale collection loads across rapid route changes", async () => {
+  it("ignores stale observation loads across rapid route changes", async () => {
     const birds = catalog();
-    let wishlistReads = 0;
+    let observationReads = 0;
     let releaseFirst: ((value: Response) => void) | undefined;
-    const firstWishlist = new Promise<Response>((resolve) => { releaseFirst = resolve; });
+    const firstObservations = new Promise<Response>((resolve) => { releaseFirst = resolve; });
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const path = String(input);
       if (path === "/api/birds") return json({ birds });
       if (path === "/api/birds/bird000") return json(profile());
-      if (path === "/api/birds/bird000/collection-state") return json({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, wishlisted: true, watched: false, watch_active: false });
-      if (path === "/api/observations") return json({ observations: [] });
-      if (path === "/api/life-list") return json({ birds: [] });
+      if (path === "/api/birds/bird000/collection-state") return json({ species_code: "bird000", catalog_status: "current", observed: true, observation_count: 1, watched: false, watch_active: false });
+      if (path === "/api/observations") { observationReads += 1; return observationReads === 1 ? firstObservations : json({ observations: [observation()] }); }
+      if (path === "/api/life-list") return json({ birds: [{ species_code: "bird000", first_observed_date: "2026-07-09", latest_observed_date: "2026-07-09", observation_count: 1, identity }] });
       if (path === "/api/watches") return json({ watches: [] });
-      if (path === "/api/wishlist") {
-        wishlistReads += 1;
-        return wishlistReads === 1 ? firstWishlist : json({ birds: [{ species_code: "bird000", created_at: "2026-07-10T01:00:00Z", identity }] });
-      }
       throw new Error(`Unexpected request ${path}`);
     });
 
@@ -533,13 +509,13 @@ describe("My Birds and profile collection controls", () => {
     window.history.pushState(null, "", "/birds/bird000"); window.dispatchEvent(new PopStateEvent("popstate"));
     expect(await screen.findByRole("heading", { name: "Arizona Bird 000" })).toBeVisible();
     window.history.pushState(null, "", "/my-birds"); window.dispatchEvent(new PopStateEvent("popstate"));
-    await userEvent.click(await screen.findByRole("button", { name: "Wishlist" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Observations" }));
     expect(await screen.findByText("Arizona Bird 000", { selector: "strong" })).toBeVisible();
 
-    releaseFirst?.(new Response(JSON.stringify({ birds: [] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    releaseFirst?.(new Response(JSON.stringify({ observations: [] }), { status: 200, headers: { "Content-Type": "application/json" } }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getByText("Arizona Bird 000", { selector: "strong" })).toBeVisible();
-    expect(wishlistReads).toBe(2);
+    expect(observationReads).toBe(2);
   });
 
   it("keeps one mutation lock across profile-to-My-Birds navigation and component unmount", async () => {
@@ -547,36 +523,37 @@ describe("My Birds and profile collection controls", () => {
     const birds = catalog();
     let release: ((value: Response) => void) | undefined;
     const pending = new Promise<Response>((resolve) => { release = resolve; });
-    let wishlisted = false;
+    let saved = false;
     let mutationCalls = 0;
-    let wishlistReads = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
       const path = String(input);
       if (path === "/api/birds/bird000") return json(profile());
-      if (path === "/api/birds/bird000/collection-state") return json({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, wishlisted, watched: false, watch_active: false });
-      if (path === "/api/wishlist/bird000" && init?.method === "PUT") { mutationCalls += 1; return pending.then((response) => { wishlisted = true; return response; }); }
+      if (path === "/api/birds/bird000/collection-state") return json({ species_code: "bird000", catalog_status: "current", observed: saved, observation_count: saved ? 1 : 0, watched: false, watch_active: false });
+      if (path === "/api/observations" && init?.method === "POST") { mutationCalls += 1; return pending.then((response) => { saved = true; return response; }); }
       if (path === "/api/birds") return json({ birds });
-      if (path === "/api/observations") return json({ observations: [] });
-      if (path === "/api/life-list") return json({ birds: [] });
-      if (path === "/api/wishlist") { wishlistReads += 1; return json({ birds: wishlisted ? [{ species_code: "bird000", created_at: "2026-07-10T01:00:00Z", identity }] : [] }); }
+      if (path === "/api/observations") return json({ observations: saved ? [observation()] : [] });
+      if (path === "/api/life-list") return json({ birds: saved ? [{ species_code: "bird000", first_observed_date: "2026-07-09", latest_observed_date: "2026-07-09", observation_count: 1, identity }] : [] });
       if (path === "/api/watches") return json({ watches: [] });
       throw new Error(`Unexpected request ${path}`);
     });
 
     render(<App />);
-    await userEvent.click(await screen.findByRole("button", { name: "Add to wishlist" }));
+    await userEvent.click(await screen.findByText("Record an observation"));
+    await userEvent.type(screen.getByLabelText("Observation date"), "2026-07-09");
+    await userEvent.click(screen.getByRole("button", { name: "Record observation" }));
     expect(mutationCalls).toBe(1);
     await userEvent.click(screen.getByRole("link", { name: "My Birds" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Wishlist" }));
-    const secondAdd = screen.getByRole("button", { name: "Add to wishlist" });
+    await userEvent.click(await screen.findByRole("button", { name: "Observations" }));
+    const secondAdd = screen.getByRole("button", { name: "Saving…" });
     expect(secondAdd).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Observation date"), "2026-07-10");
     await userEvent.click(secondAdd);
     expect(mutationCalls).toBe(1);
 
-    release?.(new Response(JSON.stringify({ species_code: "bird000", created_at: "2026-07-10T01:00:00Z", identity }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    release?.(new Response(JSON.stringify(observation()), { status: 200, headers: { "Content-Type": "application/json" } }));
     expect(await screen.findByText("Arizona Bird 000", { selector: "strong" })).toBeVisible();
-    await waitFor(() => expect(secondAdd).toBeEnabled());
+    await userEvent.click(screen.getByText("Record a new observation"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Record observation" })).toBeEnabled());
     expect(mutationCalls).toBe(1);
-    expect(wishlistReads).toBe(2);
   });
 });
