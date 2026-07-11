@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
-Parent: .10x/tickets/2026-07-11-evolve-product-into-rufous.md
+Parent: .10x/tickets/done/2026-07-11-evolve-product-into-rufous.md
 Depends-On: .10x/tickets/done/2026-07-11-implement-trip-plan-calendar-invitations.md
 
 # Harden trip-calendar description privacy

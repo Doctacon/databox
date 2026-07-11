@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: None
@@ -16,6 +16,7 @@ This is a parent plan and is not executable directly.
 
 - `.10x/decisions/rufous-product-identity-and-retro-visual-direction.md`
 - `.10x/decisions/catalog-media-and-watch-only-collection.md`
+- `.10x/decisions/watch-only-collection-supersession-scope.md`
 - `.10x/decisions/trip-plan-calendar-invitation-lifecycle.md`
 - `.10x/specs/arizona-catalog-media.md`
 - `.10x/specs/personal-bird-collection.md`
@@ -31,14 +32,19 @@ This is a parent plan and is not executable directly.
 4. Implement trip-plan calendar state/API/transport through `.10x/tickets/done/2026-07-11-implement-trip-plan-calendar-invitations.md`.
 5. Add trip-plan invitation controls through `.10x/tickets/done/2026-07-11-add-trip-plan-calendar-controls.md`.
 6. Apply Rufous product identity/theme through `.10x/tickets/done/2026-07-11-apply-rufous-product-theme.md` after product surfaces settle.
-7. Run aggregate verification through `.10x/tickets/2026-07-11-verify-rufous-product-evolution.md`.
+7. Run aggregate verification through `.10x/tickets/done/2026-07-11-verify-rufous-product-evolution.md`.
 
 Catalog media backend and trip-calendar backend are parallelizable after shaping; their UI children depend on their respective APIs. Wishlist removal is independent. Theme follows all structural UI changes to avoid duplicate restyling.
 
 ## Progress and notes
 
 - 2026-07-11: Wishlist removal is done.
-- 2026-07-11: Catalog media storage/batch/API is done after independent pass review and one authorized 29-batch live apply. All 706 taxa have complete exact metadata pairs: photos 524 available/182 unavailable and calls 600 available/106 unavailable. Zero-work replay and matching read-only inspect passed. Catalog/profile media presentation is unblocked; the Rufous theme remains correctly dependent on that structural UI child.
+- 2026-07-11: Catalog media storage/batch/API is done after independent pass review and one authorized 29-batch live apply. All 706 taxa have complete exact metadata pairs: photos 524 available/182 unavailable and calls 600 available/106 unavailable. Zero-work replay and matching read-only inspect passed.
+- 2026-07-11: Catalog/profile media UI, trip-plan calendar backend and controls, and the Rufous identity/theme are done after focused independent reviews.
+- 2026-07-11: Aggregate adversarial review discovered calendar-description privacy bypasses. The focused repair now structurally rejects governed email, recipient, credential, URL, and coordinate families before writes and at ICS construction, with 230 focused regressions and an independent pass review.
+- 2026-07-11: Final aggregate verification passed 666 network-blocked Python tests, 221 frontend tests, 13 SQLMesh tests, 25 Soda contracts, and every type/build/privacy/docs/static gate while preserving warehouse hashes and the exact two-row accepted SMTP ledger. Four aggregate reviews passed.
+- 2026-07-11: Parent closure review passed. Review: `.10x/reviews/2026-07-11-rufous-product-evolution-parent-closure-review.md`.
+- 2026-07-11: Retrospective is complete across children and aggregate verification. Provider-hosted media durability, empty live personal/trip state, fake-SMTP inbox limits, and screenshot-free physical-device/assistive-technology limits are explicit accepted boundaries with recorded no-action rationale.
 
 ## Aggregate acceptance direction
 
@@ -50,4 +56,4 @@ Catalog media backend and trip-calendar backend are parallelizable after shaping
 
 ## Blockers
 
-None; execute bounded children in dependency order.
+None.
