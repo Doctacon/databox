@@ -32,6 +32,29 @@ function bird(index: number): BirdCatalogSummary {
   };
 }
 
+function withMedia(summary: BirdCatalogSummary, key: number): BirdCatalogSummary {
+  const value = structuredClone(summary);
+  value.photo = {
+    status: "available", source_record_id: String(key), species_name: value.scientific_name,
+    display_url: `https://api.gbif.org/v1/image/cache/500x500/occurrence/${key}/media/0123456789abcdef0123456789abcdef`,
+    source_url: `https://www.gbif.org/occurrence/${key}`, creator: `Photographer ${key}`,
+    rights_holder: null, publisher: "Fixture Archive", format: "image/jpeg",
+    license_text: "CC BY 4.0", license_url: "https://creativecommons.org/licenses/by/4.0/",
+    selection_reason: "Exact Arizona catalog photo", caveats: [], lookup_at: "2026-07-11T08:00:00Z",
+  };
+  value.call = {
+    status: "available", source_record_id: String(key + 1000), recording_id: String(key + 1000),
+    species_name: value.scientific_name, geographic_scope: key % 2 ? "Global example" : "Arizona",
+    recording_type: "call", quality: "A", recordist: `Recordist ${key}`, locality: "Fixture Park",
+    country: "United States", source_url: `https://xeno-canto.org/${key + 1000}`,
+    audio_url: `https://xeno-canto.org/${key + 1000}/download`, license_text: "CC BY-NC-SA 4.0",
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    selection_reason: "Exact species call ranked by type and quality", caveats: [],
+    lookup_at: "2026-07-11T08:01:00Z",
+  };
+  return value;
+}
+
 function profile(summary: BirdCatalogSummary = bird(0)): BirdProfile {
   return {
     ...summary,
@@ -120,19 +143,149 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(document.querySelectorAll(".bird-catalog-card")).toHaveLength(24);
     expect(screen.getByRole("link", { name: /Arizona Bird 000/ })).toHaveAttribute("href", "/birds/bird000");
     await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("Arizona Bird 024", { selector: "h2" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Arizona Bird 024", level: 2 })).toBeVisible();
 
     await userEvent.selectOptions(screen.getByLabelText("Category"), "hybrid");
     expect(screen.getByText("Showing 1–24 of 82 matching taxa · 706 total")).toBeVisible();
-    expect(screen.getByText("Arizona Bird 624", { selector: "h2" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Arizona Bird 624", level: 2 })).toBeVisible();
     await userEvent.type(screen.getByLabelText("Search birds"), "bird705");
     expect(screen.getByText("Showing 1–1 of 1 matching taxa · 706 total")).toBeVisible();
-    expect(screen.getByText("Arizona Bird 705", { selector: "h2" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Arizona Bird 705", level: 2 })).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Reset catalog" }));
     expect(screen.getByLabelText("Search birds")).toHaveValue("");
     expect(screen.getByLabelText("Category")).toHaveValue("all");
-    expect(screen.getByText("Arizona Bird 000", { selector: "h2" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Arizona Bird 000", level: 2 })).toBeVisible();
+  });
+
+  it("renders lazy card media, an original unavailable placeholder, concise attribution, and compact calls", async () => {
+    window.history.replaceState(null, "", "/birds");
+    const birds = Array.from({ length: 706 }, (_, index) => index === 0 ? withMedia(bird(index), 101) : bird(index));
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
+    render(<App />);
+
+    const image = await screen.findByRole("img", { name: "Arizona Bird 000 (Avis arizona000)" });
+    expect(image).toHaveAttribute("loading", "lazy");
+    expect(image).toHaveAttribute("src", birds[0].photo.display_url);
+    expect(screen.getByText("Photo: Photographer 101")).toBeVisible();
+    expect(screen.getByRole("link", { name: "GBIF source" })).toHaveAttribute("href", birds[0].photo.source_url);
+    expect(screen.getByRole("button", { name: "Play call for Arizona Bird 000" })).toHaveAttribute("aria-pressed", "false");
+    expect(document.querySelector("audio")).toHaveAttribute("preload", "none");
+    expect(screen.getByText("Call: Recordist 101 · Global example")).toBeVisible();
+    expect(screen.getByRole("img", { name: "No licensed photo available for Arizona Bird 001 (Avis arizona001)" })).toBeVisible();
+    expect(screen.getAllByText("No validated call is available.").length).toBeGreaterThan(0);
+  });
+
+  it("keeps one catalog call active and stops playback when filtering", async () => {
+    window.history.replaceState(null, "", "/birds");
+    const birds = Array.from({ length: 706 }, (_, index) => index < 25 ? withMedia(bird(index), index + 1) : bird(index));
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const path = String(input);
+      if (path === "/api/birds") return response({ birds });
+      if (path === "/api/birds/bird000") return response(profile(birds[0]));
+      if (path === "/api/birds/bird000/collection-state") return response({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
+      throw new Error(`Unexpected request ${path}`);
+    });
+    const rendered = render(<App />);
+
+    const first = await screen.findByRole("button", { name: "Play call for Arizona Bird 000" });
+    const second = screen.getByRole("button", { name: "Play call for Arizona Bird 001" });
+    await userEvent.click(first);
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(first).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(second);
+    expect(play).toHaveBeenCalledTimes(2);
+    expect(first).toHaveAttribute("aria-pressed", "false");
+    expect(second).toHaveAttribute("aria-pressed", "true");
+
+    await userEvent.type(screen.getByLabelText("Search birds"), "bird001");
+    await waitFor(() => expect(second).toHaveAttribute("aria-pressed", "false"));
+    expect(pause).toHaveBeenCalled();
+    rendered.unmount();
+  });
+
+  it("stops catalog calls on pagination, route changes, and unmount", async () => {
+    window.history.replaceState(null, "", "/birds");
+    const birds = Array.from({ length: 706 }, (_, index) => index < 25 ? withMedia(bird(index), index + 1) : bird(index));
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const path = String(input);
+      if (path === "/api/birds") return response({ birds });
+      if (path === "/api/birds/bird000") return response(profile(birds[0]));
+      if (path === "/api/birds/bird000/collection-state") return response({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
+      throw new Error(`Unexpected request ${path}`);
+    });
+    const rendered = render(<App />);
+
+    const firstPageCall = await screen.findByRole("button", { name: "Play call for Arizona Bird 000" });
+    await userEvent.click(firstPageCall);
+    expect(firstPageCall).toHaveAttribute("aria-pressed", "true");
+    const pageAudio = document.querySelector("audio");
+    expect(pageAudio).not.toBeNull();
+    const pagePause = vi.spyOn(pageAudio!, "pause");
+    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(pagePause).toHaveBeenCalled());
+
+    await userEvent.click(screen.getByRole("button", { name: "Previous" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Play call for Arizona Bird 000" }));
+    const routeAudio = document.querySelector("audio");
+    expect(routeAudio).not.toBeNull();
+    const routePause = vi.spyOn(routeAudio!, "pause");
+    await userEvent.click(screen.getByRole("link", { name: "Arizona Bird 000" }));
+    expect(await screen.findByRole("heading", { name: "Arizona Bird 000", level: 1 })).toBeVisible();
+    expect(routePause).toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Play call for Arizona Bird 000" }));
+    const profileAudio = document.querySelector("audio");
+    expect(profileAudio).not.toBeNull();
+    const unmountPause = vi.spyOn(profileAudio!, "pause");
+    rendered.unmount();
+    expect(unmountPause).toHaveBeenCalled();
+  });
+
+  it("preserves attribution and shows safe image and call load errors", async () => {
+    window.history.replaceState(null, "", "/birds");
+    const birds = Array.from({ length: 706 }, (_, index) => index === 0 ? withMedia(bird(index), 101) : bird(index));
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
+    render(<App />);
+
+    const image = await screen.findByRole("img", { name: "Arizona Bird 000 (Avis arizona000)" });
+    fireEvent.error(image);
+    expect(screen.getByText("Photo could not be loaded.")).toBeVisible();
+    expect(screen.getByText("Photo: Photographer 101")).toBeVisible();
+    const audio = document.querySelector("audio");
+    expect(audio).not.toBeNull();
+    fireEvent.error(audio!);
+    expect(screen.getByText("Call playback failed.")).toBeVisible();
+    expect(screen.getByText("Call: Recordist 101 · Global example")).toBeVisible();
+  });
+
+  it("shows full profile media attribution, scope, selection reason, and lookup freshness", async () => {
+    window.history.replaceState(null, "", "/birds/bird000");
+    const summary = withMedia(bird(0), 102);
+    const modeled = profile(summary);
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const path = String(input);
+      if (path.endsWith("/collection-state")) return response({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
+      return response(modeled);
+    });
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Photo and call" })).toBeVisible();
+    expect(document.querySelector(".catalog-photo-profile img")).toHaveAttribute("loading", "lazy");
+    expect(screen.getByText("Publisher: Fixture Archive")).toBeVisible();
+    expect(screen.getByText("Exact Arizona catalog photo")).toBeVisible();
+    expect(screen.getByText("Call: Recordist 102 · Arizona")).toBeVisible();
+    expect(screen.getByText("Type: call · quality A")).toBeVisible();
+    expect(screen.getByText("Location: Fixture Park, United States")).toBeVisible();
+    expect(screen.getByText("Exact species call ranked by type and quality")).toBeVisible();
+    expect(screen.getAllByText(/Looked up:/)).toHaveLength(2);
+    expect(document.querySelector(".catalog-call-profile audio")).toHaveAttribute("preload", "none");
   });
 
   it("supports native navigation, direct detail routes, and popstate without a router dependency", async () => {

@@ -2,7 +2,7 @@ Status: open
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-evolve-product-into-rufous.md
-Depends-On: .10x/tickets/done/2026-07-11-remove-wishlist-and-consolidate-watches.md, .10x/tickets/2026-07-11-add-catalog-card-and-profile-media.md, .10x/tickets/2026-07-11-add-trip-plan-calendar-controls.md
+Depends-On: .10x/tickets/done/2026-07-11-remove-wishlist-and-consolidate-watches.md, .10x/tickets/done/2026-07-11-add-catalog-card-and-profile-media.md, .10x/tickets/2026-07-11-add-trip-plan-calendar-controls.md
 
 # Apply Rufous product identity and retro theme
 

@@ -1,7 +1,7 @@
-import { FormEvent, MouseEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBird, listBirds } from "./birdApi";
 import { ProfileCollectionControls } from "./MyBirds";
-import type { BirdCatalogSummary, BirdProfile } from "./types";
+import type { BirdCatalogSummary, BirdProfile, CatalogCall, CatalogPhoto } from "./types";
 
 const BIRDS_PER_PAGE = 24;
 
@@ -46,6 +46,128 @@ function DefinitionList({ rows, className = "" }: { rows: [string, string][]; cl
   </dl>;
 }
 
+let stopActiveCatalogAudio: (() => void) | null = null;
+const catalogAudioStops = new Set<() => void>();
+
+function stopCatalogAudio() {
+  stopActiveCatalogAudio?.();
+  stopActiveCatalogAudio = null;
+}
+
+function stopAllCatalogAudio() {
+  for (const stop of catalogAudioStops) stop();
+  stopActiveCatalogAudio = null;
+}
+
+function RufousSilhouette({ label }: { label: string }) {
+  return <div className="catalog-media-placeholder" role="img" aria-label={`No licensed photo available for ${label}`}>
+    <svg viewBox="0 0 160 120" aria-hidden="true" focusable="false">
+      <path d="M36 76c9-23 31-36 55-30 13 3 23 12 30 24l20 7-18 9c-5 17-22 28-43 27-24-2-43-16-44-37Z" />
+      <circle cx="105" cy="61" r="3" />
+      <path d="M59 62c12 5 22 15 27 30M54 105l-9 10m39-7 4 10" />
+    </svg>
+    <span>Photo unavailable</span>
+  </div>;
+}
+
+function CatalogPhotoMedia({ photo, label, compact = false }: {
+  photo: CatalogPhoto; label: string; compact?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [photo.display_url]);
+  const available = photo.status === "available" && photo.display_url !== null;
+  const attribution = photo.creator || photo.rights_holder;
+  return <figure className={`catalog-photo ${compact ? "catalog-photo-compact" : "catalog-photo-profile"}`}>
+    <div className="catalog-photo-frame">
+      {available && !failed
+        ? <img src={photo.display_url!} alt={label} loading="lazy" onError={() => setFailed(true)} />
+        : <RufousSilhouette label={label} />}
+    </div>
+    <figcaption className="catalog-media-attribution">
+      {failed && <span className="caveat" role="status">Photo could not be loaded.</span>}
+      {available ? <>
+        <span>Photo: {attribution}</span>
+        {!compact && photo.publisher && <span>Publisher: {photo.publisher}</span>}
+        {photo.source_url && <a href={photo.source_url} target="_blank" rel="noreferrer">GBIF source</a>}
+        {photo.license_url && <a href={photo.license_url} target="_blank" rel="noreferrer">{photo.license_text}</a>}
+        {!compact && photo.selection_reason && <span>{photo.selection_reason}</span>}
+        {!compact && <span>Looked up: {formatDate(photo.lookup_at)}</span>}
+      </> : <span>No validated catalog photo is available.</span>}
+    </figcaption>
+  </figure>;
+}
+
+function CatalogCallPlayer({ call, label, compact = false }: {
+  call: CatalogCall; label: string; compact?: boolean;
+}) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const playingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const stop = useCallback(() => {
+    const audio = playingAudioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      playingAudioRef.current = null;
+    }
+    setPlaying(false);
+  }, []);
+  useEffect(() => {
+    catalogAudioStops.add(stop);
+    return () => {
+      catalogAudioStops.delete(stop);
+      stop();
+      if (stopActiveCatalogAudio === stop) stopActiveCatalogAudio = null;
+    };
+  }, [stop]);
+  const available = call.status === "available" && call.audio_url !== null;
+
+  function toggle() {
+    if (playing) {
+      stopCatalogAudio();
+      return;
+    }
+    stopCatalogAudio();
+    setFailed(false);
+    stopActiveCatalogAudio = stop;
+    const audio = audioRef.current;
+    if (!audio) return;
+    playingAudioRef.current = audio;
+    setPlaying(true);
+    void Promise.resolve(audio.play()).catch(() => {
+      if (stopActiveCatalogAudio === stop) stopActiveCatalogAudio = null;
+      stop();
+      setFailed(true);
+    });
+  }
+
+  if (!available) return <div className="catalog-call catalog-call-unavailable"><span>No validated call is available.</span></div>;
+  return <div className={`catalog-call ${compact ? "catalog-call-compact" : "catalog-call-profile"}`}>
+    <audio ref={audioRef} src={call.audio_url!} preload="none" onEnded={() => {
+      if (stopActiveCatalogAudio === stop) stopActiveCatalogAudio = null;
+      playingAudioRef.current = null;
+      setPlaying(false);
+    }} onError={() => {
+      if (stopActiveCatalogAudio === stop) stopActiveCatalogAudio = null;
+      stop(); setFailed(true);
+    }} />
+    <button type="button" className="catalog-call-button" aria-pressed={playing} onClick={toggle}>
+      {playing ? `Stop call for ${label}` : `Play call for ${label}`}
+    </button>
+    {failed && <span className="caveat" role="status">Call playback failed.</span>}
+    <div className="catalog-media-attribution">
+      <span>Call: {call.recordist}{call.geographic_scope ? ` · ${call.geographic_scope}` : ""}</span>
+      {!compact && call.recording_type && <span>Type: {call.recording_type}{call.quality ? ` · quality ${call.quality}` : ""}</span>}
+      {!compact && (call.locality || call.country) && <span>Location: {[call.locality, call.country].filter(Boolean).join(", ")}</span>}
+      {call.source_url && <a href={call.source_url} target="_blank" rel="noreferrer">Xeno-canto source</a>}
+      {call.license_url && <a href={call.license_url} target="_blank" rel="noreferrer">{call.license_text}</a>}
+      {!compact && call.selection_reason && <span>{call.selection_reason}</span>}
+      {!compact && <span>Looked up: {formatDate(call.lookup_at)}</span>}
+    </div>
+  </div>;
+}
+
 export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
   const [birds, setBirds] = useState<BirdCatalogSummary[]>([]);
   const [query, setQuery] = useState("");
@@ -67,6 +189,8 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
   }, []);
 
   useEffect(() => setPage(0), [query, category]);
+  useEffect(() => stopAllCatalogAudio(), [query, category, page]);
+  useEffect(() => () => stopAllCatalogAudio(), []);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
@@ -105,15 +229,22 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
       {!loading && !error && <>
         <p className="catalog-count" aria-live="polite">Showing {filtered.length === 0 ? "0" : `${start + 1}–${start + visible.length}`} of {filtered.length} matching taxa · {birds.length} total</p>
         {visible.length === 0 ? <p className="empty">No Arizona taxa match this search and category.</p> : <ol className="bird-catalog-grid" start={start + 1}>
-          {visible.map((bird) => <li key={bird.species_code}>
-            <a className="bird-catalog-card" href={`/birds/${bird.species_code}`} onClick={(event) => link(event, `/birds/${bird.species_code}`, navigate)}>
-              <div><span className="badge">{categoryLabel(bird.taxonomic_category)}</span><span className="bird-code">{bird.species_code}</span></div>
-              <h2>{bird.common_name || bird.scientific_name || bird.species_code}</h2>
-              {bird.common_name && bird.scientific_name && <p className="scientific">{bird.scientific_name}</p>}
-              <p>{bird.family_common_name || bird.family_scientific_name || "Family unavailable"}</p>
-              <ul className="card-status"><li>AVONET traits: {bird.traits_status}</li><li>Recent public observations: {bird.recent_public_observation_count.toLocaleString()}</li></ul>
-            </a>
-          </li>)}
+          {visible.map((bird) => {
+            const label = bird.common_name || bird.scientific_name || bird.species_code;
+            const mediaLabel = bird.common_name && bird.scientific_name
+              ? `${bird.common_name} (${bird.scientific_name})` : label;
+            return <li key={bird.species_code}>
+              <article className="bird-catalog-card">
+                <CatalogPhotoMedia photo={bird.photo} label={mediaLabel} compact />
+                <div className="bird-card-identity"><span className="badge">{categoryLabel(bird.taxonomic_category)}</span><span className="bird-code">{bird.species_code}</span></div>
+                <h2><a href={`/birds/${bird.species_code}`} onClick={(event) => link(event, `/birds/${bird.species_code}`, navigate)}>{label}</a></h2>
+                {bird.common_name && bird.scientific_name && <p className="scientific">{bird.scientific_name}</p>}
+                <p>{bird.family_common_name || bird.family_scientific_name || "Family unavailable"}</p>
+                <CatalogCallPlayer call={bird.call} label={label} compact />
+                <ul className="card-status"><li>AVONET traits: {bird.traits_status}</li><li>Recent public observations: {bird.recent_public_observation_count.toLocaleString()}</li></ul>
+              </article>
+            </li>;
+          })}
         </ol>}
         {filtered.length > BIRDS_PER_PAGE && <nav className="pagination" aria-label="Arizona bird catalog pagination"><span>Page {currentPage + 1} of {lastPage + 1}</span><div><button type="button" disabled={currentPage === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>Previous</button><button type="button" disabled={currentPage === lastPage} onClick={() => setPage((value) => Math.min(lastPage, value + 1))}>Next</button></div></nav>}
       </>}
@@ -146,6 +277,14 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
       <PageHeading>{bird.common_name || bird.scientific_name || bird.species_code}</PageHeading>
       {bird.common_name && bird.scientific_name && <p className="scientific">{bird.scientific_name}</p>}
     </header>
+
+    <section className="panel catalog-profile-media" aria-labelledby="catalog-media-heading">
+      <h2 id="catalog-media-heading">Photo and call</h2>
+      <div className="catalog-profile-media-grid">
+        <CatalogPhotoMedia photo={bird.photo} label={bird.common_name && bird.scientific_name ? `${bird.common_name} (${bird.scientific_name})` : bird.common_name || bird.scientific_name || bird.species_code} />
+        <CatalogCallPlayer call={bird.call} label={bird.common_name || bird.scientific_name || bird.species_code} />
+      </div>
+    </section>
 
     <section className="panel target-profile-action"><h2>Plan for this bird</h2><p>Search current modeled public observations within a per-request Arizona travel radius.</p><a className="button-link" href={`/birds/${bird.species_code}/find`} onClick={(event) => link(event, `/birds/${bird.species_code}/find`, navigate)}>Find this bird</a></section>
 

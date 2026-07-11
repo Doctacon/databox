@@ -27,7 +27,7 @@ This is a parent plan and is not executable directly.
 
 1. Remove Wishlist through `.10x/tickets/done/2026-07-11-remove-wishlist-and-consolidate-watches.md`.
 2. Implement catalog media storage/batch/API through `.10x/tickets/done/2026-07-11-implement-catalog-media-enrichment.md`.
-3. Add catalog/profile media presentation through `.10x/tickets/2026-07-11-add-catalog-card-and-profile-media.md`.
+3. Add catalog/profile media presentation through `.10x/tickets/done/2026-07-11-add-catalog-card-and-profile-media.md`.
 4. Implement trip-plan calendar state/API/transport through `.10x/tickets/2026-07-11-implement-trip-plan-calendar-invitations.md`.
 5. Add trip-plan invitation controls through `.10x/tickets/2026-07-11-add-trip-plan-calendar-controls.md`.
 6. Apply Rufous product identity/theme through `.10x/tickets/2026-07-11-apply-rufous-product-theme.md` after product surfaces settle.
