@@ -11,15 +11,25 @@ import json
 import re
 import smtplib
 import ssl
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from email.message import EmailMessage
 from email.policy import SMTP
+from html import unescape
 from typing import Literal
+from urllib.parse import unquote
 
 import duckdb
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from databox.bird_alert_delivery import (
     RETRY_DELAYS,
@@ -35,6 +45,93 @@ TRIP_SCHEMA = "birding_calendar"
 MAX_PAYLOAD_BYTES = 32_768
 CLAIM_TTL = timedelta(minutes=5)
 RESOLVED_RETENTION = timedelta(days=90)
+
+_EMAIL_MARKER = re.compile(
+    r"(?<![\w.!#$%&'*+/=?^`{|}~-])"
+    r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}\s*@\s*"
+    r"[A-Za-z0-9](?:[A-Za-z0-9.-]{0,188}[A-Za-z0-9])?\.[A-Za-z]{2,63}"
+    r"(?![\w.-])",
+    re.IGNORECASE,
+)
+_URL_MARKER = re.compile(r"(?<![A-Za-z])h\s*t\s*t\s*p\s*s?\s*:\s*/\s*/", re.IGNORECASE)
+_SECRET_MARKER = re.compile(
+    r"\b(?:(?:api[\s_-]*key|access[\s_-]*token|auth(?:orization)?[\s_-]*token|"
+    r"credential(?:s)?|password|private[\s_-]*key|secret|token|key)\b\s*[:=]\s*\S+|"
+    r"(?:api[\s_-]*key|access[\s_-]*token|auth(?:orization)?[\s_-]*token|"
+    r"credential(?:s)?|password|private[\s_-]*key|secret|token)\b\s+is\s+\S+)",
+    re.IGNORECASE,
+)
+_RECIPIENT_MARKER = re.compile(
+    r"\b(?:recipient|attendee|organizer)\b\s*(?:(?:is\s+)|[:=]\s*)\S+", re.IGNORECASE
+)
+_PRIVATE_KEY_MARKER = re.compile(r"-----\s*BEGIN\s+(?:[A-Z]+\s+)?PRIVATE\s+KEY\s*-----", re.I)
+_BEARER_TOKEN_MARKER = re.compile(r"\bbearer\s+[A-Za-z0-9._~+/=-]{8,}", re.IGNORECASE)
+_COORDINATE_PAIR = re.compile(
+    r"(?<![\d.])([+-]?(?:90(?:\.0+)?|[0-8]?\d(?:\.\d+)?))"
+    r"\s*,\s*([+-]?(?:180(?:\.0+)?|(?:1[0-7]\d|[0-9]?\d)(?:\.\d+)?))"
+    r"(?![\d.])"
+)
+_MAX_COORDINATE_CONNECTOR_CHARS = 48
+_COORDINATE_LABEL = re.compile(
+    r"\b(?:coordinates?|gps|lat(?:itude)?\s*(?:[-/&,]|\band\b)\s*"
+    r"(?:lon|long|longitude))\b",
+    re.IGNORECASE,
+)
+_WGS84_LABEL = re.compile(r"\(\s*WGS\s*84\s*\)", re.IGNORECASE)
+
+
+class UnsafeTripCalendarContentError(ValueError):
+    """Persisted prose contains content prohibited from calendar descriptions."""
+
+
+def _decoded_privacy_text(value: str) -> str:
+    """Decode only bounded common storage/transport encodings before marker checks."""
+
+    decoded = unicodedata.normalize("NFKC", value)
+    for _ in range(2):
+        expanded = unicodedata.normalize("NFKC", unescape(unquote(decoded)))
+        if expanded == decoded:
+            break
+        decoded = expanded
+    return decoded
+
+
+def _validate_calendar_description_text(value: str) -> str:
+    decoded = _decoded_privacy_text(value)
+    if (
+        _EMAIL_MARKER.search(decoded)
+        or _URL_MARKER.search(decoded)
+        or _SECRET_MARKER.search(decoded)
+        or _RECIPIENT_MARKER.search(decoded)
+        or _PRIVATE_KEY_MARKER.search(decoded)
+        or _BEARER_TOKEN_MARKER.search(decoded)
+    ):
+        raise UnsafeTripCalendarContentError("trip calendar description contains prohibited data")
+    for match in _COORDINATE_PAIR.finditer(decoded):
+        latitude, longitude = match.groups()
+        fractions = [part.partition(".")[2] for part in (latitude, longitude)]
+        preceding_text = decoded[: match.start()]
+        labels = list(_COORDINATE_LABEL.finditer(preceding_text))
+        labeled_pair = False
+        if labels:
+            connector = preceding_text[labels[-1].end() :]
+            connector_without_datum = _WGS84_LABEL.sub("", connector)
+            labeled_pair = (
+                len(connector) <= _MAX_COORDINATE_CONNECTOR_CHARS
+                and not any(terminator in connector for terminator in ";.!?")
+                and not any(character.isdigit() for character in connector_without_datum)
+            )
+        coordinate_shaped = (
+            latitude.startswith(("+", "-"))
+            or longitude.startswith(("+", "-"))
+            or all(len(fraction) >= 3 for fraction in fractions)
+            or labeled_pair
+        )
+        if coordinate_shaped:
+            raise UnsafeTripCalendarContentError(
+                "trip calendar description contains prohibited data"
+            )
+    return value
 
 
 def _iso(value: datetime) -> str:
@@ -109,14 +206,20 @@ class TripCalendarPayload(BaseModel):
 
     @field_validator("location_name", "field_plan_text", "weather_status")
     @classmethod
-    def validate_text(cls, value: str) -> str:
-        return _safe_text(value, "calendar text", 6000)
+    def validate_text(cls, value: str, info: ValidationInfo) -> str:
+        value = _safe_text(value, "calendar text", 6000)
+        if info.field_name == "field_plan_text":
+            _validate_calendar_description_text(value)
+        return value
 
     @field_validator("target_common_names", "caveats")
     @classmethod
-    def validate_lists(cls, value: list[str]) -> list[str]:
+    def validate_lists(cls, value: list[str], info: ValidationInfo) -> list[str]:
         if any(not item or len(item) > 1000 or "\r" in item for item in value):
             raise ValueError("calendar list text is invalid")
+        if info.field_name == "caveats":
+            for item in value:
+                _validate_calendar_description_text(item)
         return value
 
     @model_validator(mode="after")
@@ -353,6 +456,9 @@ def _canonical_source(connection: duckdb.DuckDBPyConnection, plan_id: str) -> di
         )
     if len(caveats) > 100:
         raise ValueError("trip plan caveats exceed their bound")
+    _validate_calendar_description_text(field_plan)
+    for caveat in caveats:
+        _validate_calendar_description_text(caveat)
     facts: dict[str, object] = {
         "trip_plan_id": plan_id,
         "location_name": location,
@@ -415,6 +521,8 @@ def _enqueue_trip_invite_in_transaction(
         if str(_canonical_source(connection, plan_id)["source_plan_hash"]) != str(existing[3]):
             raise ValueError("trip plan changed after invite creation")
         return str(existing[4])
+    # Validate persisted description inputs before creating installation/event/outbox state.
+    _canonical_source(connection, plan_id)
     uid = str(existing[0]) if existing else trip_event_uid(_installation_id(connection), plan_id)
     sequence = int(existing[1]) + 1 if existing else 0
     payload = canonical_trip_payload(connection, plan_id, event_uid=uid, sequence=sequence, now=now)
@@ -686,6 +794,10 @@ def _ical_time(value: str) -> str:
 
 
 def build_trip_icalendar(payload: TripCalendarPayload, *, organizer: str, attendee: str) -> str:
+    # Defense in depth for callers that bypass Pydantic construction/assignment validation.
+    _validate_calendar_description_text(payload.field_plan_text)
+    for caveat in payload.caveats:
+        _validate_calendar_description_text(caveat)
     address = re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@[A-Za-z0-9.-]{1,190}")
     if address.fullmatch(organizer) is None or address.fullmatch(attendee) is None:
         raise ValueError("email address is invalid")

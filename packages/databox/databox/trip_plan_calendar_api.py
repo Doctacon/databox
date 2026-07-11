@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from databox.bird_alert_delivery import BirdAlertSmtpSettings, SmtpFactory
 from databox.trip_plan_calendar import (
+    UnsafeTripCalendarContentError,
     deliver_next_trip_outbox,
     enqueue_trip_invite,
     reconcile_trip_invite,
@@ -132,6 +133,12 @@ def register_trip_plan_calendar_routes(
                 return TripInviteActionResponse(
                     outbox_id=outbox_id, delivery=_status(connection, plan_id)
                 )
+            except UnsafeTripCalendarContentError:
+                return _error(
+                    "unsafe_calendar_content",
+                    "Trip plan cannot be included in a calendar invitation",
+                    409,
+                )
             except ValueError:
                 return _error("invalid_plan", "Trip plan is incomplete or changed", 409)
             except duckdb.Error:
@@ -186,6 +193,12 @@ def register_trip_plan_calendar_routes(
                 return TripInviteActionResponse(
                     outbox_id=resulting_id, delivery=_status(connection, str(source[0]))
                 )
+            except UnsafeTripCalendarContentError:
+                return _error(
+                    "unsafe_calendar_content",
+                    "Trip plan cannot be included in a calendar invitation",
+                    409,
+                )
             except (ValueError, duckdb.CatalogException):
                 return _error("invalid_state", "Trip delivery state cannot be reconciled", 409)
             except duckdb.Error:
@@ -231,6 +244,14 @@ def register_trip_plan_calendar_routes(
                 return TripInviteActionResponse(
                     outbox_id=result.outbox_id, delivery=_status(connection, str(source[0]))
                 )
+            except UnsafeTripCalendarContentError:
+                return _error(
+                    "unsafe_calendar_content",
+                    "Trip plan cannot be included in a calendar invitation",
+                    409,
+                )
+            except ValueError:
+                return _error("invalid_state", "Trip delivery state is unavailable", 409)
             except duckdb.Error:
                 return _error("database_unavailable", "Trip invite could not be delivered", 503)
             finally:

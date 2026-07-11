@@ -18,6 +18,7 @@ from databox.trip_plan_calendar import (
     TRIP_SCHEMA,
     TripCalendarPayload,
     _attempt,
+    _validate_calendar_description_text,
     build_trip_icalendar,
     canonical_trip_payload,
     claim_trip_outbox,
@@ -183,6 +184,197 @@ def test_calendar_is_bounded_folded_injection_safe_and_private(database: Path) -
     assert "payload_json" not in calendar
     assert all(len(line.encode()) <= 75 for line in calendar.split("\r\n") if line)
     connection.close()
+
+
+@pytest.mark.parametrize(
+    ("column", "injected"),
+    [
+        ("field_plan_text", "Contact FiEld.User+tag @ Example.COM before departure."),
+        ("caveats_json", "Alternate guide: other.person@example.test"),
+        ("field_plan_text", "rEcIpIeNt   : private party"),
+        ("field_plan_text", "API key is supersecretvalue"),
+        ("caveats_json", "Secret is supersecretvalue"),
+        ("field_plan_text", "Recipient is Alice Smith"),
+        ("caveats_json", "Attendee is private party"),
+        ("field_plan_text", "API _ KEY = calendar-secret-value"),
+        ("caveats_json", "credential : encoded-private-value"),
+        ("field_plan_text", "access%2520token%253Dencoded-secret"),
+        ("caveats_json", "Authorization Bearer private-token-value"),
+        ("field_plan_text", "Open h T t P s : / / private.example/media.jpg"),
+        ("caveats_json", "http://private.example/arbitrary"),
+        ("field_plan_text", "%2568%2574%2574%2570%2573%253A%252F%252Fprivate.example/x"),
+        ("field_plan_text", "Meet at 31.7000%252C%2520-110.8800 before dawn."),
+        ("caveats_json", "Coordinates: 31.7000&#44; -110.8800"),
+        ("field_plan_text", "Coordinates: -33.8688,151.2093"),
+        ("caveats_json", "Coordinates: 51.5074,0.1278"),
+        ("field_plan_text", "Coordinates: 51.50,0.12"),
+        ("caveats_json", "Coordinates: 34,112"),
+        ("field_plan_text", "gPs : +34, +112"),
+        ("caveats_json", "LAT / LON = 34.5, 112.4"),
+        ("field_plan_text", "latitude - longitude is -90, -180"),
+        ("field_plan_text", "Coordinates are 34, 112"),
+        ("caveats_json", "GPS — 34,112"),
+        ("field_plan_text", "lat-lon at 34,112"),
+        ("caveats_json", "LAT & LON: 34, 112"),
+        ("field_plan_text", "Lat, Lon: 34, 112"),
+        ("caveats_json", "latitude and longitude = 34, 112"),
+        ("field_plan_text", "GPS:\n    34, 112"),
+        ("caveats_json", "Coordinates (WGS84): 34, 112"),
+        ("caveats_json", "COORDINATES   FOR SITE ARE : 34, 112"),
+        ("field_plan_text", "Latitude / Longitude for the roost is (0, 180)"),
+        ("caveats_json", "-----BEGIN PRIVATE KEY----- hidden"),
+    ],
+)
+def test_prohibited_description_markers_fail_before_calendar_writes(
+    database: Path, column: str, injected: str
+) -> None:
+    connection = duckdb.connect(str(database))
+    value = json.dumps([injected]) if column == "caveats_json" else injected
+    connection.execute(
+        f"UPDATE birding_agent.trip_plans SET {column}=? WHERE trip_plan_id='trip_fixture'",
+        [value],
+    )
+
+    with pytest.raises(ValueError, match="prohibited data"):
+        enqueue_trip_invite(connection, "trip_fixture", now=NOW)
+
+    for table in ("trip_event_intents", "trip_outbox", "trip_outbox_attempts"):
+        assert connection.execute(f"SELECT count(*) FROM {TRIP_SCHEMA}.{table}").fetchone() == (0,)
+    assert connection.execute(
+        "SELECT count(*) FROM birding_alerts.runtime_settings WHERE setting_key='installation_id'"
+    ).fetchone() == (0,)
+    connection.close()
+
+
+@pytest.mark.parametrize(
+    "injected",
+    [
+        "API key is supersecretvalue",
+        "Secret is supersecretvalue",
+        "Recipient is Alice Smith",
+        "Attendee is private party",
+        "Coordinates: -33.8688,151.2093",
+        "Coordinates: 51.5074,0.1278",
+        "Coordinates: 51.50,0.12",
+        "Coordinates: 34,112",
+        "gPs : +34, +112",
+        "LAT / LON = 34.5, 112.4",
+    ],
+)
+def test_builder_rejects_payload_created_through_validation_bypass(
+    database: Path, injected: str
+) -> None:
+    connection = duckdb.connect(str(database))
+    payload = canonical_trip_payload(
+        connection,
+        "trip_fixture",
+        event_uid="rufous-trip-" + "c" * 64 + "@local",
+        sequence=0,
+        now=NOW,
+    )
+    bypassed = payload.model_copy(update={"caveats": [injected]})
+    with pytest.raises(ValueError, match="prohibited data"):
+        build_trip_icalendar(
+            bypassed, organizer="sender@example.test", attendee="recipient@example.test"
+        )
+    connection.close()
+
+
+@pytest.mark.parametrize(
+    "safe_text",
+    [
+        "Coordinates are unavailable.",
+        "GPS — pending field verification.",
+        "lat-lon for site is intentionally omitted.",
+        "Coordinates for site are 90.1, 0.",
+        "GPS at 0, 180.1 is outside the valid range.",
+        "Latitude / longitude: 91, 181.",
+        "Coordinates are unavailable; walk 1, 2 miles.",
+        "GPS is unavailable. Walk 1, 2 miles.",
+    ],
+)
+def test_coordinate_label_false_positives_remain_accepted(safe_text: str) -> None:
+    assert _validate_calendar_description_text(safe_text) == safe_text
+
+
+def test_description_privacy_boundaries_preserve_normal_prose_and_identity(database: Path) -> None:
+    connection = duckdb.connect(str(database))
+    prose = (
+        "Keep email notifications disabled. Use the key trail junction for secretive birds; "
+        "the key is near the oak. Walk 1.5, 2.5 miles; compare versions 1.20, 2.40. "
+        "Unlabeled grid values 34, 112 are identifiers, not a location. "
+        "Out-of-range examples Coordinates: 90.1, 0; GPS: 0, 180.1; lat/lon: 91, 181. "
+        "The date is 7/11/2026, and HTTPS access is not required. "
+        "Recipient species and attendee counts vary by season."
+    )
+    connection.execute(
+        "UPDATE birding_agent.trip_plans SET field_plan_text=? WHERE trip_plan_id='trip_fixture'",
+        [prose],
+    )
+    first = enqueue_trip_invite(connection, "trip_fixture", now=NOW)
+    repeated = enqueue_trip_invite(connection, "trip_fixture", now=NOW + timedelta(minutes=1))
+    row = connection.execute(
+        f"SELECT event_uid, sequence, payload_json, payload_hash FROM {TRIP_SCHEMA}.trip_outbox"
+    ).fetchone()
+    assert row is not None
+    payload = TripCalendarPayload.model_validate_json(row[2])
+    assert repeated == first
+    assert row[0] == payload.event_uid
+    assert row[1] == payload.sequence == 0
+    assert row[3] == payload.payload_hash
+    assert payload.field_plan_text == prose
+    connection.close()
+
+
+def test_unsafe_update_rolls_back_and_api_error_is_fixed_and_redacted(
+    database: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = FakeSmtp()
+    monkeypatch.setattr("databox.trip_plan_calendar._prepare", lambda config, factory: fake)
+    connection = duckdb.connect(str(database))
+    original_id = enqueue_trip_invite(connection, "trip_fixture", now=NOW)
+    deliver_next_trip_outbox(connection, settings=_settings(tmp_path), now=NOW)
+    before = connection.execute(
+        f"""SELECT event_uid, sequence, status, source_plan_hash, current_outbox_id
+            FROM {TRIP_SCHEMA}.trip_event_intents"""
+    ).fetchone()
+    connection.execute(
+        """UPDATE birding_agent.trip_plans
+           SET field_plan_text='Media: https%3A%2F%2Fprivate.example%2Fnest.jpg'
+           WHERE trip_plan_id='trip_fixture'"""
+    )
+    with pytest.raises(ValueError, match="prohibited data"):
+        enqueue_trip_invite(connection, "trip_fixture", now=NOW + timedelta(minutes=1))
+    assert (
+        connection.execute(
+            f"""SELECT event_uid, sequence, status, source_plan_hash, current_outbox_id
+            FROM {TRIP_SCHEMA}.trip_event_intents"""
+        ).fetchone()
+        == before
+    )
+    assert before is not None and before[1:3] == (0, "accepted") and before[4] == original_id
+    assert connection.execute(f"SELECT count(*) FROM {TRIP_SCHEMA}.trip_outbox").fetchone() == (1,)
+    connection.close()
+
+    client = TestClient(
+        create_app(
+            database_path=str(database),
+            static_dir=tmp_path / "missing",
+            trip_smtp_settings=_settings(tmp_path),
+            trip_smtp_factory=lambda *a, **k: fake,
+        )
+    )
+    response = client.post("/api/trip-plans/trip_fixture/calendar-invite?confirm=true")
+    assert response.status_code == 409
+    assert response.json() == {
+        "error": {
+            "code": "unsafe_calendar_content",
+            "message": "Trip plan cannot be included in a calendar invitation",
+        }
+    }
+    rendered = json.dumps(response.json()).lower()
+    assert all(marker not in rendered for marker in ("private.example", "media:", "nest.jpg"))
+    assert len(fake.messages) == 1
 
 
 def test_fake_smtp_acceptance_and_update_reuse_uid(
