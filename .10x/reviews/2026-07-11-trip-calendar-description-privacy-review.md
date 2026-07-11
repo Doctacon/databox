@@ -14,6 +14,14 @@ Final review verified structural rejection of recipient/email, secret/token/key,
 
 Final validation records 515 Python and 221 frontend tests plus lint, format, MyPy, typecheck/build, bundle audit, secret scan, and drift checks passing.
 
+## Reopened aggregate regression and final follow-up
+
+Later aggregate adversarial review reopened the same scope for URL forms, generic credential identifiers, spaced/IP/localhost email, punctuation-qualified recipients, and coordinate representations including unsigned/positive, labeled low-precision, cardinal, Unicode degree, natural connector, multiline, WGS84, and EPSG forms. Each bypass was reproduced, repaired, and retained as a regression.
+
+The final independent pass verified all accumulated governed families at both pre-write and direct ICS boundaries. URL-shaped domains now fail closed without semantic/TLD guesses; normalized email and label assignments cover governed spacing/punctuation; coordinates use range-checked labeled numeric and structural cardinal parsing with bounded connectors. Benign incomplete/out-of-range and ordinary non-URL prose boundaries remain accepted.
+
+Final evidence records 230 focused and 666 full network-blocked Python tests, 221 frontend tests, and all static/privacy gates passing with no live SMTP.
+
 ## Verdict
 
-Pass. Original aggregate privacy blocker is resolved.
+Pass. Original and reopened aggregate privacy blockers are resolved.

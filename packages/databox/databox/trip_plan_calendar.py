@@ -46,30 +46,62 @@ MAX_PAYLOAD_BYTES = 32_768
 CLAIM_TTL = timedelta(minutes=5)
 RESOLVED_RETENTION = timedelta(days=90)
 
+_EMAIL_DOMAIN = (
+    r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\."
+    r")+[A-Za-z]{2,63}|localhost|"
+    r"\[(?:IPv6:)?[0-9A-Fa-f:.]{2,45}\]"
+)
 _EMAIL_MARKER = re.compile(
     r"(?<![\w.!#$%&'*+/=?^`{|}~-])"
-    r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}\s*@\s*"
-    r"[A-Za-z0-9](?:[A-Za-z0-9.-]{0,188}[A-Za-z0-9])?\.[A-Za-z]{2,63}"
-    r"(?![\w.-])",
+    r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@"
+    rf"(?:{_EMAIL_DOMAIN})(?![\w.-])",
     re.IGNORECASE,
 )
-_URL_MARKER = re.compile(r"(?<![A-Za-z])h\s*t\s*t\s*p\s*s?\s*:\s*/\s*/", re.IGNORECASE)
+_DOMAIN_NAME = r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}"
+_DOMAIN_URL_MARKER = re.compile(
+    rf"(?<![A-Za-z0-9.-])(?:www\.{_DOMAIN_NAME}(?::\d{{1,5}})?"
+    rf"(?:/[^\s]*|\?[^\s]*)?|{_DOMAIN_NAME}(?::\d{{1,5}}|/[^\s]*|\?[^\s]*))"
+    r"(?![A-Za-z0-9.-])",
+    re.IGNORECASE,
+)
+_URL_MARKERS = (
+    re.compile(r"(?<![A-Za-z])h\s*t\s*t\s*p\s*s?://", re.IGNORECASE),
+    re.compile(r"(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]{0,31}://\S+"),
+)
+_LABEL_QUALIFIER = r"(?:\s*\([^()\r\n]{1,40}\))?"
+_LABEL_CONNECTOR = r"\s*(?:-|:|=|/|;|\bis\b)\s*"
+_CREDENTIAL_ASSIGNMENT = re.compile(
+    rf"(?<![\w-])([A-Za-z][A-Za-z0-9_-]{{0,127}}){_LABEL_QUALIFIER}"
+    rf"{_LABEL_CONNECTOR}\S+",
+    re.IGNORECASE,
+)
 _SECRET_MARKER = re.compile(
-    r"\b(?:(?:api[\s_-]*key|access[\s_-]*token|auth(?:orization)?[\s_-]*token|"
-    r"credential(?:s)?|password|private[\s_-]*key|secret|token|key)\b\s*[:=]\s*\S+|"
-    r"(?:api[\s_-]*key|access[\s_-]*token|auth(?:orization)?[\s_-]*token|"
-    r"credential(?:s)?|password|private[\s_-]*key|secret|token)\b\s+is\s+\S+)",
+    rf"\b(?:(?:api[\s_-]*key|access[\s_-]*token|auth(?:orization)?[\s_-]*token|"
+    rf"credential(?:s)?|password|private[\s_-]*key|secret|token)\b"
+    rf"{_LABEL_QUALIFIER}{_LABEL_CONNECTOR}\S+|"
+    rf"key\b{_LABEL_QUALIFIER}\s*[-:=]\s*\S+)",
     re.IGNORECASE,
 )
 _RECIPIENT_MARKER = re.compile(
-    r"\b(?:recipient|attendee|organizer)\b\s*(?:(?:is\s+)|[:=]\s*)\S+", re.IGNORECASE
+    rf"\b(?:recipient|attendee|organizer)\b{_LABEL_QUALIFIER}{_LABEL_CONNECTOR}\S+",
+    re.IGNORECASE,
 )
 _PRIVATE_KEY_MARKER = re.compile(r"-----\s*BEGIN\s+(?:[A-Z]+\s+)?PRIVATE\s+KEY\s*-----", re.I)
 _BEARER_TOKEN_MARKER = re.compile(r"\bbearer\s+[A-Za-z0-9._~+/=-]{8,}", re.IGNORECASE)
 _COORDINATE_PAIR = re.compile(
-    r"(?<![\d.])([+-]?(?:90(?:\.0+)?|[0-8]?\d(?:\.\d+)?))"
-    r"\s*,\s*([+-]?(?:180(?:\.0+)?|(?:1[0-7]\d|[0-9]?\d)(?:\.\d+)?))"
-    r"(?![\d.])"
+    r"(?<![\d.])([+-]?(?:\d{1,3}(?:\.\d+)?|\.\d+))\s*°?\s*([NS])?(?![A-Za-z])"
+    r"\s*([,;/]|\band\b)\s*"
+    r"([+-]?(?:\d{1,3}(?:\.\d+)?|\.\d+))\s*°?\s*([EW])?(?![A-Za-z])"
+    r"(?![\d.])",
+    re.IGNORECASE,
+)
+_MAX_CARDINAL_CONNECTOR_CHARS = 48
+_COORDINATE_CARDINAL_PAIR = re.compile(
+    r"(?<![\d.])([+-]?(?:\d{1,3}(?:\.\d+)?|\.\d+))\s*°?\s*([NS])(?![A-Za-z])"
+    rf"([\s\S]{{1,{_MAX_CARDINAL_CONNECTOR_CHARS}}}?)"
+    r"([+-]?(?:\d{1,3}(?:\.\d+)?|\.\d+))\s*°?\s*([EW])(?![A-Za-z])"
+    r"(?![\d.])",
+    re.IGNORECASE,
 )
 _MAX_COORDINATE_CONNECTOR_CHARS = 48
 _COORDINATE_LABEL = re.compile(
@@ -84,31 +116,72 @@ class UnsafeTripCalendarContentError(ValueError):
     """Persisted prose contains content prohibited from calendar descriptions."""
 
 
-def _decoded_privacy_text(value: str) -> str:
-    """Decode only bounded common storage/transport encodings before marker checks."""
+def _normalize_privacy_unicode(value: str) -> str:
+    degree_variants = str.maketrans({"º": "°", "˚": "°", "⁰": "°", "∘": "°"})
+    return unicodedata.normalize("NFKC", value.translate(degree_variants))
 
-    decoded = unicodedata.normalize("NFKC", value)
+
+def _decoded_privacy_text(value: str) -> str:
+    """Build a canonical detection-only view without changing persisted prose."""
+
+    decoded = _normalize_privacy_unicode(value)
     for _ in range(2):
-        expanded = unicodedata.normalize("NFKC", unescape(unquote(decoded)))
+        expanded = _normalize_privacy_unicode(unescape(unquote(decoded)))
         if expanded == decoded:
             break
         decoded = expanded
-    return decoded
+    decoded = "".join(
+        "-"
+        if unicodedata.category(character) == "Pd"
+        else "."
+        if character in {"\u3002", "\uff0e", "\uff61"}
+        else character
+        for character in decoded
+    )
+    return re.sub(r"\s*([./:@\[\]])\s*", r"\1", decoded)
+
+
+def _is_credential_identifier(identifier: str) -> bool:
+    compact = identifier.lower().replace("_", "").replace("-", "")
+    if any(marker in compact for marker in ("secret", "password", "passwd", "token", "credential")):
+        return True
+    return any(marker in compact for marker in ("api", "private", "access", "auth")) and any(
+        material in compact
+        for material in ("key", "client", "credential", "secret", "token", "password")
+    )
 
 
 def _validate_calendar_description_text(value: str) -> str:
     decoded = _decoded_privacy_text(value)
+    credential_assignment = any(
+        _is_credential_identifier(match.group(1))
+        for match in _CREDENTIAL_ASSIGNMENT.finditer(decoded)
+    )
+    domain_url = _DOMAIN_URL_MARKER.search(decoded)
     if (
         _EMAIL_MARKER.search(decoded)
-        or _URL_MARKER.search(decoded)
+        or any(marker.search(decoded) for marker in _URL_MARKERS)
+        or domain_url
+        or credential_assignment
         or _SECRET_MARKER.search(decoded)
         or _RECIPIENT_MARKER.search(decoded)
         or _PRIVATE_KEY_MARKER.search(decoded)
         or _BEARER_TOKEN_MARKER.search(decoded)
     ):
         raise UnsafeTripCalendarContentError("trip calendar description contains prohibited data")
-    for match in _COORDINATE_PAIR.finditer(decoded):
-        latitude, longitude = match.groups()
+    coordinate_matches = (
+        *_COORDINATE_PAIR.finditer(decoded),
+        *_COORDINATE_CARDINAL_PAIR.finditer(decoded),
+    )
+    for match in coordinate_matches:
+        latitude, north_south, _separator, longitude, east_west = match.groups()
+        if (
+            float(latitude) > 90
+            or float(latitude) < -90
+            or float(longitude) > 180
+            or float(longitude) < -180
+        ):
+            continue
         fractions = [part.partition(".")[2] for part in (latitude, longitude)]
         preceding_text = decoded[: match.start()]
         labels = list(_COORDINATE_LABEL.finditer(preceding_text))
@@ -122,7 +195,8 @@ def _validate_calendar_description_text(value: str) -> str:
                 and not any(character.isdigit() for character in connector_without_datum)
             )
         coordinate_shaped = (
-            latitude.startswith(("+", "-"))
+            bool(north_south or east_west)
+            or latitude.startswith(("+", "-"))
             or longitude.startswith(("+", "-"))
             or all(len(fraction) >= 3 for fraction in fractions)
             or labeled_pair
