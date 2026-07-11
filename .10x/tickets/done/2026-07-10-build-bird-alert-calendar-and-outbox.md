@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-10
 Updated: 2026-07-10
 Parent: .10x/tickets/2026-07-09-build-local-birding-pokedex.md
@@ -30,6 +30,11 @@ Record schema/state-transition table, RFC parser results/golden semantic asserti
 ## Progress and notes
 
 - 2026-07-10: Ticket isolates deterministic event/outbox mechanics from external delivery side effects.
+- 2026-07-10: Implemented canonical bounded calendar payloads and SHA-256 identity, RFC 5545/5546 REQUEST/CANCEL and deterministic multipart calendar MIME pure builders, atomic evaluator enqueue/suppression/expiry integration, runtime outbox/attempt/dedupe tables, UID/sequence/method replay protection, supersession, claims/leases, pre/post-send recovery, validated attempt outcomes, accepted event transitions, 90-day payload cleanup, and privacy/injection bounds. No SMTP/configuration/retry scheduler/operator surface was added.
+- 2026-07-10: Review repair enforces exact pending-status/method pairs; adds explicit source-report and public-location IDs to constrained event intent; atomically migrates recoverable pre-release REQUEST rows while rolling back unrecoverable CANCEL rows; and validates report/species/watch/generation/window/horizon/location coherence before canonical payload creation.
+- 2026-07-10: Twenty-eight calendar/outbox cases plus thirteen real evaluator integration tests pass 41/41, including malformed relational state, migration, concurrency, rollback, in-flight supersession, ambiguous recovery, cancellation, natural expiry, payload privacy, and zero sockets. Complete network-disabled Python passes 390/390 with 87.00% coverage; browser gate passes 122/122 plus typecheck/build/bundle audit; Ruff, MyPy (87 files), secret scan, hooks, and diff checks pass. Evidence: `.10x/evidence/2026-07-10-bird-alert-calendar-and-outbox.md`.
+- 2026-07-11: Final independent review passed with no blocker or significant finding. Review: `.10x/reviews/2026-07-11-bird-alert-calendar-and-outbox-review.md`.
+- 2026-07-11: Retrospective preserved method/status pairing and report/event relational coherence as fail-closed state-machine invariants in the active specification and adversarial tests; no additional skill record is needed.
 
 ## Blockers
 

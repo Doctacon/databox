@@ -413,6 +413,10 @@ def test_event_activation_generation_supersession_and_natural_expiry(db: Path) -
         f"""SELECT status, report_id, event_horizon_end, location_name
             FROM {ALERT_SCHEMA}.event_intents"""
     ).fetchone() == ("expired", None, None, None)
+    assert connection.execute(
+        f"""SELECT state, payload_json FROM {ALERT_SCHEMA}.alert_outbox
+            ORDER BY sequence DESC LIMIT 1"""
+    ).fetchone() == ("cancelled", "{}")
     connection.close()
 
 
@@ -526,6 +530,9 @@ def test_pause_or_delete_suppresses_pending_request_without_sequence_or_replay(
             WHERE status IN ('pending_request','pending_cancel')
               AND report_id IS NOT NULL AND event_horizon_end IS NOT NULL"""
     ).fetchone() == (0,)
+    assert connection.execute(
+        f"SELECT state, payload_json FROM {ALERT_SCHEMA}.alert_outbox"
+    ).fetchone() == ("cancelled", "{}")
 
     replay = evaluate_watched_birds(
         connection,
@@ -576,6 +583,10 @@ def test_pause_race_before_match_commit_creates_no_sendable_event(db: Path) -> N
     assert connection.execute(f"SELECT count(*) FROM {ALERT_SCHEMA}.match_reports").fetchone() == (
         0,
     )
+    assert connection.execute(
+        """SELECT count(*) FROM information_schema.tables
+           WHERE table_schema='birding_alerts' AND table_name='alert_outbox'"""
+    ).fetchone() == (0,)
 
     consumed = evaluate_watched_birds(
         connection,
@@ -627,6 +638,10 @@ def test_pause_and_delete_handoffs_cancel_only_accepted_unexpired_events(db: Pat
         f"SELECT event_uid, sequence, method, status FROM {ALERT_SCHEMA}.event_intents"
     ).fetchone()
     assert cancelled == (event[0], event[1] + 1, "CANCEL", "pending_cancel")
+    assert connection.execute(
+        f"""SELECT method, sequence, state FROM {ALERT_SCHEMA}.alert_outbox
+            ORDER BY sequence"""
+    ).fetchall() == [("REQUEST", 0, "superseded"), ("CANCEL", 1, "pending")]
     assert (
         connection.execute(
             "SELECT count(*) FROM birding_personal.watch_cancellation_requests"
@@ -740,7 +755,8 @@ def test_sunrise_is_earliest_future_window_and_retention_preserves_novelty(db: P
     )
     connection.execute(
         f"""UPDATE {ALERT_SCHEMA}.event_intents
-            SET report_id=NULL, status='expired', updated_at='2026-01-01T00:00:00+00:00'"""
+            SET report_id=NULL, source_report_id=NULL, status='expired',
+                updated_at='2026-01-01T00:00:00+00:00'"""
     )
     connection.execute(
         f"UPDATE {ALERT_SCHEMA}.match_reports SET resolved_at='2026-01-01T00:00:00+00:00'"

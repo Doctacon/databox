@@ -104,14 +104,30 @@ a 48-hour freshness window, reviewed valid non-private public locations, and the
 per-watch 1–300-mile radius. It persists deterministic decisions, at most ten
 ranked public clusters, the earliest sunrise-centered two-hour morning, optional
 strict-schema GLM 5.2 emphasis, and stable-UID event intent in `birding_alerts`.
-The GLM prompt contains only target identity, the confirmed public destination and
-derived distance, morning, weather, caveats, and fact grounding—never the personal watch-center name or
-coordinates. Model/weather failure degrades to explicit persisted facts; it does not select an
-alternate model or send SMTP. Cancellation handoffs become a cancel intent only
-for the same accepted, unexpired watch activation. `GET /api/watch-evaluations`,
+The GLM prompt contains only target identity, the confirmed public destination
+and derived distance, morning, weather, caveats, and fact grounding—never the
+personal watch-center name or coordinates. Model/weather failure degrades to
+explicit persisted facts; it does not select an alternate model or send SMTP.
+Cancellation handoffs become a cancel intent only for the same accepted,
+unexpired watch activation. `GET /api/watch-evaluations`,
 `GET /api/watch-reports`, and `GET /api/watch-reports/{id}` replay bounded local
-state without network access or writes. SMTP/MIME/outbox delivery remains a
-separate downstream step.
+state without network access or writes.
+
+Every sendable REQUEST/CANCEL event intent now atomically creates one canonical
+`birding_alerts.alert_outbox` row keyed by stable UID, sequence, and method. Only
+exact `pending_request`/`REQUEST` and `pending_cancel`/`CANCEL` pairs qualify;
+event/report species, watch activation, windows, horizon, and coherent public
+location identity/metadata must match before enqueue. Pre-release intent tables
+are transactionally rebuilt with explicit source-report/location linkage, and an
+unrecoverable sendable row fails rather than being guessed. Persisted payload
+JSON contains only validated calendar facts and its SHA-256;
+organizer, recipient, SMTP configuration, MIME bytes, and full message bodies are
+never stored. Pure builders add organizer/attendee only in memory and produce
+RFC 5545/5546 calendar plus deterministic multipart calendar MIME. Atomic claims,
+pre-send lease recovery, post-send `delivery_unknown`, supersession, terminal
+suppression, append-only safe attempt facts, and 90-day payload cleanup are local
+state mechanics only. No command in this slice opens an SMTP socket, schedules a
+retry, or sends email; transport and operator actions remain the next ticket.
 
 The browser calls `/api/*`; only the Python process can access
 DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable

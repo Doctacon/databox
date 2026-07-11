@@ -32,7 +32,9 @@ MIME MUST be a calendar invitation/update with a concise text alternative. No pr
 
 ## Durable outbox
 
-Outbox creation is transactionally coupled to persisted event intent, not SMTP. Rows include immutable ID, event/watch/taxon IDs, UID/sequence/method, canonical payload hash, state, next-attempt time, claim token/expiry, attempt counters, timestamps, and safe terminal reason. Attempt records are append-only and contain no secret or full message body.
+Outbox creation is transactionally coupled to persisted event intent, not SMTP. Only exact `pending_request`/`REQUEST` and `pending_cancel`/`CANCEL` pairs are sendable. Before canonicalization, event source-report identity, species, watch ID, activation generation, start/end/horizon, and coherent public location ID/name/coordinates MUST equal their authoritative persisted report values; missing, cross-linked, or mismatched state MUST roll back without an outbox row. Event intent MUST retain explicit source-report and public-location identity needed for this validation. Pre-release rows MAY migrate only through exact report linkage; unrecoverable sendable rows MUST fail migration rather than infer values.
+
+Rows include immutable ID, event/watch/taxon IDs, UID/sequence/method, canonical payload hash, state, next-attempt time, claim token/expiry, attempt counters, timestamps, and safe terminal reason. Attempt records are append-only and contain no secret or full message body.
 
 Allowed states are pending, claimed, accepted, retry_wait, failed, delivery_unknown, cancelled/superseded where applicable. Atomic claim prevents concurrent senders from sending the same row. Expired claims can be reclaimed safely only when no SMTP acceptance attempt began; ambiguous post-send outcomes become unknown.
 

@@ -26,6 +26,7 @@ from databox.agents.cloudflare_workers_ai import (
     WatchReportModelClient,
     WatchReportSynthesisRequest,
 )
+from databox.bird_alert_outbox import enqueue_event_intent, suppress_event_outbox
 from databox.config.settings import settings
 from databox.target_planning import MILES_TO_KM, normalize_target_weather
 
@@ -104,7 +105,102 @@ def _safe_identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
-def ensure_alert_tables(connection: duckdb.DuckDBPyConnection) -> None:
+def _event_intents_ddl(schema: str, table: str = "event_intents") -> str:
+    return f"""
+        CREATE TABLE {schema}.{_safe_identifier(table)} (
+          species_code VARCHAR PRIMARY KEY, watch_id VARCHAR NOT NULL,
+          activation_generation VARCHAR NOT NULL,
+          event_uid VARCHAR UNIQUE NOT NULL, sequence BIGINT NOT NULL,
+          method VARCHAR NOT NULL, status VARCHAR NOT NULL, report_id VARCHAR,
+          source_report_id VARCHAR, morning_start VARCHAR, morning_end VARCHAR,
+          event_horizon_end VARCHAR, location_id VARCHAR, location_name VARCHAR,
+          latitude DOUBLE, longitude DOUBLE,
+          last_accepted_sequence BIGINT, last_accepted_horizon_end VARCHAR,
+          last_accepted_at VARCHAR, updated_at VARCHAR NOT NULL,
+          CHECK (method IN ('REQUEST','CANCEL')),
+          CHECK (status IN (
+            'pending_request','pending_cancel','accepted','suppressed','cancelled','expired'
+          )),
+          CHECK (status <> 'pending_request' OR method = 'REQUEST'),
+          CHECK (status <> 'pending_cancel' OR method = 'CANCEL'),
+          CHECK (
+            status NOT IN ('pending_request','pending_cancel')
+            OR (source_report_id IS NOT NULL AND location_id IS NOT NULL)
+          )
+        )
+    """
+
+
+def _ensure_event_intents_table(
+    connection: duckdb.DuckDBPyConnection,
+    schema: str,
+    *,
+    migrate_pre_release: bool,
+) -> None:
+    columns = {
+        str(row[0])
+        for row in connection.execute(
+            """SELECT column_name FROM information_schema.columns
+               WHERE table_schema=? AND table_name='event_intents'""",
+            [ALERT_SCHEMA],
+        ).fetchall()
+    }
+    if not columns:
+        connection.execute(_event_intents_ddl(schema))
+        return
+    required = {"source_report_id", "location_id"}
+    check_row = connection.execute(
+        """SELECT count(*) FROM duckdb_constraints()
+           WHERE schema_name=? AND table_name='event_intents'
+             AND constraint_type='CHECK'""",
+        [ALERT_SCHEMA],
+    ).fetchone()
+    check_count = int(check_row[0]) if check_row is not None else 0
+    if required <= columns and check_count >= 5:
+        return
+    if not migrate_pre_release:
+        raise ValueError("pre-release event intent migration requires an explicit transaction")
+    migration_table = "event_intents_migration"
+    connection.execute(f"DROP TABLE IF EXISTS {schema}.{_safe_identifier(migration_table)}")
+    connection.execute(_event_intents_ddl(schema, migration_table))
+    source_report = (
+        "COALESCE(event.source_report_id, event.report_id)"
+        if "source_report_id" in columns
+        else "event.report_id"
+    )
+    location_id = (
+        "COALESCE(event.location_id, report.confirmed_location_id)"
+        if "location_id" in columns
+        else "report.confirmed_location_id"
+    )
+    connection.execute(
+        f"""INSERT INTO {schema}.{_safe_identifier(migration_table)} (
+          species_code, watch_id, activation_generation, event_uid, sequence,
+          method, status, report_id, source_report_id, morning_start, morning_end,
+          event_horizon_end, location_id, location_name, latitude, longitude,
+          last_accepted_sequence, last_accepted_horizon_end, last_accepted_at, updated_at
+        )
+        SELECT event.species_code, event.watch_id, event.activation_generation,
+          event.event_uid, event.sequence, event.method, event.status, event.report_id,
+          {source_report}, event.morning_start, event.morning_end,
+          event.event_horizon_end, {location_id}, event.location_name,
+          event.latitude, event.longitude, event.last_accepted_sequence,
+          event.last_accepted_horizon_end, event.last_accepted_at, event.updated_at
+        FROM {schema}.event_intents AS event
+        LEFT JOIN {schema}.match_reports AS report
+          ON report.report_id={source_report}"""
+    )
+    connection.execute(f"DROP TABLE {schema}.event_intents")
+    connection.execute(
+        f"ALTER TABLE {schema}.{_safe_identifier(migration_table)} RENAME TO event_intents"
+    )
+
+
+def ensure_alert_tables(
+    connection: duckdb.DuckDBPyConnection, *, migrate_pre_release: bool = False
+) -> None:
+    """Ensure alert state; migration opt-in requires a caller-owned transaction."""
+
     schema = _safe_identifier(ALERT_SCHEMA)
     connection.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
     connection.execute(
@@ -189,23 +285,10 @@ def ensure_alert_tables(connection: duckdb.DuckDBPyConnection) -> None:
         )
         """
     )
-    connection.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {schema}.event_intents (
-          species_code VARCHAR PRIMARY KEY, watch_id VARCHAR NOT NULL,
-          activation_generation VARCHAR NOT NULL,
-          event_uid VARCHAR UNIQUE NOT NULL, sequence BIGINT NOT NULL,
-          method VARCHAR NOT NULL, status VARCHAR NOT NULL, report_id VARCHAR,
-          morning_start VARCHAR, morning_end VARCHAR, event_horizon_end VARCHAR,
-          location_name VARCHAR, latitude DOUBLE, longitude DOUBLE,
-          last_accepted_sequence BIGINT, last_accepted_horizon_end VARCHAR,
-          last_accepted_at VARCHAR, updated_at VARCHAR NOT NULL,
-          CHECK (method IN ('REQUEST','CANCEL')),
-          CHECK (status IN (
-            'pending_request','pending_cancel','accepted','suppressed','cancelled','expired'
-          ))
-        )
-        """
+    _ensure_event_intents_table(
+        connection,
+        schema,
+        migrate_pre_release=migrate_pre_release,
     )
     connection.execute(
         f"""
@@ -720,8 +803,14 @@ def _persist_match(
         [watch["species_code"]],
     )
     connection.execute(
-        f"""INSERT INTO {ALERT_SCHEMA}.event_intents VALUES
-        (?, ?, ?, ?, ?, 'REQUEST', 'pending_request', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        f"""INSERT INTO {ALERT_SCHEMA}.event_intents (
+          species_code, watch_id, activation_generation, event_uid, sequence,
+          method, status, report_id, source_report_id, morning_start, morning_end,
+          event_horizon_end, location_id, location_name, latitude, longitude,
+          last_accepted_sequence, last_accepted_horizon_end, last_accepted_at, updated_at
+        ) VALUES (
+          ?, ?, ?, ?, ?, 'REQUEST', 'pending_request', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )""",
         [
             watch["species_code"],
             watch["watch_id"],
@@ -729,10 +818,12 @@ def _persist_match(
             uid,
             sequence,
             report_id,
+            report_id,
             _iso(morning_start),
             _iso(morning_end),
             _iso(horizon),
-            confirmed.location_name,
+            confirmed.location_id,
+            confirmed.location_name or f"eBird location {confirmed.location_id}",
             confirmed.latitude,
             confirmed.longitude,
             accepted_sequence,
@@ -740,6 +831,12 @@ def _persist_match(
             accepted_at,
             evaluated_at,
         ],
+    )
+    enqueue_event_intent(
+        connection,
+        str(watch["species_code"]),
+        now=_utc(evaluated_at),
+        in_transaction=True,
     )
     return report_id
 
@@ -749,7 +846,8 @@ def _expire_events(connection: duckdb.DuckDBPyConnection, evaluation_at: datetim
 
     now = _iso(evaluation_at)
     rows = connection.execute(
-        f"""SELECT species_code, report_id FROM {ALERT_SCHEMA}.event_intents
+        f"""SELECT species_code, report_id, event_uid, sequence
+            FROM {ALERT_SCHEMA}.event_intents
             WHERE status NOT IN ('cancelled', 'expired')
               AND event_horizon_end IS NOT NULL AND event_horizon_end <= ?""",
         [now],
@@ -758,7 +856,15 @@ def _expire_events(connection: duckdb.DuckDBPyConnection, evaluation_at: datetim
         return 0
     connection.execute("BEGIN TRANSACTION")
     try:
-        for species_code, report_id in rows:
+        for species_code, report_id, event_uid, sequence in rows:
+            suppress_event_outbox(
+                connection,
+                event_uid=str(event_uid),
+                sequence=int(sequence),
+                now=evaluation_at,
+                reason="natural_expiry",
+                in_transaction=True,
+            )
             if report_id is not None:
                 connection.execute(
                     f"""UPDATE {ALERT_SCHEMA}.match_reports
@@ -768,9 +874,10 @@ def _expire_events(connection: duckdb.DuckDBPyConnection, evaluation_at: datetim
                 )
             connection.execute(
                 f"""UPDATE {ALERT_SCHEMA}.event_intents
-                    SET status='expired', report_id=NULL, morning_start=NULL,
-                        morning_end=NULL, event_horizon_end=NULL, location_name=NULL,
-                        latitude=NULL, longitude=NULL, updated_at=?
+                    SET status='expired', report_id=NULL, source_report_id=NULL,
+                        morning_start=NULL, morning_end=NULL, event_horizon_end=NULL,
+                        location_id=NULL, location_name=NULL, latitude=NULL,
+                        longitude=NULL, updated_at=?
                     WHERE species_code=?""",
                 [now, species_code],
             )
@@ -833,8 +940,22 @@ def _resolve_cancellations(
                             report_id = NULL, updated_at = ? WHERE species_code = ?""",
                     [int(event[1]) + 1, _iso(evaluation_at), request["species_code"]],
                 )
+                enqueue_event_intent(
+                    connection,
+                    str(request["species_code"]),
+                    now=evaluation_at,
+                    in_transaction=True,
+                )
                 outcome = "cancel_intent"
             elif event is not None and str(event[6]) == "pending_request":
+                suppress_event_outbox(
+                    connection,
+                    event_uid=str(event[0]),
+                    sequence=int(event[1]),
+                    now=evaluation_at,
+                    reason="watch_inactive_before_acceptance",
+                    in_transaction=True,
+                )
                 if event[5] is not None:
                     connection.execute(
                         f"""UPDATE {ALERT_SCHEMA}.match_reports
@@ -844,9 +965,10 @@ def _resolve_cancellations(
                     )
                 connection.execute(
                     f"""UPDATE {ALERT_SCHEMA}.event_intents
-                        SET status='suppressed', report_id=NULL, morning_start=NULL,
-                            morning_end=NULL, event_horizon_end=NULL, location_name=NULL,
-                            latitude=NULL, longitude=NULL, last_accepted_sequence=NULL,
+                        SET status='suppressed', report_id=NULL, source_report_id=NULL,
+                            morning_start=NULL, morning_end=NULL, event_horizon_end=NULL,
+                            location_id=NULL, location_name=NULL, latitude=NULL,
+                            longitude=NULL, last_accepted_sequence=NULL,
                             last_accepted_horizon_end=NULL, last_accepted_at=NULL, updated_at=?
                         WHERE species_code=?""",
                     [_iso(evaluation_at), request["species_code"]],
@@ -893,7 +1015,7 @@ def evaluate_watched_birds(
     connection.execute("BEGIN TRANSACTION")
     started_at = _iso(now)
     try:
-        ensure_alert_tables(connection)
+        ensure_alert_tables(connection, migrate_pre_release=True)
         existing = connection.execute(
             f"SELECT * FROM {ALERT_SCHEMA}.evaluation_runs WHERE refresh_id = ?", [refresh_id]
         ).fetchone()
@@ -1166,6 +1288,9 @@ def cleanup_alert_history(
             WHERE resolved_at IS NOT NULL AND resolved_at < ?
               AND report_id NOT IN (
                 SELECT report_id FROM {ALERT_SCHEMA}.event_intents WHERE report_id IS NOT NULL
+                UNION
+                SELECT source_report_id FROM {ALERT_SCHEMA}.event_intents
+                WHERE source_report_id IS NOT NULL
               )""",
         [cutoff],
     ).fetchone()
@@ -1176,6 +1301,9 @@ def cleanup_alert_history(
             WHERE resolved_at IS NOT NULL AND resolved_at < ?
               AND report_id NOT IN (
                 SELECT report_id FROM {ALERT_SCHEMA}.event_intents WHERE report_id IS NOT NULL
+                UNION
+                SELECT source_report_id FROM {ALERT_SCHEMA}.event_intents
+                WHERE source_report_id IS NOT NULL
               ))""",
         [cutoff],
     )
@@ -1184,6 +1312,9 @@ def cleanup_alert_history(
             WHERE resolved_at IS NOT NULL AND resolved_at < ?
               AND report_id NOT IN (
                 SELECT report_id FROM {ALERT_SCHEMA}.event_intents WHERE report_id IS NOT NULL
+                UNION
+                SELECT source_report_id FROM {ALERT_SCHEMA}.event_intents
+                WHERE source_report_id IS NOT NULL
               )""",
         [cutoff],
     )
@@ -1211,8 +1342,9 @@ def cleanup_alert_history(
     )
     connection.execute(
         f"""UPDATE {ALERT_SCHEMA}.event_intents
-            SET report_id=NULL, morning_start=NULL, morning_end=NULL,
-                event_horizon_end=NULL, location_name=NULL, latitude=NULL, longitude=NULL
+            SET report_id=NULL, source_report_id=NULL, morning_start=NULL,
+                morning_end=NULL, event_horizon_end=NULL, location_id=NULL,
+                location_name=NULL, latitude=NULL, longitude=NULL
             WHERE status IN ('suppressed','cancelled','expired') AND updated_at < ?""",
         [cutoff],
     )

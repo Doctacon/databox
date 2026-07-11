@@ -2,7 +2,7 @@ Status: open
 Created: 2026-07-10
 Updated: 2026-07-10
 Parent: .10x/tickets/2026-07-09-build-local-birding-pokedex.md
-Depends-On: .10x/tickets/2026-07-10-build-bird-alert-calendar-and-outbox.md
+Depends-On: .10x/tickets/done/2026-07-10-build-bird-alert-calendar-and-outbox.md
 
 # Implement Proton Bridge alert delivery and operations
 
