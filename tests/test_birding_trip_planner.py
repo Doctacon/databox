@@ -28,6 +28,8 @@ from databox.agents.cloudflare_workers_ai import (
     GroundedSynthesisRequest,
     GroundedSynthesisResult,
 )
+from databox.api import create_app
+from fastapi.testclient import TestClient
 from google.adk.runners import InMemoryRunner
 
 
@@ -117,6 +119,9 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
             region_code TEXT,
             latitude DOUBLE,
             longitude DOUBLE,
+            is_valid BOOLEAN,
+            is_reviewed BOOLEAN,
+            is_location_private BOOLEAN,
             is_notable BOOLEAN,
             loaded_at TEXT
         )
@@ -125,7 +130,7 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
     con.executemany(
         """
         INSERT INTO birding_agent.recent_observation_evidence
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -143,6 +148,9 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
                 "US-AZ",
                 34.54,
                 -112.52,
+                True,
+                True,
+                False,
                 False,
                 "2026-07-08T12:00:00",
             ),
@@ -161,6 +169,9 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
                 "US-AZ",
                 34.55,
                 -112.53,
+                True,
+                True,
+                False,
                 False,
                 "2026-07-08T12:00:00",
             ),
@@ -490,6 +501,115 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
     assert weather_evidence is not None
     assert weather_evidence[0] == "available"
     assert json.loads(weather_evidence[1])["elevation_m"] == 1642.0
+
+
+def test_ineligible_ebird_rows_never_rank_reach_model_persistence_or_api(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "planner-privacy.duckdb"
+    con = duckdb.connect(str(database_path))
+    _seed_planner_views(con)
+    ineligible = [
+        ("private", True, True, True),
+        ("invalid", False, True, False),
+        ("unreviewed", True, False, False),
+    ]
+    for index, (label, valid, reviewed, private) in enumerate(ineligible, start=1):
+        con.execute(
+            """INSERT INTO birding_agent.recent_observation_evidence VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [
+                f"obs-{label}",
+                "environmental_observations.fact_bird_observation",
+                f"S-{label}",
+                f"bad{index}",
+                f"Ineligible {label}",
+                f"Avis {label}",
+                "2026-07-09T05:00:00",
+                "2026-07-09",
+                999,
+                "999",
+                f"Sensitive {label}",
+                "US-AZ",
+                34.54,
+                -112.52,
+                valid,
+                reviewed,
+                private,
+                True,
+                "2026-07-09T05:30:00",
+            ],
+        )
+    model_client = FakeTripPlanModelClient()
+    result = run_trip_planner_agent(
+        con,
+        request=TripRequest(
+            location="Thumb Butte",
+            start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+            duration_minutes=90,
+        ),
+        trip_plan_id="privacy-filtered-plan",
+        weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
+        model_client=model_client,
+    )
+
+    prohibited_ids = {"S-private", "S-invalid", "S-unreviewed"}
+    assert {
+        row["source_record_id"]
+        for row in BirdingTripPlanner(
+            con, model_client=model_client
+        ).lookup_recent_observation_evidence(result.location)
+    }.isdisjoint(prohibited_ids)
+    assert all(not item.common_name.startswith("Ineligible") for item in result.recommendations)
+    assert all(
+        not item.common_name.startswith("Ineligible")
+        for item in model_client.requests[0].recommendations
+    )
+    persisted = {
+        row[0]
+        for row in con.execute(
+            """SELECT source_record_id FROM birding_agent.trip_plan_evidence
+            WHERE trip_plan_id=? AND source='ebird'""",
+            [result.trip_plan_id],
+        ).fetchall()
+    }
+    assert persisted.isdisjoint(prohibited_ids)
+
+    con.execute(
+        """DELETE FROM birding_agent.recent_observation_evidence
+        WHERE is_valid IS TRUE AND is_reviewed IS TRUE
+          AND is_location_private IS FALSE"""
+    )
+    empty_model = FakeTripPlanModelClient()
+    empty = run_trip_planner_agent(
+        con,
+        request=TripRequest(
+            location="Thumb Butte",
+            start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+            duration_minutes=90,
+        ),
+        trip_plan_id="privacy-empty-plan",
+        weather_getter=_weather_response,
+        media_gbif_getter=_empty_media_response,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
+        model_client=empty_model,
+    )
+    assert not any(item.source == "ebird" and item.status == "available" for item in empty.evidence)
+    assert any("eBird" in caveat for caveat in empty_model.requests[0].caveats)
+    con.close()
+
+    response = TestClient(
+        create_app(database_path=str(database_path), static_dir=tmp_path / "missing")
+    ).get("/api/trip-plans/privacy-filtered-plan")
+    assert response.status_code == 200
+    serialized = json.dumps(response.json(), sort_keys=True)
+    assert all(
+        value not in serialized for value in ("S-private", "S-invalid", "S-unreviewed", "Sensitive")
+    )
 
 
 def test_request_time_media_persists_exact_cardinality_without_changing_model_grounding() -> None:

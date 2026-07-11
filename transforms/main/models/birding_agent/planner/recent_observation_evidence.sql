@@ -25,6 +25,7 @@ SELECT
   o.longitude,
   o.is_valid,
   o.is_reviewed,
+  o.is_location_private,
   o.is_notable,
   o.exotic_category,
   h.num_species_all_time AS hotspot_species_all_time,
@@ -37,4 +38,8 @@ LEFT JOIN environmental_observations.dim_species s
   ON s.species_sk = o.species_sk
 LEFT JOIN environmental_observations.dim_bird_hotspot h
   ON h.bird_hotspot_sk = o.bird_hotspot_sk
-WHERE o.source_observation_id IS NOT NULL
+WHERE
+  o.source_observation_id IS NOT NULL
+  AND o.is_valid IS TRUE
+  AND o.is_reviewed IS TRUE
+  AND o.is_location_private IS FALSE

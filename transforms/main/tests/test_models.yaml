@@ -297,12 +297,79 @@ test_birding_agent_recent_observation_evidence:
           latitude: 34.54
           longitude: -112.47
           is_valid: true
-          is_reviewed: false
+          is_reviewed: true
+          is_location_private: false
           is_notable: false
           exotic_category: "N"
           loaded_at: "2025-07-20 10:00:00"
           dlt_load_id: "load-1"
           dlt_id: "row-1"
+        - source_observation_id: "S-private"
+          source_table: "recent_observations"
+          species_sk: "species-sk"
+          bird_hotspot_sk: "hotspot-sk"
+          species_code: "norcar"
+          observation_datetime: "2025-07-20 06:31:00"
+          observation_date: "2025-07-20"
+          observation_count: 1
+          count_display: "1"
+          location_id: "L-private"
+          location_name: "Private"
+          region_code: "US-AZ"
+          latitude: 34.55
+          longitude: -112.48
+          is_valid: true
+          is_reviewed: true
+          is_location_private: true
+          is_notable: false
+          exotic_category: "N"
+          loaded_at: "2025-07-20 10:00:00"
+          dlt_load_id: "load-1"
+          dlt_id: "row-private"
+        - source_observation_id: "S-invalid"
+          source_table: "recent_observations"
+          species_sk: "species-sk"
+          bird_hotspot_sk: "hotspot-sk"
+          species_code: "norcar"
+          observation_datetime: "2025-07-20 06:32:00"
+          observation_date: "2025-07-20"
+          observation_count: 1
+          count_display: "1"
+          location_id: "L-invalid"
+          location_name: "Invalid"
+          region_code: "US-AZ"
+          latitude: 34.56
+          longitude: -112.49
+          is_valid: false
+          is_reviewed: true
+          is_location_private: false
+          is_notable: false
+          exotic_category: "N"
+          loaded_at: "2025-07-20 10:00:00"
+          dlt_load_id: "load-1"
+          dlt_id: "row-invalid"
+        - source_observation_id: "S-unreviewed"
+          source_table: "recent_observations"
+          species_sk: "species-sk"
+          bird_hotspot_sk: "hotspot-sk"
+          species_code: "norcar"
+          observation_datetime: "2025-07-20 06:33:00"
+          observation_date: "2025-07-20"
+          observation_count: 1
+          count_display: "1"
+          location_id: "L-unreviewed"
+          location_name: "Unreviewed"
+          region_code: "US-AZ"
+          latitude: 34.57
+          longitude: -112.50
+          is_valid: true
+          is_reviewed: false
+          is_location_private: false
+          is_notable: false
+          exotic_category: "N"
+          loaded_at: "2025-07-20 10:00:00"
+          dlt_load_id: "load-1"
+          dlt_id: "row-unreviewed"
     environmental_observations.dim_species:
       rows:
         - species_sk: "species-sk"
@@ -334,7 +401,8 @@ test_birding_agent_recent_observation_evidence:
           latitude: 34.54
           longitude: -112.47
           is_valid: true
-          is_reviewed: false
+          is_reviewed: true
+          is_location_private: false
           is_notable: false
           exotic_category: "N"
           hotspot_species_all_time: 120

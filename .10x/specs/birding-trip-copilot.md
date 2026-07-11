@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-08
-Updated: 2026-07-09
+Updated: 2026-07-11
 
 # Birding Trip Copilot
 
@@ -47,7 +47,7 @@ If a required input is missing or ambiguous, the planner MUST ask for the smalle
 The planner MUST do more than directly generate prose. It MUST choose and sequence bounded tools that cover these responsibilities:
 
 1. Resolve or normalize the requested location.
-2. Retrieve recent/local bird-observation evidence from existing eBird-derived data where available.
+2. Retrieve recent/local bird-observation evidence from existing eBird-derived data where available. eBird evidence MUST be valid, reviewed, and non-private before ranking, model grounding, persistence, or API display; modeled and Python query boundaries MUST both enforce this eligibility.
 3. Retrieve historical/occurrence/taxonomy context from modeled warehouse data, including GBIF-derived context when implemented.
 4. Retrieve weather/elevation context from Open-Meteo for the requested outing window.
 5. Retrieve media/call metadata from Xeno-canto-derived context when implemented.
@@ -86,6 +86,8 @@ At minimum, persisted artifacts MUST support these logical grains:
 - one row per tool call or trace step per trip plan.
 
 The persisted artifact MUST include enough stable identifiers for the local API, React app, and evaluations to join plans, recommendations, evidence, and traces. Exact physical schema names are implementation details, but the SQL interface MUST be documented before the local app ticket is closed.
+
+A saved plan that contains ineligible eBird source evidence is tainted because its recommendations may have been derived from that evidence. Remediation MUST atomically delete the complete plan aggregate rather than retain partially redacted or misleading recommendations. Automatic rebuilding is prohibited.
 
 ## Acceptance criteria
 

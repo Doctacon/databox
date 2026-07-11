@@ -23,6 +23,7 @@ Planner-ready recent eBird observation evidence from the environmental observati
 | `exotic_category` | `UNKNOWN` | — | — |
 | `hotspot_checklists_all_time` | `UNKNOWN` | — | — |
 | `hotspot_species_all_time` | `UNKNOWN` | — | — |
+| `is_location_private` | `UNKNOWN` | — | — |
 | `is_notable` | `UNKNOWN` | — | — |
 | `is_reviewed` | `UNKNOWN` | — | — |
 | `is_valid` | `UNKNOWN` | — | — |

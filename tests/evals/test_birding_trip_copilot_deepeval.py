@@ -289,6 +289,9 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
             region_code TEXT,
             latitude DOUBLE,
             longitude DOUBLE,
+            is_valid BOOLEAN,
+            is_reviewed BOOLEAN,
+            is_location_private BOOLEAN,
             is_notable BOOLEAN,
             loaded_at TEXT
         )
@@ -297,7 +300,7 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
     con.executemany(
         """
         INSERT INTO birding_agent.recent_observation_evidence
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             (
@@ -315,6 +318,9 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
                 "US-AZ",
                 34.54,
                 -112.52,
+                True,
+                True,
+                False,
                 False,
                 "2026-07-08T12:00:00",
             ),
@@ -333,6 +339,9 @@ def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
                 "US-AZ",
                 34.55,
                 -112.53,
+                True,
+                True,
+                False,
                 False,
                 "2026-07-08T12:00:00",
             ),

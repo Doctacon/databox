@@ -478,7 +478,10 @@ class BirdingTripPlanner:
                     )
                 ) AS distance_km
             FROM birding_agent.recent_observation_evidence
-            WHERE (? IS NULL OR region_code = ?)
+            WHERE is_valid IS TRUE
+              AND is_reviewed IS TRUE
+              AND is_location_private IS FALSE
+              AND (? IS NULL OR region_code = ?)
             ORDER BY distance_km ASC, observation_datetime DESC NULLS LAST
             LIMIT ?
         """

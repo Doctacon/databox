@@ -129,6 +129,21 @@ suppression, append-only safe attempt facts, and 90-day payload cleanup are loca
 state mechanics only. No command in this slice opens an SMTP socket, schedules a
 retry, or sends email; transport and operator actions remain the next ticket.
 
+Trip Planner eBird evidence is independently constrained in its SQLMesh view and
+Python lookup to valid, reviewed, non-private rows. To inspect or remediate saved
+plans created before that boundary, stop the API and refresh writers and run:
+
+```bash
+uv run --no-sync python scripts/remediate_trip_planner_ebird_privacy.py --inspect
+uv run --no-sync python scripts/remediate_trip_planner_ebird_privacy.py --apply
+```
+
+The inspect command is read-only and emits aggregate counts only. Apply performs
+no source, weather, model, or media call; it atomically removes every complete
+saved-plan aggregate joined by authoritative eBird source-record identity to an
+ineligible row. It fails closed when an identity cannot be verified and is safe
+to rerun.
+
 The browser calls `/api/*`; only the Python process can access
 DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable
 `task app:audit-bundle` command checks the compiled files for all configured
