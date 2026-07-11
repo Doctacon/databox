@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-07-10
 Updated: 2026-07-10
-Parent: .10x/tickets/2026-07-09-build-local-birding-pokedex.md
+Parent: .10x/tickets/done/2026-07-09-build-local-birding-pokedex.md
 Depends-On: .10x/tickets/done/2026-07-09-add-avonet-bird-traits-source.md, .10x/tickets/done/2026-07-09-model-avonet-traits-and-arizona-catalog.md
 
 # Fix AVONET SQLMesh production lint and apply

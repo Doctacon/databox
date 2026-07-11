@@ -1,6 +1,6 @@
-Status: open
+Status: done
 Created: 2026-07-09
-Updated: 2026-07-09
+Updated: 2026-07-11
 Parent: None
 Depends-On: None
 
@@ -42,7 +42,7 @@ This is a parent plan and is not executable directly.
 5. Implement species-first planning through `.10x/tickets/done/2026-07-10-implement-target-bird-planning.md` (parallelizable after catalog completion).
 6. Implement post-refresh matching/reporting through `.10x/tickets/done/2026-07-10-implement-watched-bird-evaluator-and-reports.md`.
 7. Build event/outbox mechanics through `.10x/tickets/done/2026-07-10-build-bird-alert-calendar-and-outbox.md`, then Proton Bridge delivery/operations through `.10x/tickets/done/2026-07-10-implement-proton-bridge-alert-delivery-and-operations.md`.
-8. Run aggregate verification through `.10x/tickets/2026-07-10-verify-local-birding-pokedex.md`.
+8. Run aggregate verification through `.10x/tickets/done/2026-07-10-verify-local-birding-pokedex.md`.
 
 Catalog/profile must precede personal collection and target workflows because they require a stable conformed taxon identity. Watch management requires catalog identity and local personal-state APIs. Alert execution requires watches, transformed eBird evidence, persisted species profiles, and a hardened operational specification.
 
@@ -56,7 +56,7 @@ Catalog/profile must precede personal collection and target workflows because th
 - Watches use only new, public, valid, reviewed eBird evidence within their radius and 48-hour freshness window.
 - One active five-day calendar event per watched taxon is created/updated through stable iCalendar identity and a durable SMTP outbox after successful full refresh.
 - Deterministic persisted facts produce an honest degraded report if GLM 5.2 is unavailable; no alternate model is used.
-- Turbo-search retrieval uses approved namespaces with citations, source licensing, freshness, and persistence boundaries explicitly specified.
+- Product/runtime bird retrieval MUST NOT use turbo-search or an external bird corpus. Engineering research retrieval is separately governed by `.10x/decisions/autonomous-turbo-search-engineering-research.md` and is not a Pokédex runtime capability.
 - No private eBird location, SMTP secret, recipient address, personal origin/observation data, or arbitrary retrieved content leaks into browser bundles, logs, traces, or committed files.
 
 ## Explicit exclusions
@@ -85,7 +85,16 @@ Catalog/profile must precede personal collection and target workflows because th
 - 2026-07-11: Watched-bird evaluator/reporting completed with post-refresh-only exact matching, privacy-safe deterministic/GLM reports, generation-bound event intent, 362 Python tests, and independent pass review.
 - 2026-07-11: Calendar/outbox mechanics completed with RFC REQUEST/CANCEL MIME, fail-closed relational state, atomic claims/recovery, 390 Python tests, and independent pass review.
 - 2026-07-11: Proton Bridge delivery/operations completed with exact-CA STARTTLS, 1/5/15 retries, ambiguity-safe reconciliation, non-regressing accepted snapshots, 408 Python and 125 browser tests, independent pass review, and exactly the authorized one email plus one invitation accepted by the local Bridge.
+- 2026-07-11: Aggregate verification passed Python/frontend/SQLMesh/Soda/layout/hooks/privacy/live read-only reconciliation and recorded `.10x/evidence/2026-07-11-local-birding-pokedex-aggregate-verification.md`. The canonical generated-dictionary freshness check found one stale AVONET key type.
+- 2026-07-11: The generated dictionary repair completed with independent review in commit `6db35d9`; canonical freshness, MkDocs strict, affected hooks, unchanged warehouse, and bounded Bridge ledger were reconfirmed. Aggregate verification is unblocked and review-ready.
+- 2026-07-11: Aggregate privacy review found the preserved Trip Planner admitted private/invalid/unreviewed eBird evidence. The user ratified strict eligibility and complete tainted-plan deletion; commit `47d88bf` applied defense-in-depth filters and atomically removed all three affected saved plans with independent pass review.
+- 2026-07-11: Aggregate UX review found permissive legacy browser boundaries. Commit `78493fb` added exact bounded Trip Planner/target validators, client-owned safe errors, and announced alert busy state with 159 frontend tests and independent pass review.
+- 2026-07-11: Post-repair aggregate rerun passed 414 network-disabled Python tests, 159 browser tests, SQLMesh 13/lint/clean diff, 25 Soda contracts/125 checks, docs/hooks/secrets, and live read-only reconciliation. Warehouse hash and the exact two-row authorized Bridge ledger were unchanged; saved/ineligible Trip Planner plans and evidence remain zero.
+- 2026-07-11: Final UX repair `a643b80` hardened remaining browser dates/timestamps and failed-load empty states. Post-repair aggregate rerun passes 199 browser tests with the same 414 Python count, unchanged warehouse/ledger, and green docs/hooks/secrets.
+- 2026-07-11: Final aggregate architecture, correctness, privacy/security/side-effect, and UX/accessibility reviews all passed. Aggregate evidence: `.10x/evidence/2026-07-11-local-birding-pokedex-aggregate-verification.md`.
+- 2026-07-11: Parent retrospective: source/model/application boundaries, exact catalog identity, personal-state independence, privacy eligibility, strict model/browser trust boundaries, generation-safe matching/events, ambiguity-safe SMTP delivery, and generated-doc freshness are now encoded in active specifications and adversarial tests. The older phrase “Python API owns database writes” is left as historical terminology because later focused active specifications precisely authorize evaluator/remediation/operator writers; no action is required. Automated visual/manual assistive-technology review and absent current personal/watch/outbox rows are accepted evidence limits with direct automated behavioral coverage, not follow-up work.
+- 2026-07-11: Final parent closure review passed with no unowned finding. Review: `.10x/reviews/2026-07-11-local-birding-pokedex-parent-closure-review.md`.
 
 ## Blockers
 
-None; execute the open child tickets in dependency order.
+None.

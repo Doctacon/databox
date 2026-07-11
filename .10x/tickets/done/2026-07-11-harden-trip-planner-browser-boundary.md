@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
-Parent: .10x/tickets/2026-07-10-verify-local-birding-pokedex.md
+Parent: .10x/tickets/done/2026-07-10-verify-local-birding-pokedex.md
 Depends-On: None
 
 # Harden Trip Planner browser boundary
