@@ -87,6 +87,16 @@ Observation deletion requires `confirm=true`; life-list membership is never an
 independent stored flag. Collection reads are network-free, and collection
 mutations do not evaluate watches or call weather, models, calendar, or SMTP.
 
+Each current bird profile links to `/birds/{species_code}/find`. Target planning
+requires an Arizona origin, 1–300-mile radius, local start, and 1–1440-minute
+duration. `POST /api/target-plans` ranks at most ten exact-species valid,
+reviewed, non-private public eBird locations with Haversine distance, then calls
+Open-Meteo and the sole strict-schema GLM 5.2 model before atomically persisting
+the result. `GET /api/target-plans` and `GET /api/target-plans/{id}` replay only
+persisted facts without network access or writes. Direct result routes use
+`/target-plans/{id}`. Target plans never read personal collection state or
+change the existing Trip Planner.
+
 The browser calls `/api/*`; only the Python process can access
 DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable
 `task app:audit-bundle` command checks the compiled files for all configured

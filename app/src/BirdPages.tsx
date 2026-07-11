@@ -147,6 +147,8 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
       {bird.common_name && bird.scientific_name && <p className="scientific">{bird.scientific_name}</p>}
     </header>
 
+    <section className="panel target-profile-action"><h2>Plan for this bird</h2><p>Search current modeled public observations within a per-request Arizona travel radius.</p><a className="button-link" href={`/birds/${bird.species_code}/find`} onClick={(event) => link(event, `/birds/${bird.species_code}/find`, navigate)}>Find this bird</a></section>
+
     <ProfileCollectionControls key={bird.species_code} bird={bird} />
 
     <section className="panel"><h2>Identity and taxonomy</h2><DefinitionList rows={[

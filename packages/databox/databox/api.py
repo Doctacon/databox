@@ -46,6 +46,7 @@ from databox.agents.cloudflare_workers_ai import (
 )
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.personal_collection_api import register_personal_collection_routes
+from databox.target_planning_api import register_target_planning_routes
 
 JsonGetter = Callable[[str, Mapping[str, object]], dict[str, Any]]
 JsonObject = dict[str, Any]
@@ -1142,9 +1143,17 @@ def create_app(
     frontend_dir = static_dir if static_dir is not None else PROJECT_ROOT / "app" / "dist"
     app = FastAPI(title="Birding Trip Copilot", docs_url="/api/docs", redoc_url=None)
     app.state.plan_lock = asyncio.Lock()
+    app.state.target_plan_lock = asyncio.Lock()
     app.state.collection_lock = asyncio.Lock()
     register_personal_collection_routes(
         app, database_path=db_path, mutation_lock=app.state.collection_lock
+    )
+    register_target_planning_routes(
+        app,
+        database_path=db_path,
+        model_client=cast(Any, model_client),
+        weather_getter=weather_getter,
+        mutation_lock=app.state.target_plan_lock,
     )
 
     @app.exception_handler(RequestValidationError)
@@ -1157,7 +1166,13 @@ def create_app(
             "/api/watches",
             "/api/life-list",
         )
-        subject = "collection" if request.url.path.startswith(collection_paths) else "trip-planning"
+        subject = (
+            "collection"
+            if request.url.path.startswith(collection_paths)
+            else "target-planning"
+            if request.url.path.startswith("/api/target-plans")
+            else "trip-planning"
+        )
         return _error("invalid_request", f"Check the {subject} inputs{suffix}", 422)
 
     @app.get("/api/health", response_model=HealthResponse)

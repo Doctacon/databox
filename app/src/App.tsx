@@ -3,6 +3,7 @@ import { createPlan, getPlan, listPlans } from "./api";
 import { BirdCatalogPage, BirdProfilePage } from "./BirdPages";
 import LocationCombobox from "./LocationCombobox";
 import { MyBirdsPage } from "./MyBirds";
+import { TargetBirdPage } from "./TargetBird";
 import type {
   CreatePlanInput,
   Evidence,
@@ -548,11 +549,18 @@ function PlannerPage() {
     </main>;
 }
 
-type Route = { page: "planner" } | { page: "birds" } | { page: "bird"; speciesCode: string } | { page: "my-birds" };
+type Route = { page: "planner" } | { page: "birds" } | { page: "bird"; speciesCode: string } | { page: "target-find"; speciesCode: string } | { page: "target-plan"; planId: string } | { page: "my-birds" };
 
 function currentRoute(): Route {
   if (window.location.pathname === "/my-birds") return { page: "my-birds" };
   if (window.location.pathname === "/birds") return { page: "birds" };
+  const targetPlan = /^\/target-plans\/(target_[0-9a-f]{32})$/.exec(window.location.pathname);
+  if (targetPlan) return { page: "target-plan", planId: targetPlan[1] };
+  const find = /^\/birds\/([^/]+)\/find$/.exec(window.location.pathname);
+  if (find) {
+    try { return { page: "target-find", speciesCode: decodeURIComponent(find[1]) }; }
+    catch { return { page: "target-find", speciesCode: "invalid-species-code" }; }
+  }
   const match = /^\/birds\/([^/]+)$/.exec(window.location.pathname);
   if (match) {
     try { return { page: "bird", speciesCode: decodeURIComponent(match[1]) }; }
@@ -577,7 +585,9 @@ export default function App() {
         ? "Arizona Birds · Databox"
         : route.page === "my-birds"
           ? "My Birds · Databox"
-          : "Bird Profile · Arizona Birds · Databox";
+          : route.page === "target-find" || route.page === "target-plan"
+            ? "Find This Bird · Databox"
+            : "Bird Profile · Arizona Birds · Databox";
   }, [route]);
 
   function navigate(path: string) {
@@ -592,7 +602,7 @@ export default function App() {
     }
   }
 
-  const birdsActive = route.page === "birds" || route.page === "bird";
+  const birdsActive = route.page === "birds" || route.page === "bird" || route.page === "target-find" || route.page === "target-plan";
   return <>
     <header className="site-header">
       <div className="site-brand"><span className="brand-mark" aria-hidden="true">◉</span><strong>Birding Trip Copilot</strong></div>
@@ -606,6 +616,8 @@ export default function App() {
     {route.page === "planner" && <PlannerPage />}
     {route.page === "birds" && <BirdCatalogPage navigate={navigate} />}
     {route.page === "bird" && <BirdProfilePage speciesCode={route.speciesCode} navigate={navigate} />}
+    {route.page === "target-find" && <TargetBirdPage speciesCode={route.speciesCode} navigate={navigate} />}
+    {route.page === "target-plan" && <TargetBirdPage planId={route.planId} navigate={navigate} />}
     {route.page === "my-birds" && <MyBirdsPage navigate={navigate} />}
   </>;
 }

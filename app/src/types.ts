@@ -325,6 +325,80 @@ export interface WatchInput {
   radius_miles: number;
 }
 
+export interface TargetCandidate {
+  location_id: string;
+  location_name: string | null;
+  latitude: number;
+  longitude: number;
+  observation_count: number;
+  latest_observation_at: string;
+  distance_km: number;
+  distance_miles: number;
+  evidence_loaded_at: string | null;
+}
+
+export interface TargetPlan {
+  target_plan_id: string;
+  species_code: string;
+  common_name: string | null;
+  scientific_name: string | null;
+  taxonomic_category: "species" | "hybrid";
+  origin: {
+    requested_location: string;
+    normalized_location_name: string;
+    latitude: number;
+    longitude: number;
+    timezone: string;
+    region_code: "US-AZ";
+  };
+  radius_miles: number;
+  radius_km: number;
+  window_start: string;
+  window_end: string;
+  duration_minutes: number;
+  candidates: TargetCandidate[];
+  weather: {
+    status: "available" | "partial" | "unavailable";
+    retrieved_at: string;
+    forecast_summary: {
+      temperature_2m_min: number | null;
+      temperature_2m_max: number | null;
+      temperature_2m_avg: number | null;
+      relative_humidity_2m_avg: number | null;
+      precipitation_probability_max: number | null;
+      precipitation_sum: number | null;
+      wind_speed_10m_max: number | null;
+      wind_gusts_10m_max: number | null;
+      weather_codes: number[];
+    };
+    units: {
+      temperature: string;
+      relative_humidity: string;
+      precipitation_probability: string;
+      precipitation: string;
+      wind_speed: string;
+      wind_gusts: string;
+      elevation: string;
+    };
+    elevation_m: number | null;
+    caveats: string[];
+  };
+  action_ids: string[];
+  guidance: string[];
+  caveats: string[];
+  evidence_freshness_at: string | null;
+  created_at: string;
+}
+
+export interface CreateTargetPlanInput {
+  species_code: string;
+  location: string;
+  location_selection: LocationSuggestion;
+  radius_miles: number;
+  start_at: string;
+  duration_minutes: number;
+}
+
 export interface CreatePlanInput {
   location: string;
   location_selection?: LocationSuggestion;

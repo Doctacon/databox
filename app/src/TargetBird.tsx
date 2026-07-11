@@ -1,0 +1,126 @@
+import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
+import LocationCombobox from "./LocationCombobox";
+import { getBird } from "./birdApi";
+import { createTargetPlan, getTargetPlan } from "./targetApi";
+import type { BirdProfile, LocationSuggestion, TargetPlan } from "./types";
+
+type Navigate = (path: string) => void;
+function link(event: MouseEvent<HTMLAnchorElement>, path: string, navigate: Navigate) {
+  if (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+    event.preventDefault(); navigate(path);
+  }
+}
+function date(value: string | null) { return value ? new Date(value).toLocaleString() : "Not available"; }
+function weatherFact(value: number | null, unit: string) {
+  return value === null ? "Not available" : `${value.toLocaleString()} ${unit}`;
+}
+
+function Result({ plan }: { plan: TargetPlan }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { document.title = `Find ${plan.common_name || plan.species_code} · Databox`; heading.current?.focus(); }, [plan]);
+  return <section className="target-result" aria-labelledby="target-result-heading">
+    <h1 ref={heading} tabIndex={-1} id="target-result-heading">Find {plan.common_name || plan.scientific_name || plan.species_code}</h1>
+    <p className="source-status">Saved local target plan · {plan.taxonomic_category} · {plan.species_code}</p>
+    <section className="panel"><h2>Outing boundary</h2><dl className="details-list bird-facts">
+      <div><dt>Origin</dt><dd>{plan.origin.normalized_location_name}</dd></div>
+      <div><dt>Travel radius</dt><dd>{plan.radius_miles.toLocaleString()} mi · {plan.radius_km.toLocaleString()} km</dd></div>
+      <div><dt>Window</dt><dd>{date(plan.window_start)} – {date(plan.window_end)}</dd></div>
+      <div><dt>Duration</dt><dd>{plan.duration_minutes.toLocaleString()} minutes</dd></div>
+    </dl></section>
+    <section className="panel"><h2>Qualifying public locations</h2>
+      {plan.candidates.length ? <ol className="location-list">{plan.candidates.map((candidate) => <li key={candidate.location_id}>
+        <strong>{candidate.location_name || "Unnamed public location"}</strong>
+        <span>{candidate.distance_miles.toLocaleString()} mi · {candidate.distance_km.toLocaleString()} km from origin</span>
+        <span>{candidate.observation_count.toLocaleString()} independent submissions · newest {date(candidate.latest_observation_at)}</span>
+        <span>{candidate.latitude.toFixed(4)}, {candidate.longitude.toFixed(4)}</span>
+      </li>)}</ol> : <p className="empty">No qualifying modeled public observation location exists inside this radius.</p>}
+      <p className="caveat">Recent records do not guarantee presence. Verify current access before visiting.</p>
+    </section>
+    <section className="panel"><h2>Weather</h2><p>Status: <strong>{plan.weather.status}</strong></p>
+      <p>Retrieved: {date(plan.weather.retrieved_at)}</p>
+      <dl className="details-list bird-facts">
+        <div><dt>Temperature range</dt><dd>{plan.weather.forecast_summary.temperature_2m_min === null || plan.weather.forecast_summary.temperature_2m_max === null ? "Not available" : `${plan.weather.forecast_summary.temperature_2m_min.toLocaleString()}–${plan.weather.forecast_summary.temperature_2m_max.toLocaleString()} ${plan.weather.units.temperature}`}</dd></div>
+        <div><dt>Average temperature</dt><dd>{weatherFact(plan.weather.forecast_summary.temperature_2m_avg, plan.weather.units.temperature)}</dd></div>
+        <div><dt>Average relative humidity</dt><dd>{weatherFact(plan.weather.forecast_summary.relative_humidity_2m_avg, plan.weather.units.relative_humidity)}</dd></div>
+        <div><dt>Maximum precipitation probability</dt><dd>{weatherFact(plan.weather.forecast_summary.precipitation_probability_max, plan.weather.units.precipitation_probability)}</dd></div>
+        <div><dt>Total precipitation</dt><dd>{weatherFact(plan.weather.forecast_summary.precipitation_sum, plan.weather.units.precipitation)}</dd></div>
+        <div><dt>Maximum wind speed</dt><dd>{weatherFact(plan.weather.forecast_summary.wind_speed_10m_max, plan.weather.units.wind_speed)}</dd></div>
+        <div><dt>Maximum wind gust</dt><dd>{weatherFact(plan.weather.forecast_summary.wind_gusts_10m_max, plan.weather.units.wind_gusts)}</dd></div>
+        <div><dt>Weather codes</dt><dd>{plan.weather.forecast_summary.weather_codes.length ? plan.weather.forecast_summary.weather_codes.join(", ") : "Not available"}</dd></div>
+        <div><dt>Origin elevation</dt><dd>{weatherFact(plan.weather.elevation_m, plan.weather.units.elevation)}</dd></div>
+      </dl>
+      {plan.weather.caveats.length > 0 && <ul className="caveats">{plan.weather.caveats.map((item) => <li key={item}>{item}</li>)}</ul>}
+    </section>
+    <section className="panel"><h2>Grounded guidance</h2><ol>{plan.guidance.map((item) => <li key={item}>{item}</li>)}</ol>
+      <p className="source-status">Generated by the sole configured Cloudflare GLM 5.2 model from the exact persisted target, candidate, radius, window, and weather facts.</p>
+    </section>
+    <section className="panel"><h2>Evidence and provenance</h2><p>Evidence freshness: {date(plan.evidence_freshness_at)}</p><p>Plan created: {date(plan.created_at)}</p>
+      <ul className="caveats">{plan.caveats.map((item) => <li key={item}>{item}</li>)}</ul>
+    </section>
+  </section>;
+}
+
+export function TargetBirdPage({ speciesCode, planId, navigate }: { speciesCode?: string; planId?: string; navigate: Navigate }) {
+  const [bird, setBird] = useState<BirdProfile | null>(null);
+  const [plan, setPlan] = useState<TargetPlan | null>(null);
+  const [location, setLocation] = useState("");
+  const [selection, setSelection] = useState<LocationSuggestion | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<{ context: "load" | "create"; message: string } | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  const formHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    let current = true; setLoading(true); setError(null); setPlan(null); setBird(null);
+    const load = planId ? getTargetPlan(planId) : speciesCode ? getBird(speciesCode) : Promise.reject(new Error("Invalid target plan route"));
+    void load.then((value) => { if (!current) return; if ("target_plan_id" in value) setPlan(value); else setBird(value); })
+      .catch((reason: unknown) => {
+        if (current) setError({ context: "load", message: reason instanceof Error ? reason.message : "The target planner is unavailable" });
+      })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
+  }, [planId, speciesCode]);
+  useEffect(() => { if (error && !loading) errorRef.current?.focus(); }, [error, loading]);
+  useEffect(() => {
+    if (bird) {
+      document.title = `Find ${bird.common_name || bird.species_code} · Databox`;
+      formHeadingRef.current?.focus();
+    }
+  }, [bird, loading]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!bird || !selection || busy) { if (!selection) setError({ context: "create", message: "Choose an Arizona origin from the suggestions." }); return; }
+    const data = new FormData(event.currentTarget); setBusy(true); setError(null);
+    try {
+      const created = await createTargetPlan({
+        species_code: bird.species_code, location, location_selection: selection,
+        radius_miles: Number(data.get("radius_miles")), start_at: String(data.get("start_at")),
+        duration_minutes: Number(data.get("duration_minutes")),
+      });
+      setPlan(created); window.history.pushState(null, "", `/target-plans/${created.target_plan_id}`);
+    } catch (reason) { setError({ context: "create", message: reason instanceof Error ? reason.message : "The target planner is unavailable" }); }
+    finally { setBusy(false); }
+  }
+
+  if (loading) return <main className="bird-profile-main"><p role="status">Loading target planner…</p></main>;
+  const profileCode = bird?.species_code ?? plan?.species_code;
+  const profilePath = profileCode ? `/birds/${encodeURIComponent(profileCode)}` : "/birds";
+  const errorHeading = error?.context === "load"
+    ? planId ? "Target plan unavailable." : "Bird profile unavailable."
+    : "Could not create that target plan.";
+  return <main className="bird-profile-main">
+    <p><a href={profilePath} onClick={(event) => link(event, profilePath, navigate)}>← Back to bird profile</a></p>
+    {error && <div ref={errorRef} tabIndex={-1} className="error" role="alert"><strong>{errorHeading}</strong><span>{error.message}</span></div>}
+    {plan ? <Result plan={plan} /> : bird ? <>
+      <header className="hero-card"><p className="eyebrow">Target-bird planner · {bird.taxonomic_category}</p><h1 ref={formHeadingRef} tabIndex={-1}>Find {bird.common_name || bird.scientific_name || bird.species_code}</h1><p>Use current valid, reviewed, non-private eBird evidence inside your chosen travel radius.</p></header>
+      <section className="panel"><form className="target-form" onSubmit={(event) => void submit(event)} aria-busy={busy}>
+        <LocationCombobox inputId="target-location" value={location} selected={selection} onChange={(value) => { setLocation(value); setSelection(null); }} onSelect={(value) => { setLocation(value.display_name); setSelection(value); }} disabled={busy} />
+        <label htmlFor="target-radius">Maximum travel radius (miles)</label><input id="target-radius" name="radius_miles" type="number" min="1" max="300" step="0.1" defaultValue="25" required disabled={busy} />
+        <label htmlFor="target-start">Outing start (Arizona local time)</label><input id="target-start" name="start_at" type="datetime-local" required disabled={busy} />
+        <label htmlFor="target-duration">Duration</label><select id="target-duration" name="duration_minutes" defaultValue="120" disabled={busy}><option value="30">30 minutes</option><option value="60">1 hour</option><option value="90">90 minutes</option><option value="120">2 hours</option><option value="180">3 hours</option></select>
+        <button type="submit" disabled={busy}>{busy ? "Building target plan…" : "Find this bird"}</button>
+      </form></section>
+    </> : null}
+  </main>;
+}

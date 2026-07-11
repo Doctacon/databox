@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-10
 Updated: 2026-07-10
 Parent: .10x/tickets/2026-07-09-build-local-birding-pokedex.md
@@ -33,6 +33,12 @@ Record deterministic ranking/distance fixtures, grounding/schema tests, atomic r
 ## Progress and notes
 
 - 2026-07-10: Ticket derives from explicit date/time/duration plus 1–300-mile per-request target-planning decisions.
+- 2026-07-10: Implemented exact public eBird candidate clustering, distinct-submission counts, coherent newest metadata, true Haversine filtering, deterministic count/newness/distance/name/ID ranking, post-ranking weather, strict sole-GLM grounded action schema, deterministic guidance, transactional runtime persistence, typed API, and direct React profile/form/result routes without personal/watch coupling.
+- 2026-07-10: Focused target/model tests pass 34/34, related API regressions pass 76/76, browser gate passes 110/110 plus typecheck/build/bundle audit, MyPy passes 84 files, and complete network-disabled Python suite passes 338/338 with 86.45% coverage and three snapshots. Evidence: `.10x/evidence/2026-07-10-target-bird-planning.md`.
+- 2026-07-10: Review repair rejects all candidate-dependent actions for empty evidence before persistence; supplies the GLM complete bounded candidate/origin/freshness/weather facts protected by an exact canonical SHA-256 grounding echo; normalizes strict available/partial/unavailable weather before synthesis/persistence; and hardens server/browser weather, unit, timestamp, distance, duration, freshness, action, and error relationships. Weather results now render retrieval time and every normalized metric with source units. Focused model/target tests pass 40/40, related backend tests pass 84/84, the complete network-disabled Python suite passes 344/344 at 86.42% coverage, and the complete browser gate passes 121/121 plus typecheck/build/bundle audit.
+- 2026-07-10: Final route-semantics repair sends saved-plan users back to the encoded species profile through native navigation and distinguishes focused load/replay unavailable errors from focused create errors. Six target component tests and the complete 122-test browser/typecheck/build/bundle gate pass.
+- 2026-07-10: Final independent review passed with no blocker. Review: `.10x/reviews/2026-07-10-target-bird-planning-review.md`.
+- 2026-07-10: Retrospective preserved honest-empty action constraints, complete canonical evidence grounding, and pre-persistence weather normalization in strict schemas and adversarial tests; no additional skill record is needed.
 
 ## Blockers
 

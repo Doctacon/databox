@@ -20,6 +20,7 @@ from databox.agents.cloudflare_workers_ai import (
     CloudflareWorkersAIClient,
     CloudflareWorkersAIError,
     GroundedSynthesisRequest,
+    TargetSynthesisRequest,
 )
 from databox.config.settings import DataboxSettings
 from pydantic import ValidationError
@@ -84,6 +85,130 @@ def _client(post: Callable[..., httpx.Response]) -> CloudflareWorkersAIClient:
         model_base_url="https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
         http_post=post,
     )
+
+
+def _target_request() -> TargetSynthesisRequest:
+    return TargetSynthesisRequest.model_validate(
+        {
+            "species_code": "target1",
+            "common_name": "Target Bird",
+            "scientific_name": "Avis target",
+            "taxonomic_category": "species",
+            "origin": {
+                "requested_location": "Prescott",
+                "normalized_location_name": "Prescott, AZ",
+                "latitude": 34.0,
+                "longitude": -112.0,
+                "timezone": "America/Phoenix",
+                "region_code": "US-AZ",
+            },
+            "window_start": "2026-07-11T06:00:00",
+            "window_end": "2026-07-11T08:00:00",
+            "duration_minutes": 120,
+            "radius_miles": 25,
+            "evidence_freshness_at": "2026-07-10T08:00:00",
+            "weather": {
+                "status": "available",
+                "retrieved_at": "2026-07-10T09:00:00Z",
+                "forecast_summary": {
+                    "temperature_2m_min": 19.0,
+                    "temperature_2m_max": 21.0,
+                    "temperature_2m_avg": 20.0,
+                    "relative_humidity_2m_avg": 39.0,
+                    "precipitation_probability_max": 0.0,
+                    "precipitation_sum": 0.0,
+                    "wind_speed_10m_max": 7.0,
+                    "wind_gusts_10m_max": 10.0,
+                    "weather_codes": [0],
+                },
+                "units": {
+                    "temperature": "°C",
+                    "relative_humidity": "%",
+                    "precipitation_probability": "%",
+                    "precipitation": "mm",
+                    "wind_speed": "km/h",
+                    "wind_gusts": "km/h",
+                    "elevation": "m",
+                },
+                "elevation_m": 330.0,
+                "caveats": [],
+            },
+            "candidates": [
+                {
+                    "location_id": "L1",
+                    "location_name": "Public Lake",
+                    "latitude": 34.1,
+                    "longitude": -112.1,
+                    "observation_count": 2,
+                    "latest_observation_at": "2026-07-10T07:00:00",
+                    "distance_km": 6.759,
+                    "distance_miles": 4.2,
+                    "evidence_loaded_at": "2026-07-10T08:00:00",
+                }
+            ],
+            "caveats": ["Recent evidence is not a guarantee."],
+        }
+    )
+
+
+def _target_content(*, species_code: str = "target1", evidence_hash: str | None = None) -> str:
+    request = _target_request()
+    return json.dumps(
+        {
+            "action_ids": ["try_top_location", "verify_access"],
+            "grounding": {
+                "species_code": species_code,
+                "requested_location": request.origin.requested_location,
+                "window_start": request.window_start,
+                "window_end": request.window_end,
+                "duration_minutes": request.duration_minutes,
+                "radius_miles": request.radius_miles,
+                "candidate_ids": ["L1"],
+                "evidence_freshness_at": request.evidence_freshness_at,
+                "weather_status": request.weather.status,
+                "evidence_hash": evidence_hash or request.evidence_hash,
+                "caveats": request.caveats,
+            },
+        }
+    )
+
+
+def test_target_client_uses_strict_schema_and_exact_grounding() -> None:
+    observed: dict[str, object] = {}
+
+    def post(url: str, **kwargs: object) -> httpx.Response:
+        observed.update(url=url, **kwargs)
+        return _response(content=_target_content())
+
+    result = _client(post).synthesize_target(_target_request())
+    payload = observed["json"]
+    assert isinstance(payload, dict)
+    assert payload["model"] == CLOUDFLARE_WORKERS_AI_MODEL
+    schema_config = payload["response_format"]["json_schema"]
+    assert schema_config["name"] == "grounded_target_plan"
+    assert schema_config["strict"] is True
+    assert schema_config["schema"]["additionalProperties"] is False
+    serialized_request = payload["messages"][1]["content"]
+    assert "Public Lake" in serialized_request
+    assert "temperature_2m_avg" in serialized_request
+    assert _target_request().evidence_hash in serialized_request
+    assert result.action_ids == ["try_top_location", "verify_access"]
+
+
+def test_target_client_rejects_changed_grounding() -> None:
+    def post(*args: object, **kwargs: object) -> httpx.Response:
+        return _response(content=_target_content(species_code="changed"))
+
+    with pytest.raises(CloudflareMalformedResponseError, match="target species"):
+        _client(post).synthesize_target(_target_request())
+
+
+def test_target_client_rejects_changed_evidence_hash() -> None:
+    def post(*args: object, **kwargs: object) -> httpx.Response:
+        return _response(content=_target_content(evidence_hash="0" * 64))
+
+    with pytest.raises(CloudflareMalformedResponseError, match="supplied evidence"):
+        _client(post).synthesize_target(_target_request())
 
 
 def test_client_uses_fixed_host_model_and_output_bound_without_repr_secrets() -> None:
