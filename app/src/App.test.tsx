@@ -148,8 +148,9 @@ describe("Rufous", () => {
     render(<App />);
     expect(screen.getByText("Rufous")).toBeVisible();
     expect(screen.getByText("Arizona field console")).toBeVisible();
-    expect(document.querySelector(".brand-mark.brand-wing")).toBeNull();
-    expect(document.querySelector("svg.brand-mark .brand-wing")).not.toBeNull();
+    const brandMark = document.querySelector("img.brand-mark");
+    expect(brandMark).toHaveAttribute("src", expect.stringContaining("rufous.png"));
+    expect(brandMark).toHaveAttribute("alt", "");
     expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
   });
 

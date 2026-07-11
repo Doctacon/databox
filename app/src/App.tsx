@@ -1,5 +1,6 @@
 import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPlan, getPlan, listPlans } from "./api";
+import rufousImage from "./assets/rufous.png";
 import { BirdCatalogPage, BirdProfilePage } from "./BirdPages";
 import LocationCombobox from "./LocationCombobox";
 import { MyBirdsPage } from "./MyBirds";
@@ -609,15 +610,7 @@ export default function App() {
   return <>
     <header className="site-header">
       <div className="site-brand">
-        <svg className="brand-mark" viewBox="0 0 72 44" aria-hidden="true" focusable="false">
-          <path className="brand-wing" d="M31 23C24 11 13 5 3 8l17 13L8 28c9 1 17 0 24-3Z" />
-          <path className="brand-tail" d="m32 29-17 11 20-5 6-6Z" />
-          <path className="brand-body" d="M28 26c1-10 11-17 21-14 9 3 12 12 7 20-6 8-21 7-28-6Z" />
-          <path className="brand-chest" d="M34 29c6 2 13 1 18-4 0 7-7 11-14 10Z" />
-          <path className="brand-gorget" d="M46 18c5 1 9 4 11 8-3 3-7 4-11 3Z" />
-          <path className="brand-beak" d="m54 17 16-5" />
-          <circle cx="50" cy="15" r="1.7" />
-        </svg>
+        <img className="brand-mark" src={rufousImage} alt="" aria-hidden="true" />
         <span><strong>Rufous</strong><small>Arizona field console</small></span>
       </div>
       <nav aria-label="Primary navigation">

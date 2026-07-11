@@ -1,4 +1,5 @@
 import { FormEvent, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import rufousImage from "./assets/rufous.png";
 import { getBird, listBirds } from "./birdApi";
 import { ProfileCollectionControls } from "./MyBirds";
 import type { BirdCatalogSummary, BirdProfile, CatalogCall, CatalogPhoto } from "./types";
@@ -61,11 +62,7 @@ function stopAllCatalogAudio() {
 
 function RufousSilhouette({ label }: { label: string }) {
   return <div className="catalog-media-placeholder" role="img" aria-label={`No licensed photo available for ${label}`}>
-    <svg viewBox="0 0 160 120" aria-hidden="true" focusable="false">
-      <path d="M36 76c9-23 31-36 55-30 13 3 23 12 30 24l20 7-18 9c-5 17-22 28-43 27-24-2-43-16-44-37Z" />
-      <circle cx="105" cy="61" r="3" />
-      <path d="M59 62c12 5 22 15 27 30M54 105l-9 10m39-7 4 10" />
-    </svg>
+    <img src={rufousImage} alt="" aria-hidden="true" loading="lazy" />
     <span>Photo unavailable</span>
   </div>;
 }

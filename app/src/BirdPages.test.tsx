@@ -172,7 +172,9 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(screen.getByRole("button", { name: "Play call for Arizona Bird 000" })).toHaveAttribute("aria-pressed", "false");
     expect(document.querySelector("audio")).toHaveAttribute("preload", "none");
     expect(screen.getByText("Call: Recordist 101 · Global example")).toBeVisible();
-    expect(screen.getByRole("img", { name: "No licensed photo available for Arizona Bird 001 (Avis arizona001)" })).toBeVisible();
+    const placeholder = screen.getByRole("img", { name: "No licensed photo available for Arizona Bird 001 (Avis arizona001)" });
+    expect(placeholder).toBeVisible();
+    expect(placeholder.querySelector("img")).toHaveAttribute("src", expect.stringContaining("rufous.png"));
     expect(screen.getAllByText("No validated call is available.").length).toBeGreaterThan(0);
   });
 
@@ -369,7 +371,8 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(screen.getByText("Modeled occurrence evidence available")).toBeVisible();
     expect(screen.getByText("Modeled recording evidence available")).toBeVisible();
     expect(screen.getByText(/do not run matching, weather, a model, calendar, or email/i)).toBeVisible();
-    expect(document.querySelector("audio, img, iframe")).toBeNull();
+    expect(document.querySelector("audio, iframe")).toBeNull();
+    expect(screen.getByRole("img", { name: "No licensed photo available for Arizona Bird 000 (Avis arizona000)" })).toBeVisible();
     expect(screen.queryByText(/map/i)).not.toBeInTheDocument();
   });
 
