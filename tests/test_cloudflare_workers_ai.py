@@ -21,6 +21,10 @@ from databox.agents.cloudflare_workers_ai import (
     CloudflareWorkersAIError,
     GroundedSynthesisRequest,
     TargetSynthesisRequest,
+    WatchClusterPrompt,
+    WatchReportSynthesisGrounding,
+    WatchReportSynthesisRequest,
+    WatchReportSynthesisResult,
 )
 from databox.config.settings import DataboxSettings
 from pydantic import ValidationError
@@ -171,6 +175,105 @@ def _target_content(*, species_code: str = "target1", evidence_hash: str | None 
             },
         }
     )
+
+
+def _watch_request() -> WatchReportSynthesisRequest:
+    target = _target_request()
+    return WatchReportSynthesisRequest(
+        species_code="target1",
+        common_name="Target Bird",
+        scientific_name="Avis target",
+        confirmed_location=WatchClusterPrompt(
+            location_id="L1",
+            location_name="Public Lake",
+            latitude=34.1,
+            longitude=-112.1,
+            independent_submission_count=2,
+            latest_observation_at="2026-07-10T14:00:00+00:00",
+            distance_km=6.759,
+            distance_miles=4.2,
+            evidence_loaded_at="2026-07-10T14:05:00+00:00",
+        ),
+        morning_start="2026-07-11T11:30:00+00:00",
+        morning_end="2026-07-11T13:30:00+00:00",
+        event_horizon_end="2026-07-15T12:00:00+00:00",
+        evidence_freshness_at="2026-07-10T14:00:00+00:00",
+        weather=target.weather,
+        caveats=["Recent evidence is not a guarantee."],
+    )
+
+
+def _watch_content(request: WatchReportSynthesisRequest, *, fact_hash: str | None = None) -> str:
+    return WatchReportSynthesisResult(
+        emphasis_ids=["freshness", "confirmed_location", "weather"],
+        grounding=WatchReportSynthesisGrounding(
+            species_code=request.species_code,
+            fact_hash=fact_hash or request.fact_hash,
+        ),
+    ).model_dump_json()
+
+
+def test_watch_report_client_uses_strict_schema_and_exact_fact_hash() -> None:
+    observed: dict[str, object] = {}
+    request = _watch_request()
+
+    def post(url: str, **kwargs: object) -> httpx.Response:
+        observed.update(url=url, **kwargs)
+        return _response(content=_watch_content(request))
+
+    result = _client(post).synthesize_watch_report(request)
+    payload = observed["json"]
+    assert isinstance(payload, dict)
+    assert payload["response_format"]["json_schema"]["name"] == "grounded_watch_report"
+    assert payload["response_format"]["json_schema"]["strict"] is True
+    assert (
+        payload["response_format"]["json_schema"]["schema"]["properties"]["emphasis_ids"][
+            "uniqueItems"
+        ]
+        is True
+    )
+    prompt = payload["messages"][1]["content"]
+    assert "Public Lake" in prompt
+    assert request.fact_hash in prompt
+    assert "Synthetic Center" not in prompt
+    assert '"watch_center"' not in prompt
+    request_properties = WatchReportSynthesisRequest.model_json_schema()["properties"]
+    assert "confirmed_location" in request_properties
+    assert "watch_center" not in request_properties
+    assert "clusters" not in request_properties
+    assert result.emphasis_ids == ["freshness", "confirmed_location", "weather"]
+
+
+def test_watch_report_request_rejects_inconsistent_grounded_facts() -> None:
+    base = _watch_request().model_dump(exclude={"fact_hash"})
+    personal = dict(base)
+    personal["watch_center"] = {
+        "name": "Personal Home",
+        "latitude": 33.123,
+        "longitude": -112.456,
+    }
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        WatchReportSynthesisRequest.model_validate(personal)
+
+    stale = dict(base)
+    stale["evidence_freshness_at"] = "2026-07-10T13:00:00+00:00"
+    with pytest.raises(ValidationError, match="evidence freshness"):
+        WatchReportSynthesisRequest.model_validate(stale)
+
+    wrong_window = dict(base)
+    wrong_window["morning_end"] = "2026-07-11T14:00:00+00:00"
+    with pytest.raises(ValidationError, match="morning window"):
+        WatchReportSynthesisRequest.model_validate(wrong_window)
+
+
+def test_watch_report_client_rejects_changed_fact_hash() -> None:
+    request = _watch_request()
+
+    def post(*args: object, **kwargs: object) -> httpx.Response:
+        return _response(content=_watch_content(request, fact_hash="0" * 64))
+
+    with pytest.raises(CloudflareMalformedResponseError, match="watch report facts"):
+        _client(post).synthesize_watch_report(request)
 
 
 def test_target_client_uses_strict_schema_and_exact_grounding() -> None:

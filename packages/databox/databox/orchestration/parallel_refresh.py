@@ -1,5 +1,6 @@
 """Shared-server parallel Quack refresh orchestration."""
 
+import hashlib
 import json
 import os
 import shutil
@@ -82,6 +83,7 @@ DedupeRunner = Callable[[str], list[str]]
 TransformRunner = Callable[[], None]
 CleanupRunner = Callable[[], None]
 InspectionRunner = Callable[[str, Sequence[str]], WarehouseInspection]
+EvaluationRunner = Callable[[str, str], object]
 
 
 def _iso_now() -> str:
@@ -253,6 +255,7 @@ def execute_parallel_refresh(
     cleanup_runner: CleanupRunner = cleanup_quack_clients,
     inspection_runner: InspectionRunner = inspect_refresh_state,
     run_transform: bool = True,
+    evaluation_runner: EvaluationRunner | None = None,
 ) -> ParallelRefreshResult:
     """Run registered Dagster source jobs concurrently against one Quack server."""
     eligible_sources = [source for source in SOURCES if source.parallel_refresh]
@@ -349,12 +352,30 @@ def execute_parallel_refresh(
     )
     if run_transform:
         transform_runner()
+        if evaluation_runner is not None:
+            refresh_payload = [
+                {
+                    "source": item.source,
+                    "started_at": item.started_at,
+                    "finished_at": item.finished_at,
+                }
+                for item in result.sources
+            ]
+            refresh_id = (
+                "parallel_refresh_"
+                + hashlib.sha256(
+                    json.dumps(refresh_payload, sort_keys=True, separators=(",", ":")).encode()
+                ).hexdigest()
+            )
+            evaluation_runner(target, refresh_id)
     return result
 
 
 @dg.op(name="parallel_quack_refresh")
 def parallel_quack_refresh_op(context: OpExecutionContext) -> None:
-    result = execute_parallel_refresh()
+    from databox.watched_bird_evaluator import run_watched_bird_evaluator
+
+    result = execute_parallel_refresh(evaluation_runner=run_watched_bird_evaluator)
     context.log.info(
         "parallel Quack refresh complete: sources=%s overlap_pairs=%s deduped=%s",
         [item.source for item in result.sources],

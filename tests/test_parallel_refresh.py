@@ -83,6 +83,7 @@ def test_parallel_refresh_uses_one_server_observes_overlap_then_transforms(
             row_counts=(("raw_ebird.recent_observations", 1),),
             main_dlt_relations=(),
         ),
+        evaluation_runner=lambda path, refresh_id: events.append(f"evaluate:{path}:{refresh_id}"),
     )
 
     assert events.count("server-start") == 1
@@ -90,6 +91,9 @@ def test_parallel_refresh_uses_one_server_observes_overlap_then_transforms(
     assert events.index("server-stop") < events.index("dedupe")
     assert events.index("dedupe") < events.index("transform")
     assert events.index("cleanup") < events.index("transform")
+    evaluation_event = next(item for item in events if item.startswith("evaluate:"))
+    assert events.index("transform") < events.index(evaluation_event)
+    assert evaluation_event.startswith(f"evaluate:{tmp_path / 'databox.duckdb'}:parallel_refresh_")
     assert result.overlap_pairs
     assert result.deduped == ("raw_ebird.recent_observations: 2 -> 1",)
     assert all(env["DATABOX_QUACK_SHARED_SERVER"] == "true" for env in seen_environments)
@@ -132,6 +136,7 @@ def test_parallel_refresh_failure_preserves_source_attribution_when_maintenance_
             dedupe_runner=failing_dedupe,
             transform_runner=lambda: events.append("transform"),
             cleanup_runner=failing_cleanup,
+            evaluation_runner=lambda *_: events.append("evaluate"),
         )
 
     assert [item.source for item in exc_info.value.result.sources if not item.ok] == ["gbif"]
@@ -192,6 +197,72 @@ def test_parallel_gate_rejects_nonoverlapping_ingest_intervals(tmp_path: Path) -
             inspection_runner=lambda *_: WarehouseInspection((), ()),
             run_transform=False,
         )
+
+
+def test_evaluator_failure_propagates_only_after_successful_transform(tmp_path: Path) -> None:
+    events: list[str] = []
+
+    class FakeServer:
+        def __enter__(self) -> None:
+            return None
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+    def source_runner(source: str, workdir: Path, env: dict[str, str]) -> SourceRunResult:
+        _ = workdir, env
+        return _result(source, 1.0, 2.0)
+
+    def fail_evaluation(*_: str) -> None:
+        events.append("evaluate")
+        raise RuntimeError("evaluation failed")
+
+    with pytest.raises(RuntimeError, match="evaluation failed"):
+        execute_parallel_refresh(
+            ["ebird"],
+            database_path=str(tmp_path / "databox.duckdb"),
+            source_runner=source_runner,
+            server_factory=lambda _: FakeServer(),
+            dedupe_runner=lambda _: [],
+            cleanup_runner=lambda: None,
+            inspection_runner=lambda *_: WarehouseInspection((), ()),
+            transform_runner=lambda: events.append("transform"),
+            evaluation_runner=fail_evaluation,
+        )
+    assert events == ["transform", "evaluate"]
+
+
+def test_transform_failure_never_evaluates_watches(tmp_path: Path) -> None:
+    events: list[str] = []
+
+    class FakeServer:
+        def __enter__(self) -> None:
+            return None
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+    def source_runner(source: str, workdir: Path, env: dict[str, str]) -> SourceRunResult:
+        _ = workdir, env
+        return _result(source, 1.0, 2.0)
+
+    def fail_transform() -> None:
+        events.append("transform")
+        raise RuntimeError("transform failed")
+
+    with pytest.raises(RuntimeError, match="transform failed"):
+        execute_parallel_refresh(
+            ["ebird"],
+            database_path=str(tmp_path / "databox.duckdb"),
+            source_runner=source_runner,
+            server_factory=lambda _: FakeServer(),
+            dedupe_runner=lambda _: [],
+            cleanup_runner=lambda: None,
+            inspection_runner=lambda *_: WarehouseInspection((), ()),
+            transform_runner=fail_transform,
+            evaluation_runner=lambda *_: events.append("evaluate"),
+        )
+    assert events == ["transform"]
 
 
 def test_parallel_refresh_rejects_sequential_worker_count() -> None:

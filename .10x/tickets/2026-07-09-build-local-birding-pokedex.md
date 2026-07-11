@@ -40,7 +40,7 @@ This is a parent plan and is not executable directly.
 3. Build the read-only catalog/profile UI through `.10x/tickets/done/2026-07-09-build-arizona-bird-catalog-and-profile.md`.
 4. Implement personal collection storage/API through `.10x/tickets/done/2026-07-10-implement-personal-bird-collection-storage-and-api.md`, then My Birds/profile controls through `.10x/tickets/done/2026-07-10-build-my-birds-and-profile-controls.md`.
 5. Implement species-first planning through `.10x/tickets/done/2026-07-10-implement-target-bird-planning.md` (parallelizable after catalog completion).
-6. Implement post-refresh matching/reporting through `.10x/tickets/2026-07-10-implement-watched-bird-evaluator-and-reports.md`.
+6. Implement post-refresh matching/reporting through `.10x/tickets/done/2026-07-10-implement-watched-bird-evaluator-and-reports.md`.
 7. Build event/outbox mechanics through `.10x/tickets/2026-07-10-build-bird-alert-calendar-and-outbox.md`, then Proton Bridge delivery/operations through `.10x/tickets/2026-07-10-implement-proton-bridge-alert-delivery-and-operations.md`.
 8. Run aggregate verification through `.10x/tickets/2026-07-10-verify-local-birding-pokedex.md`.
 
@@ -82,6 +82,7 @@ Catalog/profile must precede personal collection and target workflows because th
 - 2026-07-10: Personal collection storage/API completed with transactional observation/life-list/wishlist/watch state, stale identity handling, strict monotonic mutation time, generation-safe cancellation handoffs, 324-test full-suite evidence, and independent pass review.
 - 2026-07-10: My Birds/profile controls completed with strict collection validation, accessible local mutation flows, shared cross-route serialization/invalidation, 103 browser-test evidence, and independent pass review.
 - 2026-07-10: Target-bird planning completed with exact public candidate ranking, full strict GLM grounding, atomic weather/report persistence, 344 Python and 122 browser tests, and independent pass review.
+- 2026-07-11: Watched-bird evaluator/reporting completed with post-refresh-only exact matching, privacy-safe deterministic/GLM reports, generation-bound event intent, 362 Python tests, and independent pass review.
 
 ## Blockers
 

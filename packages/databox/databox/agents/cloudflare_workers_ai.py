@@ -8,8 +8,8 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
-from datetime import datetime
-from typing import Any, Literal, Protocol
+from datetime import datetime, timedelta
+from typing import Any, Literal, Protocol, TypeVar
 from urllib.parse import urlparse
 
 import httpx
@@ -42,6 +42,13 @@ TargetActionId = Literal[
     "review_freshness",
     "check_weather",
     "verify_access",
+]
+WatchEmphasisId = Literal[
+    "freshness",
+    "confirmed_location",
+    "weather",
+    "access",
+    "uncertainty",
 ]
 _ALLOWED_TARGET_ACTION_IDS = {
     "try_top_location",
@@ -381,6 +388,93 @@ class TargetSynthesisResult(BaseModel):
         return self
 
 
+class WatchClusterPrompt(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    location_id: str = Field(min_length=1, max_length=128)
+    location_name: str | None = Field(default=None, max_length=300)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    independent_submission_count: int = Field(ge=1)
+    latest_observation_at: str = Field(min_length=1, max_length=64)
+    distance_km: float = Field(ge=0, le=483)
+    distance_miles: float = Field(ge=0, le=300)
+    evidence_loaded_at: str | None = Field(default=None, max_length=64)
+
+    _latest_timestamp = field_validator("latest_observation_at")(_bounded_timestamp)
+
+    @field_validator("evidence_loaded_at")
+    @classmethod
+    def validate_optional_loaded_at(cls, value: str | None) -> str | None:
+        return _bounded_timestamp(value) if value is not None else None
+
+
+class WatchReportSynthesisRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    species_code: str = Field(pattern=r"^[A-Za-z0-9]{1,64}$")
+    common_name: str | None = Field(default=None, max_length=200)
+    scientific_name: str | None = Field(default=None, max_length=200)
+    confirmed_location: WatchClusterPrompt
+    morning_start: str = Field(min_length=1, max_length=64)
+    morning_end: str = Field(min_length=1, max_length=64)
+    event_horizon_end: str = Field(min_length=1, max_length=64)
+    evidence_freshness_at: str = Field(min_length=1, max_length=64)
+    weather: TargetWeatherPrompt
+    caveats: list[str] = Field(max_length=20)
+    fact_hash: str = Field(default="", pattern=r"^[0-9a-f]*$")
+
+    _morning_start_timestamp = field_validator("morning_start")(_bounded_timestamp)
+    _morning_end_timestamp = field_validator("morning_end")(_bounded_timestamp)
+    _horizon_timestamp = field_validator("event_horizon_end")(_bounded_timestamp)
+    _freshness_timestamp = field_validator("evidence_freshness_at")(_bounded_timestamp)
+
+    def _expected_fact_hash(self) -> str:
+        payload = self.model_dump(mode="json", exclude={"fact_hash"})
+        serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(serialized.encode()).hexdigest()
+
+    @model_validator(mode="after")
+    def validate_bounded_report(self) -> WatchReportSynthesisRequest:
+        start = datetime.fromisoformat(self.morning_start.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(self.morning_end.replace("Z", "+00:00"))
+        horizon = datetime.fromisoformat(self.event_horizon_end.replace("Z", "+00:00"))
+        freshness = datetime.fromisoformat(self.evidence_freshness_at.replace("Z", "+00:00"))
+        cluster_freshness = datetime.fromisoformat(
+            self.confirmed_location.latest_observation_at.replace("Z", "+00:00")
+        )
+        if end - start != timedelta(hours=2) or end > horizon:
+            raise ValueError("watch report morning window is inconsistent")
+        if freshness != cluster_freshness:
+            raise ValueError("watch report evidence freshness is inconsistent")
+        if any(not item or len(item) > 500 for item in self.caveats):
+            raise ValueError("watch report caveat text is invalid")
+        self.fact_hash = self._expected_fact_hash()
+        if len(self.model_dump_json().encode()) > MAX_MODEL_INPUT_BYTES:
+            raise ValueError("watch report model input exceeds the allowed size")
+        return self
+
+
+class WatchReportSynthesisGrounding(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    species_code: str = Field(pattern=r"^[A-Za-z0-9]{1,64}$")
+    fact_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class WatchReportSynthesisResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    emphasis_ids: list[WatchEmphasisId] = Field(min_length=1, max_length=5)
+    grounding: WatchReportSynthesisGrounding
+
+    @model_validator(mode="after")
+    def unique_emphasis(self) -> WatchReportSynthesisResult:
+        if len(set(self.emphasis_ids)) != len(self.emphasis_ids):
+            raise ValueError("watch report emphasis IDs must be unique")
+        return self
+
+
 class TripPlanModelClient(Protocol):
     model: str
 
@@ -393,10 +487,20 @@ class TargetPlanModelClient(Protocol):
     def synthesize_target(self, request: TargetSynthesisRequest) -> TargetSynthesisResult: ...
 
 
+class WatchReportModelClient(Protocol):
+    model: str
+
+    def synthesize_watch_report(
+        self, request: WatchReportSynthesisRequest
+    ) -> WatchReportSynthesisResult: ...
+
+
 _TARGET_SYNTHESIS_JSON_SCHEMA: dict[str, Any] = TargetSynthesisResult.model_json_schema()
 _TARGET_SYNTHESIS_JSON_SCHEMA["properties"]["action_ids"]["uniqueItems"] = True
+_WATCH_REPORT_JSON_SCHEMA: dict[str, Any] = WatchReportSynthesisResult.model_json_schema()
+_WATCH_REPORT_JSON_SCHEMA["properties"]["emphasis_ids"]["uniqueItems"] = True
 
-
+StructuredResult = TypeVar("StructuredResult", bound=BaseModel)
 HttpPost = Callable[..., httpx.Response]
 
 
@@ -526,6 +630,23 @@ class CloudflareWorkersAIClient:
         validate_target_synthesis_grounding(request, result)
         return result
 
+    def synthesize_watch_report(
+        self, request: WatchReportSynthesisRequest
+    ) -> WatchReportSynthesisResult:
+        result = self._post_structured(
+            request.model_dump_json(),
+            schema_name="grounded_watch_report",
+            description="Bounded watch-report emphasis and exact fact grounding",
+            schema=_WATCH_REPORT_JSON_SCHEMA,
+            system_prompt=_WATCH_REPORT_SYSTEM_PROMPT,
+            result_model=WatchReportSynthesisResult,
+        )
+        if result.grounding.species_code != request.species_code:
+            raise CloudflareMalformedResponseError("Model output changed the watched species")
+        if result.grounding.fact_hash != request.fact_hash:
+            raise CloudflareMalformedResponseError("Model output changed watch report facts")
+        return result
+
     def _post_structured(
         self,
         serialized_request: str,
@@ -534,8 +655,8 @@ class CloudflareWorkersAIClient:
         description: str,
         schema: dict[str, Any],
         system_prompt: str,
-        result_model: type[TargetSynthesisResult],
-    ) -> TargetSynthesisResult:
+        result_model: type[StructuredResult],
+    ) -> StructuredResult:
         if len(serialized_request.encode()) > MAX_MODEL_INPUT_BYTES:
             raise CloudflareConfigurationError("Cloudflare model input exceeds the allowed size")
         payload = {
@@ -661,6 +782,15 @@ def validate_target_synthesis_grounding(
         raise CloudflareMalformedResponseError("Model output changed evidence caveats")
     if not set(result.action_ids).issubset(_ALLOWED_TARGET_ACTION_IDS):
         raise CloudflareMalformedResponseError("Model output selected an unknown target action")
+
+
+_WATCH_REPORT_SYSTEM_PROMPT = """Select one to five unique emphasis IDs for a watched-bird report.
+Return only the strict JSON schema and exactly echo species_code and fact_hash.
+Allowed emphasis IDs: freshness, confirmed_location, weather, access, uncertainty.
+All target identity, the confirmed public destination and derived distance, morning,
+weather, freshness, and caveats are supplied as bounded facts. No personal watch-center name or
+coordinates are supplied. Do not add prose, bird facts, locations, access claims,
+private data, personal history, SQL, or tool calls."""
 
 
 _TARGET_SYSTEM_PROMPT = """Select bounded target-bird planning actions from supplied evidence.

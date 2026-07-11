@@ -39,17 +39,17 @@ Create candidate two-hour windows centered on local Arizona sunrise for mornings
 
 Persist a deterministic report containing target identity, watch center/radius, confirmed public destination, distance, independent submission count, newest evidence time, other ranked public clusters, selected morning, weather status, evidence/model freshness, and caveats about recency, access, and non-guaranteed presence.
 
-A fresh GLM report MAY enrich organization/wording using only that exact bounded fact payload and strict JSON Schema through `@cf/zai-org/glm-5.2`. It MUST NOT add bird facts, locations, access claims, or alternate evidence. If GLM is unavailable or invalid, the deterministic report remains deliverable and explicitly says model enrichment was unavailable. No alternate model is allowed. Traces MUST be sanitized and bounded.
+A fresh GLM report MAY enrich organization/wording through strict JSON Schema using only target identity, the confirmed public destination and derived distance/evidence, selected morning, weather, bounded caveats, and fact hash through `@cf/zai-org/glm-5.2`. The remote schema/prompt/hash MUST exclude the personal watch-center name/coordinates and secondary clusters. It MUST NOT add bird facts, locations, access claims, or alternate evidence. If GLM is unavailable or invalid, the deterministic report remains deliverable and explicitly says model enrichment was unavailable. No alternate model is allowed. Traces MUST be sanitized and bounded.
 
 ## Idempotency and event intent
 
 At most one active event intent exists per watched taxon. A new qualifying match updates the same stable UID, increments sequence, and slides the five-day horizon. Re-evaluating the same source identities and facts creates no duplicate report, event intent, or outbox request.
 
-Pausing/deleting a watch creates a cancellation intent only when an accepted, unexpired event exists; matching itself does not send SMTP. Expired events end naturally.
+Pausing/deleting a watch creates a cancellation intent only when an accepted, unexpired event exists. If the same activation instead has an unaccepted pending REQUEST, evaluation MUST atomically make it terminal and structurally non-sendable without changing sequence or creating SMTP CANCEL. Matching itself does not send SMTP. Expired events end naturally.
 
 ## Observability and API
 
-Persist run counts, decision reasons, degraded-report state, and safe errors. Read-only API/UI surfaces MAY show watch match status, latest report, candidate public locations, event intent, and model-degraded caveat. GETs are network-free and side-effect-free. Private/raw arbitrary fields and credentials MUST never enter responses.
+Persist run counts, decision reasons, degraded-report state, and safe errors. Read-only API/UI surfaces MAY show watch match status, latest report, candidate public locations, event intent, and model-degraded caveat. GETs are network-free and side-effect-free. Report caveats MUST each contain 1–500 characters and public cluster IDs MUST be unique within a report. Private/raw arbitrary fields and credentials MUST never enter responses.
 
 ## Retention
 

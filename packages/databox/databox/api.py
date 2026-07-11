@@ -47,6 +47,7 @@ from databox.agents.cloudflare_workers_ai import (
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.personal_collection_api import register_personal_collection_routes
 from databox.target_planning_api import register_target_planning_routes
+from databox.watched_bird_evaluator_api import register_watched_bird_routes
 
 JsonGetter = Callable[[str, Mapping[str, object]], dict[str, Any]]
 JsonObject = dict[str, Any]
@@ -1155,6 +1156,7 @@ def create_app(
         weather_getter=weather_getter,
         mutation_lock=app.state.target_plan_lock,
     )
+    register_watched_bird_routes(app, database_path=db_path)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:

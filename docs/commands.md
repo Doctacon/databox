@@ -97,6 +97,22 @@ persisted facts without network access or writes. Direct result routes use
 `/target-plans/{id}`. Target plans never read personal collection state or
 change the existing Trip Planner.
 
+The shared `full-refresh` path evaluates active watches only after all source
+loads and SQLMesh transformation succeed and release warehouse ownership.
+Evaluation uses exact species/submission identity, the watch activation boundary,
+a 48-hour freshness window, reviewed valid non-private public locations, and the
+per-watch 1–300-mile radius. It persists deterministic decisions, at most ten
+ranked public clusters, the earliest sunrise-centered two-hour morning, optional
+strict-schema GLM 5.2 emphasis, and stable-UID event intent in `birding_alerts`.
+The GLM prompt contains only target identity, the confirmed public destination and
+derived distance, morning, weather, caveats, and fact grounding—never the personal watch-center name or
+coordinates. Model/weather failure degrades to explicit persisted facts; it does not select an
+alternate model or send SMTP. Cancellation handoffs become a cancel intent only
+for the same accepted, unexpired watch activation. `GET /api/watch-evaluations`,
+`GET /api/watch-reports`, and `GET /api/watch-reports/{id}` replay bounded local
+state without network access or writes. SMTP/MIME/outbox delivery remains a
+separate downstream step.
+
 The browser calls `/api/*`; only the Python process can access
 DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable
 `task app:audit-bundle` command checks the compiled files for all configured
