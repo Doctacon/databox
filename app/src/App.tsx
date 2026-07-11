@@ -583,14 +583,14 @@ export default function App() {
 
   useEffect(() => {
     document.title = route.page === "planner"
-      ? "Trip Planner · Databox"
+      ? "Trip Planner · Rufous"
       : route.page === "birds"
-        ? "Arizona Birds · Databox"
+        ? "Arizona Birds · Rufous"
         : route.page === "my-birds"
-          ? "My Birds · Databox"
+          ? "My Birds · Rufous"
           : route.page === "target-find" || route.page === "target-plan"
-            ? "Find This Bird · Databox"
-            : "Bird Profile · Arizona Birds · Databox";
+            ? "Find This Bird · Rufous"
+            : "Bird Profile · Arizona Birds · Rufous";
   }, [route]);
 
   function navigate(path: string) {
@@ -608,7 +608,15 @@ export default function App() {
   const birdsActive = route.page === "birds" || route.page === "bird" || route.page === "target-find" || route.page === "target-plan";
   return <>
     <header className="site-header">
-      <div className="site-brand"><span className="brand-mark" aria-hidden="true">◉</span><strong>Birding Trip Copilot</strong></div>
+      <div className="site-brand">
+        <svg className="brand-mark" viewBox="0 0 48 32" aria-hidden="true" focusable="false">
+          <path className="brand-wing" d="M20 18 5 5l3 15 10 6" />
+          <path d="M15 22c5-10 15-14 23-7l7 1-6 5c-3 8-14 10-24 1Z" />
+          <circle cx="34" cy="16" r="1.5" />
+          <path d="m19 24-4 6m12-5 2 5" />
+        </svg>
+        <span><strong>Rufous</strong><small>Arizona field console</small></span>
+      </div>
       <nav aria-label="Primary navigation">
         <a href="/" aria-current={route.page === "planner" ? "page" : undefined} onClick={(event) => navClick(event, "/")}>Trip Planner</a>
         <a href="/birds" aria-current={birdsActive ? "page" : undefined} onClick={(event) => navClick(event, "/birds")}>Arizona Birds</a>

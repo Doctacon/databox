@@ -142,7 +142,17 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("Birding Trip Copilot", () => {
+describe("Rufous", () => {
+  it("renders the Rufous brand and original local bird motif", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ plans: [] }));
+    render(<App />);
+    expect(screen.getByText("Rufous")).toBeVisible();
+    expect(screen.getByText("Arizona field console")).toBeVisible();
+    expect(document.querySelector(".brand-mark.brand-wing")).toBeNull();
+    expect(document.querySelector("svg.brand-mark .brand-wing")).not.toBeNull();
+    expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+  });
+
   it("renders exact result order with recommendation media and final workflow disclosure", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);

@@ -30,7 +30,7 @@ it("renders a direct persisted target plan with a native profile link, dual unit
   expect(profileLink).toHaveAttribute("href", "/birds/target1");
   await userEvent.click(profileLink);
   expect(navigate).toHaveBeenCalledWith("/birds/target1");
-  await waitFor(() => expect(document.title).toBe("Find Target Bird · Databox"));
+  await waitFor(() => expect(document.title).toBe("Find Target Bird · Rufous"));
 });
 
 it("renders an honest empty-evidence state without alternate locations", async () => {

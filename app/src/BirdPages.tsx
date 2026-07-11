@@ -371,8 +371,8 @@ export function BirdProfilePage({ speciesCode, navigate }: { speciesCode: string
     return () => { current = false; };
   }, [speciesCode]);
   useEffect(() => {
-    if (bird) document.title = `${bird.common_name || bird.scientific_name || bird.species_code} · Arizona Birds · Databox`;
-    else if (error) document.title = "Bird Profile Unavailable · Arizona Birds · Databox";
+    if (bird) document.title = `${bird.common_name || bird.scientific_name || bird.species_code} · Arizona Birds · Rufous`;
+    else if (error) document.title = "Bird Profile Unavailable · Arizona Birds · Rufous";
   }, [bird, error]);
   if (loading) return <main className="bird-profile-main"><p role="status">Loading the modeled bird profile…</p></main>;
   if (error) return <main className="bird-profile-main"><PageHeading>Bird profile unavailable</PageHeading><div className="error" role="alert"><strong>Could not load this bird.</strong><span>{error}</span></div><p><a href="/birds" onClick={(event) => link(event, "/birds", navigate)}>Back to Arizona Birds</a></p></main>;

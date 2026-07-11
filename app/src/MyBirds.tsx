@@ -118,7 +118,7 @@ function WatchForm({ speciesCode, initial = null, busy, onCancel, onSave }: Watc
     <label htmlFor={`watch-location-${speciesCode}`}>Watch center</label>
     <LocationCombobox inputId={`watch-location-${speciesCode}`} value={location} selected={selected} disabled={busy} onChange={(value) => { setLocation(value); setSelected(null); }} onSelect={(center) => { setLocation(center.display_name); setSelected(center); }} />
     <div><label htmlFor={`watch-radius-${speciesCode}`}>Travel radius (miles)</label><input id={`watch-radius-${speciesCode}`} type="number" min="1" max="300" step="0.1" required value={radius} onChange={(event) => setRadius(event.target.value)} /></div>
-    <p className="source-status">This center belongs only to this watch. Databox does not save a global home location.</p>
+    <p className="source-status">This center belongs only to this watch. Rufous does not save a global home location.</p>
     <div className="button-row"><button type="submit" disabled={busy || !selected}>{busy ? "Saving…" : initial ? "Save watch" : "Start watching"}</button>{onCancel && <button type="button" className="secondary" onClick={onCancel}>Cancel</button>}</div>
   </form>;
 }

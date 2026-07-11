@@ -54,7 +54,7 @@ task smoke:cloudflare-ai
 The smoke command uses only `@cf/zai-org/glm-5.2` and never prints
 Cloudflare credentials.
 
-## Local Trip Planner
+## Rufous local birding app
 
 ```bash
 task app:dev           # FastAPI :8000 + Vite :5173 with hot reload
@@ -64,7 +64,7 @@ task app               # build and serve the complete app at http://127.0.0.1:80
 ```
 
 Both launch paths bind to loopback. Run `task verify` first to populate the
-local warehouse. The Trip Planner remains at `/`; the read-only Arizona Birds
+local warehouse. Rufous uses an original local rust-orange/teal field-device theme with no remote fonts or theme assets. The Trip Planner remains at `/`; the read-only Arizona Birds
 catalog is available at `/birds`, with direct modeled profiles at
 `/birds/{species_code}`. Native browser history supports direct reload,
 back, and forward without a routing dependency. Catalog search, species/hybrid
@@ -198,7 +198,7 @@ persisted DuckDB evidence. The API exposes a separate typed media projection and
 activates source/audio URLs only for exact HTTPS Xeno-canto hosts, matching
 recording IDs, and expected `/{id}` or `/{id}/download` paths. The React app uses
 native audio controls with `preload="none"` and no autoplay. Audio bytes stream
-directly from Xeno-canto only after user interaction; Databox does not proxy,
+directly from Xeno-canto only after user interaction; Rufous does not proxy,
 download, cache, or store audio.
 
 Existing persisted recommendations are enriched only by an explicit local
@@ -243,7 +243,7 @@ uv run --no-sync python scripts/verify_bird_alert_smtp.py --test-invitation
 My Birds → Alert Delivery shows safe local status and only state-derived actions. Active
 ambiguous results can be marked not delivered and retried with a greater sequence;
 suppressed/inactive ambiguous results can only be terminally marked not delivered, without
-retry, or marked delivered so Databox enqueues a coherent cancellation. Ambiguous results
+retry, or marked delivered so Rufous enqueues a coherent cancellation. Ambiguous results
 are never automatically resent. SMTP acceptance means accepted by the local Bridge, not proof of
 inbox receipt or calendar rendering. Resolved history expires after 90 days; unresolved
 ambiguous rows remain until reconciliation.

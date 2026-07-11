@@ -1540,11 +1540,11 @@ def build_icalendar(payload: CalendarPayload, *, organizer: str, attendee: str) 
         )
         status = "CONFIRMED"
     else:
-        description = f"The Databox watched-bird event for {name} was cancelled."
+        description = f"The Rufous watched-bird event for {name} was cancelled."
         status = "CANCELLED"
     lines = [
         "BEGIN:VCALENDAR",
-        "PRODID:-//Databox//Bird Alert//EN",
+        "PRODID:-//Rufous//Bird Alert//EN",
         "VERSION:2.0",
         "CALSCALE:GREGORIAN",
         f"METHOD:{payload.method}",
@@ -1583,8 +1583,7 @@ def build_calendar_mime(payload: CalendarPayload, *, organizer: str, attendee: s
         f"<{_outbox_id(payload.event_uid, payload.sequence, payload.method)}@local>"
     )
     message.set_content(
-        f"Your Databox bird alert for {name} was {action}. "
-        "Open the calendar invitation for details."
+        f"Your Rufous bird alert for {name} was {action}. Open the calendar invitation for details."
     )
     message.add_alternative(
         calendar,

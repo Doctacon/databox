@@ -59,7 +59,7 @@ tasks:
     desc: "Run every Soda contract against the __dev schemas"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/verify_dev.py"]
   eval:agent:
-    desc: "Run deterministic DeepEval checks for the Birding Trip Copilot"
+    desc: "Run deterministic DeepEval checks for Rufous"
     env:
       CONFIDENT_OPEN_BROWSER: "false"
       DEEPEVAL_CACHE_FOLDER: ".cache/deepeval"
@@ -116,14 +116,14 @@ tasks:
     desc: "Audit the built browser bundle for configured Cloudflare names and values"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/audit_app_bundle.py"]
   app:dev:
-    desc: "Launch the loopback FastAPI and Vite development servers"
+    desc: "Launch the loopback Rufous API and web app"
     deps: ["app:install"]
     cmds: ["{{.VENV_DIR}}/bin/python scripts/run_local_app.py"]
   media:backfill:
     desc: "Dry-run or apply persisted recommendation media backfill"
     cmds: ["{{.VENV_DIR}}/bin/python -m databox.agent_tools.recommendation_media_backfill {{.CLI_ARGS}}"]
   app:
-    desc: "Build and launch Birding Trip Copilot at http://127.0.0.1:8000"
+    desc: "Build and launch Rufous at http://127.0.0.1:8000"
     deps: ["app:check"]
     cmds: ["{{.VENV_DIR}}/bin/uvicorn databox.api:app --host 127.0.0.1 --port 8000"]
   init:

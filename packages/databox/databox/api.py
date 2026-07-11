@@ -1,4 +1,4 @@
-"""Loopback-only HTTP API for the local Birding Trip Copilot."""
+"""Loopback-only HTTP API for Rufous."""
 
 from __future__ import annotations
 
@@ -1356,7 +1356,7 @@ def create_app(
 
     db_path = database_path or settings.database_path
     frontend_dir = static_dir if static_dir is not None else PROJECT_ROOT / "app" / "dist"
-    app = FastAPI(title="Birding Trip Copilot", docs_url="/api/docs", redoc_url=None)
+    app = FastAPI(title="Rufous", docs_url="/api/docs", redoc_url=None)
     app.state.plan_lock = asyncio.Lock()
     app.state.target_plan_lock = asyncio.Lock()
     app.state.collection_lock = asyncio.Lock()

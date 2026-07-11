@@ -17,7 +17,7 @@ function weatherFact(value: number | null, unit: string) {
 
 function Result({ plan }: { plan: TargetPlan }) {
   const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { document.title = `Find ${plan.common_name || plan.species_code} · Databox`; heading.current?.focus(); }, [plan]);
+  useEffect(() => { document.title = `Find ${plan.common_name || plan.species_code} · Rufous`; heading.current?.focus(); }, [plan]);
   return <section className="target-result" aria-labelledby="target-result-heading">
     <h1 ref={heading} tabIndex={-1} id="target-result-heading">Find {plan.common_name || plan.scientific_name || plan.species_code}</h1>
     <p className="source-status">Saved local target plan · {plan.taxonomic_category} · {plan.species_code}</p>
@@ -84,7 +84,7 @@ export function TargetBirdPage({ speciesCode, planId, navigate }: { speciesCode?
   useEffect(() => { if (error && !loading) errorRef.current?.focus(); }, [error, loading]);
   useEffect(() => {
     if (bird) {
-      document.title = `Find ${bird.common_name || bird.species_code} · Databox`;
+      document.title = `Find ${bird.common_name || bird.species_code} · Rufous`;
       formHeadingRef.current?.focus();
     }
   }, [bird, loading]);

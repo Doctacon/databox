@@ -165,7 +165,7 @@ task plan:prod     # promote verified changes — see docs/environments.md
 # Optional: verify the configured agent model (@cf/zai-org/glm-5.2)
 task smoke:cloudflare-ai
 
-# Launch the Trip Planner, Arizona Birds, private My Birds collection, and target planning
+# Launch Rufous: Trip Planner, Arizona Birds, private My Birds, and target planning
 # (FastAPI + React) at localhost:5173; target action starts from a species profile
 task app:dev
 

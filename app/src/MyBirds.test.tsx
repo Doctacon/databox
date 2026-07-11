@@ -62,7 +62,7 @@ describe("My Birds and profile collection controls", () => {
     render(<App />);
     const heading = await screen.findByRole("heading", { name: "My Birds", level: 1 });
     expect(heading).toHaveFocus();
-    expect(document.title).toBe("My Birds · Databox");
+    expect(document.title).toBe("My Birds · Rufous");
     expect(screen.getByRole("link", { name: "My Birds" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByText(/life list is empty/i)).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Observations" }));

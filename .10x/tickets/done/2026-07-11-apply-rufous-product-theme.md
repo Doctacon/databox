@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-evolve-product-into-rufous.md
@@ -29,7 +29,11 @@ Record naming audit, token/component coverage, route/state matrix, accessibility
 ## Progress and notes
 
 - 2026-07-11: The reviewed catalog-media backend and live metadata are complete. Theme sequencing remains unchanged: catalog/profile media presentation and trip-plan calendar controls must settle before theme work begins.
+- 2026-07-11: Implemented the Rufous display identity, original local bird motif, shared rust/teal/cream/dark device tokens, route/component/state styling, narrow responsive shell, visible focus, non-color state markers, contrast and reduced-motion contracts. Updated current app/docs/API/alert display naming while preserving package, repository, database, and internal identities. Added static theme/naming/network/accessibility contracts and updated route title/responsive tests. Full Python (461), frontend (221), type, build, bundle, privacy, docs, lint, format, mypy, secret, drift, and hook checks pass. Evidence: `.10x/evidence/2026-07-11-rufous-product-theme.md`.
+- 2026-07-11: Repaired the naming-review failure in `docs/commands.md`: Rufous is now the acting product for media proxying and alert cancellation wording. Strengthened the current user-facing shell/docs scan to reject any standalone Databox product-brand leak while preserving explicit technical package/database identity checks. Focused naming/lint/format, strict docs, and the full 461-test Python suite pass.
+- 2026-07-11: Independent follow-up review passed naming boundaries, originality/no-remote-assets, route/state token coverage, responsive/accessibility/reduced-motion, technical-identity preservation, and evidence accuracy. Review: `.10x/reviews/2026-07-11-rufous-product-theme-review.md`.
+- 2026-07-11: Retrospective preserved the product-vs-technical naming distinction in a broad static regression test; no separate record is needed.
 
 ## Blockers
 
-Depends on the two structural UI children listed in `Depends-On`; catalog backend completion alone does not unblock theme execution.
+None; all structural UI dependencies are done.

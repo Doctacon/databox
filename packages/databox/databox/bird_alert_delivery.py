@@ -383,15 +383,15 @@ def send_bounded_live_verification(
         message = EmailMessage()
         message["From"] = config.organizer
         message["To"] = config.recipient
-        message["Subject"] = "Databox SMTP verification"
+        message["Subject"] = "Rufous SMTP verification"
         message.set_content(
-            "This is the single authorized Databox SMTP transport verification message."
+            "This is the single authorized Rufous SMTP transport verification message."
         )
     else:
         start = now.astimezone(UTC) + timedelta(days=1)
         payload = CalendarPayload(
             species_code="verification",
-            common_name="Databox verification bird",
+            common_name="Rufous verification bird",
             scientific_name=None,
             event_uid="databox-smtp-verification@local",
             sequence=0,
@@ -401,7 +401,7 @@ def send_bounded_live_verification(
             morning_end=(start + timedelta(hours=2)).isoformat(),
             event_horizon_end=(now.astimezone(UTC) + timedelta(days=5)).isoformat(),
             location_id="verification",
-            location_name="Databox SMTP verification",
+            location_name="Rufous SMTP verification",
             latitude=0,
             longitude=0,
             confirmed_distance_miles=0,

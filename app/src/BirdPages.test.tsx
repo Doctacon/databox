@@ -301,28 +301,28 @@ describe("Arizona bird catalog and modeled profiles", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "No trip selected" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Plan your next local birding outing", level: 1 })).toHaveFocus();
-    expect(document.title).toBe("Trip Planner · Databox");
+    expect(document.title).toBe("Trip Planner · Rufous");
 
     await userEvent.click(screen.getByRole("link", { name: "Arizona Birds" }));
     const catalogHeading = await screen.findByRole("heading", { name: "Arizona Birds", level: 1 });
     expect(catalogHeading).toHaveFocus();
-    expect(document.title).toBe("Arizona Birds · Databox");
+    expect(document.title).toBe("Arizona Birds · Rufous");
     expect(window.location.pathname).toBe("/birds");
     await userEvent.click(screen.getByRole("link", { name: /Arizona Bird 000/ }));
     const profileHeading = await screen.findByRole("heading", { name: "Arizona Bird 000", level: 1 });
     expect(profileHeading).toHaveFocus();
-    expect(document.title).toBe("Arizona Bird 000 · Arizona Birds · Databox");
+    expect(document.title).toBe("Arizona Bird 000 · Arizona Birds · Rufous");
     expect(window.location.pathname).toBe("/birds/bird000");
 
     window.history.pushState(null, "", "/birds");
     window.dispatchEvent(new PopStateEvent("popstate"));
     const restoredCatalogHeading = await screen.findByRole("heading", { name: "Arizona Birds", level: 1 });
     expect(restoredCatalogHeading).toHaveFocus();
-    expect(document.title).toBe("Arizona Birds · Databox");
+    expect(document.title).toBe("Arizona Birds · Rufous");
     await userEvent.click(screen.getByRole("link", { name: "Trip Planner" }));
     expect(await screen.findByRole("heading", { name: "No trip selected" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Plan your next local birding outing", level: 1 })).toHaveFocus();
-    expect(document.title).toBe("Trip Planner · Databox");
+    expect(document.title).toBe("Trip Planner · Rufous");
   });
 
   it("renders exact modeled sections, units, labels, inference, sources, and public locations", async () => {
@@ -384,7 +384,7 @@ describe("Arizona bird catalog and modeled profiles", () => {
     render(<App />);
     expect(await screen.findByRole("alert")).toHaveTextContent(message);
     expect(screen.getByRole("heading", { name: "Bird profile unavailable", level: 1 })).toHaveFocus();
-    expect(document.title).toBe("Bird Profile Unavailable · Arizona Birds · Databox");
+    expect(document.title).toBe("Bird Profile Unavailable · Arizona Birds · Rufous");
     expect(document.body).not.toHaveTextContent("/private/");
   });
 
