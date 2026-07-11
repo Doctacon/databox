@@ -1,3 +1,4 @@
+import { isIsoDate, isIsoTimestamp } from "./isoDateTime";
 import type { BirdCatalogSummary, BirdProfile } from "./types";
 
 type UnknownRecord = Record<string, unknown>;
@@ -32,9 +33,7 @@ function count(value: unknown): value is number {
 }
 
 function timestamp(value: unknown): value is string | null {
-  return value === null || (
-    typeof value === "string" && value.length <= 40 && !Number.isNaN(Date.parse(value))
-  );
+  return isIsoTimestamp(value, true);
 }
 
 function summary(value: unknown): BirdCatalogSummary {
@@ -142,13 +141,13 @@ function validateProfile(value: unknown): BirdProfile {
   }
 
   const gbif = objectWithKeys(row.gbif, ["occurrence_count", "latest_event_date"]);
-  if (!count(gbif.occurrence_count) || !timestamp(gbif.latest_event_date)) throw new Error("invalid GBIF context");
+  if (!count(gbif.occurrence_count) || !isIsoDate(gbif.latest_event_date, true)) throw new Error("invalid GBIF context");
 
   const xeno = objectWithKeys(row.xeno_canto, [
     "recording_count", "latest_recording_date", "representative_recording_id", "representative_recordist",
     "representative_recording_type", "representative_recording_quality", "representative_recording_license",
   ]);
-  if (!count(xeno.recording_count) || !timestamp(xeno.latest_recording_date)
+  if (!count(xeno.recording_count) || !isIsoDate(xeno.latest_recording_date, true)
     || !nullableString(xeno.representative_recording_id, 64)
     || !nullableString(xeno.representative_recordist, 300)
     || !nullableString(xeno.representative_recording_type, 300)

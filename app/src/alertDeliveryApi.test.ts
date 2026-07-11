@@ -1,7 +1,8 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { listAlertDeliveries, markAlertDelivered, markAlertNotDelivered, retryAlertDelivery } from "./alertDeliveryApi";
+import type { AlertDelivery } from "./types";
 function response(body: unknown, status = 200) { return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } })); }
-const delivery = {
+const delivery: AlertDelivery = {
   outbox_id: `alert_outbox_${"a".repeat(64)}`, species_code: "target1", sequence: 1,
   method: "REQUEST", state: "delivery_unknown", attempt_count: 1,
   next_attempt_at: "2026-07-10T12:00:00+00:00", updated_at: "2026-07-10T12:00:00+00:00",
@@ -19,6 +20,30 @@ it("validates bounded delivery status and rejects private or malformed fields", 
   await expect(listAlertDeliveries()).rejects.toThrow("Invalid alert delivery response");
   vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response({ deliveries: [{ ...delivery, can_retry: false }] }));
   await expect(listAlertDeliveries()).rejects.toThrow("Invalid alert delivery response");
+});
+it("rejects impossible, non-ISO, numeric, invalid-offset, and nested attempt timestamps", async () => {
+  const mutations: ((value: AlertDelivery) => void)[] = [
+    (value) => { value.next_attempt_at = "2026-02-29T12:00:00+00:00"; },
+    (value) => { value.updated_at = "2026-04-31T12:00:00+00:00"; },
+    (value) => { value.terminal_at = "0"; },
+    (value) => { value.next_attempt_at = "2026-01-01T12:00:00+24:00"; },
+    (value) => { value.attempts[0].occurred_at = "2026-01-01T24:00:00Z"; },
+    (value) => { value.updated_at = 0 as unknown as string; },
+  ];
+  for (const mutate of mutations) {
+    const invalid = structuredClone(delivery); mutate(invalid);
+    vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response({ deliveries: [invalid] }));
+    await expect(listAlertDeliveries()).rejects.toThrow("Invalid alert delivery response");
+  }
+});
+it("accepts exact backend leap-day UTC, offset, and fractional timestamp forms", async () => {
+  const valid = structuredClone(delivery);
+  valid.next_attempt_at = "2024-02-29T12:00:00.123456Z";
+  valid.updated_at = "2024-02-29T05:00:00-07:00";
+  valid.terminal_at = "2024-02-29T12:00:00+00:00";
+  valid.attempts[0].occurred_at = "2024-02-29T12:00:00Z";
+  vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ deliveries: [valid] }));
+  await expect(listAlertDeliveries()).resolves.toEqual([valid]);
 });
 it("uses confirmed safe reconciliation endpoints and suppresses server details", async () => {
   const fetchMock = vi.spyOn(globalThis, "fetch")

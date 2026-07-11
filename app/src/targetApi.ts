@@ -1,3 +1,4 @@
+import { isIsoTimestamp, isoTimestampMicros } from "./isoDateTime";
 import type { CreateTargetPlanInput, TargetPlan } from "./types";
 
 type Row = Record<string, unknown>;
@@ -13,9 +14,6 @@ function text(value: unknown, max: number, nullable = false): value is string | 
 }
 function number(value: unknown, min: number, max: number): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
-}
-function timestamp(value: unknown): value is string {
-  return typeof value === "string" && value.length <= 64 && !Number.isNaN(Date.parse(value));
 }
 function strings(value: unknown, max: number): value is string[] {
   return Array.isArray(value) && value.length <= max && value.every((item) => typeof item === "string" && item.length > 0 && item.length <= 500);
@@ -33,15 +31,15 @@ function validate(value: unknown): TargetPlan {
     || !text(row.common_name, 200, true) || !text(row.scientific_name, 200, true)
     || (row.taxonomic_category !== "species" && row.taxonomic_category !== "hybrid")
     || !number(row.radius_miles, 1, 300) || !number(row.radius_km, 1.609, 483)
-    || !timestamp(row.window_start) || !timestamp(row.window_end)
+    || !isIsoTimestamp(row.window_start) || !isIsoTimestamp(row.window_end)
     || !Number.isSafeInteger(row.duration_minutes) || !number(row.duration_minutes, 1, 1440)
     || !strings(row.action_ids, 5) || row.action_ids.length === 0
     || row.action_ids.some((item) => !actionIds.has(item))
     || new Set(row.action_ids).size !== row.action_ids.length
     || !strings(row.guidance, 5) || row.guidance.length !== row.action_ids.length
     || !strings(row.caveats, 20)
-    || (row.evidence_freshness_at !== null && !timestamp(row.evidence_freshness_at))
-    || !timestamp(row.created_at)) throw new Error("Invalid target plan response");
+    || !isIsoTimestamp(row.evidence_freshness_at, true)
+    || !isIsoTimestamp(row.created_at)) throw new Error("Invalid target plan response");
   const origin = exact(row.origin, ["requested_location","normalized_location_name","latitude","longitude","timezone","region_code"]);
   if (!text(origin.requested_location,300) || !text(origin.normalized_location_name,300)
     || !number(origin.latitude,-90,90) || !number(origin.longitude,-180,180)
@@ -52,9 +50,9 @@ function validate(value: unknown): TargetPlan {
     if (!text(candidate.location_id,128) || !text(candidate.location_name,300,true)
       || !number(candidate.latitude,-90,90) || !number(candidate.longitude,-180,180)
       || !Number.isSafeInteger(candidate.observation_count) || (candidate.observation_count as number) < 1
-      || !timestamp(candidate.latest_observation_at) || !number(candidate.distance_km,0,483)
+      || !isIsoTimestamp(candidate.latest_observation_at) || !number(candidate.distance_km,0,483)
       || !number(candidate.distance_miles,0,300)
-      || (candidate.evidence_loaded_at !== null && !timestamp(candidate.evidence_loaded_at))
+      || !isIsoTimestamp(candidate.evidence_loaded_at, true)
       || (candidate.distance_miles as number) > (row.radius_miles as number) + 0.001
       || Math.abs((candidate.distance_km as number) - (candidate.distance_miles as number) * 1.609344) > 0.02) throw new Error("Invalid target plan response");
   }
@@ -66,7 +64,7 @@ function validate(value: unknown): TargetPlan {
   const units = exact(weather.units, ["temperature","relative_humidity","precipitation_probability","precipitation","wind_speed","wind_gusts","elevation"]);
   const numericSummaryKeys = Object.keys(summary).filter((key) => key !== "weather_codes");
   if (!(["available","partial","unavailable"] as unknown[]).includes(weather.status)
-    || !timestamp(weather.retrieved_at)
+    || !isIsoTimestamp(weather.retrieved_at)
     || numericSummaryKeys.some((key) => !nullableFinite(summary[key]))
     || !Array.isArray(summary.weather_codes) || summary.weather_codes.length > 100
     || summary.weather_codes.some((item) => !Number.isSafeInteger(item))
@@ -77,10 +75,10 @@ function validate(value: unknown): TargetPlan {
   if ((weather.status === "available" && (!hasForecast || weather.elevation_m === null))
     || (weather.status === "partial" && !hasForecast && weather.elevation_m === null)
     || (weather.status === "unavailable" && (hasForecast || weather.elevation_m !== null))) throw new Error("Invalid target plan response");
-  const windowMilliseconds = Date.parse(row.window_end as string) - Date.parse(row.window_start as string);
+  const windowMicroseconds = isoTimestampMicros(row.window_end)! - isoTimestampMicros(row.window_start)!;
   const expectedFreshness = (row.candidates as TargetPlan["candidates"])
     .map((candidate) => candidate.evidence_loaded_at).filter((item): item is string => item !== null).sort().at(-1) ?? null;
-  if (windowMilliseconds !== (row.duration_minutes as number) * 60_000
+  if (windowMicroseconds !== BigInt(row.duration_minutes as number) * 60_000_000n
     || Math.abs((row.radius_km as number) - (row.radius_miles as number) * 1.609344) > 0.01
     || (!row.candidates.length && (row.action_ids as string[]).some((action) => action === "try_top_location" || action === "verify_access"))
     || row.evidence_freshness_at !== expectedFreshness) throw new Error("Invalid target plan response");

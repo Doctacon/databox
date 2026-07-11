@@ -1,3 +1,4 @@
+import { isIsoTimestamp } from "./isoDateTime";
 import type { AlertDelivery, AlertDeliveryAttempt } from "./types";
 
 type Row = Record<string, unknown>;
@@ -8,7 +9,7 @@ function exact(value: unknown, keys: readonly string[]): Row {
   return row;
 }
 function timestamp(value: unknown, nullable = false): value is string | null {
-  return (nullable && value === null) || (typeof value === "string" && value.length <= 64 && !Number.isNaN(Date.parse(value)) && /(?:Z|[+-]\d{2}:\d{2})$/.test(value));
+  return isIsoTimestamp(value, nullable, true);
 }
 function count(value: unknown): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value >= 0; }
 function reason(value: unknown): value is string | null { return value === null || (typeof value === "string" && /^[a-z_]{1,64}$/.test(value)); }

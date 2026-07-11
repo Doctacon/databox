@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTargetPlan, getTargetPlan } from "./targetApi";
 import { targetPlan } from "./targetTestData";
+import type { TargetPlan } from "./types";
 function response(body: unknown, ok = true, status = ok ? 200 : 503) { return Promise.resolve({ ok, status, json: () => Promise.resolve(body) } as Response); }
 afterEach(() => vi.restoreAllMocks());
 
@@ -27,6 +28,35 @@ describe("target API boundary", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response(invalid));
     await expect(getTargetPlan(targetPlan.target_plan_id)).rejects.toThrow("Invalid target plan response");
     vi.restoreAllMocks();
+  });
+  it("rejects impossible or non-ISO timestamps in every target timestamp family", async () => {
+    const mutations: ((value: TargetPlan) => void)[] = [
+      (value) => { value.window_start = "2026-02-29T06:00:00"; },
+      (value) => { value.window_end = "2026-01-01T06:00:00+24:00"; },
+      (value) => { value.evidence_freshness_at = "0"; },
+      (value) => { value.created_at = "2026-04-31T06:00:00Z"; },
+      (value) => { value.candidates[0].latest_observation_at = "2026-01-01T24:00:00"; },
+      (value) => { value.candidates[0].evidence_loaded_at = 0 as unknown as string; },
+      (value) => { value.weather.retrieved_at = "2026-01-01T06:60:00Z"; },
+    ];
+    for (const mutate of mutations) {
+      const invalid = structuredClone(targetPlan) as TargetPlan;
+      mutate(invalid);
+      vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response(invalid));
+      await expect(getTargetPlan(targetPlan.target_plan_id)).rejects.toThrow("Invalid target plan response");
+    }
+  });
+  it("accepts exact backend leap-day, UTC, offset, fractional, and naive timestamp forms", async () => {
+    const valid = structuredClone(targetPlan) as TargetPlan;
+    valid.window_start = "2024-02-29T06:00:00.123456+00:00";
+    valid.window_end = "2024-02-29T08:00:00.123456Z";
+    valid.candidates[0].latest_observation_at = "2024-02-29T01:00:00-07:00";
+    valid.candidates[0].evidence_loaded_at = "2024-02-29T08:00:00";
+    valid.evidence_freshness_at = valid.candidates[0].evidence_loaded_at;
+    valid.weather.retrieved_at = "2024-02-29T08:00:00Z";
+    valid.created_at = "2024-02-29T08:00:00+00:00";
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response(valid));
+    await expect(getTargetPlan(valid.target_plan_id)).resolves.toEqual(valid);
   });
   it("posts the exact selected origin without credentials", async () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(() => response(targetPlan));

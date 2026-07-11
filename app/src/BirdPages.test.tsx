@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { getBird, listBirds } from "./birdApi";
 import type { BirdCatalogSummary, BirdProfile } from "./types";
 
 function response(body: unknown, status = 200) {
@@ -265,6 +266,41 @@ describe("Arizona bird catalog and modeled profiles", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds: invalid }));
     render(<App />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not load Arizona birds");
+  });
+
+  it("rejects impossible and non-ISO bird dates across nested response families", async () => {
+    const mutations: ((value: BirdProfile) => void)[] = [
+      (value) => { value.latest_public_observation_at = "2026-02-29T08:00:00"; value.arizona_activity.latest_public_observation_at = value.latest_public_observation_at; },
+      (value) => { value.traits.provenance.loaded_at = "2026-04-31T08:00:00"; },
+      (value) => { value.arizona_activity.top_public_locations[0].latest_observation_at = "2026-01-01T24:00:00"; },
+      (value) => { value.gbif.latest_event_date = "0"; },
+      (value) => { value.xeno_canto.latest_recording_date = "2026-02-29"; },
+      (value) => { value.freshness.catalog_freshness_at = "2026-01-01T08:00:00+24:00"; },
+    ];
+    for (const mutate of mutations) {
+      const invalid = profile(); mutate(invalid);
+      vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response(invalid));
+      await expect(getBird("bird000")).rejects.toThrow();
+    }
+    const invalidCatalog = Array.from({ length: 706 }, (_, index) => bird(index));
+    invalidCatalog[1].latest_public_observation_at = "2026-04-31T08:00:00";
+    vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response({ birds: invalidCatalog }));
+    await expect(listBirds()).rejects.toThrow();
+  });
+
+  it("accepts exact backend date, leap-day, UTC, offset, fractional, and naive timestamp forms", async () => {
+    const valid = profile();
+    valid.latest_public_observation_at = "2024-02-29T08:00:00.123456Z";
+    valid.arizona_activity.latest_public_observation_at = valid.latest_public_observation_at;
+    valid.arizona_activity.top_public_locations[0].latest_observation_at = "2024-02-29T01:00:00-07:00";
+    valid.traits.provenance.loaded_at = "2024-02-29T08:00:00";
+    valid.gbif.latest_event_date = "2024-02-29";
+    valid.xeno_canto.latest_recording_date = "2024-02-29";
+    for (const key of Object.keys(valid.freshness) as (keyof BirdProfile["freshness"])[]) {
+      valid.freshness[key] = key === "catalog_freshness_at" ? "2024-02-29T08:00:00+00:00" : "2024-02-29T08:00:00";
+    }
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response(valid));
+    await expect(getBird("bird000")).resolves.toEqual(valid);
   });
 
   it("suppresses malformed or unexpected API error payloads", async () => {

@@ -47,6 +47,7 @@ function emptyCollectionMock() {
     if (path === "/api/life-list") return json({ birds: [] });
     if (path === "/api/wishlist") return json({ birds: [] });
     if (path === "/api/watches") return json({ watches: [] });
+    if (path === "/api/alert-deliveries") return json({ deliveries: [] });
     throw new Error(`Unexpected request ${path}`);
   });
 }
@@ -67,8 +68,39 @@ describe("My Birds and profile collection controls", () => {
     expect(screen.getByText("Your wishlist is empty.")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Watches" }));
     expect(screen.getByText("You are not watching any birds.")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Alert Delivery" }));
+    expect(await screen.findByText("No alert delivery history is available.")).toBeVisible();
     window.history.pushState(null, "", "/birds"); window.dispatchEvent(new PopStateEvent("popstate"));
     expect(await screen.findByRole("heading", { name: "Arizona Birds", level: 1 })).toHaveFocus();
+  });
+
+  it("does not render collection or alert empty claims after initial load failures", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const path = String(input);
+      if (path === "/api/birds") return json({ error: { code: "database_unavailable", message: "The local bird catalog is unavailable" } }, 503);
+      if (path === "/api/observations") return json({ observations: [] });
+      if (path === "/api/life-list" || path === "/api/wishlist") return json({ birds: [] });
+      if (path === "/api/watches") return json({ watches: [] });
+      if (path === "/api/alert-deliveries") return json({ error: { code: "database_unavailable", message: "raw secret" } }, 503);
+      throw new Error(`Unexpected request ${path}`);
+    });
+    render(<App />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("The local bird catalog is unavailable");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.queryByText(/life list is empty/i)).not.toBeInTheDocument();
+    for (const [tab, absent] of [
+      ["Observations", "No observations recorded yet."],
+      ["Wishlist", "Your wishlist is empty."],
+      ["Watches", "You are not watching any birds."],
+    ]) {
+      await userEvent.click(screen.getByRole("button", { name: tab }));
+      expect(screen.queryByText(absent)).not.toBeInTheDocument();
+    }
+    await userEvent.click(screen.getByRole("button", { name: "Alert Delivery" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Alert delivery status is unavailable.");
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.queryByText("No alert delivery history is available.")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent("raw secret");
   });
 
   it("shows safe alert status and requires confirmation for manual reconciliation", async () => {
