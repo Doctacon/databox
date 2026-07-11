@@ -51,6 +51,7 @@ const detail: TripPlanDetail = {
   weather: { evidence_id: "weather-1", recommendation_id: null, source: "open_meteo", source_table: null, source_record_id: null, evidence_type: "weather", status: "available", retrieved_at: null, summary: {}, payload: { elevation_m: 1642, forecast_summary: { temperature_2m_min: 20, temperature_2m_max: 23, relative_humidity_2m_avg: 55, precipitation_probability_max: 20, precipitation_sum: 0.3, wind_speed_10m_max: 7, wind_gusts_10m_max: 10, weather_codes: [0, 1, 2] } }, caveats: ["Forecast may change"] },
   media: [{ evidence_id: "media-1", recommendation_id: "rec-1", source_record_id: "1", recording_id: "1", status: "available", species_name: "Mexican Jay", recording_type: "call", quality: "A", recordist: "Ada Birder", license_text: "CC BY 4.0", license_url: "https://creativecommons.org/licenses/by/4.0/", source_url: "https://xeno-canto.org/1", audio_url: "https://xeno-canto.org/1/download", caveats: [] }],
   tool_traces: [{ tool_trace_id: "trace-1", step_order: 1, tool_name: "normalize_location", tool_status: "ok", started_at: null, completed_at: null, input: {}, output_summary: {}, caveats: [] }],
+  calendar_invite: { status: "not_created", sequence: null, outbox_id: null, allowed_actions: ["send"], can_retry: false, updated_at: null, acceptance_notice: null },
 };
 detail.evidence.push(structuredClone(detail.weather!));
 detail.evidence.push({

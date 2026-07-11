@@ -119,6 +119,16 @@ export interface ToolTrace {
   caveats: string[];
 }
 
+export interface TripCalendarInviteStatus {
+  status: "not_created" | "pending" | "claimed" | "retry_wait" | "accepted" | "failed" | "delivery_unknown" | "superseded";
+  sequence: number | null;
+  outbox_id: string | null;
+  allowed_actions: ("send" | "send_update" | "retry_failed" | "mark_delivered" | "mark_not_delivered_and_retry")[];
+  can_retry: boolean;
+  updated_at: string | null;
+  acceptance_notice: "Accepted by local mail bridge" | null;
+}
+
 export interface TripPlanDetail {
   plan: TripPlan;
   recommendations: Recommendation[];
@@ -126,6 +136,7 @@ export interface TripPlanDetail {
   weather: Evidence | null;
   media: Media[];
   tool_traces: ToolTrace[];
+  calendar_invite: TripCalendarInviteStatus;
 }
 
 export interface LocationSuggestion {

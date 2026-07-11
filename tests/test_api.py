@@ -266,7 +266,24 @@ TRACE_KEYS = {
 
 
 def _assert_detail_contract(detail: dict[str, Any]) -> None:
-    assert set(detail) == {"plan", "recommendations", "evidence", "weather", "media", "tool_traces"}
+    assert set(detail) == {
+        "plan",
+        "recommendations",
+        "evidence",
+        "weather",
+        "media",
+        "tool_traces",
+        "calendar_invite",
+    }
+    assert detail["calendar_invite"] == {
+        "status": "not_created",
+        "sequence": None,
+        "outbox_id": None,
+        "allowed_actions": ["send"],
+        "can_retry": False,
+        "updated_at": None,
+        "acceptance_notice": None,
+    }
     assert set(detail["plan"]) == PLAN_KEYS
     assert all(set(row) == RECOMMENDATION_KEYS for row in detail["recommendations"])
     assert all(set(row["photo"]) == PHOTO_KEYS for row in detail["recommendations"])

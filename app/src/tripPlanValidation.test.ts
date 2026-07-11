@@ -21,6 +21,7 @@ const plan: TripPlanDetail = {
   weather: { evidence_id: "weather_fixture", recommendation_id: null, source: "open_meteo", source_table: null, source_record_id: null, evidence_type: "weather", status: "available", retrieved_at: "2026-07-09T12:00:00", summary: {}, payload: { elevation_m: 1642 }, caveats: [] },
   media: [{ evidence_id: "media_fixture", recommendation_id: "rec_fixture", source_record_id: "XC1", recording_id: "1", status: "available", species_name: "Aphelocoma wollweberi", recording_type: "call", quality: "A", recordist: "Fixture", license_text: "CC BY 4.0", license_url: "https://creativecommons.org/licenses/by/4.0/", source_url: "https://xeno-canto.org/1", audio_url: "https://xeno-canto.org/1/download", caveats: [] }],
   tool_traces: [{ tool_trace_id: "trace_fixture", step_order: 1, tool_name: "normalize_location", tool_status: "ok", started_at: "2026-07-09T12:00:00", completed_at: "2026-07-09T12:00:01", input: { location: "Prescott" }, output_summary: { status: "ok" }, caveats: [] }],
+  calendar_invite: { status: "not_created", sequence: null, outbox_id: null, allowed_actions: ["send"], can_retry: false, updated_at: null, acceptance_notice: null },
 };
 plan.evidence.push(structuredClone(plan.weather!));
 plan.evidence.push({

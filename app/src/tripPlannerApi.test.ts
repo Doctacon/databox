@@ -15,6 +15,7 @@ const sparseDetail = {
     skill_level: null, constraints_text: null, field_plan_text: null,
   },
   recommendations: [], evidence: [], weather: null, media: [], tool_traces: [],
+  calendar_invite: { status: "not_created", sequence: null, outbox_id: null, allowed_actions: ["send"], can_retry: false, updated_at: null, acceptance_notice: null },
 };
 
 describe("Trip Planner safe browser errors", () => {

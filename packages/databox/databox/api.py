@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import smtplib
 from collections.abc import Callable, Mapping
 from datetime import date, datetime
 from pathlib import Path
@@ -44,11 +45,17 @@ from databox.agents.cloudflare_workers_ai import (
     CloudflareWorkersAIClient,
     TripPlanModelClient,
 )
+from databox.bird_alert_delivery import BirdAlertSmtpSettings, SmtpFactory, settings_from_global
 from databox.bird_alert_delivery_api import register_bird_alert_delivery_routes
 from databox.catalog_media import catalog_media_identity_hash, catalog_media_rows
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.personal_collection_api import register_personal_collection_routes
 from databox.target_planning_api import register_target_planning_routes
+from databox.trip_plan_calendar import trip_invite_status
+from databox.trip_plan_calendar_api import (
+    TripInviteStatusResponse,
+    register_trip_plan_calendar_routes,
+)
 from databox.watched_bird_evaluator_api import register_watched_bird_routes
 
 JsonGetter = Callable[[str, Mapping[str, object]], dict[str, Any]]
@@ -247,6 +254,7 @@ class TripPlanDetailResponse(BaseModel):
     weather: EvidenceResponse | None
     media: list[MediaResponse]
     tool_traces: list[ToolTraceResponse]
+    calendar_invite: TripInviteStatusResponse
 
 
 class PlanListResponse(BaseModel):
@@ -975,6 +983,10 @@ def _plan_detail(
         for row in evidence
         if row.source == "xeno_canto" and row.status == "available"
     ]
+    invite = trip_invite_status(connection, plan_id)
+    invite["acceptance_notice"] = (
+        "Accepted by local mail bridge" if invite["status"] == "accepted" else None
+    )
     return TripPlanDetailResponse(
         plan=plan,
         recommendations=recommendations,
@@ -982,6 +994,7 @@ def _plan_detail(
         weather=weather,
         media=media,
         tool_traces=traces,
+        calendar_invite=TripInviteStatusResponse.model_validate(invite),
     )
 
 
@@ -1336,6 +1349,8 @@ def create_app(
     media_xeno_getter: JsonGetter | None = None,
     xeno_api_key: str | None = None,
     static_dir: Path | None = None,
+    trip_smtp_settings: BirdAlertSmtpSettings | None = None,
+    trip_smtp_factory: SmtpFactory = smtplib.SMTP,
 ) -> FastAPI:
     """Create the local API; injected clients keep tests offline and deterministic."""
 
@@ -1359,6 +1374,13 @@ def create_app(
     register_watched_bird_routes(app, database_path=db_path)
     register_bird_alert_delivery_routes(
         app, database_path=db_path, mutation_lock=app.state.alert_delivery_lock
+    )
+    register_trip_plan_calendar_routes(
+        app,
+        database_path=db_path,
+        mutation_lock=app.state.alert_delivery_lock,
+        smtp_settings=trip_smtp_settings or (lambda: settings_from_global(settings)),
+        smtp_factory=trip_smtp_factory,
     )
 
     @app.exception_handler(RequestValidationError)

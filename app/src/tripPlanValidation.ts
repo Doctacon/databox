@@ -7,6 +7,7 @@ import type {
   RecommendationCall,
   RecommendationPhoto,
   ToolTrace,
+  TripCalendarInviteStatus,
   TripPlan,
   TripPlanDetail,
 } from "./types";
@@ -255,8 +256,35 @@ function exactSpecies(recommendation: Recommendation, speciesName: string | null
   return recommendation.scientific_name !== null && speciesName !== null
     && recommendation.scientific_name.toLocaleLowerCase() === speciesName.toLocaleLowerCase();
 }
+function calendarInvite(value: unknown): TripCalendarInviteStatus {
+  const row = exact(value, ["status", "sequence", "outbox_id", "allowed_actions", "can_retry", "updated_at", "acceptance_notice"]);
+  const statuses = ["not_created", "pending", "claimed", "retry_wait", "accepted", "failed", "delivery_unknown", "superseded"] as const;
+  const actions = ["send", "send_update", "retry_failed", "mark_delivered", "mark_not_delivered_and_retry"] as const;
+  if (!statuses.includes(row.status as typeof statuses[number])
+    || !(row.sequence === null || integer(row.sequence, 0, Number.MAX_SAFE_INTEGER))
+    || !(row.outbox_id === null || (string(row.outbox_id, 128) && /^trip_outbox_[0-9a-f]{64}$/.test(row.outbox_id)))
+    || !Array.isArray(row.allowed_actions) || row.allowed_actions.length > 2
+    || row.allowed_actions.some((item) => !actions.includes(item as typeof actions[number]))
+    || typeof row.can_retry !== "boolean"
+    || !(row.updated_at === null || (string(row.updated_at, 64) && timestampMicros(row.updated_at) !== null))
+    || !(row.acceptance_notice === null || row.acceptance_notice === "Accepted by local mail bridge")) invalid();
+  const status = row.status as typeof statuses[number];
+  const expectedActions: Record<typeof statuses[number], string[]> = {
+    not_created: ["send"], pending: [], claimed: [], retry_wait: [],
+    accepted: ["send_update"], failed: ["retry_failed"],
+    delivery_unknown: ["mark_delivered", "mark_not_delivered_and_retry"], superseded: [],
+  };
+  if (JSON.stringify(row.allowed_actions) !== JSON.stringify(expectedActions[status])
+    || row.can_retry !== (status === "failed")
+    || (status === "not_created"
+      ? row.sequence !== null || row.outbox_id !== null
+      : row.sequence === null || row.outbox_id === null)
+    || (status === "accepted") !== (row.acceptance_notice === "Accepted by local mail bridge")) invalid();
+  return row as unknown as TripCalendarInviteStatus;
+}
+
 export function validatePlanDetail(value: unknown): TripPlanDetail {
-  const row = exact(value, ["plan", "recommendations", "evidence", "weather", "media", "tool_traces"]);
+  const row = exact(value, ["plan", "recommendations", "evidence", "weather", "media", "tool_traces", "calendar_invite"]);
   if (!Array.isArray(row.recommendations) || row.recommendations.length > 20
     || !Array.isArray(row.evidence) || row.evidence.length > 1000
     || !Array.isArray(row.media) || row.media.length > 100
@@ -327,5 +355,5 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
     const ranks = recommendations.filter((item) => item.recommendation_group === group).map((item) => item.rank_order);
     if (!unique(ranks.map(String))) invalid();
   }
-  return { plan: validatedPlan, recommendations, evidence: evidenceRows, weather, media: mediaRows, tool_traces: traces };
+  return { plan: validatedPlan, recommendations, evidence: evidenceRows, weather, media: mediaRows, tool_traces: traces, calendar_invite: calendarInvite(row.calendar_invite) };
 }

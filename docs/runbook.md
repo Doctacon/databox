@@ -104,3 +104,32 @@ task dagster:dev
 
 This command is intentionally long-running. Stop it with Ctrl-C after manual UI
 inspection.
+
+## Trip-plan calendar invitations
+
+Trip invitations are created only by a confirmed `POST` to
+`/api/trip-plans/{plan_id}/calendar-invite?confirm=true`. Plan creation,
+application startup, replay, and all `GET` routes are status-only and never send.
+The action reuses the server-only `BIRD_ALERT_SMTP_*` loopback STARTTLS settings;
+no recipient or transport value is returned by the API.
+
+Apply `migrations/20260711_trip_plan_calendar.sql` for an offline migration. The
+same additive DDL is applied idempotently by the first explicit invite mutation.
+Trip tables use only `trip_plan_id`; they never fabricate watch, species, or
+activation-generation relationships.
+
+An `accepted` status means **Accepted by local mail bridge**, not confirmed inbox
+or calendar delivery. A `delivery_unknown` row must be reconciled explicitly with
+mark-delivered or mark-not-delivered-and-retry. Never resend it automatically.
+Failed retries and not-delivered reconciliation atomically supersede the old row,
+regenerate the canonical plan with the stable UID and a greater sequence, and immediately
+claim/send the replacement through the confirmed reconciliation API. Transient rows are
+scheduled at 1, 5, and 15 minutes; an operator or local worker must invoke confirmed
+`POST /api/trip-calendar-deliveries/deliver-due?confirm=true` at or after `next_attempt_at`
+to claim and send one due row. This endpoint never claims `delivery_unknown`; those rows
+remain manual-reconciliation-only. Resolved non-current rows may be cleaned after 90 days;
+the current intent/action and unresolved unknown rows are retained.
+
+Feature verification must use an injected fake SMTP transport. The prior bounded
+live Bridge authorization is exhausted; do not run another live verification
+without a new explicit authorization.
