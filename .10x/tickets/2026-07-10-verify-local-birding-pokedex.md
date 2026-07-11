@@ -2,7 +2,7 @@ Status: open
 Created: 2026-07-10
 Updated: 2026-07-10
 Parent: .10x/tickets/2026-07-09-build-local-birding-pokedex.md
-Depends-On: .10x/tickets/done/2026-07-10-build-my-birds-and-profile-controls.md, .10x/tickets/done/2026-07-10-implement-target-bird-planning.md, .10x/tickets/2026-07-10-implement-proton-bridge-alert-delivery-and-operations.md
+Depends-On: .10x/tickets/done/2026-07-10-build-my-birds-and-profile-controls.md, .10x/tickets/done/2026-07-10-implement-target-bird-planning.md, .10x/tickets/done/2026-07-10-implement-proton-bridge-alert-delivery-and-operations.md
 
 # Verify local birding Pokédex
 

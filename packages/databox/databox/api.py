@@ -44,6 +44,7 @@ from databox.agents.cloudflare_workers_ai import (
     CloudflareWorkersAIClient,
     TripPlanModelClient,
 )
+from databox.bird_alert_delivery_api import register_bird_alert_delivery_routes
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.personal_collection_api import register_personal_collection_routes
 from databox.target_planning_api import register_target_planning_routes
@@ -1146,6 +1147,7 @@ def create_app(
     app.state.plan_lock = asyncio.Lock()
     app.state.target_plan_lock = asyncio.Lock()
     app.state.collection_lock = asyncio.Lock()
+    app.state.alert_delivery_lock = asyncio.Lock()
     register_personal_collection_routes(
         app, database_path=db_path, mutation_lock=app.state.collection_lock
     )
@@ -1157,6 +1159,9 @@ def create_app(
         mutation_lock=app.state.target_plan_lock,
     )
     register_watched_bird_routes(app, database_path=db_path)
+    register_bird_alert_delivery_routes(
+        app, database_path=db_path, mutation_lock=app.state.alert_delivery_lock
+    )
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:

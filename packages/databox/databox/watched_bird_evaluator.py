@@ -26,7 +26,11 @@ from databox.agents.cloudflare_workers_ai import (
     WatchReportModelClient,
     WatchReportSynthesisRequest,
 )
-from databox.bird_alert_outbox import enqueue_event_intent, suppress_event_outbox
+from databox.bird_alert_outbox import (
+    enqueue_cancel_from_accepted_snapshot,
+    enqueue_event_intent,
+    suppress_event_outbox,
+)
 from databox.config.settings import settings
 from databox.target_planning import MILES_TO_KM, normalize_target_weather
 
@@ -934,15 +938,9 @@ def _resolve_cancellations(
                             WHERE report_id = ?""",
                         [_iso(evaluation_at), event[5]],
                     )
-                connection.execute(
-                    f"""UPDATE {ALERT_SCHEMA}.event_intents
-                        SET sequence = ?, method = 'CANCEL', status = 'pending_cancel',
-                            report_id = NULL, updated_at = ? WHERE species_code = ?""",
-                    [int(event[1]) + 1, _iso(evaluation_at), request["species_code"]],
-                )
-                enqueue_event_intent(
+                enqueue_cancel_from_accepted_snapshot(
                     connection,
-                    str(request["species_code"]),
+                    event_uid=str(event[0]),
                     now=evaluation_at,
                     in_transaction=True,
                 )

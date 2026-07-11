@@ -626,10 +626,17 @@ def test_suppression_cancels_pre_send_and_marks_started_send_unknown(tmp_path: P
         now=NOW + timedelta(minutes=2),
         reason="watch_inactive_after_send_started",
     )
+    assert (
+        connection.execute(
+            f"SELECT state, payload_json FROM {ALERT_SCHEMA}.alert_outbox WHERE outbox_id=?",
+            [second],
+        ).fetchone()[0]
+        == "delivery_unknown"
+    )
     assert connection.execute(
-        f"SELECT state, payload_json FROM {ALERT_SCHEMA}.alert_outbox WHERE outbox_id=?",
+        f"SELECT payload_json <> '{{}}' FROM {ALERT_SCHEMA}.alert_outbox WHERE outbox_id=?",
         [second],
-    ).fetchone() == ("delivery_unknown", "{}")
+    ).fetchone() == (True,)
     connection.close()
 
 

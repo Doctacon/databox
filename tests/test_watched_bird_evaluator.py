@@ -17,6 +17,12 @@ from databox.agents.cloudflare_workers_ai import (
     WatchReportSynthesisResult,
 )
 from databox.api import create_app
+from databox.bird_alert_outbox import (
+    claim_next_outbox,
+    reconcile_unknown_as_delivered,
+    record_attempt_outcome,
+    start_send_attempt,
+)
 from databox.personal_collection import ensure_tables, request_watch_cancellation
 from databox.watched_bird_evaluator import (
     ALERT_SCHEMA,
@@ -613,11 +619,21 @@ def test_pause_and_delete_handoffs_cancel_only_accepted_unexpired_events(db: Pat
     event = connection.execute(
         f"SELECT event_uid, sequence, event_horizon_end FROM {ALERT_SCHEMA}.event_intents"
     ).fetchone()
-    connection.execute(
-        f"""UPDATE {ALERT_SCHEMA}.event_intents
-            SET status='accepted', last_accepted_sequence=sequence,
-                last_accepted_horizon_end=event_horizon_end,
-                last_accepted_at='2026-07-10T12:05:00+00:00'"""
+    claim = claim_next_outbox(connection, now=EVALUATION_AT)
+    assert claim is not None
+    start_send_attempt(
+        connection,
+        outbox_id=claim.outbox_id,
+        claim_token=claim.claim_token,
+        now=EVALUATION_AT,
+    )
+    record_attempt_outcome(
+        connection,
+        outbox_id=claim.outbox_id,
+        claim_token=claim.claim_token,
+        outcome="accepted",
+        now=EVALUATION_AT + timedelta(minutes=5),
+        safe_reason="smtp_bridge_accepted",
     )
     request_watch_cancellation(
         connection,
@@ -641,7 +657,7 @@ def test_pause_and_delete_handoffs_cancel_only_accepted_unexpired_events(db: Pat
     assert connection.execute(
         f"""SELECT method, sequence, state FROM {ALERT_SCHEMA}.alert_outbox
             ORDER BY sequence"""
-    ).fetchall() == [("REQUEST", 0, "superseded"), ("CANCEL", 1, "pending")]
+    ).fetchall() == [("REQUEST", 0, "accepted"), ("CANCEL", 1, "pending")]
     assert (
         connection.execute(
             "SELECT count(*) FROM birding_personal.watch_cancellation_requests"
@@ -670,6 +686,167 @@ def test_pause_and_delete_handoffs_cancel_only_accepted_unexpired_events(db: Pat
         f"SELECT outcome FROM {ALERT_SCHEMA}.cancellation_resolutions ORDER BY resolved_at"
     ).fetchall()
     assert outcomes == [("cancel_intent",), ("no_accepted_active_event",)]
+    connection.close()
+
+
+def test_unknown_older_request_acceptance_survives_newer_event_then_pause_cancels_snapshot(
+    db: Path,
+) -> None:
+    connection = duckdb.connect(str(db))
+    _insert(connection, "s1", location_id="L1", location_name="First Public")
+    evaluate_watched_birds(
+        connection,
+        refresh_id="unknown-seq0",
+        evaluation_at=EVALUATION_AT,
+        weather_getter=weather,
+    )
+    first = claim_next_outbox(connection, now=EVALUATION_AT)
+    assert first is not None
+    start_send_attempt(
+        connection,
+        outbox_id=first.outbox_id,
+        claim_token=first.claim_token,
+        now=EVALUATION_AT,
+    )
+    record_attempt_outcome(
+        connection,
+        outbox_id=first.outbox_id,
+        claim_token=first.claim_token,
+        outcome="delivery_unknown",
+        now=EVALUATION_AT + timedelta(minutes=1),
+        safe_reason="smtp_acceptance_ambiguous",
+    )
+    _insert(
+        connection,
+        "s2",
+        location_id="L2",
+        location_name="Newer Public",
+        latitude=34.02,
+        observed="2026-07-10 05:30:00",
+        loaded="2026-07-10 12:30:00",
+    )
+    evaluate_watched_birds(
+        connection,
+        refresh_id="pending-seq1",
+        evaluation_at=EVALUATION_AT + timedelta(minutes=30),
+        weather_getter=weather,
+    )
+    assert connection.execute(
+        f"SELECT sequence, status, location_id FROM {ALERT_SCHEMA}.event_intents"
+    ).fetchone() == (1, "pending_request", "L2")
+    reconcile_unknown_as_delivered(
+        connection, outbox_id=first.outbox_id, now=EVALUATION_AT + timedelta(minutes=31)
+    )
+    assert connection.execute(
+        f"""SELECT sequence, status, last_accepted_sequence
+            FROM {ALERT_SCHEMA}.event_intents"""
+    ).fetchone() == (1, "pending_request", 0)
+    request_watch_cancellation(
+        connection,
+        "target1",
+        reason="pause",
+        watch_id="watch-1",
+        activation_generation="generation-1",
+    )
+    connection.execute("UPDATE birding_personal.watches SET active=FALSE")
+    evaluate_watched_birds(
+        connection,
+        refresh_id="pause-after-unknown-acceptance",
+        evaluation_at=EVALUATION_AT + timedelta(hours=1),
+        weather_getter=weather,
+    )
+    assert connection.execute(
+        f"""SELECT sequence, method, status, location_id
+            FROM {ALERT_SCHEMA}.event_intents"""
+    ).fetchone() == (2, "CANCEL", "pending_cancel", "L1")
+    cancel = connection.execute(
+        f"""SELECT payload_json FROM {ALERT_SCHEMA}.alert_outbox
+            WHERE method='CANCEL' AND sequence=2"""
+    ).fetchone()[0]
+    assert '"location_id":"L1"' in cancel and '"event_uid"' in cancel
+    assert connection.execute(
+        f"SELECT count(*) FROM {ALERT_SCHEMA}.accepted_event_snapshots"
+    ).fetchone() == (1,)
+    connection.close()
+
+
+def test_automatic_older_acceptance_propagates_then_pause_cancels_accepted_snapshot(
+    db: Path,
+) -> None:
+    connection = duckdb.connect(str(db))
+    _insert(connection, "s1", location_id="L1", location_name="First Public")
+    evaluate_watched_birds(
+        connection,
+        refresh_id="automatic-seq0",
+        evaluation_at=EVALUATION_AT,
+        weather_getter=weather,
+    )
+    first = claim_next_outbox(connection, now=EVALUATION_AT)
+    assert first is not None
+    start_send_attempt(
+        connection,
+        outbox_id=first.outbox_id,
+        claim_token=first.claim_token,
+        now=EVALUATION_AT,
+    )
+    _insert(
+        connection,
+        "s2",
+        location_id="L2",
+        location_name="Newer Public",
+        latitude=34.02,
+        observed="2026-07-10 05:30:00",
+        loaded="2026-07-10 12:30:00",
+    )
+    evaluate_watched_birds(
+        connection,
+        refresh_id="automatic-pending-seq1",
+        evaluation_at=EVALUATION_AT + timedelta(minutes=30),
+        weather_getter=weather,
+    )
+    record_attempt_outcome(
+        connection,
+        outbox_id=first.outbox_id,
+        claim_token=first.claim_token,
+        outcome="accepted",
+        now=EVALUATION_AT + timedelta(minutes=31),
+        safe_reason="smtp_bridge_accepted",
+    )
+    record_attempt_outcome(
+        connection,
+        outbox_id=first.outbox_id,
+        claim_token=first.claim_token,
+        outcome="accepted",
+        now=EVALUATION_AT + timedelta(minutes=31),
+        safe_reason="smtp_bridge_accepted",
+    )
+    assert connection.execute(
+        f"""SELECT sequence, status, location_id, last_accepted_sequence
+            FROM {ALERT_SCHEMA}.event_intents"""
+    ).fetchone() == (1, "pending_request", "L2", 0)
+    request_watch_cancellation(
+        connection,
+        "target1",
+        reason="delete",
+        watch_id="watch-1",
+        activation_generation="generation-1",
+    )
+    connection.execute("UPDATE birding_personal.watches SET active=FALSE")
+    evaluate_watched_birds(
+        connection,
+        refresh_id="automatic-pause-after-acceptance",
+        evaluation_at=EVALUATION_AT + timedelta(hours=1),
+        weather_getter=weather,
+    )
+    assert connection.execute(
+        f"""SELECT sequence, method, status, location_id
+            FROM {ALERT_SCHEMA}.event_intents"""
+    ).fetchone() == (2, "CANCEL", "pending_cancel", "L1")
+    assert connection.execute(
+        f"""SELECT count(*) FROM {ALERT_SCHEMA}.outbox_attempts
+            WHERE outbox_id=? AND phase='accepted'""",
+        [first.outbox_id],
+    ).fetchone() == (1,)
     connection.close()
 
 

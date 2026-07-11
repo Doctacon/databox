@@ -41,7 +41,7 @@ This is a parent plan and is not executable directly.
 4. Implement personal collection storage/API through `.10x/tickets/done/2026-07-10-implement-personal-bird-collection-storage-and-api.md`, then My Birds/profile controls through `.10x/tickets/done/2026-07-10-build-my-birds-and-profile-controls.md`.
 5. Implement species-first planning through `.10x/tickets/done/2026-07-10-implement-target-bird-planning.md` (parallelizable after catalog completion).
 6. Implement post-refresh matching/reporting through `.10x/tickets/done/2026-07-10-implement-watched-bird-evaluator-and-reports.md`.
-7. Build event/outbox mechanics through `.10x/tickets/done/2026-07-10-build-bird-alert-calendar-and-outbox.md`, then Proton Bridge delivery/operations through `.10x/tickets/2026-07-10-implement-proton-bridge-alert-delivery-and-operations.md`.
+7. Build event/outbox mechanics through `.10x/tickets/done/2026-07-10-build-bird-alert-calendar-and-outbox.md`, then Proton Bridge delivery/operations through `.10x/tickets/done/2026-07-10-implement-proton-bridge-alert-delivery-and-operations.md`.
 8. Run aggregate verification through `.10x/tickets/2026-07-10-verify-local-birding-pokedex.md`.
 
 Catalog/profile must precede personal collection and target workflows because they require a stable conformed taxon identity. Watch management requires catalog identity and local personal-state APIs. Alert execution requires watches, transformed eBird evidence, persisted species profiles, and a hardened operational specification.
@@ -84,6 +84,7 @@ Catalog/profile must precede personal collection and target workflows because th
 - 2026-07-10: Target-bird planning completed with exact public candidate ranking, full strict GLM grounding, atomic weather/report persistence, 344 Python and 122 browser tests, and independent pass review.
 - 2026-07-11: Watched-bird evaluator/reporting completed with post-refresh-only exact matching, privacy-safe deterministic/GLM reports, generation-bound event intent, 362 Python tests, and independent pass review.
 - 2026-07-11: Calendar/outbox mechanics completed with RFC REQUEST/CANCEL MIME, fail-closed relational state, atomic claims/recovery, 390 Python tests, and independent pass review.
+- 2026-07-11: Proton Bridge delivery/operations completed with exact-CA STARTTLS, 1/5/15 retries, ambiguity-safe reconciliation, non-regressing accepted snapshots, 408 Python and 125 browser tests, independent pass review, and exactly the authorized one email plus one invitation accepted by the local Bridge.
 
 ## Blockers
 

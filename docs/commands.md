@@ -179,6 +179,33 @@ alter plan content, or download/proxy media bytes. Re-running apply is a no-op a
 every recommendation has one current photo and one call result. `--database-path` may target a
 test copy; it does not create a missing database.
 
+## Bird alert delivery operations
+
+Bird-alert email is never sent by app startup, GET requests, watch changes, or tests. These
+explicit commands use generic SMTP and print bounded states only—never host, port,
+identities, certificate paths, or credentials.
+
+```bash
+# Validate loopback, exact public-certificate trust, STARTTLS hostname
+# verification, and Bridge-generated authentication without sending.
+uv run --no-sync python scripts/verify_bird_alert_smtp.py --preflight
+
+# Deliver at most one due persisted outbox row.
+uv run --no-sync python scripts/deliver_bird_alerts.py
+
+# Bounded live verification; each kind is durably limited to one attempt.
+uv run --no-sync python scripts/verify_bird_alert_smtp.py --test-email
+uv run --no-sync python scripts/verify_bird_alert_smtp.py --test-invitation
+```
+
+My Birds → Alert Delivery shows safe local status and only state-derived actions. Active
+ambiguous results can be marked not delivered and retried with a greater sequence;
+suppressed/inactive ambiguous results can only be terminally marked not delivered, without
+retry, or marked delivered so Databox enqueues a coherent cancellation. Ambiguous results
+are never automatically resent. SMTP acceptance means accepted by the local Bridge, not proof of
+inbox receipt or calendar rendering. Resolved history expires after 90 days; unresolved
+ambiguous rows remain until reconciliation.
+
 ## SQLMesh
 
 Run from `transforms/main/` — SQLMesh picks up `config.py` there.

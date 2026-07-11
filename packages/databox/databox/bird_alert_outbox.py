@@ -143,7 +143,8 @@ def ensure_outbox_tables(connection: duckdb.DuckDBPyConnection) -> None:
         CREATE TABLE IF NOT EXISTS {ALERT_SCHEMA}.alert_outbox (
           outbox_id VARCHAR PRIMARY KEY, species_code VARCHAR NOT NULL,
           watch_id VARCHAR NOT NULL, activation_generation VARCHAR NOT NULL,
-          event_uid VARCHAR NOT NULL, sequence BIGINT NOT NULL, method VARCHAR NOT NULL,
+          source_report_id VARCHAR NOT NULL, event_uid VARCHAR NOT NULL,
+          sequence BIGINT NOT NULL, method VARCHAR NOT NULL,
           payload_json VARCHAR NOT NULL, payload_hash VARCHAR NOT NULL,
           state VARCHAR NOT NULL, next_attempt_at VARCHAR NOT NULL,
           claim_token VARCHAR, claimed_at VARCHAR, claim_expires_at VARCHAR,
@@ -174,6 +175,44 @@ def ensure_outbox_tables(connection: duckdb.DuckDBPyConnection) -> None:
         )
         """
     )
+    columns = {
+        str(row[0])
+        for row in connection.execute(
+            """SELECT column_name FROM information_schema.columns
+               WHERE table_schema=? AND table_name='alert_outbox'""",
+            [ALERT_SCHEMA],
+        ).fetchall()
+    }
+    if "source_report_id" not in columns:
+        connection.execute(
+            f"ALTER TABLE {ALERT_SCHEMA}.alert_outbox ADD COLUMN source_report_id VARCHAR"
+        )
+        connection.execute(
+            f"""UPDATE {ALERT_SCHEMA}.alert_outbox AS outbox
+                SET source_report_id=event.source_report_id
+                FROM {ALERT_SCHEMA}.event_intents AS event
+                WHERE outbox.species_code=event.species_code
+                  AND outbox.event_uid=event.event_uid
+                  AND outbox.sequence=event.sequence"""
+        )
+        unresolved = connection.execute(
+            f"""SELECT count(*) FROM {ALERT_SCHEMA}.alert_outbox
+                WHERE source_report_id IS NULL AND state NOT IN
+                  ('accepted','failed','cancelled','superseded')"""
+        ).fetchone()
+        if unresolved is None or int(unresolved[0]) > 0:
+            raise ValueError("existing sendable outbox rows lack exact report linkage")
+    connection.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {ALERT_SCHEMA}.accepted_event_snapshots (
+          event_uid VARCHAR PRIMARY KEY, species_code VARCHAR NOT NULL,
+          watch_id VARCHAR NOT NULL, activation_generation VARCHAR NOT NULL,
+          source_report_id VARCHAR NOT NULL, accepted_sequence BIGINT NOT NULL,
+          event_horizon_end VARCHAR NOT NULL, payload_json VARCHAR NOT NULL,
+          payload_hash VARCHAR NOT NULL, accepted_at VARCHAR NOT NULL
+        )
+        """
+    )
     connection.execute(
         f"""
         CREATE TABLE IF NOT EXISTS {ALERT_SCHEMA}.outbox_dedupe (
@@ -192,7 +231,7 @@ def _outbox_id(event_uid: str, sequence: int, method: str) -> str:
 
 def _payload_for_event(
     connection: duckdb.DuckDBPyConnection, species_code: str
-) -> tuple[CalendarPayload, tuple[str, str]]:
+) -> tuple[CalendarPayload, tuple[str, str, str]]:
     event = connection.execute(
         f"""SELECT species_code, watch_id, activation_generation, event_uid, sequence,
                    method, status, report_id, source_report_id, morning_start, morning_end,
@@ -266,7 +305,7 @@ def _payload_for_event(
         independent_submission_count=int(report[11]) if method == "REQUEST" else None,
         newest_observation_at=str(report[12]) if method == "REQUEST" else None,
     )
-    return payload, (str(event[1]), str(event[2]))
+    return payload, (str(event[1]), str(event[2]), str(event[8]))
 
 
 def _enqueue_event_intent(
@@ -275,7 +314,9 @@ def _enqueue_event_intent(
     """Enqueue one current sendable event inside the caller's transaction."""
 
     ensure_outbox_tables(connection)
-    payload, (watch_id, activation_generation) = _payload_for_event(connection, species_code)
+    payload, (watch_id, activation_generation, source_report_id) = _payload_for_event(
+        connection, species_code
+    )
     payload_json = payload.canonical_json()
     outbox_id = _outbox_id(payload.event_uid, payload.sequence, payload.method)
     existing = connection.execute(
@@ -300,14 +341,21 @@ def _enqueue_event_intent(
         [timestamp, timestamp, payload.event_uid, payload.sequence],
     )
     connection.execute(
-        f"""INSERT INTO {ALERT_SCHEMA}.alert_outbox VALUES
-            (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL, NULL, NULL, NULL,
+        f"""INSERT INTO {ALERT_SCHEMA}.alert_outbox (
+          outbox_id, species_code, watch_id, activation_generation,
+          source_report_id, event_uid, sequence, method, payload_json,
+          payload_hash, state, next_attempt_at, claim_token, claimed_at,
+          claim_expires_at, send_started_at, attempt_count, created_at,
+          updated_at, terminal_at, safe_terminal_reason
+        ) VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL, NULL, NULL, NULL,
              0, ?, ?, NULL, NULL)""",
         [
             outbox_id,
             payload.species_code,
             watch_id,
             activation_generation,
+            source_report_id,
             payload.event_uid,
             payload.sequence,
             payload.method,
@@ -371,10 +419,12 @@ def _suppress_event_outbox(
             phase = None
         connection.execute(
             f"""UPDATE {ALERT_SCHEMA}.alert_outbox
-                SET state=?, payload_json='{{}}', claim_token=NULL, claimed_at=NULL,
-                    claim_expires_at=NULL, updated_at=?, terminal_at=?, safe_terminal_reason=?
+                SET state=?, payload_json=CASE WHEN ?='delivery_unknown'
+                    THEN payload_json ELSE '{{}}' END,
+                    claim_token=NULL, claimed_at=NULL, claim_expires_at=NULL,
+                    updated_at=?, terminal_at=?, safe_terminal_reason=?
                 WHERE outbox_id=?""",
-            [next_state, timestamp, terminal_at, reason, outbox_id],
+            [next_state, next_state, timestamp, terminal_at, reason, outbox_id],
         )
         if phase is not None:
             connection.execute(
@@ -638,6 +688,67 @@ def start_send_attempt(
         raise
 
 
+def record_pre_send_outcome(
+    connection: duckdb.DuckDBPyConnection,
+    *,
+    outbox_id: str,
+    claim_token: str,
+    outcome: Literal["retry_wait", "failed"],
+    now: datetime,
+    safe_reason: str,
+    next_attempt_at: datetime | None = None,
+) -> None:
+    """Record a preparation failure while transmission is provably unstarted."""
+
+    if not re.fullmatch(r"[a-z_]{1,64}", safe_reason):
+        raise ValueError("outcome reason is invalid")
+    if (outcome == "retry_wait") != (next_attempt_at is not None):
+        raise ValueError("retry outcome scheduling is inconsistent")
+    timestamp = _iso(now)
+    connection.execute("BEGIN TRANSACTION")
+    try:
+        row = connection.execute(
+            f"""SELECT attempt_count, send_started_at FROM {ALERT_SCHEMA}.alert_outbox
+                WHERE outbox_id=? AND state='claimed' AND claim_token=?""",
+            [outbox_id, claim_token],
+        ).fetchone()
+        if row is None or row[1] is not None:
+            raise ValueError("outbox preparation attempt is not active")
+        attempt_number = int(row[0]) + 1
+        terminal_at = timestamp if outcome == "failed" else None
+        connection.execute(
+            f"""UPDATE {ALERT_SCHEMA}.alert_outbox SET state=?, next_attempt_at=?,
+                claim_token=NULL, claimed_at=NULL, claim_expires_at=NULL,
+                attempt_count=?, updated_at=?, terminal_at=?, safe_terminal_reason=?
+                WHERE outbox_id=?""",
+            [
+                outcome,
+                _iso(next_attempt_at) if next_attempt_at is not None else timestamp,
+                attempt_number,
+                timestamp,
+                terminal_at,
+                safe_reason,
+                outbox_id,
+            ],
+        )
+        connection.execute(
+            f"INSERT INTO {ALERT_SCHEMA}.outbox_attempts VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                str(uuid.uuid4()),
+                outbox_id,
+                attempt_number,
+                claim_token,
+                outcome,
+                safe_reason,
+                timestamp,
+            ],
+        )
+        connection.execute("COMMIT")
+    except Exception:
+        connection.execute("ROLLBACK")
+        raise
+
+
 def record_attempt_outcome(
     connection: duckdb.DuckDBPyConnection,
     *,
@@ -662,8 +773,28 @@ def record_attempt_outcome(
                 WHERE outbox_id=? AND state='claimed' AND claim_token=?""",
             [outbox_id, claim_token],
         ).fetchone()
-        if row is None or row[5] is None:
+        if row is None:
+            replay = connection.execute(
+                f"""SELECT outbox.state FROM {ALERT_SCHEMA}.alert_outbox AS outbox
+                    WHERE outbox.outbox_id=? AND outbox.state='accepted'
+                      AND EXISTS (
+                        SELECT 1 FROM {ALERT_SCHEMA}.outbox_attempts AS attempt
+                        WHERE attempt.outbox_id=outbox.outbox_id
+                          AND attempt.claim_token=? AND attempt.phase='accepted'
+                      )""",
+                [outbox_id, claim_token],
+            ).fetchone()
+            if replay is not None and outcome == "accepted":
+                connection.execute("COMMIT")
+                return
             raise ValueError("outbox attempt is not active")
+        if row[5] is None:
+            raise ValueError("outbox attempt is not active")
+        accepted_snapshot = (
+            _validated_reconciliation_snapshot(connection, outbox_id)
+            if outcome == "accepted"
+            else None
+        )
         terminal_at = timestamp if outcome in TERMINAL_STATES else None
         connection.execute(
             f"""UPDATE {ALERT_SCHEMA}.alert_outbox
@@ -693,20 +824,9 @@ def record_attempt_outcome(
         )
         if outcome == "accepted":
             if str(row[3]) == "REQUEST":
-                event = connection.execute(
-                    f"""SELECT event_horizon_end FROM {ALERT_SCHEMA}.event_intents
-                        WHERE species_code=? AND event_uid=? AND sequence=?
-                          AND status='pending_request'""",
-                    [row[0], row[1], row[2]],
-                ).fetchone()
-                if event is not None:
-                    connection.execute(
-                        f"""UPDATE {ALERT_SCHEMA}.event_intents SET status='accepted',
-                            last_accepted_sequence=sequence,
-                            last_accepted_horizon_end=event_horizon_end,
-                            last_accepted_at=?, updated_at=? WHERE species_code=?""",
-                        [timestamp, timestamp, row[0]],
-                    )
+                if accepted_snapshot is None:
+                    raise ValueError("accepted delivery snapshot is unavailable")
+                _propagate_accepted_request_snapshot(connection, accepted_snapshot, now=now)
             else:
                 connection.execute(
                     f"""UPDATE {ALERT_SCHEMA}.event_intents SET status='cancelled',
@@ -719,7 +839,602 @@ def record_attempt_outcome(
                           AND status='pending_cancel'""",
                     [timestamp, row[0], row[1], row[2]],
                 )
+                connection.execute(
+                    f"DELETE FROM {ALERT_SCHEMA}.accepted_event_snapshots WHERE event_uid=?",
+                    [row[1]],
+                )
         connection.execute("COMMIT")
+    except Exception:
+        connection.execute("ROLLBACK")
+        raise
+
+
+@dataclass(frozen=True)
+class ReconciliationSnapshot:
+    state: str
+    outbox_id: str
+    species_code: str
+    watch_id: str
+    activation_generation: str
+    source_report_id: str
+    payload: CalendarPayload
+    attempt_count: int
+    safe_reason: str | None
+
+
+def _validated_reconciliation_snapshot(
+    connection: duckdb.DuckDBPyConnection, outbox_id: str
+) -> ReconciliationSnapshot:
+    row = connection.execute(
+        f"""SELECT state, species_code, watch_id, activation_generation,
+                   source_report_id, event_uid, sequence, method, payload_json,
+                   payload_hash, attempt_count, safe_terminal_reason
+            FROM {ALERT_SCHEMA}.alert_outbox WHERE outbox_id=?""",
+        [outbox_id],
+    ).fetchone()
+    if row is None or row[4] is None:
+        raise ValueError("alert delivery is unavailable")
+    payload = CalendarPayload.model_validate_json(str(row[8]))
+    if (
+        payload.payload_hash != str(row[9])
+        or payload.species_code != str(row[1])
+        or payload.event_uid != str(row[5])
+        or payload.sequence != int(row[6])
+        or payload.method != str(row[7])
+    ):
+        raise ValueError("alert delivery canonical identity is inconsistent")
+    reports = connection.execute(
+        f"""SELECT report_id, species_code, watch_id, activation_generation,
+                   common_name, scientific_name, confirmed_location_id,
+                   confirmed_location_name, confirmed_latitude, confirmed_longitude,
+                   confirmed_distance_miles, independent_submission_count,
+                   newest_observation_at, morning_start, morning_end,
+                   event_horizon_end
+            FROM {ALERT_SCHEMA}.match_reports WHERE report_id=? LIMIT 2""",
+        [row[4]],
+    ).fetchall()
+    if len(reports) != 1:
+        raise ValueError("alert delivery source report is unavailable or non-unique")
+    report = reports[0]
+    report_location_name = report[7] or f"eBird location {report[6]}"
+    coherent = (
+        str(report[0]) == str(row[4])
+        and str(report[1]) == payload.species_code
+        and str(report[2]) == str(row[2])
+        and str(report[3]) == str(row[3])
+        and (str(report[4]) if report[4] is not None else None) == payload.common_name
+        and (str(report[5]) if report[5] is not None else None) == payload.scientific_name
+        and str(report[6]) == payload.location_id
+        and str(report_location_name) == payload.location_name
+        and float(report[8]) == payload.latitude
+        and float(report[9]) == payload.longitude
+        and str(report[13]) == payload.morning_start
+        and str(report[14]) == payload.morning_end
+        and str(report[15]) == payload.event_horizon_end
+    )
+    if payload.method == "REQUEST":
+        coherent = coherent and (
+            float(report[10]) == payload.confirmed_distance_miles
+            and int(report[11]) == payload.independent_submission_count
+            and str(report[12]) == payload.newest_observation_at
+        )
+    if not coherent:
+        raise ValueError("alert delivery and source report are inconsistent")
+    return ReconciliationSnapshot(
+        state=str(row[0]),
+        outbox_id=outbox_id,
+        species_code=payload.species_code,
+        watch_id=str(row[2]),
+        activation_generation=str(row[3]),
+        source_report_id=str(row[4]),
+        payload=payload,
+        attempt_count=int(row[10]),
+        safe_reason=str(row[11]) if row[11] is not None else None,
+    )
+
+
+def _active_retry_event(
+    connection: duckdb.DuckDBPyConnection, snapshot: ReconciliationSnapshot, now: datetime
+) -> bool:
+    event = connection.execute(
+        f"""SELECT event_uid, sequence, status, event_horizon_end, watch_id,
+                   activation_generation, source_report_id, morning_start,
+                   morning_end, location_id, location_name, latitude, longitude
+            FROM {ALERT_SCHEMA}.event_intents WHERE species_code=?""",
+        [snapshot.species_code],
+    ).fetchone()
+    if (
+        event is None
+        or str(event[0]) != snapshot.payload.event_uid
+        or int(event[1]) < snapshot.payload.sequence
+        or str(event[2]) not in {"pending_request", "accepted"}
+        or event[3] is None
+        or _parse_timestamp(str(event[3])) <= now.astimezone(UTC)
+    ):
+        return False
+    if int(event[1]) == snapshot.payload.sequence:
+        return bool(
+            str(event[4]) == snapshot.watch_id
+            and str(event[5]) == snapshot.activation_generation
+            and str(event[6]) == snapshot.source_report_id
+            and str(event[7]) == snapshot.payload.morning_start
+            and str(event[8]) == snapshot.payload.morning_end
+            and str(event[3]) == snapshot.payload.event_horizon_end
+            and str(event[9]) == snapshot.payload.location_id
+            and str(event[10]) == snapshot.payload.location_name
+            and float(event[11]) == snapshot.payload.latitude
+            and float(event[12]) == snapshot.payload.longitude
+        )
+    current = connection.execute(
+        f"""SELECT outbox_id FROM {ALERT_SCHEMA}.alert_outbox
+            WHERE event_uid=? AND sequence=? AND method='REQUEST' LIMIT 2""",
+        [event[0], event[1]],
+    ).fetchall()
+    if len(current) != 1:
+        return False
+    current_snapshot = _validated_reconciliation_snapshot(connection, str(current[0][0]))
+    return current_snapshot.payload.event_horizon_end == str(event[3])
+
+
+def delivery_allowed_actions(
+    connection: duckdb.DuckDBPyConnection, *, outbox_id: str, now: datetime
+) -> tuple[list[str], bool]:
+    state = connection.execute(
+        f"SELECT state FROM {ALERT_SCHEMA}.alert_outbox WHERE outbox_id=?", [outbox_id]
+    ).fetchone()
+    if state is None:
+        raise ValueError("alert delivery is unavailable")
+    if str(state[0]) not in {"delivery_unknown", "failed"}:
+        return [], False
+    snapshot = _validated_reconciliation_snapshot(connection, outbox_id)
+    active = _active_retry_event(connection, snapshot, now)
+    if snapshot.state == "delivery_unknown":
+        if active:
+            return ["mark_delivered", "mark_not_delivered_and_retry"], True
+        return ["mark_delivered", "mark_not_delivered"], False
+    if snapshot.state == "failed" and active:
+        return ["retry_failed"], True
+    return [], False
+
+
+def _persist_accepted_snapshot(
+    connection: duckdb.DuckDBPyConnection,
+    snapshot: ReconciliationSnapshot,
+    *,
+    now: datetime,
+) -> None:
+    payload = snapshot.payload
+    existing = connection.execute(
+        f"""SELECT accepted_sequence, payload_hash
+            FROM {ALERT_SCHEMA}.accepted_event_snapshots WHERE event_uid=?""",
+        [payload.event_uid],
+    ).fetchone()
+    if existing is not None and int(existing[0]) > payload.sequence:
+        return
+    if existing is not None and int(existing[0]) == payload.sequence:
+        if str(existing[1]) != payload.payload_hash:
+            raise ValueError("accepted event snapshot identity conflicts")
+        return
+    connection.execute(
+        f"""INSERT OR REPLACE INTO {ALERT_SCHEMA}.accepted_event_snapshots VALUES
+            (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        [
+            payload.event_uid,
+            snapshot.species_code,
+            snapshot.watch_id,
+            snapshot.activation_generation,
+            snapshot.source_report_id,
+            payload.sequence,
+            payload.event_horizon_end,
+            payload.canonical_json(),
+            payload.payload_hash,
+            _iso(now),
+        ],
+    )
+
+
+def _create_cancel_from_accepted_snapshot(
+    connection: duckdb.DuckDBPyConnection,
+    snapshot: ReconciliationSnapshot,
+    *,
+    now: datetime,
+    current_sequence: int,
+) -> str:
+    payload = snapshot.payload
+    next_sequence = max(current_sequence, payload.sequence) + 1
+    timestamp = _iso(now)
+    connection.execute(
+        f"""UPDATE {ALERT_SCHEMA}.match_reports
+            SET resolved_at=COALESCE(resolved_at, ?) WHERE report_id=?""",
+        [timestamp, snapshot.source_report_id],
+    )
+    event = connection.execute(
+        f"SELECT count(*) FROM {ALERT_SCHEMA}.event_intents WHERE species_code=?",
+        [snapshot.species_code],
+    ).fetchone()
+    values = [
+        snapshot.watch_id,
+        snapshot.activation_generation,
+        payload.event_uid,
+        next_sequence,
+        snapshot.source_report_id,
+        payload.morning_start,
+        payload.morning_end,
+        payload.event_horizon_end,
+        payload.location_id,
+        payload.location_name,
+        payload.latitude,
+        payload.longitude,
+        payload.sequence,
+        payload.event_horizon_end,
+        timestamp,
+        timestamp,
+        snapshot.species_code,
+    ]
+    if event is not None and int(event[0]) == 1:
+        connection.execute(
+            f"""UPDATE {ALERT_SCHEMA}.event_intents SET watch_id=?,
+                activation_generation=?, event_uid=?, sequence=?, method='CANCEL',
+                status='pending_cancel', report_id=NULL, source_report_id=?,
+                morning_start=?, morning_end=?, event_horizon_end=?, location_id=?,
+                location_name=?, latitude=?, longitude=?, last_accepted_sequence=?,
+                last_accepted_horizon_end=?, last_accepted_at=?, updated_at=?
+                WHERE species_code=?""",
+            values,
+        )
+    else:
+        connection.execute(
+            f"""INSERT INTO {ALERT_SCHEMA}.event_intents (
+              watch_id, activation_generation, event_uid, sequence, method, status,
+              report_id, source_report_id, morning_start, morning_end,
+              event_horizon_end, location_id, location_name, latitude, longitude,
+              last_accepted_sequence, last_accepted_horizon_end, last_accepted_at,
+              updated_at, species_code
+            ) VALUES (?, ?, ?, ?, 'CANCEL', 'pending_cancel', NULL, ?, ?, ?, ?,
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            values,
+        )
+    return _enqueue_event_intent(connection, snapshot.species_code, now=now)
+
+
+def enqueue_cancel_from_accepted_snapshot(
+    connection: duckdb.DuckDBPyConnection,
+    *,
+    event_uid: str,
+    now: datetime,
+    in_transaction: bool = False,
+) -> str | None:
+    """Create one coherent greater-sequence CANCEL from the last accepted REQUEST."""
+
+    def create() -> str | None:
+        row = connection.execute(
+            f"""SELECT species_code, watch_id, activation_generation,
+                       source_report_id, accepted_sequence, event_horizon_end,
+                       payload_json, payload_hash, accepted_at
+                FROM {ALERT_SCHEMA}.accepted_event_snapshots WHERE event_uid=?""",
+            [event_uid],
+        ).fetchone()
+        if row is None or _parse_timestamp(str(row[5])) <= now.astimezone(UTC):
+            return None
+        payload = CalendarPayload.model_validate_json(str(row[6]))
+        if (
+            payload.method != "REQUEST"
+            or payload.event_uid != event_uid
+            or payload.species_code != str(row[0])
+            or payload.sequence != int(row[4])
+            or payload.event_horizon_end != str(row[5])
+            or payload.payload_hash != str(row[7])
+        ):
+            raise ValueError("accepted event snapshot is inconsistent")
+        snapshot = ReconciliationSnapshot(
+            state="accepted",
+            outbox_id="accepted-snapshot",
+            species_code=str(row[0]),
+            watch_id=str(row[1]),
+            activation_generation=str(row[2]),
+            source_report_id=str(row[3]),
+            payload=payload,
+            attempt_count=0,
+            safe_reason=None,
+        )
+        event = connection.execute(
+            f"""SELECT sequence, event_uid, status FROM {ALERT_SCHEMA}.event_intents
+                WHERE species_code=?""",
+            [snapshot.species_code],
+        ).fetchone()
+        if event is not None and str(event[1]) != event_uid:
+            raise ValueError("accepted event UID conflicts with current event")
+        if event is not None and str(event[2]) in {"pending_cancel", "cancelled"}:
+            existing = connection.execute(
+                f"""SELECT outbox_id FROM {ALERT_SCHEMA}.alert_outbox
+                    WHERE event_uid=? AND method='CANCEL' ORDER BY sequence DESC LIMIT 1""",
+                [event_uid],
+            ).fetchone()
+            return str(existing[0]) if existing is not None else None
+        current_sequence = int(event[0]) if event is not None else payload.sequence
+        return _create_cancel_from_accepted_snapshot(
+            connection, snapshot, now=now, current_sequence=current_sequence
+        )
+
+    if in_transaction:
+        return create()
+    connection.execute("BEGIN TRANSACTION")
+    try:
+        result = create()
+        connection.execute("COMMIT")
+        return result
+    except Exception:
+        connection.execute("ROLLBACK")
+        raise
+
+
+def _propagate_accepted_request_snapshot(
+    connection: duckdb.DuckDBPyConnection,
+    snapshot: ReconciliationSnapshot,
+    *,
+    now: datetime,
+) -> None:
+    """Persist acceptance without regressing a newer same-UID event."""
+
+    payload = snapshot.payload
+    if payload.method != "REQUEST":
+        raise ValueError("accepted request propagation requires REQUEST payload")
+    _persist_accepted_snapshot(connection, snapshot, now=now)
+    event = connection.execute(
+        f"""SELECT event_uid, sequence, status FROM {ALERT_SCHEMA}.event_intents
+            WHERE species_code=?""",
+        [snapshot.species_code],
+    ).fetchone()
+    if event is not None and str(event[0]) != payload.event_uid:
+        raise ValueError("current event UID conflicts with accepted delivery")
+    timestamp = _iso(now)
+    if event is not None:
+        connection.execute(
+            f"""UPDATE {ALERT_SCHEMA}.event_intents SET
+                last_accepted_sequence=CASE
+                  WHEN last_accepted_sequence IS NULL OR last_accepted_sequence < ?
+                  THEN ? ELSE last_accepted_sequence END,
+                last_accepted_horizon_end=CASE
+                  WHEN last_accepted_sequence IS NULL OR last_accepted_sequence <= ?
+                  THEN ? ELSE last_accepted_horizon_end END,
+                last_accepted_at=CASE
+                  WHEN last_accepted_sequence IS NULL OR last_accepted_sequence <= ?
+                  THEN ? ELSE last_accepted_at END,
+                status=CASE WHEN sequence=? AND status='pending_request'
+                  THEN 'accepted' ELSE status END,
+                updated_at=CASE WHEN sequence=? AND status='pending_request'
+                  THEN ? ELSE updated_at END
+                WHERE species_code=? AND event_uid=? AND sequence>=?""",
+            [
+                payload.sequence,
+                payload.sequence,
+                payload.sequence,
+                payload.event_horizon_end,
+                payload.sequence,
+                timestamp,
+                payload.sequence,
+                payload.sequence,
+                timestamp,
+                snapshot.species_code,
+                payload.event_uid,
+                payload.sequence,
+            ],
+        )
+    current_status = str(event[2]) if event is not None else "suppressed"
+    if (
+        current_status in {"suppressed", "expired"}
+        and _parse_timestamp(payload.event_horizon_end) > now.astimezone(UTC)
+    ) or event is None:
+        enqueue_cancel_from_accepted_snapshot(
+            connection, event_uid=payload.event_uid, now=now, in_transaction=True
+        )
+
+
+def reconcile_unknown_as_delivered(
+    connection: duckdb.DuckDBPyConnection,
+    *,
+    outbox_id: str,
+    now: datetime,
+) -> None:
+    """Idempotently accept an ambiguous delivery after operator reconciliation."""
+
+    timestamp = _iso(now)
+    connection.execute("BEGIN TRANSACTION")
+    try:
+        snapshot = _validated_reconciliation_snapshot(connection, outbox_id)
+        if snapshot.state == "accepted":
+            connection.execute("COMMIT")
+            return
+        if snapshot.state != "delivery_unknown":
+            raise ValueError("only unknown delivery can be marked delivered")
+        payload = snapshot.payload
+        event = connection.execute(
+            f"""SELECT event_uid, sequence, status FROM {ALERT_SCHEMA}.event_intents
+                WHERE species_code=?""",
+            [snapshot.species_code],
+        ).fetchone()
+        if event is not None and str(event[0]) != payload.event_uid:
+            raise ValueError("current event UID conflicts with accepted delivery")
+        connection.execute(
+            f"""UPDATE {ALERT_SCHEMA}.alert_outbox SET state='accepted', updated_at=?,
+                terminal_at=?, safe_terminal_reason='manual_mark_delivered'
+                WHERE outbox_id=?""",
+            [timestamp, timestamp, outbox_id],
+        )
+        connection.execute(
+            f"INSERT INTO {ALERT_SCHEMA}.outbox_attempts VALUES (?, ?, ?, ?, 'accepted', ?, ?)",
+            [
+                str(uuid.uuid4()),
+                outbox_id,
+                snapshot.attempt_count,
+                "manual-reconciliation",
+                "manual_mark_delivered",
+                timestamp,
+            ],
+        )
+        if payload.method == "REQUEST":
+            _propagate_accepted_request_snapshot(connection, snapshot, now=now)
+        elif event is not None and int(event[1]) == payload.sequence:
+            connection.execute(
+                f"""UPDATE {ALERT_SCHEMA}.event_intents SET status='cancelled',
+                    report_id=NULL, source_report_id=NULL, morning_start=NULL,
+                    morning_end=NULL, event_horizon_end=NULL, location_id=NULL,
+                    location_name=NULL, latitude=NULL, longitude=NULL,
+                    last_accepted_sequence=NULL, last_accepted_horizon_end=NULL,
+                    last_accepted_at=NULL, updated_at=?
+                    WHERE species_code=? AND event_uid=? AND sequence=?
+                      AND status='pending_cancel'""",
+                [timestamp, snapshot.species_code, payload.event_uid, payload.sequence],
+            )
+            connection.execute(
+                f"DELETE FROM {ALERT_SCHEMA}.accepted_event_snapshots WHERE event_uid=?",
+                [payload.event_uid],
+            )
+        connection.execute("COMMIT")
+    except Exception:
+        connection.execute("ROLLBACK")
+        raise
+
+
+def reconcile_unknown_as_not_delivered(
+    connection: duckdb.DuckDBPyConnection,
+    *,
+    outbox_id: str,
+    now: datetime,
+) -> None:
+    """Terminally resolve an inactive unknown without creating a retry."""
+
+    timestamp = _iso(now)
+    connection.execute("BEGIN TRANSACTION")
+    try:
+        snapshot = _validated_reconciliation_snapshot(connection, outbox_id)
+        if snapshot.state == "failed" and snapshot.safe_reason == "manual_mark_not_delivered":
+            connection.execute("COMMIT")
+            return
+        actions, can_retry = delivery_allowed_actions(connection, outbox_id=outbox_id, now=now)
+        if snapshot.state != "delivery_unknown" or can_retry or "mark_not_delivered" not in actions:
+            raise ValueError("unknown active delivery requires a new-sequence retry")
+        connection.execute(
+            f"""UPDATE {ALERT_SCHEMA}.alert_outbox SET state='failed', terminal_at=?,
+                updated_at=?, safe_terminal_reason='manual_mark_not_delivered'
+                WHERE outbox_id=?""",
+            [timestamp, timestamp, outbox_id],
+        )
+        connection.execute(
+            f"INSERT INTO {ALERT_SCHEMA}.outbox_attempts VALUES (?, ?, ?, ?, 'failed', ?, ?)",
+            [
+                str(uuid.uuid4()),
+                outbox_id,
+                snapshot.attempt_count,
+                "manual-reconciliation",
+                "manual_mark_not_delivered",
+                timestamp,
+            ],
+        )
+        connection.execute("COMMIT")
+    except Exception:
+        connection.execute("ROLLBACK")
+        raise
+
+
+def retry_terminal_delivery(
+    connection: duckdb.DuckDBPyConnection,
+    *,
+    outbox_id: str,
+    now: datetime,
+) -> str:
+    """Retry a failed/unknown delivery as a new sequence; never resend the old row."""
+
+    timestamp = _iso(now)
+    connection.execute("BEGIN TRANSACTION")
+    try:
+        row = connection.execute(
+            f"""SELECT state, species_code, event_uid, sequence, method,
+                       safe_terminal_reason, attempt_count
+                FROM {ALERT_SCHEMA}.alert_outbox WHERE outbox_id=?""",
+            [outbox_id],
+        ).fetchone()
+        if row is None:
+            raise ValueError("alert delivery is unavailable")
+        if str(row[5]) == "manual_retry_enqueued":
+            existing = connection.execute(
+                f"""SELECT outbox_id FROM {ALERT_SCHEMA}.alert_outbox
+                    WHERE event_uid=? AND sequence>? ORDER BY sequence LIMIT 1""",
+                [row[2], row[3]],
+            ).fetchone()
+            if existing is None:
+                raise ValueError("manual retry state is inconsistent")
+            connection.execute("COMMIT")
+            return str(existing[0])
+        if str(row[0]) not in {"failed", "delivery_unknown"}:
+            raise ValueError("only failed or unknown delivery can be retried")
+        actions, can_retry = delivery_allowed_actions(connection, outbox_id=outbox_id, now=now)
+        expected_action = (
+            "mark_not_delivered_and_retry" if str(row[0]) == "delivery_unknown" else "retry_failed"
+        )
+        if not can_retry or expected_action not in actions:
+            raise ValueError("alert delivery is not retryable in its current event state")
+        event = connection.execute(
+            f"""SELECT sequence FROM {ALERT_SCHEMA}.event_intents
+                WHERE species_code=? AND event_uid=?""",
+            [row[1], row[2]],
+        ).fetchone()
+        if event is None or int(event[0]) < int(row[3]):
+            raise ValueError("alert event state is inconsistent")
+        if int(event[0]) > int(row[3]):
+            existing = connection.execute(
+                f"""SELECT outbox_id FROM {ALERT_SCHEMA}.alert_outbox
+                    WHERE event_uid=? AND sequence=? ORDER BY outbox_id LIMIT 1""",
+                [row[2], event[0]],
+            ).fetchone()
+            if existing is None:
+                raise ValueError("advanced alert event lacks an outbox row")
+            connection.execute(
+                f"""UPDATE {ALERT_SCHEMA}.alert_outbox SET state='failed', terminal_at=?,
+                    updated_at=?, safe_terminal_reason='manual_retry_enqueued'
+                    WHERE outbox_id=?""",
+                [timestamp, timestamp, outbox_id],
+            )
+            connection.execute(
+                f"INSERT INTO {ALERT_SCHEMA}.outbox_attempts VALUES (?, ?, ?, ?, 'failed', ?, ?)",
+                [
+                    str(uuid.uuid4()),
+                    outbox_id,
+                    int(row[6]),
+                    "manual-reconciliation",
+                    "manual_retry_enqueued",
+                    timestamp,
+                ],
+            )
+            connection.execute("COMMIT")
+            return str(existing[0])
+        next_sequence = int(row[3]) + 1
+        pending_status = "pending_request" if str(row[4]) == "REQUEST" else "pending_cancel"
+        connection.execute(
+            f"""UPDATE {ALERT_SCHEMA}.event_intents SET sequence=?, status=?
+                WHERE species_code=? AND event_uid=? AND sequence=?""",
+            [next_sequence, pending_status, row[1], row[2], row[3]],
+        )
+        connection.execute(
+            f"""UPDATE {ALERT_SCHEMA}.alert_outbox SET state='failed', terminal_at=?,
+                updated_at=?, safe_terminal_reason='manual_retry_enqueued'
+                WHERE outbox_id=?""",
+            [timestamp, timestamp, outbox_id],
+        )
+        connection.execute(
+            f"INSERT INTO {ALERT_SCHEMA}.outbox_attempts VALUES (?, ?, ?, ?, 'failed', ?, ?)",
+            [
+                str(uuid.uuid4()),
+                outbox_id,
+                int(row[6]),
+                "manual-reconciliation",
+                "manual_retry_enqueued",
+                timestamp,
+            ],
+        )
+        next_id = _enqueue_event_intent(connection, str(row[1]), now=now)
+        connection.execute("COMMIT")
+        return next_id
     except Exception:
         connection.execute("ROLLBACK")
         raise
@@ -754,6 +1469,15 @@ def _cleanup_outbox_history(
             f"DELETE FROM {ALERT_SCHEMA}.outbox_attempts WHERE outbox_id=?", [row[0]]
         )
         connection.execute(f"DELETE FROM {ALERT_SCHEMA}.alert_outbox WHERE outbox_id=?", [row[0]])
+    connection.execute(
+        f"""DELETE FROM {ALERT_SCHEMA}.accepted_event_snapshots AS snapshot
+            WHERE snapshot.accepted_at < ? AND NOT EXISTS (
+              SELECT 1 FROM {ALERT_SCHEMA}.event_intents AS event
+              WHERE event.event_uid=snapshot.event_uid
+                AND event.status NOT IN ('cancelled','expired')
+            )""",
+        [cutoff],
+    )
     return {"outbox_deleted": len(rows)}
 
 

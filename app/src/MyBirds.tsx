@@ -1,5 +1,6 @@
 import { FormEvent, MouseEvent, type Ref, useEffect, useMemo, useRef, useState } from "react";
 import LocationCombobox from "./LocationCombobox";
+import { listAlertDeliveries, markAlertDelivered, markAlertNotDelivered, retryAlertDelivery } from "./alertDeliveryApi";
 import { startCollectionMutation, useCollectionMutationBusy, useCollectionRevision } from "./collectionMutation";
 import { listBirds } from "./birdApi";
 import {
@@ -18,6 +19,7 @@ import {
   updateObservation,
 } from "./collectionApi";
 import type {
+  AlertDelivery,
   BirdCatalogSummary,
   BirdProfile,
   BirdWatch,
@@ -29,7 +31,7 @@ import type {
 } from "./types";
 
 type Navigate = (path: string) => void;
-type Tab = "life" | "observations" | "wishlist" | "watches";
+type Tab = "life" | "observations" | "wishlist" | "watches" | "alerts";
 
 function clickLink(event: MouseEvent<HTMLAnchorElement>, path: string, navigate: Navigate) {
   if (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
@@ -133,6 +135,10 @@ export function MyBirdsPage({ navigate }: { navigate: Navigate }) {
   const [life, setLife] = useState<LifeListEntry[]>([]);
   const [wishlist, setWishlist] = useState<WishlistEntry[]>([]);
   const [watches, setWatches] = useState<BirdWatch[]>([]);
+  const [deliveries, setDeliveries] = useState<AlertDelivery[]>([]);
+  const [alertBusy, setAlertBusy] = useState(false);
+  const [alertLoading, setAlertLoading] = useState(false);
+  const [deliveryRevision, setDeliveryRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const busy = useCollectionMutationBusy();
   const collectionRevision = useCollectionRevision();
@@ -159,6 +165,14 @@ export function MyBirdsPage({ navigate }: { navigate: Navigate }) {
     });
     return () => { current = false; };
   }, [collectionRevision]);
+  useEffect(() => {
+    if (tab !== "alerts") return;
+    let current = true; setAlertLoading(true);
+    void listAlertDeliveries().then((rows) => { if (current) setDeliveries(rows); })
+      .catch((reason: unknown) => { if (current) setError(reason instanceof Error ? reason.message : "Alert delivery status is unavailable."); })
+      .finally(() => { if (current) setAlertLoading(false); });
+    return () => { current = false; };
+  }, [tab, deliveryRevision]);
   useEffect(() => headingRef.current?.focus(), []);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
@@ -169,16 +183,24 @@ export function MyBirdsPage({ navigate }: { navigate: Navigate }) {
     try { await mutation.result; setStatus(success); return true; }
     catch (reason) { setError(reason instanceof Error ? reason.message : "My Birds is unavailable."); return false; }
   }
+  async function mutateAlert(action: () => Promise<string>, success: string) {
+    if (alertBusy) return;
+    setAlertBusy(true); setError(null); setStatus(null);
+    try { await action(); setStatus(success); setDeliveryRevision((value) => value + 1); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Alert delivery status is unavailable."); }
+    finally { setAlertBusy(false); }
+  }
   const availableWatchBirds = useMemo(() => birds.filter((bird) => !watches.some((watch) => watch.species_code === bird.species_code)), [birds, watches]);
   useEffect(() => { if (!availableWatchBirds.some((bird) => bird.species_code === newWatchSpecies)) setNewWatchSpecies(availableWatchBirds[0]?.species_code || ""); }, [availableWatchBirds, newWatchSpecies]);
 
   return <main className="my-birds-main">
     <header className="catalog-heading"><p className="eyebrow">Private local collection</p><h1 ref={headingRef} tabIndex={-1}>My Birds</h1><p>Observations, life list, wishlist, and watched birds remain in your local DuckDB until you remove them.</p></header>
-    <nav className="collection-tabs" aria-label="My Birds sections">{(["life", "observations", "wishlist", "watches"] as Tab[]).map((value) => <button key={value} type="button" aria-pressed={tab === value} onClick={() => setTab(value)}>{value === "life" ? "Life List" : value[0].toUpperCase() + value.slice(1)}</button>)}</nav>
+    <nav className="collection-tabs" aria-label="My Birds sections">{(["life", "observations", "wishlist", "watches", "alerts"] as Tab[]).map((value) => <button key={value} type="button" aria-pressed={tab === value} onClick={() => setTab(value)}>{value === "life" ? "Life List" : value === "alerts" ? "Alert Delivery" : value[0].toUpperCase() + value.slice(1)}</button>)}</nav>
     <ErrorBox error={error} errorRef={errorRef} />{status && <p className="success" role="status">{status}</p>}{loading && <p role="status">Loading your local collection…</p>}
     {!loading && tab === "life" && <section className="panel" aria-labelledby="life-list-heading"><h2 id="life-list-heading">Life List</h2>{life.length ? <ul className="collection-list">{life.map((entry) => <li key={entry.species_code}><div><a href={`/birds/${entry.species_code}`} onClick={(event) => clickLink(event, `/birds/${entry.species_code}`, navigate)}><strong>{birdLabel(entry.species_code, entry.identity)}</strong></a><Stale status={entry.identity.catalog_status} /></div><span>{entry.observation_count} observation{entry.observation_count === 1 ? "" : "s"} · first {dateLabel(entry.first_observed_date)} · latest {dateLabel(entry.latest_observed_date)}</span></li>)}</ul> : <p className="empty">Your life list is empty. Record an observation to add a bird.</p>}</section>}
     {!loading && tab === "observations" && <section className="panel" aria-labelledby="observations-heading"><h2 id="observations-heading">Observations</h2><details open={!observations.length}><summary>Record a new observation</summary><ObservationForm birds={birds} busy={busy} onSave={(input) => mutate(() => createObservation(input).then(() => undefined), "Observation recorded.")} /></details>{editingObservation && <div className="nested-panel"><h3>Edit {birdLabel(editingObservation.species_code, editingObservation.identity)}</h3><ObservationForm key={editingObservation.observation_id} birds={birds} initial={editingObservation} busy={busy} onCancel={() => setEditingObservation(null)} onSave={async (input) => { const saved = await mutate(() => updateObservation(editingObservation.observation_id, input).then(() => undefined), "Observation updated."); if (saved) setEditingObservation(null); return saved; }} /></div>}{observations.length ? <ul className="collection-list">{observations.map((entry) => <li key={entry.observation_id}><div><a href={`/birds/${entry.species_code}`} onClick={(event) => clickLink(event, `/birds/${entry.species_code}`, navigate)}><strong>{birdLabel(entry.species_code, entry.identity)}</strong></a><Stale status={entry.identity.catalog_status} /></div><span>{dateLabel(entry.observation_date)}{entry.location ? ` · ${entry.location}` : ""}</span>{entry.notes && <p>{entry.notes}</p>}<div className="button-row"><button type="button" className="secondary" disabled={busy} onClick={() => setEditingObservation(entry)}>Edit</button><button type="button" className="danger" disabled={busy} onClick={() => setDeletingObservation(entry)}>Delete permanently</button></div></li>)}</ul> : <p className="empty">No observations recorded yet.</p>}</section>}
     {!loading && tab === "wishlist" && <section className="panel" aria-labelledby="wishlist-heading"><h2 id="wishlist-heading">Wishlist</h2><form className="inline-collection-form" onSubmit={(event) => { event.preventDefault(); const value = new FormData(event.currentTarget).get("wishlist-species"); if (typeof value === "string") void mutate(() => addWishlist(value).then(() => undefined), "Bird added to wishlist."); }}><label htmlFor="wishlist-species">Add a bird</label><select id="wishlist-species" name="wishlist-species" required>{birds.map((bird) => <option key={bird.species_code} value={bird.species_code}>{birdOption(bird)}</option>)}</select><button type="submit" disabled={busy}>Add to wishlist</button></form>{wishlist.length ? <ul className="collection-list">{wishlist.map((entry) => <li key={entry.species_code}><div><a href={`/birds/${entry.species_code}`} onClick={(event) => clickLink(event, `/birds/${entry.species_code}`, navigate)}><strong>{birdLabel(entry.species_code, entry.identity)}</strong></a><Stale status={entry.identity.catalog_status} /></div><button type="button" className="secondary" disabled={busy} onClick={() => void mutate(() => removeWishlist(entry.species_code), "Bird removed from wishlist.")}>Remove from wishlist</button></li>)}</ul> : <p className="empty">Your wishlist is empty.</p>}</section>}
+    {!loading && tab === "alerts" && <section className="panel" aria-labelledby="alerts-heading"><h2 id="alerts-heading">Alert Delivery</h2><p className="source-status">Safe local status only. SMTP configuration, addresses, certificate details, and message bodies are never shown. Delivery acceptance means accepted by the local Bridge, not confirmed inbox or calendar rendering.</p>{alertLoading ? <p role="status">Loading alert delivery status…</p> : deliveries.length ? <ul className="collection-list">{deliveries.map((delivery) => <li key={delivery.outbox_id}><div><strong>{delivery.species_code}</strong><span className={`badge ${delivery.state === "delivery_unknown" || delivery.state === "failed" ? "warning" : ""}`}>{delivery.state.replaceAll("_", " ")}</span></div><span>{delivery.method} · sequence {delivery.sequence} · {delivery.attempt_count} attempt{delivery.attempt_count === 1 ? "" : "s"} · updated {new Date(delivery.updated_at).toLocaleString()}</span>{delivery.safe_terminal_reason && <p>Reason: {delivery.safe_terminal_reason.replaceAll("_", " ")}</p>}<details><summary>Attempt history</summary>{delivery.attempts.length ? <ol>{delivery.attempts.map((attempt, index) => <li key={`${attempt.occurred_at}-${index}`}>{attempt.phase.replaceAll("_", " ")} · {new Date(attempt.occurred_at).toLocaleString()}</li>)}</ol> : <p>No send attempt has started.</p>}</details><div className="button-row">{delivery.allowed_actions.includes("mark_delivered") && <button type="button" disabled={alertBusy} onClick={() => { if (window.confirm("Mark this ambiguous alert as delivered? This does not verify inbox receipt.")) void mutateAlert(() => markAlertDelivered(delivery.outbox_id), "Alert marked delivered."); }}>Mark delivered</button>}{delivery.allowed_actions.includes("mark_not_delivered") && <button type="button" disabled={alertBusy} onClick={() => { if (window.confirm("Mark this inactive alert as not delivered without retrying it?")) void mutateAlert(() => markAlertNotDelivered(delivery.outbox_id), "Alert marked not delivered."); }}>Mark not delivered</button>}{delivery.allowed_actions.includes("mark_not_delivered_and_retry") && <button type="button" disabled={alertBusy} onClick={() => { if (window.confirm("Mark this alert as not delivered and enqueue one new-sequence retry?")) void mutateAlert(() => retryAlertDelivery(delivery.outbox_id), "Alert retry enqueued."); }}>Mark not delivered and retry</button>}{delivery.allowed_actions.includes("retry_failed") && <button type="button" disabled={alertBusy} onClick={() => { if (window.confirm("Enqueue one new-sequence retry for this failed alert?")) void mutateAlert(() => retryAlertDelivery(delivery.outbox_id), "Alert retry enqueued."); }}>Retry failed delivery</button>}</div></li>)}</ul> : <p className="empty">No alert delivery history is available.</p>}</section>}
     {!loading && tab === "watches" && <section className="panel" aria-labelledby="watches-heading"><h2 id="watches-heading">Watches</h2>{availableWatchBirds.length > 0 && <details open={!watches.length}><summary>Create a watch</summary><label htmlFor="new-watch-species">Bird</label><select id="new-watch-species" value={newWatchSpecies} onChange={(event) => setNewWatchSpecies(event.target.value)}>{availableWatchBirds.map((bird) => <option key={bird.species_code} value={bird.species_code}>{birdOption(bird)}</option>)}</select>{newWatchSpecies && <WatchForm speciesCode={newWatchSpecies} busy={busy} onSave={(center, radius) => mutate(() => saveWatch(newWatchSpecies, { center, radius_miles: radius }).then(() => undefined), "Watch created.")} />}</details>}{editingWatch && <div className="nested-panel"><h3>Edit watch for {birdLabel(editingWatch.species_code, editingWatch.identity)}</h3><WatchForm key={editingWatch.species_code} speciesCode={editingWatch.species_code} initial={editingWatch} busy={busy} onCancel={() => setEditingWatch(null)} onSave={async (center, radius) => { const saved = await mutate(() => saveWatch(editingWatch.species_code, { center, radius_miles: radius }).then(() => undefined), "Watch updated."); if (saved) setEditingWatch(null); return saved; }} /></div>}{watches.length ? <ul className="collection-list">{watches.map((entry) => <li key={entry.species_code}><div><a href={`/birds/${entry.species_code}`} onClick={(event) => clickLink(event, `/birds/${entry.species_code}`, navigate)}><strong>{birdLabel(entry.species_code, entry.identity)}</strong></a><span className={`badge ${entry.active ? "" : "warning"}`}>{entry.active ? "Active" : "Paused"}</span><Stale status={entry.identity.catalog_status} /></div><span>{entry.center_name} · {entry.radius_miles.toLocaleString()} miles</span><p className="source-status">This per-watch center does not save a global home location and causes no lookup or delivery until a successful refresh evaluates it.</p><div className="button-row"><button type="button" className="secondary" disabled={busy} onClick={() => setEditingWatch(entry)}>Edit center or radius</button><button type="button" disabled={busy || (entry.identity.catalog_status === "stale" && !entry.active)} onClick={() => void mutate(() => setWatchActive(entry.species_code, !entry.active).then(() => undefined), entry.active ? "Watch paused." : "Watch resumed.")}>{entry.active ? "Pause" : "Resume"}</button><button type="button" className="danger" disabled={busy} onClick={() => setDeletingWatch(entry)}>Delete watch</button></div></li>)}</ul> : <p className="empty">You are not watching any birds.</p>}</section>}
     {deletingObservation && <ConfirmDialog title="Permanently delete this observation?" busy={busy} confirmLabel="Delete permanently" onCancel={() => setDeletingObservation(null)} onConfirm={() => void mutate(() => deleteObservation(deletingObservation.observation_id), "Observation permanently deleted.").then((saved) => { if (saved) setDeletingObservation(null); })}>This cannot be undone. If it is the last observation for this bird, the bird leaves your life list.</ConfirmDialog>}
     {deletingWatch && <ConfirmDialog title="Delete this watch?" busy={busy} confirmLabel="Delete watch" onCancel={() => setDeletingWatch(null)} onConfirm={() => void mutate(() => deleteWatch(deletingWatch.species_code), "Watch deleted.").then((saved) => { if (saved) setDeletingWatch(null); })}>The watch definition is removed. A downstream alert worker may later cancel an accepted active calendar event.</ConfirmDialog>}

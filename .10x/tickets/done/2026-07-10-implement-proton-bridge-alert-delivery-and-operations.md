@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-10
 Updated: 2026-07-10
 Parent: .10x/tickets/2026-07-09-build-local-birding-pokedex.md
@@ -33,7 +33,14 @@ Record configuration boundary without values, fake-server/TLS protocol results, 
 ## Progress and notes
 
 - 2026-07-10: Ticket derives from user-ratified loopback Bridge, slide/cancel, retry, unknown-reconciliation, and retention decisions.
+- 2026-07-10: Implemented server-only SecretStr configuration, numeric-loopback exact-public-CA STARTTLS transport, explicit atomic sender, 1/5/15-minute pre-acceptance retries, permanent/ambiguous classification, idempotent delivered/not-delivered reconciliation, stable-UID greater-sequence retries, safe API/React operations, 90-day cleanup, explicit commands, bundle/config redaction, and no-implicit-send guards.
+- 2026-07-10: Fake/state/API/UI tests pass; complete network-disabled Python suite passes 402/402 at 86.36% coverage; browser gate passes 125/125 plus typecheck/build and a 12-name/10-configured-value bundle audit; MyPy passes 89 files. Evidence: `.10x/evidence/2026-07-10-proton-bridge-alert-delivery-and-operations.md`.
+- 2026-07-10: Redacted live preflight passed without sending. The already-authorized one test email and one test invitation were each attempted exactly once and explicitly accepted by the local Bridge; the durable one-attempt ledger prevents repeats. No inbox/calendar-rendering claim is made.
+- 2026-07-10: Review repair preserves and strictly validates canonical unknown REQUEST/report linkage, persists accepted snapshots, never regresses a newer same-UID event, and creates coherent cancellation when an ambiguously accepted request was suppressed/inactive. Inactive unknowns now expose terminal mark-not-delivered without retry; active coherent rows alone expose retry. Missing STARTTLS is a permanent zero-retry failure. New sequence-advance/pause, suppression/delivered, concurrency/replay/rollback, action-contract, and missing-STARTTLS tests pass.
+- 2026-07-10: Final automatic-acceptance repair routes both explicit SMTP acceptance and manual mark-delivered through one non-regressing snapshot propagation. The exact sequence-0-send → sequence-1-pending → sequence-0-accepted → pause/delete flow produces a sequence-2 CANCEL from sequence-0 facts; automatic replay/concurrency/rollback and newer-snapshot precedence pass. Focused backend tests pass 64/64, full Python passes 408/408 at 86.26%, and browser gate remains 125/125.
+- 2026-07-11: Final independent security/acceptance review passed with no blocker or significant finding. Review: `.10x/reviews/2026-07-11-proton-bridge-alert-delivery-and-operations-review.md`.
+- 2026-07-11: Retrospective preserved non-regressing accepted snapshots, ambiguity-safe action derivation, and STARTTLS fail-closed classification directly in the active specification and adversarial transport/state tests; no additional skill record is needed.
 
 ## Blockers
 
-None; local Bridge configuration and bounded verification authorization already exist outside committed records.
+None.

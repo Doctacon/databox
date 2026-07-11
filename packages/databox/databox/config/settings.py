@@ -44,6 +44,20 @@ class DataboxSettings(BaseSettings):
         default="", alias="CF_WORKERS_AI_MODEL_BASE_URL", repr=False
     )
 
+    # Local generic SMTP delivery; every value is redacted and validated only by
+    # the explicit alert sender/preflight, never during application startup.
+    alert_smtp_enabled: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_ENABLED")
+    alert_smtp_security: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_SECURITY")
+    alert_smtp_host: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_HOST")
+    alert_smtp_port: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_PORT")
+    alert_smtp_username: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_USERNAME")
+    alert_smtp_password: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_PASSWORD")
+    alert_smtp_organizer: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_FROM_EMAIL")
+    alert_smtp_recipient: SecretStr = Field(
+        default=SecretStr(""), alias="BIRD_ALERT_RECIPIENT_EMAIL"
+    )
+    alert_smtp_ca_file: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_CA_FILE")
+
     @property
     def gateway(self) -> str:
         return "local"

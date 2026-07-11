@@ -24,6 +24,19 @@ def test_bundle_audit_rejects_configured_names_and_values(tmp_path: Path) -> Non
     ]
 
 
+def test_bundle_audit_rejects_alert_smtp_names_and_values(tmp_path: Path) -> None:
+    bundle = tmp_path / "dist"
+    bundle.mkdir()
+    (bundle / "app.js").write_text(
+        "BIRD_ALERT_SMTP_PASSWORD configured-bridge-secret", encoding="utf-8"
+    )
+
+    assert audit_bundle(bundle, {"BIRD_ALERT_SMTP_PASSWORD": "configured-bridge-secret"}) == [
+        "BIRD_ALERT_SMTP_PASSWORD name",
+        "BIRD_ALERT_SMTP_PASSWORD configured value",
+    ]
+
+
 def test_bundle_audit_accepts_bundle_without_configuration(tmp_path: Path) -> None:
     bundle = tmp_path / "dist"
     bundle.mkdir()

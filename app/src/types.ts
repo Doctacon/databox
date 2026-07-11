@@ -325,6 +325,29 @@ export interface WatchInput {
   radius_miles: number;
 }
 
+export interface AlertDeliveryAttempt {
+  attempt_number: number;
+  phase: "send_started" | "accepted" | "retry_wait" | "failed" | "delivery_unknown" | "claim_recovered";
+  safe_reason: string | null;
+  occurred_at: string;
+}
+
+export interface AlertDelivery {
+  outbox_id: string;
+  species_code: string;
+  sequence: number;
+  method: "REQUEST" | "CANCEL";
+  state: "pending" | "claimed" | "accepted" | "retry_wait" | "failed" | "delivery_unknown" | "cancelled" | "superseded";
+  attempt_count: number;
+  next_attempt_at: string;
+  updated_at: string;
+  terminal_at: string | null;
+  safe_terminal_reason: string | null;
+  allowed_actions: ("mark_delivered" | "mark_not_delivered" | "mark_not_delivered_and_retry" | "retry_failed")[];
+  can_retry: boolean;
+  attempts: AlertDeliveryAttempt[];
+}
+
 export interface TargetCandidate {
   location_id: string;
   location_name: string | null;

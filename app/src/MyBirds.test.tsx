@@ -71,6 +71,46 @@ describe("My Birds and profile collection controls", () => {
     expect(await screen.findByRole("heading", { name: "Arizona Birds", level: 1 })).toHaveFocus();
   });
 
+  it("shows safe alert status and requires confirmation for manual reconciliation", async () => {
+    const birds = catalog();
+    const delivery = {
+      outbox_id: `alert_outbox_${"a".repeat(64)}`, species_code: "bird000", sequence: 1,
+      method: "REQUEST", state: "delivery_unknown", attempt_count: 1,
+      next_attempt_at: "2026-07-10T12:00:00+00:00", updated_at: "2026-07-10T12:00:00+00:00",
+      terminal_at: null, safe_terminal_reason: "smtp_acceptance_ambiguous",
+      allowed_actions: ["mark_delivered", "mark_not_delivered_and_retry"], can_retry: true,
+      attempts: [{ attempt_number: 1, phase: "delivery_unknown", safe_reason: "smtp_acceptance_ambiguous", occurred_at: "2026-07-10T12:00:00+00:00" }],
+    };
+    const inactiveDelivery = {
+      ...delivery, outbox_id: `alert_outbox_${"b".repeat(64)}`, species_code: "bird001",
+      allowed_actions: ["mark_delivered", "mark_not_delivered"], can_retry: false,
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const path = String(input);
+      if (path === "/api/birds") return json({ birds });
+      if (path === "/api/observations") return json({ observations: [] });
+      if (path === "/api/life-list" || path === "/api/wishlist") return json({ birds: [] });
+      if (path === "/api/watches") return json({ watches: [] });
+      if (path === "/api/alert-deliveries") return json({ deliveries: [delivery, inactiveDelivery] });
+      if (path.includes("/retry?confirm=true") && init?.method === "POST") return json({ status: "retry_enqueued", outbox_id: `alert_outbox_${"c".repeat(64)}` });
+      throw new Error(`Unexpected request ${path}`);
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<App />);
+    await screen.findByRole("heading", { name: "My Birds" });
+    await userEvent.click(screen.getByRole("button", { name: "Alert Delivery" }));
+    expect((await screen.findAllByText("delivery unknown"))).toHaveLength(2);
+    const inactiveRow = screen.getByText("bird001").closest("li")!;
+    expect(within(inactiveRow).getByRole("button", { name: "Mark not delivered" })).toBeVisible();
+    expect(within(inactiveRow).queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Mark delivered" })).toHaveLength(2);
+    await userEvent.click(screen.getByRole("button", { name: "Mark not delivered and retry" }));
+    expect(await screen.findByText("Alert retry enqueued.")).toBeVisible();
+    expect(fetchMock.mock.calls.some(([input, init]) => String(input).includes("/retry?confirm=true") && init?.method === "POST")).toBe(true);
+    expect(document.body).not.toHaveTextContent("recipient@example");
+    expect(document.body).not.toHaveTextContent("bridge-secret");
+  });
+
   it("records, edits, and explicitly hard-deletes observations while refreshing life-list state", async () => {
     const birds = catalog(); let rows: PersonalObservation[] = []; const calls: string[] = [];
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {

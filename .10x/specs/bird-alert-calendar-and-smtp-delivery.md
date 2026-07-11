@@ -48,12 +48,13 @@ Any connection loss/timeout or process failure after message transmission may ha
 
 The local operator UI/API MUST display safe outbox/event/attempt status and provide authenticated-by-local-access actions:
 
-- mark unknown as delivered, preserving the accepted event state;
-- mark unknown as not delivered and enqueue one manual retry using the same UID and incremented sequence;
-- manually retry failed rows;
+- mark unknown as delivered only after validating that row's canonical payload and exact source-report/watch/event linkage. Persist its accepted snapshot without regressing a newer same-UID event. If the current event was suppressed/inactive while send acceptance was ambiguous, immediately enqueue a coherent greater-sequence CANCEL from that accepted snapshot so the calendar request cannot remain orphaned;
+- for an active coherent unknown, mark it not delivered and enqueue one manual retry using the same UID and a greater sequence;
+- for a suppressed/inactive unknown, mark it not delivered as a safe terminal resolution without retry;
+- manually retry failed rows only while a coherent active event remains retryable;
 - inspect sanitized failure category/timestamps.
 
-Actions require explicit confirmation and are idempotent. They MUST NOT expose recipient, organizer, SMTP host/port/user/password, certificate path/content, or raw MIME. A test email and one test invitation may be sent only through explicit verification commands/actions and only within the user's existing bounded authorization; production code/tests MUST not send them implicitly.
+The API MUST derive and expose exact allowed actions plus `can_retry` from persisted event/outbox state. Browser controls MUST render only those actions and strictly validate their relationship to state. Actions require explicit confirmation and are idempotent. They MUST NOT expose recipient, organizer, SMTP host/port/user/password, certificate path/content, or raw MIME. A test email and one test invitation may be sent only through explicit verification commands/actions and only within the user's existing bounded authorization; production code/tests MUST not send them implicitly.
 
 ## Trigger and concurrency
 

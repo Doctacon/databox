@@ -1,4 +1,4 @@
-"""Fail when the built browser bundle contains configured Cloudflare secrets."""
+"""Fail when the browser bundle contains configured server-only values."""
 
 from __future__ import annotations
 
@@ -12,7 +12,17 @@ CONFIG_NAMES = (
     "CF_WORKERS_AI_API_KEY",
     "CF_WORKERS_AI_ACCOUNT_ID",
     "CF_WORKERS_AI_MODEL_BASE_URL",
+    "BIRD_ALERT_SMTP_ENABLED",
+    "BIRD_ALERT_SMTP_SECURITY",
+    "BIRD_ALERT_SMTP_HOST",
+    "BIRD_ALERT_SMTP_PORT",
+    "BIRD_ALERT_SMTP_USERNAME",
+    "BIRD_ALERT_SMTP_PASSWORD",
+    "BIRD_ALERT_FROM_EMAIL",
+    "BIRD_ALERT_RECIPIENT_EMAIL",
+    "BIRD_ALERT_SMTP_CA_FILE",
 )
+VALUE_NAMES = set(CONFIG_NAMES) - {"BIRD_ALERT_SMTP_ENABLED", "BIRD_ALERT_SMTP_PORT"}
 
 
 def audit_bundle(bundle_dir: Path, configured: dict[str, str]) -> list[str]:
@@ -25,7 +35,7 @@ def audit_bundle(bundle_dir: Path, configured: dict[str, str]) -> list[str]:
         if name.encode() in bundle:
             findings.append(f"{name} name")
         value = configured.get(name, "")
-        if value and value.encode() in bundle:
+        if name in VALUE_NAMES and value and value.encode() in bundle:
             findings.append(f"{name} configured value")
     return findings
 
@@ -37,7 +47,7 @@ def main() -> int:
     if findings:
         print("bundle configuration audit failed: " + ", ".join(findings))
         return 1
-    value_count = sum(bool(configured[name]) for name in CONFIG_NAMES)
+    value_count = sum(bool(configured[name]) for name in VALUE_NAMES)
     print(
         f"bundle configuration audit passed: {len(CONFIG_NAMES)} names and "
         f"{value_count} configured values absent"
