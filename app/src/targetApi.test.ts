@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTargetPlan, getTargetPlan } from "./targetApi";
 import { targetPlan } from "./targetTestData";
-function response(body: unknown, ok = true) { return Promise.resolve({ ok, json: () => Promise.resolve(body) } as Response); }
+function response(body: unknown, ok = true, status = ok ? 200 : 503) { return Promise.resolve({ ok, status, json: () => Promise.resolve(body) } as Response); }
 afterEach(() => vi.restoreAllMocks());
 
 describe("target API boundary", () => {
@@ -34,6 +34,11 @@ describe("target API boundary", () => {
     const init = fetch.mock.calls[0][1] as RequestInit;
     expect(init.method).toBe("POST");
     expect(String(init.body)).not.toMatch(/cloudflare|password|api.?key/i);
+  });
+  it("maps exact-shaped target errors to fixed text without rendering backend detail", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ error: { code: "not_found", message: "/private/target.duckdb raw-model secret" } }, false, 404));
+    await expect(getTargetPlan(targetPlan.target_plan_id)).rejects.toThrow("Target plan not found.");
+    await expect(getTargetPlan(targetPlan.target_plan_id)).rejects.not.toThrow(/private|raw-model|secret/);
   });
   it("suppresses malformed structured errors", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ error: { code: "failed", message: "raw", internal: "secret" } }, false));

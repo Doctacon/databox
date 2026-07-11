@@ -87,21 +87,32 @@ function validate(value: unknown): TargetPlan {
   return row as unknown as TargetPlan;
 }
 
+const safeErrors: Record<string, string> = {
+  "400:invalid_location": "Choose a location inside Arizona.",
+  "400:invalid_request": "Check the target-planning inputs and try again.",
+  "404:not_found": "Target plan not found.",
+  "409:planner_busy": "Another target plan is being created. Try again shortly.",
+  "422:invalid_request": "Check the target-planning inputs and try again.",
+  "429:model_rate_limited": "The configured model is rate limited. Try again later.",
+  "500:planner_failed": "The target planner could not complete the plan.",
+  "503:database_unavailable": "The local target plans are unavailable.",
+  "503:model_authentication_failed": "The configured model is unavailable.",
+  "503:model_not_configured": "The configured model is unavailable.",
+  "503:model_unavailable": "The configured model is unavailable.",
+  "504:model_timeout": "The configured model timed out. Try again.",
+};
 async function request(path: string, init?: RequestInit): Promise<unknown> {
   const response = await fetch(path, { ...init, headers: { "Content-Type": "application/json" } });
   let body: unknown;
   try { body = await response.json(); } catch { throw new Error("The target planner is unavailable"); }
   if (!response.ok) {
+    let code: string | null = null;
     try {
       const envelope = exact(body, ["error"]);
       const error = exact(envelope.error, ["code", "message"]);
-      if (typeof error.code !== "string" || !/^[a-z_]{1,64}$/.test(error.code)
-        || typeof error.message !== "string" || error.message.length < 1 || error.message.length > 500) throw new Error();
-      throw new Error(error.message);
-    } catch (error) {
-      if (error instanceof Error && error.message && error.message !== "Invalid target plan response") throw error;
-      throw new Error("The target planner is unavailable");
-    }
+      if (typeof error.code === "string" && typeof error.message === "string") code = error.code;
+    } catch { /* malformed errors use the fixed generic message */ }
+    throw new Error(code ? safeErrors[`${response.status}:${code}`] || "The target planner is unavailable" : "The target planner is unavailable");
   }
   return body;
 }

@@ -85,6 +85,8 @@ describe("My Birds and profile collection controls", () => {
       ...delivery, outbox_id: `alert_outbox_${"b".repeat(64)}`, species_code: "bird001",
       allowed_actions: ["mark_delivered", "mark_not_delivered"], can_retry: false,
     };
+    let resolveRetry!: (value: Response) => void;
+    const retryResponse = new Promise<Response>((resolve) => { resolveRetry = resolve; });
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
       const path = String(input);
       if (path === "/api/birds") return json({ birds });
@@ -92,7 +94,7 @@ describe("My Birds and profile collection controls", () => {
       if (path === "/api/life-list" || path === "/api/wishlist") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: [] });
       if (path === "/api/alert-deliveries") return json({ deliveries: [delivery, inactiveDelivery] });
-      if (path.includes("/retry?confirm=true") && init?.method === "POST") return json({ status: "retry_enqueued", outbox_id: `alert_outbox_${"c".repeat(64)}` });
+      if (path.includes("/retry?confirm=true") && init?.method === "POST") return retryResponse;
       throw new Error(`Unexpected request ${path}`);
     });
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -105,7 +107,13 @@ describe("My Birds and profile collection controls", () => {
     expect(within(inactiveRow).queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Mark delivered" })).toHaveLength(2);
     await userEvent.click(screen.getByRole("button", { name: "Mark not delivered and retry" }));
+    const alertSection = screen.getByRole("heading", { name: "Alert Delivery" }).closest("section");
+    expect(alertSection).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status", { name: "" })).toHaveTextContent("Updating alert delivery status");
+    expect(screen.getAllByRole("button", { name: "Mark delivered" })[0]).toBeDisabled();
+    resolveRetry(new Response(JSON.stringify({ status: "retry_enqueued", outbox_id: `alert_outbox_${"c".repeat(64)}` }), { status: 200, headers: { "Content-Type": "application/json" } }));
     expect(await screen.findByText("Alert retry enqueued.")).toBeVisible();
+    expect(alertSection).toHaveAttribute("aria-busy", "false");
     expect(fetchMock.mock.calls.some(([input, init]) => String(input).includes("/retry?confirm=true") && init?.method === "POST")).toBe(true);
     expect(document.body).not.toHaveTextContent("recipient@example");
     expect(document.body).not.toHaveTextContent("bridge-secret");

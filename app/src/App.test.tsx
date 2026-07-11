@@ -49,12 +49,39 @@ const detail: TripPlanDetail = {
   ],
   evidence: [{ evidence_id: "ev-1", recommendation_id: "rec-1", source: "ebird", source_table: "recent", source_record_id: "S1", evidence_type: "recent_observation", status: "available", retrieved_at: null, summary: { location_name: "Thumb Butte" }, payload: {}, caveats: [] }],
   weather: { evidence_id: "weather-1", recommendation_id: null, source: "open_meteo", source_table: null, source_record_id: null, evidence_type: "weather", status: "available", retrieved_at: null, summary: {}, payload: { elevation_m: 1642, forecast_summary: { temperature_2m_min: 20, temperature_2m_max: 23, relative_humidity_2m_avg: 55, precipitation_probability_max: 20, precipitation_sum: 0.3, wind_speed_10m_max: 7, wind_gusts_10m_max: 10, weather_codes: [0, 1, 2] } }, caveats: ["Forecast may change"] },
-  media: [{ evidence_id: "media-1", recommendation_id: "rec-1", source_record_id: "XC1", recording_id: "1", status: "available", species_name: "Mexican Jay", recording_type: "call", quality: "A", recordist: "Ada Birder", license_text: "CC BY 4.0", license_url: "https://creativecommons.org/licenses/by/4.0/", source_url: "https://xeno-canto.org/1", audio_url: "https://xeno-canto.org/1/download", caveats: [] }],
+  media: [{ evidence_id: "media-1", recommendation_id: "rec-1", source_record_id: "1", recording_id: "1", status: "available", species_name: "Mexican Jay", recording_type: "call", quality: "A", recordist: "Ada Birder", license_text: "CC BY 4.0", license_url: "https://creativecommons.org/licenses/by/4.0/", source_url: "https://xeno-canto.org/1", audio_url: "https://xeno-canto.org/1/download", caveats: [] }],
   tool_traces: [{ tool_trace_id: "trace-1", step_order: 1, tool_name: "normalize_location", tool_status: "ok", started_at: null, completed_at: null, input: {}, output_summary: {}, caveats: [] }],
 };
+detail.evidence.push(structuredClone(detail.weather!));
+detail.evidence.push({
+  evidence_id: "photo-1", recommendation_id: "rec-1", source: "gbif", source_table: null,
+  source_record_id: "5938231789", evidence_type: "recommendation_photo", status: "available", retrieved_at: null,
+  summary: {
+    species_name: "Aphelocoma wollweberi", display_url: availablePhoto.display_url,
+    source_url: availablePhoto.source_url, creator: availablePhoto.creator,
+    rights_holder: availablePhoto.rights_holder, publisher: availablePhoto.publisher,
+    format: availablePhoto.format, license_url: availablePhoto.license_url,
+    selection_reason: availablePhoto.selection_reason,
+  }, payload: {}, caveats: [],
+});
+detail.evidence.push({
+  evidence_id: "media-1", recommendation_id: "rec-1", source: "xeno_canto", source_table: null,
+  source_record_id: "1", evidence_type: "recommendation_call", status: "available", retrieved_at: null,
+  summary: {
+    recording_id: "1", species_name: "Aphelocoma wollweberi",
+    geographic_scope: availableCall.geographic_scope, recording_type: availableCall.recording_type,
+    quality: availableCall.quality, recordist: availableCall.recordist, locality: availableCall.locality,
+    country: availableCall.country, source_url: availableCall.source_url, audio_url: availableCall.audio_url,
+    license_url: availableCall.license_url, selection_reason: availableCall.selection_reason,
+  }, payload: {}, caveats: [],
+});
 
 function response(body: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
+}
+function planSummaryFixture(plan: TripPlanDetail["plan"]) {
+  const { trip_plan_id, requested_location, normalized_location_name, window_start, window_end, duration_minutes, plan_status, caveats, created_at, updated_at } = plan;
+  return { trip_plan_id, requested_location, normalized_location_name, window_start, window_end, duration_minutes, plan_status, caveats, created_at, updated_at };
 }
 
 function recommendation(group: "high_likelihood" | "uncommon_plausible", index: number): Recommendation {
@@ -104,6 +131,8 @@ function paginatedDetail(
     ...Array.from({ length: uncommonCount }, (_, index) => recommendation("uncommon_plausible", index + 1)),
   ];
   result.evidence = Array.from({ length: evidenceCount }, (_, index) => evidenceRow(index + 1));
+  result.weather = null;
+  result.media = [];
   return result;
 }
 
@@ -116,7 +145,7 @@ describe("Birding Trip Copilot", () => {
   it("renders exact result order with recommendation media and final workflow disclosure", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
-      if (url === "/api/trip-plans") return response({ plans: [detail.plan] });
+      if (url === "/api/trip-plans") return response({ plans: [planSummaryFixture(detail.plan)] });
       return response(detail);
     });
     render(<App />);
@@ -201,8 +230,11 @@ describe("Birding Trip Copilot", () => {
       { recommendation_id: "rec-owl", species_code: "nswowl", common_name: "Northern Saw-whet Owl", scientific_name: "Aegolius acadicus", recommendation_group: "uncommon_plausible", rank_order: 3, confidence_label: "plausible", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
       { recommendation_id: "rec-unknown", species_code: null, common_name: null, scientific_name: "Mysteria avis", recommendation_group: "uncommon_plausible", rank_order: 4, confidence_label: "plausible", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
     ];
+    conformed.evidence = [];
+    conformed.weather = null;
+    conformed.media = [];
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [conformed.plan] }) : response(conformed),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(conformed.plan)] }) : response(conformed),
     );
 
     render(<App />);
@@ -221,8 +253,9 @@ describe("Birding Trip Copilot", () => {
     partial.weather!.status = "partial";
     partial.weather!.payload = { elevation_m: 1642 };
     partial.weather!.caveats = ["Open-Meteo forecast returned no hourly rows"];
+    partial.evidence = partial.evidence.map((row) => row.evidence_id === partial.weather!.evidence_id ? structuredClone(partial.weather!) : row);
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [partial.plan] }) : response(partial),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(partial.plan)] }) : response(partial),
     );
 
     render(<App />);
@@ -243,12 +276,13 @@ describe("Birding Trip Copilot", () => {
       status: "unavailable", retrieved_at: null, summary: { status: "unavailable" }, payload: {},
       caveats: ["No Xeno-canto rows found"],
     };
+    unavailable.evidence = unavailable.evidence.filter((row) => row.evidence_id !== "media-1");
     unavailable.evidence.push(sentinel);
     unavailable.recommendations[0].call = unavailableCall;
     unavailable.media = [];
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
       String(input) === "/api/trip-plans"
-        ? response({ plans: [unavailable.plan] })
+        ? response({ plans: [planSummaryFixture(unavailable.plan)] })
         : response(unavailable),
     );
     render(<App />);
@@ -274,7 +308,7 @@ describe("Birding Trip Copilot", () => {
     unsafe.recommendations[0].call.license_url = "javascript:alert(2)";
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
       String(input) === "/api/trip-plans"
-        ? response({ plans: [unsafe.plan] })
+        ? response({ plans: [planSummaryFixture(unsafe.plan)] })
         : response(unsafe),
     );
     render(<App />);
@@ -295,18 +329,23 @@ describe("Birding Trip Copilot", () => {
     ["malformed typed recording id", "XC1", "https://xeno-canto.org/1", "https://xeno-canto.org/1/download", false, false, false],
     ["invalid audio with valid source", "1", "https://xeno-canto.org/1", "javascript:alert(1)", true, false, true],
     ["invalid source with valid audio", "1", "javascript:alert(1)", "https://xeno-canto.org/1/download", false, true, true],
-  ])("validates source and audio independently for %s", async (_, recordingId, sourceUrl, audioUrl, hasSource, hasAudio, hasMetadata) => {
+  ])("validates source and audio independently for %s", async (scenario, recordingId, sourceUrl, audioUrl, hasSource, hasAudio, hasMetadata) => {
     const mismatch = structuredClone(detail);
     mismatch.recommendations[0].call.recording_id = recordingId;
     mismatch.recommendations[0].call.source_url = sourceUrl;
     mismatch.recommendations[0].call.audio_url = audioUrl;
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
       String(input) === "/api/trip-plans"
-        ? response({ plans: [mismatch.plan] })
+        ? response({ plans: [planSummaryFixture(mismatch.plan)] })
         : response(mismatch),
     );
 
     render(<App />);
+    if (scenario === "typed recording mismatch" || scenario === "malformed typed recording id") {
+      expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+      expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
+      return;
+    }
     await screen.findByRole("heading", { name: "Mexican Jay" });
     const card = document.querySelector<HTMLElement>('[data-recommendation-id="rec-1"]');
     const callArea = card!.querySelector<HTMLElement>(".recommendation-call");
@@ -340,45 +379,39 @@ describe("Birding Trip Copilot", () => {
     "https://xeno-canto.org/1/%2e%2e/2",
   ])("rejects raw traversal before URL normalization: %s", async (sourceUrl) => {
     const traversal = structuredClone(detail);
-    traversal.recommendations[0].call.recording_id = "2";
     traversal.recommendations[0].call.source_url = sourceUrl;
-    traversal.recommendations[0].call.audio_url = "https://xeno-canto.org/2/download";
+    traversal.recommendations[0].call.audio_url = "https://xeno-canto.org/1/download";
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
       String(input) === "/api/trip-plans"
-        ? response({ plans: [traversal.plan] })
+        ? response({ plans: [planSummaryFixture(traversal.plan)] })
         : response(traversal),
     );
 
     render(<App />);
     await screen.findByRole("heading", { name: "Mexican Jay" });
-    expect(screen.queryByText("Recordist: Ada Birder")).not.toBeInTheDocument();
+    expect(screen.getByText("Recordist: Ada Birder")).toBeVisible();
     expect(document.querySelector("audio")).not.toBeInTheDocument();
     expect(screen.getAllByText("No licensed call example is available.").length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: "View call source on Xeno-canto" })).not.toBeInTheDocument();
     const card = document.querySelector<HTMLElement>('[data-recommendation-id="rec-1"]');
-    expect(within(card!).getByText("Call metadata did not match this recommendation.")).toBeVisible();
+    expect(within(card!).getByText("Xeno-canto source page unavailable.")).toBeVisible();
   });
 
   it("retains attribution for missing audio and a safe source after runtime failure", async () => {
     const missing = structuredClone(detail);
     missing.recommendations[0].call.audio_url = null;
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [missing.plan] }) : response(missing),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(missing.plan)] }) : response(missing),
     );
     const { unmount } = render(<App />);
-    expect(await screen.findByText("Recordist: Ada Birder")).toBeVisible();
-    expect(screen.getAllByText("No licensed call example is available.")).toHaveLength(2);
-    expect(screen.getByRole("link", { name: "View call source on Xeno-canto" })).toHaveAttribute(
-      "href",
-      "https://xeno-canto.org/1",
-    );
-    expect(screen.queryByText("Xeno-canto source page unavailable.")).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
     unmount();
 
     const failed = structuredClone(detail);
     vi.restoreAllMocks();
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [failed.plan] }) : response(failed),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(failed.plan)] }) : response(failed),
     );
     render(<App />);
     const audio = await waitFor(() => {
@@ -394,7 +427,7 @@ describe("Birding Trip Copilot", () => {
 
   it("retains photo attribution and safe links after an image load failure", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [detail.plan] }) : response(detail),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(detail.plan)] }) : response(detail),
     );
     render(<App />);
     const image = await screen.findByRole("img", {
@@ -419,7 +452,7 @@ describe("Birding Trip Copilot", () => {
     unsafe.recommendations[0].photo.display_url = displayUrl;
     unsafe.recommendations[0].photo.source_url = sourceUrl;
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [unsafe.plan] }) : response(unsafe),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(unsafe.plan)] }) : response(unsafe),
     );
     render(<App />);
     expect(await screen.findByText("Creator: Pat Photographer")).toBeVisible();
@@ -446,8 +479,14 @@ describe("Birding Trip Copilot", () => {
     };
     attached.media[0].recommendation_id = "rec-1";
     attached.media[0].audio_url = "https://xeno-canto.org/999/download";
+    attached.evidence.push({
+      evidence_id: "media-2", recommendation_id: "rec-2", source: "xeno_canto", source_table: null,
+      source_record_id: "2", evidence_type: "recommendation_call", status: "available", retrieved_at: null,
+      summary: { recording_id: "2" }, payload: {}, caveats: [],
+    });
+    attached.media.push({ ...attached.media[0], evidence_id: "media-2", recommendation_id: "rec-2", source_record_id: "2", recording_id: "2", species_name: "Buteo albonotatus", audio_url: "https://xeno-canto.org/2/download", source_url: "https://xeno-canto.org/2" });
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [attached.plan] }) : response(attached),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(attached.plan)] }) : response(attached),
     );
     render(<App />);
     await screen.findByRole("heading", { name: "Zone-tailed Hawk" });
@@ -466,31 +505,28 @@ describe("Birding Trip Copilot", () => {
   });
 
   it.each([
-    ["null photo", "photo", null, false, true],
-    ["missing photo", "photo", undefined, false, true],
-    ["nonobject photo", "photo", "invalid", false, true],
-    ["wrong photo fields", "photo", { status: "available", caveats: [] }, false, true],
-    ["malformed photo caveats", "photo", { ...availablePhoto, caveats: "invalid" }, false, true],
-    ["null call", "call", null, true, false],
-    ["missing call", "call", undefined, true, false],
-    ["array call", "call", [], true, false],
-    ["wrong call fields", "call", { status: "available", caveats: [] }, true, false],
-    ["malformed call caveats", "call", { ...availableCall, caveats: [1] }, true, false],
-  ])("fails %s independently without throwing", async (_, medium, value, photoActive, callActive) => {
+    ["null photo", "photo", null],
+    ["missing photo", "photo", undefined],
+    ["nonobject photo", "photo", "invalid"],
+    ["wrong photo fields", "photo", { status: "available", caveats: [] }],
+    ["malformed photo caveats", "photo", { ...availablePhoto, caveats: "invalid" }],
+    ["null call", "call", null],
+    ["missing call", "call", undefined],
+    ["array call", "call", []],
+    ["wrong call fields", "call", { status: "available", caveats: [] }],
+    ["malformed call caveats", "call", { ...availableCall, caveats: [1] }],
+  ])("rejects a %s before partially rendering the plan", async (_, medium, value) => {
     const adversarial = structuredClone(detail);
     Object.assign(adversarial.recommendations[0], { [medium]: value });
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
       String(input) === "/api/trip-plans"
-        ? response({ plans: [adversarial.plan] })
+        ? response({ plans: [planSummaryFixture(adversarial.plan)] })
         : response(adversarial),
     );
     render(<App />);
-    await screen.findByRole("heading", { name: "Mexican Jay" });
-    const card = document.querySelector<HTMLElement>('[data-recommendation-id="rec-1"]');
-    expect(card).not.toBeNull();
-    expect(Boolean(within(card!).queryByRole("img"))).toBe(photoActive);
-    expect(Boolean(card!.querySelector("audio"))).toBe(callActive);
-    expect(within(card!).getByRole("heading", { name: "Mexican Jay" })).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(screen.queryByRole("heading", { name: "Mexican Jay" })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
   });
 
   it("rejects different-species and conflicting source identities without misleading labels", async () => {
@@ -500,102 +536,59 @@ describe("Birding Trip Copilot", () => {
     adversarial.recommendations[0].call.source_record_id = "XC2";
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
       String(input) === "/api/trip-plans"
-        ? response({ plans: [adversarial.plan] })
+        ? response({ plans: [planSummaryFixture(adversarial.plan)] })
         : response(adversarial),
     );
     render(<App />);
-    await screen.findByRole("heading", { name: "Mexican Jay" });
-    const card = document.querySelector<HTMLElement>('[data-recommendation-id="rec-1"]');
-    expect(card).not.toBeNull();
-    expect(within(card!).queryByRole("img")).not.toBeInTheDocument();
-    expect(card!.querySelector("audio")).not.toBeInTheDocument();
-    expect(within(card!).getByText("No licensed photo is available.")).toBeVisible();
-    expect(within(card!).getByText("No licensed call example is available.")).toBeVisible();
-    expect(within(card!).getByText("Photo metadata did not match this recommendation.")).toBeVisible();
-    expect(within(card!).getByText("Call metadata did not match this recommendation.")).toBeVisible();
-    for (const hidden of [
-      "Creator: Pat Photographer",
-      "Rights holder: Arizona Bird Archive",
-      "Publisher: GBIF Fixture Publisher",
-      "Arizona recording",
-      "Type: call",
-      "Quality: A",
-      "Recordist: Ada Birder",
-    ]) expect(within(card!).queryByText(hidden)).not.toBeInTheDocument();
-    expect(within(card!).queryByText(/License:/)).not.toBeInTheDocument();
-    expect(within(card!).queryByRole("link", { name: "View photo source on GBIF" })).not.toBeInTheDocument();
-    expect(within(card!).queryByRole("link", { name: "View call source on Xeno-canto" })).not.toBeInTheDocument();
-    expect(within(card!).queryByLabelText(/Play Mexican Jay/)).not.toBeInTheDocument();
-    expect(within(card!).queryByAltText(/Mexican Jay/)).not.toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
   });
 
-  it("suppresses all call semantics for a cross-ID recording while preserving the photo", async () => {
+  it("rejects a cross-ID recording before partially rendering the plan", async () => {
     const crossId = structuredClone(detail);
     crossId.recommendations[0].call.source_record_id = "XC2";
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [crossId.plan] }) : response(crossId),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(crossId.plan)] }) : response(crossId),
     );
     render(<App />);
-    expect(await screen.findByRole("img", {
-      name: "Mexican Jay (Aphelocoma wollweberi)",
-    })).toBeVisible();
-    const card = document.querySelector<HTMLElement>('[data-recommendation-id="rec-1"]');
-    const callArea = card!.querySelector<HTMLElement>(".recommendation-call");
-    expect(callArea).not.toBeNull();
-    expect(within(callArea!).getByText("No licensed call example is available.")).toBeVisible();
-    expect(within(callArea!).getByText("Call metadata did not match this recommendation.")).toBeVisible();
-    for (const hidden of [
-      "Arizona recording",
-      "Type: call",
-      "Quality: A",
-      "Recordist: Ada Birder",
-    ]) expect(within(callArea!).queryByText(hidden)).not.toBeInTheDocument();
-    expect(within(callArea!).queryByText(/License:/)).not.toBeInTheDocument();
-    expect(within(callArea!).queryByRole("link")).not.toBeInTheDocument();
-    expect(card!.querySelector("audio")).not.toBeInTheDocument();
-    expect(within(card!).getByText("Creator: Pat Photographer")).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
   });
 
-  it("accepts canonical XC source IDs and authority-free species normalization", async () => {
+  it("rejects authority-bearing species names that do not equal the owning scientific name", async () => {
     const normalized = structuredClone(detail);
     normalized.recommendations[0].photo.species_name = "Aphelocoma wollweberi Kaup, 1854";
     normalized.recommendations[0].call.species_name = "Aphelocoma wollweberi (Kaup, 1854)";
     normalized.recommendations[0].call.source_record_id = "XC1";
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [normalized.plan] }) : response(normalized),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(normalized.plan)] }) : response(normalized),
     );
     render(<App />);
-    expect(await screen.findByRole("img", {
-      name: "Mexican Jay (Aphelocoma wollweberi)",
-    })).toBeVisible();
-    expect(document.querySelector("audio")).toHaveAttribute(
-      "src", "https://xeno-canto.org/1/download",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
   });
 
-  it("uses exact common-name identity only when the owning scientific name is absent", async () => {
+  it("rejects common-name media identity when the owning scientific name is absent", async () => {
     const fallback = structuredClone(detail);
     fallback.recommendations[0].scientific_name = null;
     fallback.recommendations[0].photo.species_name = "Mexican Jay";
     fallback.recommendations[0].call.species_name = "Mexican Jay";
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [fallback.plan] }) : response(fallback),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(fallback.plan)] }) : response(fallback),
     );
     const { unmount } = render(<App />);
-    expect(await screen.findByRole("img", { name: "Mexican Jay" })).toBeVisible();
-    expect(document.querySelector("audio")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
     unmount();
 
     fallback.recommendations[0].photo.species_name = "mexican jay";
     vi.restoreAllMocks();
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [fallback.plan] }) : response(fallback),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(fallback.plan)] }) : response(fallback),
     );
     render(<App />);
-    await screen.findByRole("heading", { name: "Mexican Jay" });
-    const card = document.querySelector<HTMLElement>('[data-recommendation-id="rec-1"]');
-    expect(within(card!).queryByRole("img")).not.toBeInTheDocument();
-    expect(card!.querySelector("audio")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
   });
 
   it("requires license label/url consistency and supports canonical CC0", async () => {
@@ -603,17 +596,11 @@ describe("Birding Trip Copilot", () => {
     rejected.recommendations[0].photo.license_text = null;
     rejected.recommendations[0].call.license_text = "CC BY-NC 4.0";
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [rejected.plan] }) : response(rejected),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(rejected.plan)] }) : response(rejected),
     );
     const { unmount } = render(<App />);
-    await screen.findByRole("heading", { name: "Mexican Jay" });
-    const rejectedCard = document.querySelector<HTMLElement>('[data-recommendation-id="rec-1"]');
-    expect(within(rejectedCard!).queryByRole("img")).not.toBeInTheDocument();
-    expect(rejectedCard!.querySelector("audio")).not.toBeInTheDocument();
-    expect(within(rejectedCard!).getAllByText("License: unavailable")).toHaveLength(2);
-    expect(within(rejectedCard!).queryByText("CC BY-NC 4.0")).not.toBeInTheDocument();
-    expect(within(rejectedCard!).getByText("Creator: Pat Photographer")).toBeVisible();
-    expect(within(rejectedCard!).getByText("Recordist: Ada Birder")).toBeVisible();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
     unmount();
 
     const cc0 = structuredClone(detail);
@@ -621,9 +608,14 @@ describe("Birding Trip Copilot", () => {
     cc0.recommendations[0].photo.license_url = "https://creativecommons.org/publicdomain/zero/1.0/";
     cc0.recommendations[0].call.license_text = "CC0 1.0";
     cc0.recommendations[0].call.license_url = "https://creativecommons.org/publicdomain/zero/1.0/";
+    for (const row of cc0.evidence.filter((item) => item.evidence_type === "recommendation_photo" || item.evidence_type === "recommendation_call")) {
+      row.summary.license_url = "https://creativecommons.org/publicdomain/zero/1.0/";
+    }
+    cc0.media[0].license_text = "CC0 1.0";
+    cc0.media[0].license_url = "https://creativecommons.org/publicdomain/zero/1.0/";
     vi.restoreAllMocks();
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [cc0.plan] }) : response(cc0),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(cc0.plan)] }) : response(cc0),
     );
     render(<App />);
     expect(await screen.findByRole("img", {
@@ -634,14 +626,14 @@ describe("Birding Trip Copilot", () => {
   });
 
   it("contains long unbroken media metadata within narrow grid children", async () => {
-    const long = "Attribution".repeat(80);
+    const long = "Attribution".repeat(40);
     const narrow = structuredClone(detail);
     narrow.recommendations[0].photo.creator = long;
     narrow.recommendations[0].photo.rights_holder = long;
     narrow.recommendations[0].photo.publisher = long;
     narrow.recommendations[0].call.recordist = long;
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [narrow.plan] }) : response(narrow),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(narrow.plan)] }) : response(narrow),
     );
     render(<App />);
     await screen.findByText(`Creator: ${long}`);
@@ -663,7 +655,7 @@ describe("Birding Trip Copilot", () => {
   ])("renders %s recommendation cards without an unnecessary pager", async (count, expected) => {
     const compact = paginatedDetail("boundary", count, 0, 0);
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [compact.plan] }) : response(compact),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(compact.plan)] }) : response(compact),
     );
     render(<App />);
     const heading = await screen.findByRole("heading", { name: "High-likelihood Species" });
@@ -680,7 +672,7 @@ describe("Birding Trip Copilot", () => {
     const second = paginatedDetail("plan-b", 6, 5, 1);
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
-      if (url === "/api/trip-plans") return response({ plans: [first.plan, second.plan] });
+      if (url === "/api/trip-plans") return response({ plans: [planSummaryFixture(first.plan), planSummaryFixture(second.plan)] });
       return response(url.endsWith("plan-b") ? second : first);
     });
     render(<App />);
@@ -726,7 +718,7 @@ describe("Birding Trip Copilot", () => {
   ])("keeps evidence collapsed and bounds a %s-row first page", async (count, visible, range) => {
     const compact = paginatedDetail("evidence-boundary", 1, 1, count);
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
-      String(input) === "/api/trip-plans" ? response({ plans: [compact.plan] }) : response(compact),
+      String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(compact.plan)] }) : response(compact),
     );
     render(<App />);
     await screen.findByRole("heading", { name: "Plan evidence-boundary" });
@@ -751,7 +743,7 @@ describe("Birding Trip Copilot", () => {
     const second = paginatedDetail("evidence-b", 1, 1, 60);
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
-      if (url === "/api/trip-plans") return response({ plans: [first.plan, second.plan] });
+      if (url === "/api/trip-plans") return response({ plans: [planSummaryFixture(first.plan), planSummaryFixture(second.plan)] });
       return response(url.endsWith("evidence-b") ? second : first);
     });
     render(<App />);
@@ -869,7 +861,7 @@ describe("Birding Trip Copilot", () => {
     await screen.findByText("No trip selected");
     const location = screen.getByRole("combobox", { name: "Location" });
     await user.type(location, "Prescott");
-    expect(await screen.findByText(/Location search is temporarily unavailable/)).toBeVisible();
+    expect(await screen.findByText(/Location search is unavailable; enter Arizona coordinates/)).toBeVisible();
     await user.clear(location);
     await user.type(location, "34.54,-112.47");
     expect(location).toHaveValue("34.54,-112.47");
@@ -902,7 +894,31 @@ describe("Birding Trip Copilot", () => {
       error: { code: "database_busy", message: "The warehouse is refreshing; try again shortly" },
     }, 503));
     render(<App />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("The warehouse is refreshing; try again shortly");
+    expect(await screen.findByRole("alert")).toHaveTextContent("The warehouse is refreshing. Try again shortly.");
+  });
+
+  it("rejects cross-record identity mismatches without partially rendering a plan", async () => {
+    const mismatched = structuredClone(detail);
+    mismatched.evidence[0].recommendation_id = "rec-unknown";
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
+      String(input) === "/api/trip-plans"
+        ? response({ plans: [planSummaryFixture(mismatched.plan)] })
+        : response(mismatched),
+    );
+    render(<App />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(screen.queryByRole("heading", { name: "Mexican Jay" })).not.toBeInTheDocument();
+    expect(document.querySelector(".plan")).toBeNull();
+  });
+
+  it("never renders exact-shaped backend path, secret, or raw-model error text", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({
+      error: { code: "database_busy", message: "/private/local.duckdb raw-model secret" },
+    }, 503));
+    render(<App />);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("The warehouse is refreshing. Try again shortly.");
+    expect(alert).not.toHaveTextContent(/private|raw-model|secret/);
   });
 
   it("shows a readable empty state when there are no saved plans", async () => {

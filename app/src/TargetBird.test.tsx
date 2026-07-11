@@ -5,7 +5,11 @@ import { afterEach, expect, it, vi } from "vitest";
 import { TargetBirdPage } from "./TargetBird";
 import { targetBirdProfile, targetPlan } from "./targetTestData";
 
-function response(body: unknown, ok = true) { return Promise.resolve({ ok, json: () => Promise.resolve(body) } as Response); }
+function response(body: unknown, ok = true) {
+  const code = typeof body === "object" && body !== null && "error" in body
+    ? (body as { error?: { code?: string } }).error?.code : undefined;
+  return Promise.resolve({ ok, status: ok ? 200 : code === "not_found" ? 404 : 503, json: () => Promise.resolve(body) } as Response);
+}
 afterEach(() => { cleanup(); vi.restoreAllMocks(); document.title = ""; });
 
 it("renders a direct persisted target plan with a native profile link, dual units, evidence, weather, and provenance", async () => {
