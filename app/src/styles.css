@@ -43,9 +43,13 @@ small { color: var(--muted); }
 .site-brand > span { display: grid; line-height: 1.1; }
 .site-brand strong { font-size: 1.25rem; }
 .site-brand small { color: var(--cream-200); font-size: .62rem; letter-spacing: .05em; }
-.brand-mark { width: 48px; height: 32px; overflow: visible; fill: var(--gold-400); stroke: var(--ink); stroke-width: 2.5; stroke-linecap: square; stroke-linejoin: bevel; filter: drop-shadow(2px 2px 0 var(--teal-950)); }
+.brand-mark { width: 64px; height: 40px; overflow: visible; fill: var(--rust-500); stroke: var(--ink); stroke-width: 2.2; stroke-linecap: square; stroke-linejoin: bevel; filter: drop-shadow(2px 2px 0 var(--teal-950)); }
 .brand-mark circle { fill: var(--ink); stroke: none; }
-.brand-mark .brand-wing { fill: var(--rust-500); }
+.brand-mark .brand-wing { fill: var(--gold-400); }
+.brand-mark .brand-tail { fill: var(--rust-600); }
+.brand-mark .brand-chest { fill: var(--cream-100); }
+.brand-mark .brand-gorget { fill: #b62f24; }
+.brand-mark .brand-beak { fill: none; stroke-width: 2.4; }
 .site-header nav { display: flex; align-items: center; gap: 7px; }
 .site-header nav a { min-height: 44px; display: grid; place-items: center; color: var(--cream-100); padding: 8px 11px; border: 2px solid transparent; text-decoration: none; }
 .site-header nav a:hover, .site-header nav a[aria-current="page"] { color: var(--ink); background: var(--gold-400); border-color: var(--ink); box-shadow: 3px 3px 0 var(--teal-950); text-decoration: underline; }
@@ -54,7 +58,8 @@ small { color: var(--muted); }
 
 main { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; min-height: calc(100vh - 76px); }
 .planner-sidebar { padding: 26px; position: sticky; top: 0; height: calc(100vh - 76px); overflow-y: auto; background: var(--paper); border-right: 4px solid var(--ink); box-shadow: inset -6px 0 var(--cream-200); }
-.planner-sidebar h1, .catalog-heading h1 { font-size: clamp(1.75rem, 5vw, 3rem); margin: 6px 0 22px; }
+.planner-sidebar h1 { font-size: clamp(1.5rem, 3.8vw, 2.25rem); margin: 6px 0 22px; }
+.catalog-heading h1 { font-size: clamp(1.75rem, 5vw, 3rem); margin: 6px 0 22px; }
 .eyebrow { margin: 0; color: var(--teal-800); font-size: .72rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
 form { display: grid; gap: 8px; }
 label { font-weight: 800; font-size: .84rem; margin-top: 8px; }

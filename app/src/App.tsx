@@ -609,11 +609,14 @@ export default function App() {
   return <>
     <header className="site-header">
       <div className="site-brand">
-        <svg className="brand-mark" viewBox="0 0 48 32" aria-hidden="true" focusable="false">
-          <path className="brand-wing" d="M20 18 5 5l3 15 10 6" />
-          <path d="M15 22c5-10 15-14 23-7l7 1-6 5c-3 8-14 10-24 1Z" />
-          <circle cx="34" cy="16" r="1.5" />
-          <path d="m19 24-4 6m12-5 2 5" />
+        <svg className="brand-mark" viewBox="0 0 72 44" aria-hidden="true" focusable="false">
+          <path className="brand-wing" d="M31 23C24 11 13 5 3 8l17 13L8 28c9 1 17 0 24-3Z" />
+          <path className="brand-tail" d="m32 29-17 11 20-5 6-6Z" />
+          <path className="brand-body" d="M28 26c1-10 11-17 21-14 9 3 12 12 7 20-6 8-21 7-28-6Z" />
+          <path className="brand-chest" d="M34 29c6 2 13 1 18-4 0 7-7 11-14 10Z" />
+          <path className="brand-gorget" d="M46 18c5 1 9 4 11 8-3 3-7 4-11 3Z" />
+          <path className="brand-beak" d="m54 17 16-5" />
+          <circle cx="50" cy="15" r="1.7" />
         </svg>
         <span><strong>Rufous</strong><small>Arizona field console</small></span>
       </div>
