@@ -256,7 +256,7 @@ function exactSpecies(recommendation: Recommendation, speciesName: string | null
   return recommendation.scientific_name !== null && speciesName !== null
     && recommendation.scientific_name.toLocaleLowerCase() === speciesName.toLocaleLowerCase();
 }
-function calendarInvite(value: unknown): TripCalendarInviteStatus {
+export function validateCalendarInviteStatus(value: unknown): TripCalendarInviteStatus {
   const row = exact(value, ["status", "sequence", "outbox_id", "allowed_actions", "can_retry", "updated_at", "acceptance_notice"]);
   const statuses = ["not_created", "pending", "claimed", "retry_wait", "accepted", "failed", "delivery_unknown", "superseded"] as const;
   const actions = ["send", "send_update", "retry_failed", "mark_delivered", "mark_not_delivered_and_retry"] as const;
@@ -277,8 +277,8 @@ function calendarInvite(value: unknown): TripCalendarInviteStatus {
   if (JSON.stringify(row.allowed_actions) !== JSON.stringify(expectedActions[status])
     || row.can_retry !== (status === "failed")
     || (status === "not_created"
-      ? row.sequence !== null || row.outbox_id !== null
-      : row.sequence === null || row.outbox_id === null)
+      ? row.sequence !== null || row.outbox_id !== null || row.updated_at !== null
+      : row.sequence === null || row.outbox_id === null || row.updated_at === null)
     || (status === "accepted") !== (row.acceptance_notice === "Accepted by local mail bridge")) invalid();
   return row as unknown as TripCalendarInviteStatus;
 }
@@ -355,5 +355,5 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
     const ranks = recommendations.filter((item) => item.recommendation_group === group).map((item) => item.rank_order);
     if (!unique(ranks.map(String))) invalid();
   }
-  return { plan: validatedPlan, recommendations, evidence: evidenceRows, weather, media: mediaRows, tool_traces: traces, calendar_invite: calendarInvite(row.calendar_invite) };
+  return { plan: validatedPlan, recommendations, evidence: evidenceRows, weather, media: mediaRows, tool_traces: traces, calendar_invite: validateCalendarInviteStatus(row.calendar_invite) };
 }

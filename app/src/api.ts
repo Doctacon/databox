@@ -2,9 +2,10 @@ import type {
   CreatePlanInput,
   LocationSuggestion,
   PlanSummary,
+  TripCalendarInviteStatus,
   TripPlanDetail,
 } from "./types";
-import { validateLocationSearch, validatePlanDetail, validatePlanList } from "./tripPlanValidation";
+import { validateCalendarInviteStatus, validateLocationSearch, validatePlanDetail, validatePlanList } from "./tripPlanValidation";
 
 type Row = Record<string, unknown>;
 const GENERIC_ERROR = "The local service could not complete the request";
@@ -23,6 +24,11 @@ const safeErrors: Record<string, string> = {
   "503:model_not_configured": "The configured model is unavailable.",
   "503:model_unavailable": "The configured model is unavailable.",
   "504:model_timeout": "The configured model timed out. Try again.",
+  "409:confirmation_required": "Confirm the calendar invitation action.",
+  "409:delivery_busy": "Another calendar operation is in progress. Try again shortly.",
+  "409:invalid_plan": "This trip plan is incomplete or changed and cannot be sent.",
+  "409:invalid_state": "The calendar invitation state changed. Reload the plan and try again.",
+  "503:smtp_not_configured": "Configure the local mail bridge before sending a calendar invitation.",
 };
 
 function exactError(value: unknown): string | null {
@@ -76,4 +82,37 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
     method: "POST",
     body: JSON.stringify(input),
   }));
+}
+
+export type TripCalendarAction = TripCalendarInviteStatus["allowed_actions"][number];
+
+function validateCalendarActionResponse(value: unknown): TripCalendarInviteStatus {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("Invalid calendar invitation response");
+  const row = value as Row;
+  if (Object.keys(row).sort().join("|") !== "delivery|outbox_id"
+    || typeof row.outbox_id !== "string" || !/^trip_outbox_[0-9a-f]{64}$/.test(row.outbox_id)) {
+    throw new Error("Invalid calendar invitation response");
+  }
+  let delivery: TripCalendarInviteStatus;
+  try { delivery = validateCalendarInviteStatus(row.delivery); }
+  catch { throw new Error("Invalid calendar invitation response"); }
+  if (delivery.outbox_id !== row.outbox_id) throw new Error("Invalid calendar invitation response");
+  return delivery;
+}
+
+export async function actOnTripCalendarInvite(
+  planId: string,
+  current: TripCalendarInviteStatus,
+  action: TripCalendarAction,
+): Promise<TripCalendarInviteStatus> {
+  let validated: TripCalendarInviteStatus;
+  try { validated = validateCalendarInviteStatus(current); }
+  catch { throw new Error("Invalid calendar invitation action"); }
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(planId) || !validated.allowed_actions.includes(action)) {
+    throw new Error("Invalid calendar invitation action");
+  }
+  const path = action === "send" || action === "send_update"
+    ? `/api/trip-plans/${encodeURIComponent(planId)}/calendar-invite?confirm=true`
+    : `/api/trip-calendar-deliveries/${encodeURIComponent(validated.outbox_id!)}/${action === "retry_failed" ? "retry" : action === "mark_delivered" ? "mark-delivered" : "mark-not-delivered-and-retry"}?confirm=true`;
+  return validateCalendarActionResponse(await request(path, { method: "POST" }));
 }

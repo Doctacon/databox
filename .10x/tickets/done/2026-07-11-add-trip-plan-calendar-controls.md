@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-evolve-product-into-rufous.md
@@ -27,6 +27,13 @@ No backend event logic, cancellation, new recipient UI, automatic send, or theme
 
 Record first/update/concurrent/unknown/failed/reload flows, no-implicit-send, strict client attacks, accessibility and full frontend gates.
 
+## Progress and notes
+
+- 2026-07-11: Implemented strict calendar status/action and action-response runtime validation, fixed safe API errors, and explicit confirmed Send/Update/Retry/Reconcile controls on persisted planner results. Native buttons, `aria-busy`, live status, focused outcomes, and a synchronous duplicate guard cover accessibility and concurrent clicks. Local-Bridge wording explicitly disclaims inbox/calendar delivery; persisted reload/history/create rendering causes no send.
+- 2026-07-11: Added focused first/update/concurrent/unknown/failed/reload/malformed/no-implicit-send/privacy tests. Focused tests pass 46/46; all frontend suites pass 220/220; typecheck and production build/bundle privacy scan pass. Evidence: `.10x/evidence/2026-07-11-trip-plan-calendar-controls.md`.
+- 2026-07-11: Independent review passed strict trust-boundary, allowed-action, confirmation, duplicate, accessibility, safe-copy, replay/no-send, and privacy criteria. Review: `.10x/reviews/2026-07-11-trip-plan-calendar-controls-review.md`.
+- 2026-07-11: Retrospective found no new reusable lesson beyond the active strict browser-boundary contracts and regression tests.
+
 ## Blockers
 
-Depends on trip invite API.
+None.

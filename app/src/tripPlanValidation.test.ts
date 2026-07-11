@@ -56,6 +56,17 @@ describe("Trip Planner runtime response validation", () => {
     expect(() => validatePlanDetail(value)).toThrow("Invalid trip planner response");
   });
 
+  it.each([
+    ["unknown invite status", { ...plan.calendar_invite, status: "sent" }],
+    ["action not allowed for status", { ...plan.calendar_invite, allowed_actions: ["send_update"] }],
+    ["duplicate action", { ...plan.calendar_invite, allowed_actions: ["send", "send"] }],
+    ["transport field", { ...plan.calendar_invite, recipient: "private@example.test" }],
+    ["created state without identity", { ...plan.calendar_invite, status: "failed", allowed_actions: ["retry_failed"], can_retry: true }],
+    ["accepted state without notice", { ...plan.calendar_invite, status: "accepted", sequence: 0, outbox_id: `trip_outbox_${"a".repeat(64)}`, allowed_actions: ["send_update"], updated_at: "2026-07-10T12:00:00Z" }],
+  ])("rejects malformed calendar relationship: %s", (_name, calendar_invite) => {
+    expect(() => validatePlanDetail({ ...plan, calendar_invite })).toThrow("Invalid trip planner response");
+  });
+
   it("rejects duplicate summaries, malformed locations, and exact cardinality overflow", () => {
     expect(() => validatePlanList({ plans: [summary(), summary()] })).toThrow("Invalid trip planner response");
     expect(validatePlanList({ plans: Array.from({ length: 100 }, (_, index) => ({ ...summary(), trip_plan_id: `trip_${index}` })) })).toHaveLength(100);

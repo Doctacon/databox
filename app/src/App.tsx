@@ -3,6 +3,7 @@ import { createPlan, getPlan, listPlans } from "./api";
 import { BirdCatalogPage, BirdProfilePage } from "./BirdPages";
 import LocationCombobox from "./LocationCombobox";
 import { MyBirdsPage } from "./MyBirds";
+import { TripCalendarControls } from "./TripCalendarControls";
 import { TargetBirdPage } from "./TargetBird";
 import type {
   CreatePlanInput,
@@ -332,7 +333,7 @@ function RecommendationGroup({
   );
 }
 
-function PlanView({ detail }: { detail: TripPlanDetail }) {
+function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCalendarChange: (invite: TripPlanDetail["calendar_invite"]) => void }) {
   const high = detail.recommendations
     .filter((row) => row.recommendation_group === "high_likelihood")
     .sort((left, right) => left.rank_order - right.rank_order);
@@ -361,6 +362,8 @@ function PlanView({ detail }: { detail: TripPlanDetail }) {
           <div><strong>{weather.condition}</strong><span>Forecast conditions</span></div>
         </div>
       </section>
+
+      <TripCalendarControls planId={detail.plan.trip_plan_id} invite={detail.calendar_invite} onChange={onCalendarChange} />
 
       {detail.plan.caveats.length > 0 && (
         <section className="notice" aria-labelledby="plan-caveats">
@@ -543,7 +546,7 @@ function PlannerPage() {
       <section className="content" aria-busy={loadingPlan}>
         {error && <div className="error" role="alert"><strong>Could not complete that request.</strong><span>{error}</span></div>}
         {loadingPlan && <div className="loading" role="status">Gathering local evidence and building your field plan…</div>}
-        {!loadingPlan && detail && <PlanView key={detail.plan.trip_plan_id} detail={detail} />}
+        {!loadingPlan && detail && <PlanView key={detail.plan.trip_plan_id} detail={detail} onCalendarChange={(calendar_invite) => setDetail((current) => current && current.plan.trip_plan_id === detail.plan.trip_plan_id ? { ...current, calendar_invite } : current)} />}
         {!loadingPlan && !detail && !error && <div className="welcome"><span aria-hidden="true">⌁</span><h2>No trip selected</h2><p>Create a plan or choose a saved plan to see recommendations, evidence, and the agent workflow.</p></div>}
       </section>
     </main>;

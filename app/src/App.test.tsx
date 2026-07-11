@@ -157,6 +157,7 @@ describe("Birding Trip Copilot", () => {
     const panelHeadings = Array.from(document.querySelectorAll(".plan > .panel"))
       .map((panel) => panel.querySelector("h2")?.textContent);
     expect(panelHeadings).toEqual([
+      "Calendar invitation",
       "Field Plan",
       "Weather and Elevation",
       "High-likelihood Species",

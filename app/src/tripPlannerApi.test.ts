@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getPlan, listPlans, searchLocations } from "./api";
+import { actOnTripCalendarInvite, getPlan, listPlans, searchLocations } from "./api";
+import type { TripCalendarInviteStatus } from "./types";
 
 function response(body: unknown, status: number) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
@@ -38,6 +39,32 @@ describe("Trip Planner safe browser errors", () => {
 
     vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response(sparseDetail, 200));
     await expect(getPlan("expected")).resolves.toEqual(sparseDetail);
+  });
+
+  it("validates calendar actions and response relationships without exposing transport errors", async () => {
+    const notCreated = sparseDetail.calendar_invite as TripCalendarInviteStatus;
+    const accepted = {
+      status: "accepted" as const, sequence: 0, outbox_id: `trip_outbox_${"a".repeat(64)}`,
+      allowed_actions: ["send_update" as const], can_retry: false, updated_at: "2026-07-10T12:00:00Z",
+      acceptance_notice: "Accepted by local mail bridge" as const,
+    };
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response({ outbox_id: accepted.outbox_id, delivery: accepted }, 200));
+    await expect(actOnTripCalendarInvite("expected", notCreated, "send")).resolves.toEqual(accepted);
+    expect(fetch).toHaveBeenCalledWith("/api/trip-plans/expected/calendar-invite?confirm=true", expect.objectContaining({ method: "POST" }));
+
+    fetch.mockImplementationOnce(() => response({ outbox_id: `trip_outbox_${"b".repeat(64)}`, delivery: accepted }, 200));
+    await expect(actOnTripCalendarInvite("expected", accepted, "send_update")).rejects.toThrow("Invalid calendar invitation response");
+
+    fetch.mockImplementationOnce(() => response({ error: { code: "invalid_state", message: "recipient@example.test /private/smtp payload" } }, 409));
+    const rejected = actOnTripCalendarInvite("expected", accepted, "send_update");
+    await expect(rejected).rejects.toThrow("The calendar invitation state changed. Reload the plan and try again.");
+    await expect(rejected).rejects.not.toThrow(/recipient|private|smtp|payload/);
+  });
+
+  it("rejects actions not explicitly allowed by the current validated state without transport", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch");
+    await expect(actOnTripCalendarInvite("expected", sparseDetail.calendar_invite as TripCalendarInviteStatus, "retry_failed")).rejects.toThrow("Invalid calendar invitation action");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it.each([
