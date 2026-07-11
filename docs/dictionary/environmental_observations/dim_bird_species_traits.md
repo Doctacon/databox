@@ -20,7 +20,7 @@ Exact scientific-name-conformed AVONET v7 species-average bird traits with measu
 | `beak_length_culmen_mm` | `UNKNOWN` | — | — |
 | `beak_length_nares_mm` | `UNKNOWN` | — | — |
 | `beak_width_mm` | `UNKNOWN` | — | — |
-| `bird_species_traits_sk` | `UNKNOWN` | missing (must_be=0), duplicate (must_be=0) | — |
+| `bird_species_traits_sk` | `TEXT` | missing (must_be=0), duplicate (must_be=0) | — |
 | `complete_measures` | `UNKNOWN` | — | — |
 | `dataset_doi` | `UNKNOWN` | — | — |
 | `dataset_license` | `UNKNOWN` | — | — |
