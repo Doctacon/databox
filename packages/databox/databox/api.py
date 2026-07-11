@@ -45,6 +45,7 @@ from databox.agents.cloudflare_workers_ai import (
     TripPlanModelClient,
 )
 from databox.bird_alert_delivery_api import register_bird_alert_delivery_routes
+from databox.catalog_media import catalog_media_identity_hash, catalog_media_rows
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.personal_collection_api import register_personal_collection_routes
 from databox.target_planning_api import register_target_planning_routes
@@ -252,6 +253,74 @@ class PlanListResponse(BaseModel):
     plans: list[PlanSummaryResponse]
 
 
+class CatalogPhotoResponse(RecommendationPhotoResponse):
+    model_config = ConfigDict(extra="forbid")
+
+    caveats: list[str] = Field(max_length=10)
+    lookup_at: datetime | None
+
+    @field_validator(
+        "source_record_id",
+        "species_name",
+        "display_url",
+        "source_url",
+        "creator",
+        "rights_holder",
+        "publisher",
+        "format",
+        "license_text",
+        "license_url",
+        "selection_reason",
+    )
+    @classmethod
+    def bounded_text(cls, value: str | None) -> str | None:
+        if value is not None and not 0 < len(value) <= 1000:
+            raise ValueError("catalog photo metadata is out of bounds")
+        return value
+
+    @field_validator("caveats")
+    @classmethod
+    def bounded_caveats(cls, value: list[str]) -> list[str]:
+        if any(not 0 < len(item) <= 1000 for item in value):
+            raise ValueError("catalog photo caveat is out of bounds")
+        return value
+
+
+class CatalogCallResponse(RecommendationCallResponse):
+    model_config = ConfigDict(extra="forbid")
+
+    caveats: list[str] = Field(max_length=10)
+    lookup_at: datetime | None
+
+    @field_validator(
+        "source_record_id",
+        "recording_id",
+        "species_name",
+        "recording_type",
+        "quality",
+        "recordist",
+        "locality",
+        "country",
+        "source_url",
+        "audio_url",
+        "license_text",
+        "license_url",
+        "selection_reason",
+    )
+    @classmethod
+    def bounded_text(cls, value: str | None) -> str | None:
+        if value is not None and not 0 < len(value) <= 1000:
+            raise ValueError("catalog call metadata is out of bounds")
+        return value
+
+    @field_validator("caveats")
+    @classmethod
+    def bounded_caveats(cls, value: list[str]) -> list[str]:
+        if any(not 0 < len(item) <= 1000 for item in value):
+            raise ValueError("catalog call caveat is out of bounds")
+        return value
+
+
 class BirdCatalogSummaryResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
@@ -266,6 +335,8 @@ class BirdCatalogSummaryResponse(BaseModel):
     traits_status: Literal["available", "unavailable"]
     recent_public_observation_count: int = Field(ge=0)
     latest_public_observation_at: datetime | None
+    photo: CatalogPhotoResponse
+    call: CatalogCallResponse
 
 
 class BirdCatalogResponse(BaseModel):
@@ -631,6 +702,8 @@ def _recommendation_photo(
     source_url = _safe_gbif_source_url(row.summary.get("source_url"), occurrence_id)
     creator = _text(row.summary.get("creator"))
     rights_holder = _text(row.summary.get("rights_holder"))
+    image_format = (_text(row.summary.get("format")) or "").lower()
+    selection_reason = _text(row.summary.get("selection_reason"))
     license_text, license_url = _license(row.summary.get("license_url"), allow_audio_nd=False)
     identity_matches = (
         scientific_name is not None
@@ -641,6 +714,8 @@ def _recommendation_photo(
         display_url is None
         or source_url is None
         or (creator is None and rights_holder is None)
+        or image_format not in {"image/jpeg", "image/png", "image/webp"}
+        or selection_reason is None
         or license_url is None
         or not identity_matches
     ):
@@ -656,10 +731,10 @@ def _recommendation_photo(
         creator=creator,
         rights_holder=rights_holder,
         publisher=_text(row.summary.get("publisher")),
-        format=_text(row.summary.get("format")),
+        format=image_format,
         license_text=license_text,
         license_url=license_url,
-        selection_reason=_text(row.summary.get("selection_reason")),
+        selection_reason=selection_reason,
         caveats=row.caveats,
     )
 
@@ -698,6 +773,7 @@ def _recommendation_call(
     species_name = _text(row.summary.get("species_name"))
     scope = _text(row.summary.get("geographic_scope"))
     recordist = _text(row.summary.get("recordist"))
+    selection_reason = _text(row.summary.get("selection_reason"))
     license_text, license_url = _license(row.summary.get("license_url"))
     identity_matches = (
         scientific_name is not None
@@ -717,6 +793,7 @@ def _recommendation_call(
         or not identity_matches
         or not valid_scope
         or not recordist
+        or not selection_reason
         or not license_url
     ):
         return _unavailable_call([*row.caveats, "Persisted call metadata failed safety validation"])
@@ -736,7 +813,7 @@ def _recommendation_call(
         audio_url=audio[0],
         license_text=license_text,
         license_url=license_url,
-        selection_reason=_text(row.summary.get("selection_reason")),
+        selection_reason=selection_reason,
         caveats=row.caveats,
     )
 
@@ -943,6 +1020,124 @@ _BIRD_PROFILE_COLUMNS = f"""
 """
 
 
+def _catalog_photo(
+    row: dict[str, Any] | None, species_code: str, scientific_name: str | None
+) -> CatalogPhotoResponse:
+    lookup_at = None
+    if (
+        row is None
+        or row.get("scientific_name") != scientific_name
+        or row.get("identity_hash") != catalog_media_identity_hash(species_code, scientific_name)
+        or row.get("source") != "gbif"
+    ):
+        return CatalogPhotoResponse(
+            **_unavailable_photo(
+                ["Catalog photo has not been enriched for this exact taxon"]
+            ).model_dump(),
+            lookup_at=None,
+        )
+    try:
+        caveats = json.loads(row["caveats_json"])
+        summary = json.loads(row["summary_json"])
+        payload = json.loads(row["payload_json"])
+        if (
+            not isinstance(caveats, list)
+            or len(caveats) > 10
+            or any(not isinstance(item, str) or not 0 < len(item) <= 1000 for item in caveats)
+            or not isinstance(summary, dict)
+            or not isinstance(payload, dict)
+        ):
+            raise ValueError("invalid catalog photo metadata")
+        evidence = EvidenceResponse(
+            evidence_id=f"catalog_photo_{row['species_code']}",
+            recommendation_id=row["species_code"],
+            source=row["source"],
+            source_table=None,
+            source_record_id=row["source_record_id"],
+            evidence_type="recommendation_photo",
+            status=row["status"],
+            retrieved_at=row["lookup_at"],
+            summary=summary,
+            payload=payload,
+            caveats=caveats,
+        )
+        lookup_at = datetime.fromisoformat(row["lookup_at"])
+        media = _recommendation_photo(evidence, scientific_name)
+        return CatalogPhotoResponse(**media.model_dump(), lookup_at=lookup_at)
+    except (TypeError, ValueError, ValidationError):
+        return CatalogPhotoResponse(
+            **_unavailable_photo(
+                ["Persisted catalog photo metadata failed safety validation"]
+            ).model_dump(),
+            lookup_at=None,
+        )
+
+
+def _catalog_call(
+    row: dict[str, Any] | None, species_code: str, scientific_name: str | None
+) -> CatalogCallResponse:
+    if (
+        row is None
+        or row.get("scientific_name") != scientific_name
+        or row.get("identity_hash") != catalog_media_identity_hash(species_code, scientific_name)
+        or row.get("source") != "xeno_canto"
+    ):
+        return CatalogCallResponse(
+            **_unavailable_call(
+                ["Catalog call has not been enriched for this exact taxon"]
+            ).model_dump(),
+            lookup_at=None,
+        )
+    try:
+        caveats = json.loads(row["caveats_json"])
+        summary = json.loads(row["summary_json"])
+        payload = json.loads(row["payload_json"])
+        if (
+            not isinstance(caveats, list)
+            or len(caveats) > 10
+            or any(not isinstance(item, str) or not 0 < len(item) <= 1000 for item in caveats)
+            or not isinstance(summary, dict)
+            or not isinstance(payload, dict)
+        ):
+            raise ValueError("invalid catalog call metadata")
+        evidence = EvidenceResponse(
+            evidence_id=f"catalog_call_{row['species_code']}",
+            recommendation_id=row["species_code"],
+            source=row["source"],
+            source_table=None,
+            source_record_id=row["source_record_id"],
+            evidence_type="recommendation_call",
+            status=row["status"],
+            retrieved_at=row["lookup_at"],
+            summary=summary,
+            payload=payload,
+            caveats=caveats,
+        )
+        lookup_at = datetime.fromisoformat(row["lookup_at"])
+        media = _recommendation_call(evidence, scientific_name)
+        return CatalogCallResponse(**media.model_dump(), lookup_at=lookup_at)
+    except (TypeError, ValueError, ValidationError):
+        return CatalogCallResponse(
+            **_unavailable_call(
+                ["Persisted catalog call metadata failed safety validation"]
+            ).model_dump(),
+            lookup_at=None,
+        )
+
+
+def _attach_catalog_media(
+    connection: duckdb.DuckDBPyConnection, rows: list[dict[str, Any]]
+) -> None:
+    media = catalog_media_rows(connection, [str(row["species_code"]) for row in rows])
+    for row in rows:
+        code = str(row["species_code"])
+        scientific_name = (
+            str(row["scientific_name"]) if row["scientific_name"] is not None else None
+        )
+        row["photo"] = _catalog_photo(media.get((code, "photo")), code, scientific_name)
+        row["call"] = _catalog_call(media.get((code, "call")), code, scientific_name)
+
+
 def _bird_summaries(
     connection: duckdb.DuckDBPyConnection,
 ) -> list[BirdCatalogSummaryResponse]:
@@ -958,6 +1153,7 @@ def _bird_summaries(
     )
     if len(rows) != 706:
         raise ValueError("Arizona bird catalog must contain exactly 706 taxa")
+    _attach_catalog_media(connection, rows)
     species_codes = [str(row["species_code"]) for row in rows]
     if len(set(species_codes)) != len(species_codes):
         raise ValueError("Arizona bird catalog species codes must be unique")
@@ -998,7 +1194,9 @@ def _bird_profile(
     if len(rows) != 1:
         raise ValueError("Arizona bird catalog species code is not unique")
     row = rows[0]
+    _attach_catalog_media(connection, rows)
     summary = {key.strip() for key in _BIRD_SUMMARY_COLUMNS.split(",")}
+    summary.update({"photo", "call"})
     profile = {key: row[key] for key in summary}
     profile.update(
         {

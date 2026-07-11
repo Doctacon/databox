@@ -1,12 +1,12 @@
 import { isIsoDate, isIsoTimestamp } from "./isoDateTime";
-import type { BirdCatalogSummary, BirdProfile } from "./types";
+import type { BirdCatalogSummary, BirdProfile, CatalogCall, CatalogPhoto } from "./types";
 
 type UnknownRecord = Record<string, unknown>;
 
 const summaryKeys = [
   "species_code", "common_name", "scientific_name", "taxonomic_category", "taxonomic_order",
   "order_name", "family_common_name", "family_scientific_name", "traits_status",
-  "recent_public_observation_count", "latest_public_observation_at",
+  "recent_public_observation_count", "latest_public_observation_at", "photo", "call",
 ] as const;
 
 function objectWithKeys(value: unknown, keys: readonly string[]): UnknownRecord {
@@ -28,12 +28,91 @@ function nullableNumber(value: unknown): value is number | null {
   return value === null || (typeof value === "number" && Number.isFinite(value));
 }
 
+function boundedText(value: unknown, required = false): value is string | null {
+  return value === null ? !required : typeof value === "string" && value.length > 0 && value.length <= 1000;
+}
+
 function count(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 function timestamp(value: unknown): value is string | null {
   return isIsoTimestamp(value, true);
+}
+
+const photoKeys = [
+  "status", "source_record_id", "species_name", "display_url", "source_url", "creator",
+  "rights_holder", "publisher", "format", "license_text", "license_url", "selection_reason",
+  "caveats", "lookup_at",
+] as const;
+const callKeys = [
+  "status", "source_record_id", "recording_id", "species_name", "geographic_scope",
+  "recording_type", "quality", "recordist", "locality", "country", "source_url", "audio_url",
+  "license_text", "license_url", "selection_reason", "caveats", "lookup_at",
+] as const;
+
+function caveats(value: unknown): value is string[] {
+  return Array.isArray(value) && value.length <= 10
+    && value.every((item) => typeof item === "string" && item.length > 0 && item.length <= 1000);
+}
+
+function ccLicense(value: unknown, allowNd: boolean): boolean {
+  if (typeof value !== "string") return false;
+  const match = /^CC (BY|BY-SA|BY-NC|BY-NC-SA|BY-ND|BY-NC-ND) (1\.0|2\.0|2\.5|3\.0|4\.0)$/.exec(value);
+  return value === "CC0 1.0" || Boolean(match && (allowNd || !match[1].endsWith("ND")));
+}
+
+function ccUrl(value: unknown, text: unknown): boolean {
+  if (typeof value !== "string" || typeof text !== "string") return false;
+  if (text === "CC0 1.0") return value === "https://creativecommons.org/publicdomain/zero/1.0/";
+  const [slug, version] = text.slice(3).toLowerCase().split(" ");
+  return value === `https://creativecommons.org/licenses/${slug}/${version}/`;
+}
+
+function catalogPhoto(value: unknown, scientificName: string | null): CatalogPhoto {
+  const row = objectWithKeys(value, photoKeys);
+  if ((row.status !== "available" && row.status !== "unavailable") || !caveats(row.caveats)
+    || !timestamp(row.lookup_at)) throw new Error("invalid catalog photo");
+  if (row.status === "unavailable") {
+    if (photoKeys.slice(1, -2).some((key) => row[key] !== null)) throw new Error("invalid unavailable photo");
+    return row as unknown as CatalogPhoto;
+  }
+  if (typeof row.source_record_id !== "string" || !/^[1-9]\d*$/.test(row.source_record_id)
+    || row.species_name !== scientificName || typeof row.display_url !== "string"
+    || row.display_url !== `https://api.gbif.org/v1/image/cache/500x500/occurrence/${row.source_record_id}/media/${row.display_url.slice(-32)}`
+    || !/^[0-9a-f]{32}$/.test(row.display_url.slice(-32))
+    || row.source_url !== `https://www.gbif.org/occurrence/${row.source_record_id}`
+    || !boundedText(row.creator) || !boundedText(row.rights_holder)
+    || (row.creator === null && row.rights_holder === null) || !boundedText(row.publisher)
+    || !["image/jpeg", "image/png", "image/webp"].includes(String(row.format))
+    || !ccLicense(row.license_text, false) || !ccUrl(row.license_url, row.license_text)
+    || !boundedText(row.selection_reason, true)
+    || row.lookup_at === null) throw new Error("invalid available photo");
+  return row as unknown as CatalogPhoto;
+}
+
+function catalogCall(value: unknown, scientificName: string | null): CatalogCall {
+  const row = objectWithKeys(value, callKeys);
+  if ((row.status !== "available" && row.status !== "unavailable") || !caveats(row.caveats)
+    || !timestamp(row.lookup_at)) throw new Error("invalid catalog call");
+  if (row.status === "unavailable") {
+    if (callKeys.slice(1, -2).some((key) => row[key] !== null)) throw new Error("invalid unavailable call");
+    return row as unknown as CatalogCall;
+  }
+  const id = row.source_record_id;
+  if (typeof id !== "string" || !/^[1-9]\d*$/.test(id) || row.recording_id !== id
+    || row.species_name !== scientificName
+    || (row.geographic_scope !== "Arizona" && row.geographic_scope !== "Global example")
+    || !boundedText(row.recording_type) || !boundedText(row.quality)
+    || !boundedText(row.recordist, true) || !boundedText(row.locality) || !boundedText(row.country)
+    || (row.source_url !== `https://xeno-canto.org/${id}`
+      && row.source_url !== `https://www.xeno-canto.org/${id}`)
+    || (row.audio_url !== `https://xeno-canto.org/${id}/download`
+      && row.audio_url !== `https://www.xeno-canto.org/${id}/download`)
+    || !ccLicense(row.license_text, true) || !ccUrl(row.license_url, row.license_text)
+    || !boundedText(row.selection_reason, true)
+    || row.lookup_at === null) throw new Error("invalid available call");
+  return row as unknown as CatalogCall;
 }
 
 function summary(value: unknown): BirdCatalogSummary {
@@ -48,6 +127,8 @@ function summary(value: unknown): BirdCatalogSummary {
     || (row.traits_status !== "available" && row.traits_status !== "unavailable")
     || !count(row.recent_public_observation_count) || !timestamp(row.latest_public_observation_at)
   ) throw new Error("invalid catalog summary");
+  row.photo = catalogPhoto(row.photo, row.scientific_name);
+  row.call = catalogCall(row.call, row.scientific_name);
   return row as unknown as BirdCatalogSummary;
 }
 

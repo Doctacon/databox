@@ -136,6 +136,14 @@ export interface LocationSuggestion {
   region_code: "US-AZ";
 }
 
+export interface CatalogPhoto extends RecommendationPhoto {
+  lookup_at: string | null;
+}
+
+export interface CatalogCall extends RecommendationCall {
+  lookup_at: string | null;
+}
+
 export interface BirdCatalogSummary {
   species_code: string;
   common_name: string | null;
@@ -148,6 +156,8 @@ export interface BirdCatalogSummary {
   traits_status: "available" | "unavailable";
   recent_public_observation_count: number;
   latest_public_observation_at: string | null;
+  photo: CatalogPhoto;
+  call: CatalogCall;
 }
 
 export interface BirdTaxonomy {

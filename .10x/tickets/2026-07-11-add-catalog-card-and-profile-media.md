@@ -2,7 +2,7 @@ Status: open
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-evolve-product-into-rufous.md
-Depends-On: .10x/tickets/2026-07-11-implement-catalog-media-enrichment.md
+Depends-On: .10x/tickets/done/2026-07-11-implement-catalog-media-enrichment.md
 
 # Add catalog card and profile media
 
@@ -29,4 +29,4 @@ Record exact available/unavailable/hybrid/drift/load-error cases, audio exclusiv
 
 ## Blockers
 
-Depends on catalog media API.
+None; the reviewed catalog media API and live metadata dependency are complete.

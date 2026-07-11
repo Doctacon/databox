@@ -26,6 +26,10 @@ No repository/package/schema rename, copied game asset, canvas game, router/fram
 
 Record naming audit, token/component coverage, route/state matrix, accessibility/responsive/reduced-motion checks, no-copyrighted/remote asset scan, bundle and full regressions.
 
+## Progress and notes
+
+- 2026-07-11: The reviewed catalog-media backend and live metadata are complete. Theme sequencing remains unchanged: catalog/profile media presentation and trip-plan calendar controls must settle before theme work begins.
+
 ## Blockers
 
-Depends on structural UI children.
+Depends on the two structural UI children listed in `Depends-On`; catalog backend completion alone does not unblock theme execution.

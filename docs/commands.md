@@ -79,6 +79,33 @@ observation and watch mutations. Watch centers are per-watch Arizona selections;
 the browser stores no global home location, and none of these controls evaluate
 matches or trigger weather, model, calendar, or SMTP work.
 
+Catalog photo/call metadata is populated only by an explicit local batch. Inspection is
+read-only and performs no discovery:
+
+```bash
+uv run --no-sync python scripts/catalog_media.py --inspect
+```
+
+Before apply, check Xeno-canto readiness without printing the credential value:
+
+```bash
+uv run --no-sync python scripts/catalog_media.py --check-prerequisites
+# {"xeno_canto_api_key_configured": true}
+```
+
+Apply and refresh fail before creating tables or rows when `XENO_CANTO_API_KEY` is absent.
+After independent review, run one bounded sequential checkpoint while the API, Quack,
+and SQLMesh writers are stopped:
+
+```bash
+uv run --no-sync python scripts/catalog_media.py --apply --batch-size 25
+uv run --no-sync python scripts/catalog_media.py --refresh --batch-size 25
+```
+
+Apply resumes missing exact identities; refresh resumes one explicit refresh campaign.
+Neither command stores media bytes. Catalog GETs never invoke these commands or media
+providers and return typed unavailable metadata until enrichment is complete.
+
 The local personal-collection API stores runtime-owned tables in
 `birding_personal` inside the same DuckDB file. It exposes observation CRUD at
 `/api/observations`, the derived `/api/life-list`, per-species `/api/watches`,

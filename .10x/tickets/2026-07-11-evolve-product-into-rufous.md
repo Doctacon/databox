@@ -26,7 +26,7 @@ This is a parent plan and is not executable directly.
 ## Delivery sequence
 
 1. Remove Wishlist through `.10x/tickets/done/2026-07-11-remove-wishlist-and-consolidate-watches.md`.
-2. Implement catalog media storage/batch/API through `.10x/tickets/2026-07-11-implement-catalog-media-enrichment.md`.
+2. Implement catalog media storage/batch/API through `.10x/tickets/done/2026-07-11-implement-catalog-media-enrichment.md`.
 3. Add catalog/profile media presentation through `.10x/tickets/2026-07-11-add-catalog-card-and-profile-media.md`.
 4. Implement trip-plan calendar state/API/transport through `.10x/tickets/2026-07-11-implement-trip-plan-calendar-invitations.md`.
 5. Add trip-plan invitation controls through `.10x/tickets/2026-07-11-add-trip-plan-calendar-controls.md`.
@@ -34,6 +34,11 @@ This is a parent plan and is not executable directly.
 7. Run aggregate verification through `.10x/tickets/2026-07-11-verify-rufous-product-evolution.md`.
 
 Catalog media backend and trip-calendar backend are parallelizable after shaping; their UI children depend on their respective APIs. Wishlist removal is independent. Theme follows all structural UI changes to avoid duplicate restyling.
+
+## Progress and notes
+
+- 2026-07-11: Wishlist removal is done.
+- 2026-07-11: Catalog media storage/batch/API is done after independent pass review and one authorized 29-batch live apply. All 706 taxa have complete exact metadata pairs: photos 524 available/182 unavailable and calls 600 available/106 unavailable. Zero-work replay and matching read-only inspect passed. Catalog/profile media presentation is unblocked; the Rufous theme remains correctly dependent on that structural UI child.
 
 ## Aggregate acceptance direction
 

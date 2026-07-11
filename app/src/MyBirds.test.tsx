@@ -7,6 +7,9 @@ import type { BirdCatalogSummary, BirdProfile, BirdWatch, PersonalObservation } 
 function json(body: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
 }
+const unavailablePhoto = { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
+const unavailableCall = { status: "unavailable" as const, source_record_id: null, recording_id: null, species_name: null, geographic_scope: null, recording_type: null, quality: null, recordist: null, locality: null, country: null, source_url: null, audio_url: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
+
 function catalog(): BirdCatalogSummary[] {
   return Array.from({ length: 706 }, (_, index) => ({
     species_code: `bird${index.toString().padStart(3, "0")}`,
@@ -20,6 +23,8 @@ function catalog(): BirdCatalogSummary[] {
     traits_status: index < 600 ? "available" : "unavailable",
     recent_public_observation_count: 0,
     latest_public_observation_at: null,
+    photo: unavailablePhoto,
+    call: unavailableCall,
   }));
 }
 const identity = { catalog_status: "current" as const, common_name: "Arizona Bird 000", scientific_name: "Avis localis0", taxonomic_category: "species" as const };

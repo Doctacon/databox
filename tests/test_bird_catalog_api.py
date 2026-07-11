@@ -10,6 +10,7 @@ from pathlib import Path
 import duckdb
 import pytest
 from databox.api import _BIRD_PROFILE_COLUMNS, create_app
+from databox.catalog_media import run_catalog_media_batch
 from fastapi.testclient import TestClient
 
 _COLUMNS = [column.strip() for column in _BIRD_PROFILE_COLUMNS.split(",")]
@@ -146,8 +147,149 @@ def test_list_returns_all_706_stable_bounded_rows_without_network_or_writes(
         "traits_status",
         "recent_public_observation_count",
         "latest_public_observation_at",
+        "photo",
+        "call",
     }
+    assert birds[0]["photo"]["status"] == birds[0]["call"]["status"] == "unavailable"
+    assert birds[0]["photo"]["lookup_at"] is None
+    assert birds[0]["call"]["lookup_at"] is None
     assert hashlib.sha256(path.read_bytes()).hexdigest() == before
+
+
+def test_catalog_get_returns_validated_persisted_media_and_fails_stale_identity_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = _database(tmp_path)
+    connection = duckdb.connect(str(path))
+    connection.execute(
+        """UPDATE birding_agent.arizona_species_catalog
+        SET scientific_name='Avis alpha' WHERE species_code='bird000'"""
+    )
+    connection.close()
+
+    def gbif(_endpoint: str, params: dict[str, object]) -> dict[str, object]:
+        name = str(params["scientificName"])
+        identifier = "https://images.example/bird.jpg"
+        return {
+            "results": [
+                {
+                    "key": 101,
+                    "species": name,
+                    "acceptedScientificName": name,
+                    "countryCode": "US",
+                    "stateProvince": "Arizona",
+                    "media": [
+                        {
+                            "type": "StillImage",
+                            "format": "image/jpeg",
+                            "identifier": identifier,
+                            "creator": "Fixture",
+                            "license": "https://creativecommons.org/licenses/by/4.0/",
+                        }
+                    ],
+                }
+            ]
+        }
+
+    def xeno(_endpoint: str, _params: dict[str, object]) -> dict[str, object]:
+        return {
+            "recordings": [
+                {
+                    "id": "201",
+                    "gen": "Avis",
+                    "sp": "alpha",
+                    "rec": "Fixture",
+                    "cnt": "United States",
+                    "loc": "Arizona",
+                    "type": "call",
+                    "q": "A",
+                    "url": "https://xeno-canto.org/201",
+                    "file": "https://xeno-canto.org/201/download",
+                    "lic": "https://creativecommons.org/licenses/by/4.0/",
+                }
+            ]
+        }
+
+    run_catalog_media_batch(
+        str(path),
+        mode="apply",
+        batch_size=1,
+        gbif_getter=gbif,
+        xeno_getter=xeno,
+        xeno_api_key="test",
+    )
+    before_get = hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def network_forbidden(*_: object, **__: object) -> object:
+        raise AssertionError("catalog GET must not use the network")
+
+    monkeypatch.setattr(socket, "create_connection", network_forbidden)
+    response = _client(path).get("/api/birds/bird000")
+    assert response.status_code == 200
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == before_get
+    body = response.json()
+    assert body["photo"]["status"] == body["call"]["status"] == "available"
+    assert body["photo"]["source_record_id"] == "101"
+    assert body["call"]["source_record_id"] == "201"
+
+    connection = duckdb.connect(str(path))
+    original_summary = connection.execute(
+        """SELECT summary_json FROM birding_catalog_media.results
+        WHERE species_code='bird000' AND media_kind='photo'"""
+    ).fetchone()[0]
+    for mutation in ("unsupported_format", "missing_selection_reason"):
+        summary = json.loads(original_summary)
+        if mutation == "unsupported_format":
+            summary["format"] = "image/gif"
+        else:
+            summary.pop("selection_reason")
+        connection.execute(
+            """UPDATE birding_catalog_media.results SET summary_json=?
+            WHERE species_code='bird000' AND media_kind='photo'""",
+            [json.dumps(summary)],
+        )
+        connection.close()
+        malformed_response = _client(path).get("/api/birds/bird000")
+        assert malformed_response.status_code == 200
+        malformed = malformed_response.json()
+        assert malformed["photo"]["status"] == "unavailable"
+        assert malformed["photo"]["display_url"] is None
+        connection = duckdb.connect(str(path))
+        connection.execute(
+            """UPDATE birding_catalog_media.results SET summary_json=?
+            WHERE species_code='bird000' AND media_kind='photo'""",
+            [original_summary],
+        )
+    connection.close()
+
+    connection = duckdb.connect(str(path))
+    connection.execute(
+        """DELETE FROM birding_catalog_media.results
+        WHERE species_code='bird000' AND media_kind='call'"""
+    )
+    connection.close()
+    incomplete = _client(path).get("/api/birds/bird000").json()
+    assert incomplete["photo"]["status"] == incomplete["call"]["status"] == "unavailable"
+    run_catalog_media_batch(
+        str(path),
+        mode="apply",
+        batch_size=1,
+        gbif_getter=gbif,
+        xeno_getter=xeno,
+        xeno_api_key="test",
+    )
+
+    connection = duckdb.connect(str(path))
+    connection.execute(
+        """UPDATE birding_catalog_media.results SET identity_hash='tampered'
+        WHERE species_code='bird000'"""
+    )
+    connection.close()
+    stale = _client(path).get("/api/birds/bird000").json()
+    assert stale["photo"]["status"] == stale["call"]["status"] == "unavailable"
+    assert stale["photo"]["display_url"] is None
+    assert stale["call"]["audio_url"] is None
 
 
 @pytest.mark.parametrize(

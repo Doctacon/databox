@@ -506,6 +506,84 @@ def _normalize_species(value: object) -> str | None:
     return f"{genus.lower().capitalize()} {species.lower()}"
 
 
+def exact_media_scientific_name(value: object) -> str | None:
+    """Return a selector identity only when the complete value is one exact binomial."""
+
+    text = _text(value)
+    normalized = _normalize_species(text)
+    if text is None or len(text.split()) != 2 or normalized != text:
+        return None
+    return normalized
+
+
+def recommendation_media_evidence_is_safe(
+    row: RecommendationMediaEvidence, scientific_name: str
+) -> bool:
+    """Validate the complete persisted selector result contract without network access."""
+
+    if len(row.caveats) > 10 or any(not 0 < len(item) <= 1000 for item in row.caveats):
+        return False
+    if row.evidence_type == "recommendation_photo":
+        kind = "photo"
+        if row.source != "gbif":
+            return False
+    elif row.evidence_type == "recommendation_call":
+        kind = "call"
+        if row.source != "xeno_canto":
+            return False
+    else:
+        return False
+    if row.status == "unavailable":
+        return (
+            row.source_record_id is None
+            and row.summary == {"kind": kind, "status": "unavailable"}
+            and row.payload == {}
+            and bool(row.caveats)
+        )
+    if row.status != "available" or row.summary.get("species_name") != scientific_name:
+        return False
+    if kind == "photo":
+        occurrence_id = _integer_id(row.source_record_id)
+        original = row.payload.get("original_media_identifier")
+        license_info = parse_creative_commons_license(
+            row.summary.get("license_url"), allow_audio_nd=False
+        )
+        return bool(
+            occurrence_id
+            and row.payload.get("normalized_species") == scientific_name
+            and row.payload.get("gbif_occurrence_id") == occurrence_id
+            and safe_gbif_photo_url(
+                row.summary.get("display_url"),
+                occurrence_id=occurrence_id,
+                original_identifier=original,
+            )
+            and row.summary.get("source_url") == f"https://www.gbif.org/occurrence/{occurrence_id}"
+            and (_text(row.summary.get("creator")) or _text(row.summary.get("rights_holder")))
+            and (_text(row.summary.get("format")) or "").lower() in _IMAGE_FORMATS
+            and license_info
+            and row.summary.get("license_code") == license_info[0]
+            and _text(row.summary.get("selection_reason"))
+        )
+    recording_id = _integer_id(row.source_record_id)
+    source_url = _safe_xeno_url(row.summary.get("source_url"), recording_id or "", audio=False)
+    audio_url = _safe_xeno_url(row.summary.get("audio_url"), recording_id or "", audio=True)
+    license_info = parse_creative_commons_license(
+        row.summary.get("license_url"), allow_audio_nd=True
+    )
+    return bool(
+        recording_id
+        and row.payload.get("recording_id") == recording_id
+        and row.payload.get("normalized_species") == scientific_name
+        and row.summary.get("geographic_scope") in {"Arizona", "Global example"}
+        and _text(row.summary.get("recordist"))
+        and source_url
+        and audio_url
+        and license_info
+        and row.summary.get("license_code") == license_info[0]
+        and _text(row.summary.get("selection_reason"))
+    )
+
+
 def parse_creative_commons_license(
     value: object, *, allow_audio_nd: bool
 ) -> tuple[str, str, bool] | None:

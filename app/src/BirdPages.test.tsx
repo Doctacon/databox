@@ -11,6 +11,9 @@ function response(body: unknown, status = 200) {
   }));
 }
 
+const unavailablePhoto = { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
+const unavailableCall = { status: "unavailable" as const, source_record_id: null, recording_id: null, species_name: null, geographic_scope: null, recording_type: null, quality: null, recordist: null, locality: null, country: null, source_url: null, audio_url: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
+
 function bird(index: number): BirdCatalogSummary {
   return {
     species_code: `bird${index.toString().padStart(3, "0")}`,
@@ -24,6 +27,8 @@ function bird(index: number): BirdCatalogSummary {
     traits_status: index === 23 || index >= 624 ? "unavailable" : "available",
     recent_public_observation_count: index,
     latest_public_observation_at: index ? "2026-07-09T08:00:00" : null,
+    photo: unavailablePhoto,
+    call: unavailableCall,
   };
 }
 
@@ -300,6 +305,43 @@ describe("Arizona bird catalog and modeled profiles", () => {
     }
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response(valid));
     await expect(getBird("bird000")).resolves.toEqual(valid);
+  });
+
+  it("strictly validates catalog media identity, URLs, licenses, fields, and dates", async () => {
+    const available = bird(0);
+    available.photo = {
+      status: "available", source_record_id: "101", species_name: available.scientific_name,
+      display_url: "https://api.gbif.org/v1/image/cache/500x500/occurrence/101/media/0123456789abcdef0123456789abcdef",
+      source_url: "https://www.gbif.org/occurrence/101", creator: "Fixture", rights_holder: null,
+      publisher: "Archive", format: "image/jpeg", license_text: "CC BY 4.0",
+      license_url: "https://creativecommons.org/licenses/by/4.0/", selection_reason: "Exact",
+      caveats: [], lookup_at: "2026-07-11T08:00:00Z",
+    };
+    available.call = {
+      status: "available", source_record_id: "201", recording_id: "201",
+      species_name: available.scientific_name, geographic_scope: "Arizona", recording_type: "call",
+      quality: "A", recordist: "Fixture", locality: "Arizona", country: "United States",
+      source_url: "https://xeno-canto.org/201", audio_url: "https://xeno-canto.org/201/download",
+      license_text: "CC BY-NC-SA 4.0", license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      selection_reason: "Exact", caveats: [], lookup_at: "2026-07-11T08:00:00Z",
+    };
+    const catalog = Array.from({ length: 706 }, (_, index) => index ? bird(index) : available);
+    vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response({ birds: catalog }));
+    await expect(listBirds()).resolves.toHaveLength(706);
+    for (const mutate of [
+      (value: BirdCatalogSummary) => { value.photo.species_name = "Wrong species"; },
+      (value: BirdCatalogSummary) => { value.photo.display_url = "https://evil.example/photo"; },
+      (value: BirdCatalogSummary) => { value.photo.license_text = "All rights reserved"; },
+      (value: BirdCatalogSummary) => { value.call.audio_url = "https://evil.example/audio"; },
+      (value: BirdCatalogSummary) => { (value.photo as unknown as { publisher: unknown }).publisher = 42; },
+      (value: BirdCatalogSummary) => { value.call.recordist = "x".repeat(1001); },
+      (value: BirdCatalogSummary) => { value.call.lookup_at = "2026-02-29T08:00:00"; },
+      (value: BirdCatalogSummary) => { (value.photo as unknown as Record<string, unknown>).extra = true; },
+    ]) {
+      const invalid = structuredClone(catalog); mutate(invalid[0]);
+      vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response({ birds: invalid }));
+      await expect(listBirds()).rejects.toThrow();
+    }
   });
 
   it("suppresses malformed or unexpected API error payloads", async () => {

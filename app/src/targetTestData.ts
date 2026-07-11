@@ -17,7 +17,10 @@ export const targetBirdProfile: BirdProfile = {
   taxonomic_category: "species", taxonomic_order: 1, order_name: "Passeriformes",
   family_common_name: "Target birds", family_scientific_name: "Targetidae",
   traits_status: "unavailable", recent_public_observation_count: 0,
-  latest_public_observation_at: null, region_code: "US-AZ",
+  latest_public_observation_at: null,
+  photo: { status: "unavailable", source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null },
+  call: { status: "unavailable", source_record_id: null, recording_id: null, species_name: null, geographic_scope: null, recording_type: null, quality: null, recordist: null, locality: null, country: null, source_url: null, audio_url: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null },
+  region_code: "US-AZ",
   taxonomy: { family_code: "target", report_as: null, extinct: false, extinct_year: null },
   traits: {
     status: "unavailable", source_scientific_name: null, avonet_family: null,
