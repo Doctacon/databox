@@ -11,7 +11,7 @@ Rufous MUST provide a dedicated `/map` top-level **Field Map** for statewide dis
 ## Open local map architecture
 
 - Use open-source MapLibre GL JS.
-- The style, sprites if any, state/county geometry, and application assets MUST be bundled locally. Browser runtime MUST make no tile, style, glyph, telemetry, or provider request.
+- The style, sprites if any, state/county geometry, and application assets MUST be bundled locally. Browser runtime MUST make no tile, style, glyph, telemetry, or map-provider request. `.10x/specs/field-map-encounter-photo-preview.md` narrowly permits existing validated GBIF catalog-photo URLs for encounter thumbnails; it does not relax any map-resource boundary.
 - A bounded official US Census cartographic-boundary source MUST be transformed to Arizona-only state/county GeoJSON at `app/src/assets/arizona-boundaries.geojson`. Record source revision, terms, transformation command, retained fields, row count, and SHA-256. Do not commit unrelated national geometry. The eventual map source disclosure MUST identify the U.S. Census Bureau source, say the artifact is derived/modified, and state that the product is not endorsed or certified by the Census Bureau.
 - Do not add deck.gl, routing, terrain, remote tiles, or PMTiles in this slice.
 
@@ -23,7 +23,7 @@ Rufous MUST provide a dedicated `/map` top-level **Field Map** for statewide dis
 - exact eligible rows from current modeled Arizona observation evidence where region is `US-AZ`, coordinates are within the governed Arizona bounds, `is_valid=true`, `is_reviewed=true`, and `is_location_private=false`;
 - source record ID or deterministic evidence ID, exact species code/current display identity/family, observation timestamp/count/notable flag, public location ID/name, latitude/longitude, and access-warning boolean.
 
-Missing, blank, duplicate, malformed, non-current identity, impossible timestamp/count/coordinates, or privacy ambiguity fails closed. `(private)` in an otherwise public location name sets access warning and does not reclassify source privacy. GET performs no writes, model/weather/provider calls, or discovery. Personal observations, Watches, plans, credentials, media, traces, and raw arbitrary evidence are excluded.
+Missing, blank, duplicate, malformed, non-current identity, impossible timestamp/count/coordinates, or privacy ambiguity fails closed. `(private)` in an otherwise public location name sets access warning and does not reclassify source privacy. GET performs no writes, model/weather/provider calls, or discovery. Personal observations, Watches, plans, credentials, calls, traces, and raw arbitrary evidence are excluded. The only media exception is the bounded deduplicated validated catalog-photo metadata governed by `.10x/specs/field-map-encounter-photo-preview.md`.
 
 ## Filters and current-clock recency
 
@@ -59,4 +59,4 @@ The canvas MUST NOT be the sole interface. A synchronized semantic encounter lis
 
 ## Explicit exclusions
 
-No inferred range polygon, predicted habitat, personal observation/watch map, trip route, directions, weather, provider lookup, external basemap, offline national tile archive, or claim of current presence.
+No inferred range polygon, predicted habitat, personal observation/watch map, trip route, directions, weather, provider lookup/discovery, external basemap, offline national tile archive, or claim of current presence. Validated catalog-photo display is governed solely by `.10x/specs/field-map-encounter-photo-preview.md`.

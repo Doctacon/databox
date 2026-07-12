@@ -38,7 +38,7 @@ Filters combine with AND and search. Sentinel `All …` appears first; remaining
 - Habitat: exact modeled label; include Habitat unavailable when present.
 - Weight: All weights, Tiny (<20 g), Small (20–99.9 g), Medium (100–499.9 g), Large (500–1,999.9 g), Very large (≥2,000 g), Weight unavailable.
 
-Boundaries are lower-inclusive except Tiny; no taxon may match two buckets. Reset restores empty search, Name A–Z, and all filter sentinels. Any search/filter/sort change resets page 1 and stops active audio.
+Boundaries are lower-inclusive except Tiny; no taxon may match two buckets. Reset restores empty search, Name A–Z, and all filter sentinels. Any search/filter/sort change stops active audio and resets the centered wheel taxon to the first matching result as governed by `.10x/specs/arizona-bird-wheel-catalog.md`.
 
 ## Presentation and accessibility
 

@@ -45,8 +45,8 @@ The list response MUST be bounded to the 706-row regional catalog; browser pagin
 - The app MUST add native local navigation between Trip Planner and Arizona Birds without adding a routing dependency when browser History APIs suffice.
 - `/birds` MUST support browser back/forward and direct local reload.
 - The catalog MUST provide case-insensitive search over common name, scientific name, and species code plus category filtering for all/species/hybrids.
-- Browser pagination MUST show 24 taxa by default with bounded Previous/Next, accurate range/total, and reset to the first page when search/filter changes.
-- Selecting a catalog card MUST navigate to `/birds/{species_code}`. Cards MUST show common/scientific names, category, family when available, modeled-traits availability, recent-observation availability, and exact representative media or explicit unavailable placeholders governed by `.10x/specs/arizona-catalog-media.md`, without inventing missing content.
+- Catalog list selection, centered preview, result counts, and search/filter reset behavior MUST follow `.10x/specs/arizona-bird-wheel-catalog.md`, which supersedes the former 24-row pagination and repeated-card grid.
+- Activating the centered preview's profile action MUST navigate to `/birds/{species_code}`. The preview MUST show common/scientific names, category, family when available, modeled-traits availability, recent-observation availability, and exact representative media or explicit unavailable placeholders governed by `.10x/specs/arizona-catalog-media.md`, without inventing missing content.
 
 ## Species profile
 
@@ -65,7 +65,7 @@ Trait-unavailable profiles MUST remain useful through taxonomy and current Arizo
 
 ## Accessibility and safety
 
-- Navigation, search, category filter, pager, cards/links, headings, tables/definition lists, and disclosures MUST use native accessible semantics.
+- Navigation, search, category filter, wheel selection/profile actions, headings, tables/definition lists, and disclosures MUST use native or standards-based accessible semantics.
 - Status and empty states MUST not rely on color alone.
 - Existing exact media identity/license/URL/runtime guards remain mandatory for any displayed photo or call.
 - Browser code MUST receive no database, eBird, GBIF, Xeno, Cloudflare, SMTP, Proton, or turbopuffer credential/configuration.
