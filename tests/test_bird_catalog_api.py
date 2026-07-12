@@ -9,9 +9,10 @@ from pathlib import Path
 
 import duckdb
 import pytest
-from databox.api import _BIRD_PROFILE_COLUMNS, create_app
+from databox.api import _BIRD_PROFILE_COLUMNS, BirdCatalogSummaryResponse, create_app
 from databox.catalog_media import run_catalog_media_batch
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 _COLUMNS = [column.strip() for column in _BIRD_PROFILE_COLUMNS.split(",")]
 _DOUBLE_COLUMNS = {
@@ -84,7 +85,9 @@ def _base_row(index: int) -> dict[str, object]:
             "order_name": "Passeriformes",
             "family_common_name": "Fixture Birds",
             "family_scientific_name": "Fixtureidae",
-            "traits_status": "unavailable",
+            "traits_status": "available" if index == 0 else "unavailable",
+            "mass_g": 123.4 if index == 0 else None,
+            "habitat": "Woodland" if index == 0 else None,
             "recent_public_observation_count": 0,
             "region_code": "US-AZ",
             "public_location_count": 0,
@@ -145,15 +148,87 @@ def test_list_returns_all_706_stable_bounded_rows_without_network_or_writes(
         "family_common_name",
         "family_scientific_name",
         "traits_status",
+        "mass_g",
+        "habitat",
         "recent_public_observation_count",
         "latest_public_observation_at",
         "photo",
         "call",
     }
+    assert birds[0]["mass_g"] == 123.4
+    assert birds[0]["habitat"] == "Woodland"
+    assert all(row["mass_g"] is None and row["habitat"] is None for row in birds[624:])
     assert birds[0]["photo"]["status"] == birds[0]["call"]["status"] == "unavailable"
     assert birds[0]["photo"]["lookup_at"] is None
     assert birds[0]["call"]["lookup_at"] is None
     assert hashlib.sha256(path.read_bytes()).hexdigest() == before
+
+
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("mass_g", 0.0),
+        ("mass_g", -1.0),
+        ("mass_g", float("nan")),
+        ("mass_g", float("inf")),
+        ("habitat", ""),
+        ("habitat", "   \t"),
+        ("habitat", "x" * 201),
+        ("habitat", "Woodland\nprivate detail"),
+    ],
+)
+def test_catalog_summary_rejects_invalid_mass_and_habitat(
+    tmp_path: Path, column: str, value: object
+) -> None:
+    path = _database(tmp_path)
+    connection = duckdb.connect(str(path))
+    connection.execute(
+        f"UPDATE birding_agent.arizona_species_catalog SET {column}=? WHERE species_code='bird000'",
+        [value],
+    )
+    connection.close()
+
+    response = _client(path).get("/api/birds")
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": {
+            "code": "database_unavailable",
+            "message": "The local bird catalog is unavailable",
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ("species_code", "column", "value"),
+    [
+        ("bird001", "mass_g", 12.5),
+        ("bird001", "habitat", "Woodland"),
+        ("bird624", "mass_g", 12.5),
+        ("bird624", "habitat", "Woodland"),
+    ],
+)
+def test_catalog_summary_rejects_traits_on_unavailable_and_hybrid_taxa(
+    tmp_path: Path, species_code: str, column: str, value: object
+) -> None:
+    path = _database(tmp_path)
+    connection = duckdb.connect(str(path))
+    connection.execute(
+        f"UPDATE birding_agent.arizona_species_catalog SET {column}=? WHERE species_code=?",
+        [value, species_code],
+    )
+    connection.close()
+
+    response = _client(path).get("/api/birds")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "database_unavailable"
+
+
+def test_catalog_summary_model_rejects_extra_and_malformed_fields(tmp_path: Path) -> None:
+    body = _client(_database(tmp_path)).get("/api/birds").json()["birds"][0]
+    for key, value in (("extra", True), ("mass_g", "123.4"), ("habitat", 42)):
+        malformed = {**body, key: value}
+        with pytest.raises(ValidationError):
+            BirdCatalogSummaryResponse.model_validate(malformed)
 
 
 def test_catalog_get_returns_validated_persisted_media_and_fails_stale_identity_closed(

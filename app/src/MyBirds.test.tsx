@@ -21,6 +21,8 @@ function catalog(): BirdCatalogSummary[] {
     family_common_name: "Local Birds",
     family_scientific_name: "Localidae",
     traits_status: index < 600 ? "available" : "unavailable",
+    mass_g: index < 600 ? 42 : null,
+    habitat: index < 600 ? "Woodland" : null,
     recent_public_observation_count: 0,
     latest_public_observation_at: null,
     photo: unavailablePhoto,

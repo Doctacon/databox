@@ -11,6 +11,10 @@ function response(body: unknown, status = 200) {
   }));
 }
 
+function rawResponse(body: unknown) {
+  return Promise.resolve({ ok: true, status: 200, json: async () => body } as Response);
+}
+
 const unavailablePhoto = { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
 const unavailableCall = { status: "unavailable" as const, source_record_id: null, recording_id: null, species_name: null, geographic_scope: null, recording_type: null, quality: null, recordist: null, locality: null, country: null, source_url: null, audio_url: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
 
@@ -25,6 +29,8 @@ function bird(index: number): BirdCatalogSummary {
     family_common_name: "Fixture Birds",
     family_scientific_name: "Fixtureidae",
     traits_status: index === 23 || index >= 624 ? "unavailable" : "available",
+    mass_g: index === 23 || index >= 624 ? null : 123.4,
+    habitat: index === 23 || index >= 624 ? null : "Woodland",
     recent_public_observation_count: index,
     latest_public_observation_at: index ? "2026-07-09T08:00:00" : null,
     photo: unavailablePhoto,
@@ -498,6 +504,40 @@ describe("Arizona bird catalog and modeled profiles", () => {
       vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response({ birds: invalid }));
       await expect(listBirds()).rejects.toThrow();
     }
+  });
+
+  it("strictly validates catalog summary mass, habitat, and exact keys", async () => {
+    const mutations: ((value: BirdCatalogSummary) => void)[] = [
+      (value) => { value.mass_g = 0; },
+      (value) => { value.mass_g = -1; },
+      (value) => { value.mass_g = Number.NaN; },
+      (value) => { value.mass_g = Number.POSITIVE_INFINITY; },
+      (value) => { (value as unknown as { mass_g: unknown }).mass_g = "123.4"; },
+      (value) => { value.habitat = ""; },
+      (value) => { value.habitat = "   \t"; },
+      (value) => { value.habitat = "x".repeat(201); },
+      (value) => { value.habitat = "Woodland\nprivate detail"; },
+      (value) => { (value as unknown as { habitat: unknown }).habitat = 42; },
+      (value) => { (value as unknown as Record<string, unknown>).extra = true; },
+      (value) => { value.traits_status = "unavailable"; },
+    ];
+    for (const mutate of mutations) {
+      const catalog = Array.from({ length: 706 }, (_, index) => bird(index));
+      mutate(catalog[0]);
+      vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => rawResponse({ birds: catalog }));
+      await expect(listBirds()).rejects.toThrow();
+    }
+    const hybridLeak = Array.from({ length: 706 }, (_, index) => bird(index));
+    hybridLeak[0].taxonomic_category = "hybrid";
+    hybridLeak[624].taxonomic_category = "species";
+    vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => rawResponse({ birds: hybridLeak }));
+    await expect(listBirds()).rejects.toThrow();
+
+    const exact = Array.from({ length: 706 }, (_, index) => bird(index));
+    vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => rawResponse({ birds: exact }));
+    const validated = await listBirds();
+    expect(validated[0]).toMatchObject({ mass_g: 123.4, habitat: "Woodland" });
+    expect(validated.slice(624).every((value) => value.mass_g === null && value.habitat === null)).toBe(true);
   });
 
   it("suppresses malformed or unexpected API error payloads", async () => {

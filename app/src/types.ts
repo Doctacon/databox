@@ -165,6 +165,8 @@ export interface BirdCatalogSummary {
   family_common_name: string | null;
   family_scientific_name: string | null;
   traits_status: "available" | "unavailable";
+  mass_g: number | null;
+  habitat: string | null;
   recent_public_observation_count: number;
   latest_public_observation_at: string | null;
   photo: CatalogPhoto;

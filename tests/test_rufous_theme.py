@@ -92,14 +92,17 @@ def test_accessibility_responsive_and_reduced_motion_contracts() -> None:
 
 
 def test_original_local_motif_and_no_remote_theme_assets() -> None:
-    assert '<svg className="brand-mark"' in APP
-    assert "brand-wing" in APP
+    assert 'import rufousImage from "./assets/rufous.png"' in APP
+    assert '<img className="brand-mark" src={rufousImage} alt="" aria-hidden="true" />' in APP
+    artwork = (ROOT / "app/src/assets/rufous.png").read_bytes()
+    assert artwork.startswith(b"\x89PNG\r\n\x1a\n")
+    assert 0 < len(artwork) <= 100_000
     scanned = "\n".join(
         (ROOT / path).read_text(encoding="utf-8")
         for path in ("app/index.html", "app/package.json", "app/src/App.tsx", "app/src/styles.css")
     )
     assert "@import" not in CSS
     assert not re.search(r"url\(\s*['\"]?https?://", CSS, re.IGNORECASE)
-    assert not re.search(r"<(?:link|script)[^>]+https?://", scanned, re.IGNORECASE)
+    assert not re.search(r"<(?:link|script|img)[^>]+https?://", scanned, re.IGNORECASE)
     forbidden = ("pokemon", "pokédex", "mapbox", "google fonts", "fonts.googleapis")
     assert all(term not in scanned.lower() for term in forbidden)

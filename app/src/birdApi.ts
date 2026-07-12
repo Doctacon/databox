@@ -5,8 +5,8 @@ type UnknownRecord = Record<string, unknown>;
 
 const summaryKeys = [
   "species_code", "common_name", "scientific_name", "taxonomic_category", "taxonomic_order",
-  "order_name", "family_common_name", "family_scientific_name", "traits_status",
-  "recent_public_observation_count", "latest_public_observation_at", "photo", "call",
+  "order_name", "family_common_name", "family_scientific_name", "traits_status", "mass_g",
+  "habitat", "recent_public_observation_count", "latest_public_observation_at", "photo", "call",
 ] as const;
 
 function objectWithKeys(value: unknown, keys: readonly string[]): UnknownRecord {
@@ -26,6 +26,15 @@ function nullableString(value: unknown, max = 1000): value is string | null {
 
 function nullableNumber(value: unknown): value is number | null {
   return value === null || (typeof value === "number" && Number.isFinite(value));
+}
+
+function nullablePositiveNumber(value: unknown): value is number | null {
+  return value === null || (typeof value === "number" && Number.isFinite(value) && value > 0);
+}
+
+function nullableSummaryText(value: unknown): value is string | null {
+  return value === null || (typeof value === "string" && value.length > 0 && value.length <= 200
+    && value.trim().length > 0 && !/[\u0000-\u001f\u007f]/.test(value));
 }
 
 function boundedText(value: unknown, required = false): value is string | null {
@@ -125,7 +134,10 @@ function summary(value: unknown): BirdCatalogSummary {
     || row.taxonomic_order === null || !nullableString(row.order_name, 200)
     || !nullableString(row.family_common_name, 200) || !nullableString(row.family_scientific_name, 200)
     || (row.traits_status !== "available" && row.traits_status !== "unavailable")
+    || !nullablePositiveNumber(row.mass_g) || !nullableSummaryText(row.habitat)
     || !count(row.recent_public_observation_count) || !timestamp(row.latest_public_observation_at)
+    || ((row.traits_status === "unavailable" || row.taxonomic_category === "hybrid")
+      && (row.mass_g !== null || row.habitat !== null))
   ) throw new Error("invalid catalog summary");
   row.photo = catalogPhoto(row.photo, row.scientific_name);
   row.call = catalogCall(row.call, row.scientific_name);

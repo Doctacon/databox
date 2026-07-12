@@ -24,7 +24,7 @@ This is a parent plan and is not executable directly.
 
 ## Child sequence
 
-1. `.10x/tickets/2026-07-11-expand-catalog-summary-for-discovery.md`
+1. `.10x/tickets/done/2026-07-11-expand-catalog-summary-for-discovery.md`
 2. `.10x/tickets/2026-07-11-build-catalog-sort-and-filters.md`
 3. `.10x/tickets/2026-07-11-fix-bird-profile-information-layout.md`
 4. `.10x/tickets/2026-07-11-alphabetize-text-dropdown-options.md`

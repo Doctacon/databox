@@ -17,7 +17,14 @@ from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from databox.agent_tools.open_meteo_geocoding import (
     ArizonaLocationSuggestion,
@@ -341,10 +348,29 @@ class BirdCatalogSummaryResponse(BaseModel):
     family_common_name: str | None = Field(default=None, max_length=200)
     family_scientific_name: str | None = Field(default=None, max_length=200)
     traits_status: Literal["available", "unavailable"]
+    mass_g: float | None = Field(default=None, gt=0, strict=True)
+    habitat: str | None = Field(
+        default=None, min_length=1, max_length=200, pattern=r"^[^\x00-\x1f\x7f]+$"
+    )
     recent_public_observation_count: int = Field(ge=0)
     latest_public_observation_at: datetime | None
     photo: CatalogPhotoResponse
     call: CatalogCallResponse
+
+    @field_validator("habitat")
+    @classmethod
+    def habitat_has_visible_text(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("catalog habitat must contain visible text")
+        return value
+
+    @model_validator(mode="after")
+    def unavailable_traits_remain_null(self) -> BirdCatalogSummaryResponse:
+        if (self.traits_status == "unavailable" or self.taxonomic_category == "hybrid") and (
+            self.mass_g is not None or self.habitat is not None
+        ):
+            raise ValueError("unavailable catalog traits must remain null")
+        return self
 
 
 class BirdCatalogResponse(BaseModel):
@@ -1008,7 +1034,8 @@ def _is_database_busy(exc: BaseException) -> bool:
 _BIRD_SUMMARY_COLUMNS = """
     species_code, common_name, scientific_name, taxonomic_category,
     taxonomic_order, order_name, family_common_name, family_scientific_name,
-    traits_status, recent_public_observation_count, latest_public_observation_at
+    traits_status, mass_g, habitat, recent_public_observation_count,
+    latest_public_observation_at
 """
 
 _BIRD_PROFILE_COLUMNS = f"""
@@ -1018,8 +1045,8 @@ _BIRD_PROFILE_COLUMNS = f"""
     unknown_sex_individuals, complete_measures, beak_length_culmen_mm,
     beak_length_nares_mm, beak_width_mm, beak_depth_mm, tarsus_length_mm,
     wing_length_mm, kipps_distance_mm, secondary_length_mm, hand_wing_index,
-    tail_length_mm, mass_g, mass_source, mass_reference_other, inference,
-    traits_inferred, reference_species, habitat, habitat_density_code,
+    tail_length_mm, mass_source, mass_reference_other, inference,
+    traits_inferred, reference_species, habitat_density_code,
     habitat_density_label, migration_code, migration_label, trophic_level,
     trophic_niche, primary_lifestyle, dataset_doi, dataset_version,
     dataset_license, source_file_id, source_file_md5, avonet_loaded_at,
