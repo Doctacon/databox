@@ -102,9 +102,17 @@ function caveats(value: unknown): string[] {
 }
 
 function location(value: unknown): LocationSuggestion {
-  const row = exact(value, ["display_name", "latitude", "longitude", "timezone", "region_code"]);
-  if (!string(row.display_name, 300) || !finite(row.latitude, 31, 38)
-    || !finite(row.longitude, -115, -108) || row.timezone !== "America/Phoenix" || row.region_code !== "US-AZ") invalid();
+  const row = exact(value, [
+    "display_name", "latitude", "longitude", "timezone", "region_code",
+    "source", "source_id", "place_type",
+  ]);
+  if (!string(row.display_name, 300) || /[\u0000-\u001f\u007f]/.test(row.display_name as string)
+    || !finite(row.latitude, 31, 38) || !finite(row.longitude, -115, -108)
+    || row.timezone !== "America/Phoenix" || row.region_code !== "US-AZ"
+    || (row.source !== "ebird_hotspot" && row.source !== "open_meteo")
+    || !string(row.source_id, 64) || !/^[A-Za-z0-9_-]+$/.test(row.source_id as string)
+    || (row.source === "open_meteo" && !(row.source_id as string).startsWith("open_meteo_"))
+    || row.place_type !== (row.source === "ebird_hotspot" ? "Birding hotspot" : "Arizona place")) invalid();
   return row as unknown as LocationSuggestion;
 }
 
@@ -112,8 +120,14 @@ export function validateLocationSearch(value: unknown): LocationSuggestion[] {
   const row = exact(value, ["locations"]);
   if (!Array.isArray(row.locations) || row.locations.length > 5) invalid();
   const locations = row.locations.map(location);
-  const identities = locations.map((item) => `${item.display_name}|${item.latitude}|${item.longitude}`);
-  if (new Set(identities).size !== identities.length) invalid();
+  const sourceIds = locations.map((item) => `${item.source}|${item.source_id}`);
+  const normalized = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("en").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  if (new Set(sourceIds).size !== sourceIds.length
+    || locations.some((item, index) => locations.slice(0, index).some((prior) =>
+      normalized(prior.display_name) === normalized(item.display_name)
+      && Math.abs(prior.latitude - item.latitude) <= 0.001
+      && Math.abs(prior.longitude - item.longitude) <= 0.001))) invalid();
   return locations;
 }
 

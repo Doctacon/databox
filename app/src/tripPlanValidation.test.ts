@@ -34,9 +34,15 @@ function summary() {
   return { trip_plan_id, requested_location, normalized_location_name, window_start, window_end, duration_minutes, plan_status, caveats, created_at, updated_at };
 }
 
+const suggestion = {
+  display_name: "Prescott, Arizona", latitude: 34.54, longitude: -112.47,
+  timezone: "America/Phoenix", region_code: "US-AZ", source: "open_meteo",
+  source_id: "open_meteo_prescott", place_type: "Arizona place",
+};
+
 describe("Trip Planner runtime response validation", () => {
-  it("accepts exact bounded location, summary, and nested detail contracts", () => {
-    expect(validateLocationSearch({ locations: [{ display_name: "Prescott, Arizona", latitude: 34.54, longitude: -112.47, timezone: "America/Phoenix", region_code: "US-AZ" }] })).toHaveLength(1);
+  it("accepts exact bounded source-labeled location, summary, and nested detail contracts", () => {
+    expect(validateLocationSearch({ locations: [suggestion] })).toHaveLength(1);
     expect(validatePlanList({ plans: [summary()] })).toEqual([summary()]);
     expect(validatePlanDetail(plan)).toEqual(plan);
   });
@@ -71,8 +77,12 @@ describe("Trip Planner runtime response validation", () => {
     expect(() => validatePlanList({ plans: [summary(), summary()] })).toThrow("Invalid trip planner response");
     expect(validatePlanList({ plans: Array.from({ length: 100 }, (_, index) => ({ ...summary(), trip_plan_id: `trip_${index}` })) })).toHaveLength(100);
     expect(() => validatePlanList({ plans: Array.from({ length: 101 }, (_, index) => ({ ...summary(), trip_plan_id: `trip_${index}` })) })).toThrow("Invalid trip planner response");
-    expect(() => validateLocationSearch({ locations: [{ display_name: "Bad", latitude: Number.NaN, longitude: -112, timezone: "America/Phoenix", region_code: "US-AZ" }] })).toThrow("Invalid trip planner response");
-    expect(() => validateLocationSearch({ locations: Array.from({ length: 6 }, () => ({ display_name: "Place", latitude: 34, longitude: -112, timezone: "America/Phoenix", region_code: "US-AZ" })) })).toThrow("Invalid trip planner response");
+    expect(() => validateLocationSearch({ locations: [{ ...suggestion, latitude: Number.NaN }] })).toThrow("Invalid trip planner response");
+    expect(() => validateLocationSearch({ locations: Array.from({ length: 6 }, (_, index) => ({ ...suggestion, source_id: `place_${index}` })) })).toThrow("Invalid trip planner response");
+    expect(() => validateLocationSearch({ locations: [{ ...suggestion, place_type: "Birding hotspot" }] })).toThrow("Invalid trip planner response");
+    expect(() => validateLocationSearch({ locations: [{ ...suggestion, source_id: "wrong_source" }] })).toThrow("Invalid trip planner response");
+    expect(() => validateLocationSearch({ locations: [{ ...suggestion, private_note: "hidden" }] })).toThrow("Invalid trip planner response");
+    expect(() => validateLocationSearch({ locations: [suggestion, { ...suggestion, source_id: "other", latitude: 34.5405 }] })).toThrow("Invalid trip planner response");
   });
 
   it.each([

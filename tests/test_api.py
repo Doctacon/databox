@@ -109,6 +109,7 @@ def _geocoding(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
     return {
         "results": [
             {
+                "id": 5309842,
                 "name": "Prescott",
                 "admin1": "Arizona",
                 "country": "United States",
@@ -119,6 +120,7 @@ def _geocoding(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
                 "timezone": "America/Phoenix",
             },
             {
+                "id": 4126226,
                 "name": "Prescott",
                 "admin1": "Arkansas",
                 "country": "United States",
@@ -308,6 +310,9 @@ def test_location_search_normalizes_query_and_returns_only_arizona(tmp_path: Pat
                 "longitude": -112.4685,
                 "timezone": "America/Phoenix",
                 "region_code": "US-AZ",
+                "source": "open_meteo",
+                "source_id": "open_meteo_5309842",
+                "place_type": "Arizona place",
             }
         ]
     }

@@ -2,7 +2,7 @@ Status: open
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-upgrade-place-search-feedback-and-map.md
-Depends-On: .10x/tickets/2026-07-11-add-local-hotspot-place-suggestions.md
+Depends-On: .10x/tickets/done/2026-07-11-add-local-hotspot-place-suggestions.md
 
 # Persist structured observation locations
 

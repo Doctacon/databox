@@ -23,6 +23,7 @@ def test_search_normalizes_suffix_filters_arizona_and_bounds_count() -> None:
         return {
             "results": [
                 {
+                    "id": 5309842,
                     "name": "Prescott",
                     "admin1": "Arizona",
                     "country": "United States",
@@ -32,6 +33,7 @@ def test_search_normalizes_suffix_filters_arizona_and_bounds_count() -> None:
                     "timezone": "America/Phoenix",
                 },
                 {
+                    "id": 1,
                     "name": "Border Error",
                     "admin1": "Arizona",
                     "country": "United States",
@@ -41,6 +43,7 @@ def test_search_normalizes_suffix_filters_arizona_and_bounds_count() -> None:
                     "timezone": "America/Phoenix",
                 },
                 {
+                    "id": 4126226,
                     "name": "Prescott",
                     "admin1": "Arkansas",
                     "country": "United States",
@@ -58,6 +61,8 @@ def test_search_normalizes_suffix_filters_arizona_and_bounds_count() -> None:
     assert len(results) == 1
     assert results[0].display_name == "Prescott, Arizona, United States"
     assert results[0].region_code == "US-AZ"
+    assert results[0].source_id == "open_meteo_5309842"
+    assert results[0].place_type == "Arizona place"
 
 
 @pytest.mark.parametrize(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Literal, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import urlopen
@@ -32,7 +32,10 @@ class ArizonaLocationSuggestion:
     latitude: float
     longitude: float
     timezone: str
-    region_code: str = ARIZONA_REGION_CODE
+    region_code: str
+    source: Literal["ebird_hotspot", "open_meteo"]
+    source_id: str
+    place_type: Literal["Birding hotspot", "Arizona place"]
 
 
 def search_arizona_locations(
@@ -71,13 +74,17 @@ def search_arizona_locations(
         if not isinstance(raw, dict) or not _is_arizona_result(raw):
             continue
         name = _text(raw.get("name"))
+        source_id = raw.get("id")
         admin1 = _text(raw.get("admin1"))
         country = _text(raw.get("country"))
         latitude = _number(raw.get("latitude"))
         longitude = _number(raw.get("longitude"))
-        timezone = _text(raw.get("timezone")) or ARIZONA_TIMEZONE
+        timezone = ARIZONA_TIMEZONE
         if (
             not name
+            or isinstance(source_id, bool)
+            or not isinstance(source_id, int)
+            or not 0 < source_id <= 9_999_999_999
             or latitude is None
             or longitude is None
             or not is_in_arizona(latitude, longitude)
@@ -88,12 +95,17 @@ def search_arizona_locations(
             display_parts.append(admin1)
         if country:
             display_parts.append(country)
+        display_name = ", ".join(display_parts)
         suggestions.append(
             ArizonaLocationSuggestion(
-                display_name=", ".join(display_parts),
+                display_name=display_name,
                 latitude=latitude,
                 longitude=longitude,
                 timezone=timezone,
+                region_code=ARIZONA_REGION_CODE,
+                source="open_meteo",
+                source_id=f"open_meteo_{source_id}",
+                place_type="Arizona place",
             )
         )
         if len(suggestions) >= bounded_limit:

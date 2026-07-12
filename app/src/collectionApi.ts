@@ -153,7 +153,20 @@ export async function deleteObservation(id: string): Promise<void> {
   if (row.removed !== true) throw new Error("Invalid local collection response");
 }
 export async function saveWatch(speciesCode: string, input: WatchInput): Promise<BirdWatch> {
-  return watch(await request(`/api/watches/${encodeURIComponent(speciesCode)}`, { method: "PUT", body: JSON.stringify(input) }));
+  const center = input.center;
+  return watch(await request(`/api/watches/${encodeURIComponent(speciesCode)}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      ...input,
+      center: {
+        display_name: center.display_name,
+        latitude: center.latitude,
+        longitude: center.longitude,
+        timezone: center.timezone,
+        region_code: center.region_code,
+      },
+    }),
+  }));
 }
 export async function setWatchActive(speciesCode: string, active: boolean): Promise<BirdWatch> {
   return watch(await request(`/api/watches/${encodeURIComponent(speciesCode)}/${active ? "resume" : "pause"}`, { method: "POST" }));

@@ -273,15 +273,15 @@ describe("My Birds and profile collection controls", () => {
   });
 
   it("creates and confirmed-deletes a per-watch Arizona center and radius without a global origin", async () => {
-    const birds = catalog(); let currentWatch: BirdWatch | null = null; const calls: string[] = [];
+    const birds = catalog(); let currentWatch: BirdWatch | null = null; const calls: string[] = []; let putBody: Record<string, unknown> | null = null;
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
       const path = String(input); calls.push(`${init?.method || "GET"} ${path}`);
       if (path === "/api/birds") return json({ birds });
       if (path === "/api/observations") return json({ observations: [] });
       if (path === "/api/life-list") return json({ birds: [] });
       if (path === "/api/watches") return json({ watches: currentWatch ? [currentWatch] : [] });
-      if (path === "/api/locations?q=Prescott") return json({ locations: [{ display_name: "Prescott, Arizona", latitude: 34.54, longitude: -112.47, timezone: "America/Phoenix", region_code: "US-AZ" }] });
-      if (path === "/api/watches/bird000" && init?.method === "PUT") { const body = JSON.parse(String(init.body)); currentWatch = { ...watched(), center_name: body.center.display_name, radius_miles: body.radius_miles }; return json(currentWatch); }
+      if (path === "/api/locations?q=Prescott") return json({ locations: [{ display_name: "Prescott, Arizona", latitude: 34.54, longitude: -112.47, timezone: "America/Phoenix", region_code: "US-AZ", source: "open_meteo", source_id: "open_meteo_prescott", place_type: "Arizona place" }] });
+      if (path === "/api/watches/bird000" && init?.method === "PUT") { const body = JSON.parse(String(init.body)); putBody = body; currentWatch = { ...watched(), center_name: body.center.display_name, radius_miles: body.radius_miles }; return json(currentWatch); }
       if (path === "/api/watches/bird000" && init?.method === "DELETE") { currentWatch = null; return json({ removed: true }); }
       throw new Error(`Unexpected request ${path}`);
     });
@@ -289,10 +289,13 @@ describe("My Birds and profile collection controls", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Watches" }));
     await userEvent.selectOptions(screen.getByLabelText("Bird"), "bird000");
     await userEvent.type(screen.getByLabelText("Watch center"), "Prescott");
-    await userEvent.click(await screen.findByRole("option", { name: /Prescott, Arizona/ }));
+    const option = await screen.findByRole("option", { name: /Prescott, Arizona/ });
+    expect(within(option).getByText(/Arizona place · 34\.5400, -112\.4700/)).toBeVisible();
+    await userEvent.click(option);
     const radius = screen.getByLabelText("Travel radius (miles)"); await userEvent.clear(radius); await userEvent.type(radius, "35");
     await userEvent.click(screen.getByRole("button", { name: "Start watching" }));
     expect(await screen.findByText("Watch created.")).toBeVisible();
+    expect(putBody).toEqual({ center: { display_name: "Prescott, Arizona", latitude: 34.54, longitude: -112.47, timezone: "America/Phoenix", region_code: "US-AZ" }, radius_miles: 35 });
     const watchRow = screen.getByText(/Prescott, Arizona · 35 miles/).closest("li");
     expect(watchRow).not.toBeNull();
     expect(within(watchRow!).getByText(/does not save a global home location/i)).toBeVisible();

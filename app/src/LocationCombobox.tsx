@@ -1,11 +1,11 @@
 import { KeyboardEvent, useEffect, useId, useState } from "react";
 import { searchLocations } from "./api";
-import type { LocationSuggestion } from "./types";
+import type { LocationSelection, LocationSuggestion } from "./types";
 
 interface LocationComboboxProps {
   inputId?: string;
   value: string;
-  selected: LocationSuggestion | null;
+  selected: LocationSelection | null;
   disabled: boolean;
   onChange: (value: string) => void;
   onSelect: (location: LocationSuggestion) => void;
@@ -139,7 +139,7 @@ export default function LocationCombobox({
               }}
             >
               <strong>{option.display_name}</strong>
-              <small>{option.latitude.toFixed(4)}, {option.longitude.toFixed(4)}</small>
+              <small>{option.place_type} · {option.latitude.toFixed(4)}, {option.longitude.toFixed(4)}</small>
             </li>
           ))}
         </ul>

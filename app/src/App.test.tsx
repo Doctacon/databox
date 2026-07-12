@@ -801,6 +801,9 @@ describe("Rufous", () => {
             longitude: -112.4685,
             timezone: "America/Phoenix",
             region_code: "US-AZ",
+            source: "ebird_hotspot",
+            source_id: "L_prescott",
+            place_type: "Birding hotspot",
           }],
         });
       }
@@ -813,6 +816,7 @@ describe("Rufous", () => {
     const option = await screen.findByRole("option", { name: /Prescott, Arizona, United States/ });
     expect(location).toHaveAttribute("aria-expanded", "true");
     expect(option).toBeVisible();
+    expect(within(option).getByText(/Birding hotspot · 34\.5400, -112\.4685/)).toBeVisible();
     await user.keyboard("{ArrowDown}{Enter}");
     expect(location).toHaveValue("Prescott, Arizona, United States");
     expect(location).toHaveAttribute("aria-expanded", "false");

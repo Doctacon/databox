@@ -23,7 +23,7 @@ import type {
   BirdWatch,
   CollectionState,
   LifeListEntry,
-  LocationSuggestion,
+  LocationSelection,
   PersonalObservation,
 } from "./types";
 
@@ -100,15 +100,15 @@ interface WatchFormProps {
   initial?: BirdWatch | null;
   busy: boolean;
   onCancel?: () => void;
-  onSave: (center: LocationSuggestion, radius: number) => Promise<boolean>;
+  onSave: (center: LocationSelection, radius: number) => Promise<boolean>;
 }
 function WatchForm({ speciesCode, initial = null, busy, onCancel, onSave }: WatchFormProps) {
-  const initialCenter: LocationSuggestion | null = initial ? {
+  const initialCenter: LocationSelection | null = initial ? {
     display_name: initial.center_name, latitude: initial.center_latitude, longitude: initial.center_longitude,
-    timezone: initial.center_timezone, region_code: "US-AZ",
+    timezone: initial.center_timezone as "America/Phoenix", region_code: "US-AZ",
   } : null;
   const [location, setLocation] = useState(initial?.center_name || "");
-  const [selected, setSelected] = useState<LocationSuggestion | null>(initialCenter);
+  const [selected, setSelected] = useState<LocationSelection | null>(initialCenter);
   const [radius, setRadius] = useState(String(initial?.radius_miles || 25));
   async function submit(event: FormEvent) {
     event.preventDefault();

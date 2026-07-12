@@ -60,9 +60,10 @@ describe("target API boundary", () => {
   });
   it("posts the exact selected origin without credentials", async () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(() => response(targetPlan));
-    await createTargetPlan({ species_code: "target1", location: "Prescott", location_selection: { display_name: "Prescott, AZ", latitude: 34, longitude: -112, timezone: "America/Phoenix", region_code: "US-AZ" }, radius_miles: 25, start_at: "2026-07-11T06:00:00", duration_minutes: 120 });
+    await createTargetPlan({ species_code: "target1", location: "Prescott", location_selection: { display_name: "Prescott, AZ", latitude: 34, longitude: -112, timezone: "America/Phoenix", region_code: "US-AZ", source: "open_meteo", source_id: "open_meteo_prescott", place_type: "Arizona place" }, radius_miles: 25, start_at: "2026-07-11T06:00:00", duration_minutes: 120 });
     const init = fetch.mock.calls[0][1] as RequestInit;
     expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body)).location_selection).toEqual({ display_name: "Prescott, AZ", latitude: 34, longitude: -112, timezone: "America/Phoenix", region_code: "US-AZ" });
     expect(String(init.body)).not.toMatch(/cloudflare|password|api.?key/i);
   });
   it("maps exact-shaped target errors to fixed text without rendering backend detail", async () => {

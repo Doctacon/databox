@@ -78,9 +78,19 @@ export async function getPlan(id: string): Promise<TripPlanDetail> {
 }
 
 export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail> {
+  const selection = input.location_selection;
   return validatePlanDetail(await request("/api/trip-plans", {
     method: "POST",
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      location_selection: selection ? {
+        display_name: selection.display_name,
+        latitude: selection.latitude,
+        longitude: selection.longitude,
+        timezone: selection.timezone,
+        region_code: selection.region_code,
+      } : undefined,
+    }),
   }));
 }
 

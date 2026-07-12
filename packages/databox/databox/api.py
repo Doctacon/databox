@@ -58,6 +58,7 @@ from databox.bird_alert_delivery_api import register_bird_alert_delivery_routes
 from databox.catalog_media import catalog_media_identity_hash, catalog_media_rows
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.personal_collection_api import register_personal_collection_routes
+from databox.place_suggestions import merge_fallback_suggestions, search_local_hotspots
 from databox.target_planning_api import register_target_planning_routes
 from databox.trip_plan_calendar import trip_invite_status
 from databox.trip_plan_calendar_api import (
@@ -129,11 +130,34 @@ class HealthResponse(BaseModel):
 
 
 class LocationSuggestionResponse(BaseModel):
-    display_name: str
-    latitude: float
-    longitude: float
-    timezone: str
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    display_name: str = Field(strict=True, min_length=1, max_length=300)
+    latitude: float = Field(strict=True, ge=-90, le=90)
+    longitude: float = Field(strict=True, ge=-180, le=180)
+    timezone: Literal["America/Phoenix"]
     region_code: Literal["US-AZ"]
+    source: Literal["ebird_hotspot", "open_meteo"]
+    source_id: str = Field(strict=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    place_type: Literal["Birding hotspot", "Arizona place"]
+
+    @field_validator("display_name")
+    @classmethod
+    def suggestion_name_is_safe(cls, value: str) -> str:
+        if not value.strip() or re.search(r"[\x00-\x1f\x7f]", value) is not None:
+            raise ValueError("suggestion name must contain safe visible text")
+        return value
+
+    @model_validator(mode="after")
+    def suggestion_source_is_coherent(self) -> LocationSuggestionResponse:
+        if not is_in_arizona(self.latitude, self.longitude):
+            raise ValueError("suggestion coordinates must be inside Arizona")
+        expected = "Birding hotspot" if self.source == "ebird_hotspot" else "Arizona place"
+        if self.place_type != expected or (
+            self.source == "open_meteo" and not self.source_id.startswith("open_meteo_")
+        ):
+            raise ValueError("suggestion source metadata is inconsistent")
+        return self
 
 
 class LocationSearchResponse(BaseModel):
@@ -1489,6 +1513,9 @@ def _suggestion_response(suggestion: ArizonaLocationSuggestion) -> LocationSugge
         longitude=suggestion.longitude,
         timezone=suggestion.timezone,
         region_code="US-AZ",
+        source=suggestion.source,
+        source_id=suggestion.source_id,
+        place_type=suggestion.place_type,
     )
 
 
@@ -1668,8 +1695,23 @@ def create_app(
     async def search_locations(
         q: str = Query(min_length=2, max_length=100),
     ) -> LocationSearchResponse | JSONResponse:
+        connection: duckdb.DuckDBPyConnection | None = None
+        local: list[ArizonaLocationSuggestion] = []
         try:
-            locations = search_arizona_locations(q, http_get_json=geocoding_getter)
+            if Path(db_path).exists():
+                connection = duckdb.connect(db_path, read_only=True)
+                local = search_local_hotspots(connection, q).suggestions
+        except (duckdb.Error, TypeError, ValueError):
+            local = []
+        finally:
+            if connection is not None:
+                connection.close()
+        if local:
+            return LocationSearchResponse(locations=[_suggestion_response(item) for item in local])
+        try:
+            locations = merge_fallback_suggestions(
+                [], search_arizona_locations(q, http_get_json=geocoding_getter)
+            )
             return LocationSearchResponse(
                 locations=[_suggestion_response(item) for item in locations]
             )

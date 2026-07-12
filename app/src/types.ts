@@ -139,12 +139,18 @@ export interface TripPlanDetail {
   calendar_invite: TripCalendarInviteStatus;
 }
 
-export interface LocationSuggestion {
+export interface LocationSelection {
   display_name: string;
   latitude: number;
   longitude: number;
-  timezone: string;
+  timezone: "America/Phoenix";
   region_code: "US-AZ";
+}
+
+export interface LocationSuggestion extends LocationSelection {
+  source: "ebird_hotspot" | "open_meteo";
+  source_id: string;
+  place_type: "Birding hotspot" | "Arizona place";
 }
 
 export interface CatalogPhoto extends RecommendationPhoto {
@@ -360,7 +366,7 @@ export interface ObservationInput {
 }
 
 export interface WatchInput {
-  center: LocationSuggestion;
+  center: LocationSelection;
   radius_miles: number;
 }
 

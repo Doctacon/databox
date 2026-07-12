@@ -116,7 +116,20 @@ async function request(path: string, init?: RequestInit): Promise<unknown> {
 }
 
 export async function createTargetPlan(input: CreateTargetPlanInput): Promise<TargetPlan> {
-  return validate(await request("/api/target-plans", { method: "POST", body: JSON.stringify(input) }));
+  const selection = input.location_selection;
+  return validate(await request("/api/target-plans", {
+    method: "POST",
+    body: JSON.stringify({
+      ...input,
+      location_selection: {
+        display_name: selection.display_name,
+        latitude: selection.latitude,
+        longitude: selection.longitude,
+        timezone: selection.timezone,
+        region_code: selection.region_code,
+      },
+    }),
+  }));
 }
 export async function getTargetPlan(id: string): Promise<TargetPlan> {
   if (!/^target_[0-9a-f]{32}$/.test(id)) throw new Error("Invalid target plan identifier");

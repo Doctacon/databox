@@ -24,7 +24,7 @@ This parent is not executable directly.
 
 ## Child sequence
 
-1. `.10x/tickets/2026-07-11-add-local-hotspot-place-suggestions.md`
+1. `.10x/tickets/done/2026-07-11-add-local-hotspot-place-suggestions.md`
 2. `.10x/tickets/2026-07-11-persist-structured-observation-locations.md`
 3. `.10x/tickets/2026-07-11-add-observation-location-combobox.md`
 4. `.10x/tickets/2026-07-11-auto-dismiss-rufous-success-messages.md`
