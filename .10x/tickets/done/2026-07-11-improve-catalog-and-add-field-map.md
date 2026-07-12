@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: None
@@ -32,6 +32,13 @@ This is a parent plan and is not executable directly.
 6. `.10x/tickets/done/2026-07-11-build-rufous-field-map-ui.md`
 7. `.10x/tickets/done/2026-07-11-verify-catalog-and-field-map.md`
 
+Discovered bounded children:
+
+8. `.10x/tickets/done/2026-07-11-repair-rufous-artwork-contract-test.md`
+9. `.10x/tickets/done/2026-07-11-repair-profile-layout-contract-test.md`
+10. `.10x/tickets/done/2026-07-11-investigate-field-map-verification-warehouse-drift.md`
+11. `.10x/tickets/done/2026-07-11-stabilize-field-map-heading-focus-test.md`
+
 API summary and map-data children may execute independently. Profile layout and dropdown ordering are independent UI slices. Catalog controls depend on summary fields. Map UI depends on map data/API and local geometry. Theme-wide aggregate verification follows all children.
 
 ## Aggregate acceptance
@@ -42,6 +49,14 @@ API summary and map-data children may execute independently. Profile layout and 
 - `/map` provides local MapLibre clusters plus accessible list with zero third-party request and strict public-evidence eligibility.
 - Full product/privacy/data/docs/static gates and independent reviews pass without unintended warehouse or delivery mutation.
 
+## Progress and notes
+
+- 2026-07-11: All eleven planned/discovered direct children are done with focused evidence and pass reviews.
+- 2026-07-11: Aggregate verification passed 702 network-blocked Python tests, 249 frontend tests, 13 SQLMesh tests, 25 Soda contracts/125 checks, and all type/build/bundle/docs/static/hooks gates.
+- 2026-07-11: Four aggregate architecture, correctness, privacy/security/source, and UX/accessibility reviews passed. The coherent explicit user observation discovered during execution is preserved and excluded from public map evidence.
+- 2026-07-11: Independent parent closure review passed. Review: `.10x/reviews/2026-07-11-catalog-field-map-parent-closure-review.md`.
+- 2026-07-11: Retrospective is complete across children and aggregate verification. Local-map GPU/screenshot/assistive-technology limits are accepted evidence boundaries; no unresolved implementation or follow-up remains.
+
 ## Blockers
 
-None; execute bounded children in dependency order after implementation authorization.
+None.

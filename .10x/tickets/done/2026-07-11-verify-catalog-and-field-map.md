@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
-Parent: .10x/tickets/2026-07-11-improve-catalog-and-add-field-map.md
+Parent: .10x/tickets/done/2026-07-11-improve-catalog-and-add-field-map.md
 Depends-On: .10x/tickets/done/2026-07-11-build-catalog-sort-and-filters.md, .10x/tickets/done/2026-07-11-fix-bird-profile-information-layout.md, .10x/tickets/done/2026-07-11-alphabetize-text-dropdown-options.md, .10x/tickets/done/2026-07-11-build-rufous-field-map-ui.md
 
 # Verify catalog discovery and Field Map
@@ -28,7 +28,7 @@ One aggregate evidence record and focused independent reviews mapping every crit
 
 ## Progress and notes
 
-- 2026-07-11: Inspected the governing decision/four focused specs, all implementation/repair/investigation tickets and evidence, and all eight existing child pass reviews. Child graph and done dependencies are coherent.
+- 2026-07-11: Inspected the governing decision/four focused specs, all implementation/repair/investigation tickets and evidence, and all ten non-aggregate child pass reviews. Child graph and done dependencies are coherent.
 - 2026-07-11: Captured the live warehouse hash, mtime, size, personal observation safe checksum/count, Watch count, and cancellation count before verification. No loopback Uvicorn writer was running. After every gate and final reconciliation, all values matched exactly: warehouse `87d45e…`, one coherent personal observation, zero Watches/cancellations.
 - 2026-07-11: Full network-blocked Python passed 702/702, three snapshots, 86.63% coverage. Full frontend initially exposed one nondeterministic lazy-route focus assertion; the separately authorized test-only stabilization `.10x/tickets/done/2026-07-11-stabilize-field-map-heading-focus-test.md` changed only immediate assertion timing. Focused map tests then passed three consecutive 4/4 runs and full frontend passed 249/249 plus typecheck/build/bundle audit.
 - 2026-07-11: SQLMesh passed 13/13, lint, and clean prod diff; Soda passed 25/25 contracts and 125 checks; Ruff/format/MyPy/secrets/seven-source/generated/docs/MkDocs/pre-commit/diff/no-stage gates passed. Data and SQLMesh state hashes remained unchanged.

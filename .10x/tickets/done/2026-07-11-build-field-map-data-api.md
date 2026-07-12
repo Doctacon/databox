@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
-Parent: .10x/tickets/2026-07-11-improve-catalog-and-add-field-map.md
+Parent: .10x/tickets/done/2026-07-11-improve-catalog-and-add-field-map.md
 Depends-On: .10x/tickets/done/2026-07-11-repair-trip-planner-ebird-evidence-privacy.md
 
 # Build Field Map data and API

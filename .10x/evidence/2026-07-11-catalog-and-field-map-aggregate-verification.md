@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-verify-catalog-and-field-map.md, .10x/tickets/2026-07-11-improve-catalog-and-add-field-map.md, .10x/decisions/rufous-catalog-discovery-and-field-map.md
+Relates-To: .10x/tickets/done/2026-07-11-verify-catalog-and-field-map.md, .10x/tickets/done/2026-07-11-improve-catalog-and-add-field-map.md, .10x/decisions/rufous-catalog-discovery-and-field-map.md
 
 # Catalog discovery and Field Map aggregate verification
 
@@ -18,7 +18,7 @@ Verification inspected the parent and aggregate tickets; the active catalog-cont
 - profile-layout contract-test repair — pass;
 - Rufous Field Map UI — pass.
 
-All implementation children are under `.10x/tickets/done/`, and parent sequencing/dependencies agree with current source. The aggregate ticket remains active because fresh aggregate architecture, correctness, privacy/security, and UX/accessibility reviews are still required.
+All eleven planned/discovered direct children are under `.10x/tickets/done/`, and parent sequencing/dependencies agree with current source. Ten non-aggregate child reviews and four aggregate architecture, correctness, privacy/security/source, and UX/accessibility reviews passed.
 
 ## Live-state isolation
 
@@ -155,6 +155,6 @@ The captured runtime style contains local county geometry and no remote resource
 ## Findings and limits
 
 - No aggregate implementation, source-authority, privacy, architecture, accessibility-contract, data, docs, or static blocker was found.
-- The lazy-route focus flake was isolated to test observation timing, repaired under a separate active ticket, and passed repeated focused/full gates without product changes.
+- The lazy-route focus flake was isolated to test observation timing, repaired under a separate done ticket, independently reviewed, and passed repeated focused/full gates without product changes.
 - Automated MapLibre interaction is verified at the typed adapter boundary in jsdom rather than a physical GPU/browser screenshot; the semantic equivalent and exact locality contracts remain fully covered.
-- Aggregate independent architecture, correctness, privacy/security, and UX/accessibility reviews are pending and required before closure.
+- Aggregate independent architecture, correctness, privacy/security/source, and UX/accessibility reviews passed and are recorded under `.10x/reviews/`.
