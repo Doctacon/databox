@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import styles from "./styles.css?raw";
 import { getBird, listBirds } from "./birdApi";
 import type { BirdCatalogSummary, BirdProfile } from "./types";
 
@@ -374,6 +375,40 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(screen.getByText("Exact species call ranked by type and quality")).toBeVisible();
     expect(screen.getAllByText(/Looked up:/)).toHaveLength(2);
     expect(document.querySelector(".catalog-call-profile audio")).toHaveAttribute("preload", "none");
+  });
+
+  it("keeps the exact profile panel and media order in one column with readable long metadata at 320px", async () => {
+    window.history.replaceState(null, "", "/birds/bird000");
+    const modeled = profile(withMedia(bird(0), 103));
+    modeled.photo.creator = "A long photographer name with ordinary spaces for narrow viewport wrapping";
+    modeled.call.locality = "A long recording locality with ordinary spaces for narrow viewport wrapping";
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const path = String(input);
+      if (path.endsWith("/collection-state")) return response({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
+      return response(modeled);
+    });
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Arizona Bird 000", level: 1 })).toBeVisible();
+    expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      "Photo and call", "Plan for this bird", "Your collection", "Identity and taxonomy", "Ecology",
+      "Physical traits", "Arizona activity", "Occurrence and sound context", "Evidence and provenance",
+    ]);
+    const photo = document.querySelector(".catalog-photo-profile");
+    const call = document.querySelector(".catalog-call-profile");
+    expect(photo).not.toBeNull();
+    expect(call).not.toBeNull();
+    expect(photo!.compareDocumentPosition(call!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("Photo: A long photographer name with ordinary spaces for narrow viewport wrapping")).toBeVisible();
+    expect(screen.getByText("Location: A long recording locality with ordinary spaces for narrow viewport wrapping, United States")).toBeVisible();
+
+    expect(styles).toMatch(/\.bird-profile-main\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
+    expect(styles).toMatch(/\.catalog-profile-media-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
+    expect(styles.match(/\.catalog-profile-media-grid\s*\{/g)).toHaveLength(1);
+    expect(styles).toMatch(/\.catalog-profile-media-grid\s*>\s*\*\s*\{[^}]*min-width:\s*0/s);
+    expect(styles).toMatch(/\.catalog-profile-media-grid \.media-metadata[^}]*overflow-wrap:\s*break-word;\s*word-break:\s*normal/s);
+    expect(styles).not.toContain("minmax(240px");
+    expect(styles).toMatch(/@media \(max-width:\s*540px\)[^{]*\{[\s\S]*?\.content, \.birds-main, \.bird-profile-main, \.my-birds-main\s*\{\s*padding:\s*15px 12px 22px;/);
   });
 
   it("supports native navigation, direct detail routes, and popstate without a router dependency", async () => {

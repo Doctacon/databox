@@ -168,13 +168,17 @@ summary { min-height: 44px; cursor: pointer; color: var(--teal-950); font-weight
 .bird-code { color: var(--muted); font-size: .78rem; }
 .catalog-photo { margin: 0; }
 .catalog-media-placeholder { min-height: 120px; }
-.catalog-profile-media-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(240px, 2fr); gap: 20px; align-items: start; }
+.catalog-profile-media-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.catalog-profile-media-grid > * { min-width: 0; }
+.catalog-profile-media-grid .media-metadata, .catalog-profile-media-grid .catalog-media-attribution,
+.catalog-profile-media-grid .media-metadata > *, .catalog-profile-media-grid .media-metadata a,
+.catalog-profile-media-grid .catalog-media-attribution > * { overflow-wrap: break-word; word-break: normal; }
 .catalog-photo-profile .catalog-photo-frame { max-height: 560px; }
 .catalog-photo-profile .catalog-media-placeholder { min-height: 280px; }
 .catalog-call-profile { margin: 0; padding: 16px; border: 2px solid var(--ink); background: var(--cream-100); }
 .card-status { list-style: none; padding: 12px 0 0; margin: 12px 0 0; border-top: 2px dashed var(--teal-800); color: #38463f; font-size: .82rem; line-height: 1.6; }
 .card-status li::before { content: "■ "; color: var(--teal-700); }
-.bird-profile-main { display: grid; gap: 20px; }
+.bird-profile-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .bird-profile-main > p { margin: 0; }
 .bird-profile-hero .scientific { color: var(--cream-200); font-size: 1.1rem; }
 .bird-facts { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
@@ -222,7 +226,6 @@ button.danger:hover { background: #651b17; }
   .site-header p { display: none; }
   .catalog-controls { grid-template-columns: 1fr 1fr; }
   .catalog-controls button { grid-column: 1 / -1; }
-  .catalog-profile-media-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 540px) {
   .summary-grid, .details-list, .species-grid, .bird-catalog-grid, .catalog-controls, .inline-collection-form { grid-template-columns: minmax(0, 1fr); }

@@ -2,7 +2,7 @@ Status: open
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-improve-catalog-and-add-field-map.md
-Depends-On: .10x/tickets/done/2026-07-11-build-catalog-sort-and-filters.md, .10x/tickets/2026-07-11-fix-bird-profile-information-layout.md, .10x/tickets/2026-07-11-alphabetize-text-dropdown-options.md, .10x/tickets/2026-07-11-build-rufous-field-map-ui.md
+Depends-On: .10x/tickets/done/2026-07-11-build-catalog-sort-and-filters.md, .10x/tickets/done/2026-07-11-fix-bird-profile-information-layout.md, .10x/tickets/2026-07-11-alphabetize-text-dropdown-options.md, .10x/tickets/2026-07-11-build-rufous-field-map-ui.md
 
 # Verify catalog discovery and Field Map
 

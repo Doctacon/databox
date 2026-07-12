@@ -372,6 +372,14 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
       ["Family scientific name", fact(bird.family_scientific_name)], ["Report as", fact(bird.taxonomy.report_as)],
     ]} />{bird.taxonomy.extinct && <p className="caveat">eBird taxonomy marks this taxon extinct{bird.taxonomy.extinct_year ? ` (${bird.taxonomy.extinct_year})` : ""}.</p>}</section>
 
+    <section className="panel"><h2>Ecology</h2>{traitsAvailable ? <DefinitionList rows={[
+      ["Habitat", fact(bird.traits.ecology.habitat)],
+      ["Habitat density", bird.traits.ecology.habitat_density_label ? `${bird.traits.ecology.habitat_density_label} (code ${fact(bird.traits.ecology.habitat_density_code)})` : fact(bird.traits.ecology.habitat_density_code)],
+      ["Migration", bird.traits.ecology.migration_label ? `${bird.traits.ecology.migration_label} (code ${fact(bird.traits.ecology.migration_code)})` : fact(bird.traits.ecology.migration_code)],
+      ["Trophic level", fact(bird.traits.ecology.trophic_level)], ["Trophic niche", fact(bird.traits.ecology.trophic_niche)],
+      ["Primary lifestyle", fact(bird.traits.ecology.primary_lifestyle)],
+    ]} /> : <p className="empty">No exact AVONET ecology match is available.</p>}<p className="source-status">AVONET ecology describes global species traits; it is not Arizona-specific. Global range metrics are not available in the governed model.</p></section>
+
     <section className="panel"><h2>Physical traits</h2>{traitsAvailable ? <>
       {morphology.length ? <DefinitionList rows={morphology} /> : <p className="empty">AVONET has an exact taxon match but no modeled measurements are available.</p>}
       <h3>Measurement sample</h3><DefinitionList rows={[
@@ -386,14 +394,6 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
           ? <p>AVONET does not mark these modeled traits as inferred.</p>
           : <p className="empty">AVONET inference status is unavailable.</p>}
     </> : <p className="empty">AVONET v7 has no exact scientific-name match for this current eBird taxon. Taxonomy and current Arizona evidence remain available.</p>}</section>
-
-    <section className="panel"><h2>Ecology</h2>{traitsAvailable ? <DefinitionList rows={[
-      ["Habitat", fact(bird.traits.ecology.habitat)],
-      ["Habitat density", bird.traits.ecology.habitat_density_label ? `${bird.traits.ecology.habitat_density_label} (code ${fact(bird.traits.ecology.habitat_density_code)})` : fact(bird.traits.ecology.habitat_density_code)],
-      ["Migration", bird.traits.ecology.migration_label ? `${bird.traits.ecology.migration_label} (code ${fact(bird.traits.ecology.migration_code)})` : fact(bird.traits.ecology.migration_code)],
-      ["Trophic level", fact(bird.traits.ecology.trophic_level)], ["Trophic niche", fact(bird.traits.ecology.trophic_niche)],
-      ["Primary lifestyle", fact(bird.traits.ecology.primary_lifestyle)],
-    ]} /> : <p className="empty">No exact AVONET ecology match is available.</p>}<p className="source-status">AVONET ecology describes global species traits; it is not Arizona-specific. Global range metrics are not available in the governed model.</p></section>
 
     <section className="panel"><h2>Arizona activity</h2><DefinitionList rows={[
       ["Recent public observations", bird.arizona_activity.recent_public_observation_count.toLocaleString()],
