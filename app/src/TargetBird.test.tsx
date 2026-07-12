@@ -16,7 +16,8 @@ it("renders a direct persisted target plan with a native profile link, dual unit
   const navigate = vi.fn();
   vi.spyOn(globalThis, "fetch").mockImplementation(() => response(targetPlan));
   render(<TargetBirdPage planId={targetPlan.target_plan_id} navigate={navigate} />);
-  expect(await screen.findByRole("heading", { level: 1, name: "Find Target Bird" })).toHaveFocus();
+  const heading = await screen.findByRole("heading", { level: 1, name: "Find Target Bird" });
+  await waitFor(() => expect(heading).toHaveFocus());
   expect(screen.getByText("25 mi · 40.234 km")).toBeVisible();
   expect(screen.getByText("8.9 mi · 14.323 km from origin")).toBeVisible();
   expect(screen.getByText(/2 independent submissions/)).toBeVisible();

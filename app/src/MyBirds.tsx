@@ -24,6 +24,8 @@ import type {
   CollectionState,
   LifeListEntry,
   LocationSelection,
+  LocationSuggestion,
+  ObservationInput,
   PersonalObservation,
 } from "./types";
 
@@ -73,23 +75,39 @@ interface ObservationFormProps {
   fixedSpeciesCode?: string;
   busy: boolean;
   onCancel?: () => void;
-  onSave: (input: { species_code: string; observation_date: string; location: string | null; notes: string | null }) => Promise<boolean>;
+  onSave: (input: ObservationInput) => Promise<boolean>;
+}
+function structuredObservationLocation(initial: PersonalObservation | null): LocationSuggestion | null {
+  if (!initial?.location || !initial.location_source || !initial.location_source_id
+    || initial.location_latitude === null || initial.location_longitude === null
+    || !initial.location_timezone || !initial.location_region_code) return null;
+  return {
+    display_name: initial.location,
+    latitude: initial.location_latitude,
+    longitude: initial.location_longitude,
+    timezone: initial.location_timezone,
+    region_code: initial.location_region_code,
+    source: initial.location_source,
+    source_id: initial.location_source_id,
+    place_type: initial.location_source === "ebird_hotspot" ? "Birding hotspot" : "Arizona place",
+  };
 }
 function ObservationForm({ birds, initial = null, fixedSpeciesCode, busy, onCancel, onSave }: ObservationFormProps) {
   const [speciesCode, setSpeciesCode] = useState(fixedSpeciesCode || initial?.species_code || birds[0]?.species_code || "");
   const [observationDate, setObservationDate] = useState(initial?.observation_date || "");
   const [location, setLocation] = useState(initial?.location || "");
+  const [locationSelection, setLocationSelection] = useState<LocationSuggestion | null>(() => structuredObservationLocation(initial));
   const [notes, setNotes] = useState(initial?.notes || "");
   useEffect(() => { if (fixedSpeciesCode) setSpeciesCode(fixedSpeciesCode); }, [fixedSpeciesCode]);
   async function submit(event: FormEvent) {
     event.preventDefault();
-    const saved = await onSave({ species_code: speciesCode, observation_date: observationDate, location: location.trim() || null, notes: notes.trim() || null });
-    if (saved && !initial) { setObservationDate(""); setLocation(""); setNotes(""); }
+    const saved = await onSave({ species_code: speciesCode, observation_date: observationDate, location: location.trim() || null, location_selection: locationSelection, notes: notes.trim() || null });
+    if (saved && !initial) { setObservationDate(""); setLocation(""); setLocationSelection(null); setNotes(""); }
   }
   return <form className="collection-form" onSubmit={(event) => void submit(event)}>
     {!fixedSpeciesCode && <div><label htmlFor={`observation-species-${initial?.observation_id || "new"}`}>Bird</label><select id={`observation-species-${initial?.observation_id || "new"}`} required value={speciesCode} onChange={(event) => setSpeciesCode(event.target.value)}>{birds.map((bird) => <option key={bird.species_code} value={bird.species_code}>{birdOption(bird)}</option>)}</select></div>}
     <div><label htmlFor={`observation-date-${initial?.observation_id || fixedSpeciesCode || "new"}`}>Observation date</label><input id={`observation-date-${initial?.observation_id || fixedSpeciesCode || "new"}`} type="date" required value={observationDate} onChange={(event) => setObservationDate(event.target.value)} /></div>
-    <div><label htmlFor={`observation-location-${initial?.observation_id || fixedSpeciesCode || "new"}`}>Location <span>(optional personal note)</span></label><input id={`observation-location-${initial?.observation_id || fixedSpeciesCode || "new"}`} maxLength={300} value={location} onChange={(event) => setLocation(event.target.value)} /></div>
+    <div><label htmlFor={`observation-location-${initial?.observation_id || fixedSpeciesCode || "new"}`}>Location <span>(optional personal note)</span></label><LocationCombobox inputId={`observation-location-${initial?.observation_id || fixedSpeciesCode || "new"}`} value={location} selected={locationSelection} disabled={busy} allowFreeText onChange={(value) => { setLocation(value); setLocationSelection(null); }} onSelect={(selection) => { setLocation(selection.display_name); setLocationSelection(selection); }} /></div>
     <div><label htmlFor={`observation-notes-${initial?.observation_id || fixedSpeciesCode || "new"}`}>Notes <span>(optional)</span></label><textarea id={`observation-notes-${initial?.observation_id || fixedSpeciesCode || "new"}`} maxLength={2000} rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} /></div>
     <div className="button-row"><button type="submit" disabled={busy || !speciesCode || !observationDate}>{busy ? "Saving…" : initial ? "Save changes" : "Record observation"}</button>{onCancel && <button type="button" className="secondary" onClick={onCancel}>Cancel edit</button>}</div>
   </form>;

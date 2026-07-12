@@ -7,6 +7,7 @@ interface LocationComboboxProps {
   value: string;
   selected: LocationSelection | null;
   disabled: boolean;
+  allowFreeText?: boolean;
   onChange: (value: string) => void;
   onSelect: (location: LocationSuggestion) => void;
 }
@@ -18,6 +19,7 @@ export default function LocationCombobox({
   value,
   selected,
   disabled,
+  allowFreeText = false,
   onChange,
   onSelect,
 }: LocationComboboxProps) {
@@ -114,7 +116,7 @@ export default function LocationCombobox({
         aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
         aria-describedby={`${helpId} ${statusId}`}
         autoComplete="off"
-        required
+        required={!allowFreeText}
         maxLength={300}
         placeholder="Prescott, Arizona or 34.54,-112.47"
         value={value}
@@ -144,7 +146,9 @@ export default function LocationCombobox({
           ))}
         </ul>
       )}
-      <small id={helpId}>Arizona places only. Coordinates must include a negative longitude.</small>
+      <small id={helpId}>{allowFreeText
+        ? "Select an Arizona place or keep your private text as entered."
+        : "Arizona places only. Coordinates must include a negative longitude."}</small>
       <small id={statusId} className="location-status" aria-live="polite">{status}</small>
     </div>
   );

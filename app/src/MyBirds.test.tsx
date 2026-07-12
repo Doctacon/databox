@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import type { BirdCatalogSummary, BirdProfile, BirdWatch, PersonalObservation } from "./types";
+import type { BirdCatalogSummary, BirdProfile, BirdWatch, ObservationInput, PersonalObservation } from "./types";
 
 function json(body: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
@@ -419,7 +419,7 @@ describe("My Birds and profile collection controls", () => {
       if (path === "/api/birds") return json({ birds });
       if (path === "/api/observations/obs-2" && init?.method === "PUT") {
         updates.push(path);
-        const body = JSON.parse(String(init.body));
+        const { location_selection: _selection, ...body } = JSON.parse(String(init.body));
         rows = rows.map((row) => row.observation_id === "obs-2" ? { ...row, ...body, updated_at: "2026-07-10T02:00:00Z" } : row);
         return json(rows[1]);
       }
@@ -571,6 +571,139 @@ describe("My Birds and profile collection controls", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getByText("Arizona Bird 000", { selector: "strong" })).toBeVisible();
     expect(observationReads).toBe(2);
+  });
+
+  it("creates and edits structured or free-text observation locations through the shared combobox", async () => {
+    const birds = catalog();
+    const watson = {
+      display_name: "Watson Lake and Riparian Preserve", latitude: 34.5822319,
+      longitude: -112.4259328, timezone: "America/Phoenix", region_code: "US-AZ",
+      source: "ebird_hotspot", source_id: "L270303", place_type: "Birding hotspot",
+    } as const;
+    const prescott = {
+      display_name: "Prescott, Arizona, United States", latitude: 34.54002,
+      longitude: -112.4685, timezone: "America/Phoenix", region_code: "US-AZ",
+      source: "open_meteo", source_id: "open_meteo_5309842", place_type: "Arizona place",
+    } as const;
+    let rows = [observation({
+      observation_id: "obs-structured", location: watson.display_name,
+      location_source: watson.source, location_source_id: watson.source_id,
+      location_latitude: watson.latitude, location_longitude: watson.longitude,
+      location_timezone: watson.timezone, location_region_code: watson.region_code,
+    }), observation({ observation_id: "obs-free", location: "Back yard" })];
+    const writes: ObservationInput[] = [];
+    let observationReads = 0;
+    function stored(body: ObservationInput, id: string) {
+      const selected = body.location_selection;
+      return observation({
+        observation_id: id, species_code: body.species_code,
+        observation_date: body.observation_date, location: body.location, notes: body.notes,
+        location_source: selected?.source ?? null,
+        location_source_id: selected?.source_id ?? null,
+        location_latitude: selected?.latitude ?? null,
+        location_longitude: selected?.longitude ?? null,
+        location_timezone: selected?.timezone ?? null,
+        location_region_code: selected?.region_code ?? null,
+        updated_at: "2026-07-10T02:00:00Z",
+      });
+    }
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const path = String(input);
+      if (path === "/api/birds") return json({ birds });
+      if (path === "/api/observations" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body)) as ObservationInput; writes.push(body);
+        const row = stored(body, "obs-new"); rows = [row, ...rows]; return json(row, 201);
+      }
+      if (path.startsWith("/api/observations/") && init?.method === "PUT") {
+        const body = JSON.parse(String(init.body)) as ObservationInput; writes.push(body);
+        const id = path.split("/").at(-1)!; const row = stored(body, id);
+        rows = rows.map((item) => item.observation_id === id ? row : item); return json(row);
+      }
+      if (path === "/api/observations") { observationReads += 1; return json({ observations: rows }); }
+      if (path === "/api/life-list") return json({ birds: [] });
+      if (path === "/api/watches") return json({ watches: [] });
+      if (path === "/api/locations?q=lake%20watson") return json({ locations: [watson] });
+      if (path === "/api/locations?q=Prescott") return json({ locations: [prescott] });
+      throw new Error(`Unexpected request ${path}`);
+    });
+
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Observations" }));
+    const createLocation = screen.getByLabelText(/Location \(optional personal note\)/, { selector: "input#observation-location-new" });
+    expect(createLocation).not.toBeRequired();
+    expect(screen.getAllByText(/keep your private text as entered/i).length).toBeGreaterThan(0);
+    await userEvent.type(screen.getByLabelText("Observation date", { selector: "input#observation-date-new" }), "2026-07-11");
+    await userEvent.type(createLocation, "lake watson");
+    await screen.findByRole("option", { name: /Watson Lake and Riparian Preserve/ });
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+    expect(createLocation).toHaveValue(watson.display_name);
+    await userEvent.click(screen.getByRole("button", { name: "Record observation" }));
+    expect(await screen.findByText("Observation recorded.")).toBeVisible();
+    expect(writes[0]).toMatchObject({ location: watson.display_name, location_selection: watson });
+    expect(createLocation).toHaveValue("");
+
+    const structuredRow = screen.getAllByText(watson.display_name, { exact: false })[1].closest("li")!;
+    await userEvent.click(within(structuredRow).getByRole("button", { name: "Edit" }));
+    let edit = screen.getByRole("heading", { name: /Edit Arizona Bird/ }).parentElement!;
+    let editLocation = within(edit).getByLabelText(/Location/);
+    expect(editLocation).toHaveValue(watson.display_name);
+    await userEvent.click(within(edit).getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Observation updated.")).toBeVisible();
+    expect(writes[1]).toMatchObject({ location: watson.display_name, location_selection: watson });
+
+    const editedRow = screen.getAllByText(watson.display_name, { exact: false })[1].closest("li")!;
+    await userEvent.click(within(editedRow).getByRole("button", { name: "Edit" }));
+    edit = screen.getByRole("heading", { name: /Edit Arizona Bird/ }).parentElement!;
+    editLocation = within(edit).getByLabelText(/Location/);
+    await userEvent.clear(editLocation); await userEvent.type(editLocation, "Back yard changed");
+    await userEvent.click(within(edit).getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Observation updated.")).toBeVisible();
+    expect(writes[2]).toMatchObject({ location: "Back yard changed", location_selection: null });
+
+    const freeRow = screen.getByText("Back yard changed", { exact: false }).closest("li")!;
+    await userEvent.click(within(freeRow).getByRole("button", { name: "Edit" }));
+    edit = screen.getByRole("heading", { name: /Edit Arizona Bird/ }).parentElement!;
+    editLocation = within(edit).getByLabelText(/Location/);
+    expect(editLocation).toHaveValue("Back yard changed");
+    await userEvent.clear(editLocation); await userEvent.type(editLocation, "Prescott");
+    await userEvent.click(await within(edit).findByRole("option", { name: /Prescott, Arizona/ }));
+    await userEvent.click(within(edit).getByRole("button", { name: "Save changes" }));
+    expect(await screen.findByText("Observation updated.")).toBeVisible();
+    expect(writes[3]).toMatchObject({ location: prescott.display_name, location_selection: prescott });
+    await waitFor(() => expect(observationReads).toBe(5));
+  });
+
+  it("preserves a selected profile observation location and focuses a safe save failure", async () => {
+    window.history.replaceState(null, "", "/birds/bird000");
+    const watson = {
+      display_name: "Watson Lake and Riparian Preserve", latitude: 34.5822319,
+      longitude: -112.4259328, timezone: "America/Phoenix", region_code: "US-AZ",
+      source: "ebird_hotspot", source_id: "L270303", place_type: "Birding hotspot",
+    } as const;
+    let submitted: Record<string, unknown> | null = null;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const path = String(input);
+      if (path === "/api/birds/bird000") return json(profile());
+      if (path === "/api/birds/bird000/collection-state") return json({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
+      if (path === "/api/locations?q=lake%20watson") return json({ locations: [watson] });
+      if (path === "/api/observations" && init?.method === "POST") {
+        submitted = JSON.parse(String(init.body));
+        return json({ error: { code: "database_busy", message: "/private/path secret" } }, 503);
+      }
+      throw new Error(`Unexpected request ${path}`);
+    });
+    render(<App />);
+    await userEvent.click(await screen.findByText("Record an observation"));
+    await userEvent.type(screen.getByLabelText("Observation date"), "2026-07-11");
+    const location = screen.getByLabelText(/Location/);
+    await userEvent.type(location, "lake watson");
+    await userEvent.click(await screen.findByRole("option", { name: /Watson Lake/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Record observation" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveFocus();
+    expect(alert).not.toHaveTextContent(/private|secret/);
+    expect(location).toHaveValue(watson.display_name);
+    expect(submitted).toMatchObject({ location: watson.display_name, location_selection: watson });
   });
 
   it("keeps one mutation lock across profile-to-My-Birds navigation and component unmount", async () => {
