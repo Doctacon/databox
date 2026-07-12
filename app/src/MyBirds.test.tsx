@@ -78,6 +78,51 @@ describe("My Birds and profile collection controls", () => {
     expect(await screen.findByRole("heading", { name: "Arizona Birds", level: 1 })).toHaveFocus();
   });
 
+  it("alphabetizes observation and available-watch birds while preserving fallback and selected mutation values", async () => {
+    const birds: BirdCatalogSummary[] = catalog().map((bird, index) => ({ ...bird, common_name: `Middle Bird ${index}` }));
+    birds[0].common_name = "Zebra";
+    birds[1].common_name = "alpha 2";
+    birds[2].common_name = "Alpha 10";
+    birds[3].common_name = null; birds[3].scientific_name = "Beta scientific";
+    birds[4].common_name = null; birds[4].scientific_name = null;
+    const reversed = birds.reverse();
+    let savedSpecies = "";
+    const staleWatch = watched({ species_code: "bird001", identity: staleIdentity });
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const path = String(input);
+      if (path === "/api/birds") return json({ birds: reversed });
+      if (path === "/api/observations" && init?.method === "POST") {
+        savedSpecies = JSON.parse(String(init.body)).species_code;
+        return json(observation({ species_code: savedSpecies }), 201);
+      }
+      if (path === "/api/observations") return json({ observations: [] });
+      if (path === "/api/life-list") return json({ birds: [] });
+      if (path === "/api/watches") return json({ watches: [staleWatch] });
+      throw new Error(`Unexpected request ${path}`);
+    });
+    render(<App />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Observations" }));
+    const observationBird = screen.getByLabelText("Bird") as HTMLSelectElement;
+    expect(Array.from(observationBird.options).slice(0, 5).map((option) => option.text)).toEqual([
+      "alpha 2 · bird001", "Alpha 10 · bird002", "Beta scientific · bird003",
+      "bird004 · bird004", "Middle Bird 5 · bird005",
+    ]);
+    expect(observationBird).toHaveValue("bird001");
+    await userEvent.selectOptions(observationBird, "bird000");
+    await userEvent.type(screen.getByLabelText("Observation date"), "2026-07-09");
+    await userEvent.click(screen.getByRole("button", { name: "Record observation" }));
+    await waitFor(() => expect(savedSpecies).toBe("bird000"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Watches" }));
+    const watchBird = await screen.findByLabelText("Bird") as HTMLSelectElement;
+    await waitFor(() => expect(watchBird).toHaveValue("bird002"));
+    expect(Array.from(watchBird.options).slice(0, 4).map((option) => option.text)).toEqual([
+      "Alpha 10 · bird002", "Beta scientific · bird003", "bird004 · bird004", "Middle Bird 5 · bird005",
+    ]);
+    expect(screen.getByText("No longer in the current Arizona catalog")).toBeVisible();
+  });
+
   it("does not render collection or alert empty claims after initial load failures", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const path = String(input);

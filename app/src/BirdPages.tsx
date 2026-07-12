@@ -3,6 +3,7 @@ import rufousImage from "./assets/rufous.png";
 import { getBird, listBirds } from "./birdApi";
 import { ProfileCollectionControls } from "./MyBirds";
 import type { BirdCatalogSummary, BirdProfile, CatalogCall, CatalogPhoto } from "./types";
+import { compareVisibleLabels } from "./visibleLabel";
 
 const BIRDS_PER_PAGE = 24;
 
@@ -11,8 +12,6 @@ type Navigate = (path: string) => void;
 type CategoryFilter = "all" | "species" | "hybrid";
 type CatalogSort = "name-asc" | "name-desc" | "taxonomy" | "observations" | "latest";
 type WeightFilter = "all" | "tiny" | "small" | "medium" | "large" | "very-large" | "unavailable";
-
-const catalogCollator = new Intl.Collator("en", { sensitivity: "base", numeric: true });
 
 function displayName(bird: BirdCatalogSummary): string {
   return bird.common_name || bird.scientific_name || bird.species_code;
@@ -23,8 +22,7 @@ function familyName(bird: BirdCatalogSummary): string | null {
 }
 
 function compareName(left: BirdCatalogSummary, right: BirdCatalogSummary): number {
-  return catalogCollator.compare(displayName(left), displayName(right))
-    || catalogCollator.compare(left.species_code, right.species_code);
+  return compareVisibleLabels(displayName(left), displayName(right), left.species_code, right.species_code);
 }
 
 function timestampValue(value: string | null): number | null {
@@ -232,7 +230,7 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
     if (birds.some((bird) => familyName(bird) === null)) {
       options.push({ value: "unavailable", label: "Family unavailable" });
     }
-    return options.sort((left, right) => catalogCollator.compare(left.label, right.label));
+    return options.sort((left, right) => compareVisibleLabels(left.label, right.label, left.value, right.value));
   }, [birds]);
   const habitatOptions = useMemo(() => {
     const labels = new Set(birds.map((bird) => bird.habitat).filter((value): value is string => value !== null));
@@ -240,7 +238,7 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
     if (birds.some((bird) => bird.habitat === null)) {
       options.push({ value: "unavailable", label: "Habitat unavailable" });
     }
-    return options.sort((left, right) => catalogCollator.compare(left.label, right.label));
+    return options.sort((left, right) => compareVisibleLabels(left.label, right.label, left.value, right.value));
   }, [birds]);
 
   const filtered = useMemo(() => {
@@ -259,7 +257,7 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
     return matches.sort((left, right) => {
       if (sort === "name-desc") return -compareName(left, right);
       if (sort === "taxonomy") return left.taxonomic_order - right.taxonomic_order
-        || catalogCollator.compare(left.species_code, right.species_code);
+        || compareVisibleLabels(left.species_code, right.species_code);
       if (sort === "observations") return right.recent_public_observation_count
         - left.recent_public_observation_count || compareName(left, right);
       if (sort === "latest") {
