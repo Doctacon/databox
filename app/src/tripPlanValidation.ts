@@ -319,7 +319,7 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
 
   const weatherEvidence = evidenceRows.filter((item) => item.source === "open_meteo");
   if (weather === null ? weatherEvidence.length !== 0 : weatherEvidence.length !== 1
-    || (weather !== null && (weather.recommendation_id !== null || weather.evidence_type !== "weather"
+    || (weather !== null && (weather.recommendation_id !== null || weather.evidence_type !== "weather_elevation_context"
       || !equivalent(weather, weatherEvidence[0])))) invalid();
 
   const mediaEvidence = evidenceRows.filter((item) => item.source === "xeno_canto" && item.status === "available");
