@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-verify-place-search-feedback-and-map.md, .10x/tickets/2026-07-11-upgrade-place-search-feedback-and-map.md
+Relates-To: .10x/tickets/done/2026-07-11-verify-place-search-feedback-and-map.md, .10x/tickets/done/2026-07-11-upgrade-place-search-feedback-and-map.md
 
 # Place search, feedback, and Field Map aggregate verification
 
