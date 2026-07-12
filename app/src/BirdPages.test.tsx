@@ -164,6 +164,77 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(screen.getByRole("heading", { name: "Arizona Bird 000", level: 2 })).toBeVisible();
   });
 
+  it("sorts deterministically and intersects family, habitat, category, weight, and search filters", async () => {
+    const birds = Array.from({ length: 706 }, (_, index) => bird(index));
+    const names = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
+    const masses = [19.999, 20, 100, 500, 2000, null];
+    const observations = [5, 10, 10, 3, 10, 0];
+    const latest = [null, "2026-01-01T08:00:00", "2026-02-01T08:00:00", "2026-02-01T08:00:00", null, null];
+    const taxonomy = [20, 10, 10, 30, 40, 50];
+    for (let index = 0; index < names.length; index += 1) {
+      birds[index] = {
+        ...birds[index], common_name: names[index], family_common_name: "Matrix Family",
+        family_scientific_name: "Matrixidae", habitat: index === 5 ? null : "Desert",
+        mass_g: masses[index], traits_status: index === 5 ? "unavailable" : "available",
+        recent_public_observation_count: observations[index],
+        latest_public_observation_at: latest[index], taxonomic_order: taxonomy[index],
+      };
+    }
+    birds[6].family_common_name = null;
+    birds[6].family_scientific_name = null;
+    window.history.replaceState(null, "", "/birds");
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
+    render(<App />);
+
+    await screen.findByText("Showing 1–24 of 706 matching taxa · 706 total");
+    expect(screen.getAllByRole("option", { name: /./ }).length).toBeGreaterThan(0);
+    expect(within(screen.getByLabelText("Category")).getAllByRole("option").map((option) => option.textContent))
+      .toEqual(["All categories", "Hybrids", "Species"]);
+    expect(within(screen.getByLabelText("Family")).getAllByRole("option").map((option) => option.textContent))
+      .toEqual(["All families", "Family unavailable", "Fixture Birds", "Matrix Family"]);
+    expect(within(screen.getByLabelText("Habitat")).getAllByRole("option").map((option) => option.textContent))
+      .toEqual(["All habitats", "Desert", "Habitat unavailable", "Woodland"]);
+
+    await userEvent.selectOptions(screen.getByLabelText("Family"), "value:Matrix Family");
+    const headings = () => [...document.querySelectorAll<HTMLHeadingElement>(".bird-catalog-card h2")]
+      .map((heading) => heading.textContent);
+    expect(headings()).toEqual(names);
+    await userEvent.selectOptions(screen.getByLabelText("Sort"), "name-desc");
+    expect(headings()).toEqual([...names].reverse());
+    await userEvent.selectOptions(screen.getByLabelText("Sort"), "taxonomy");
+    expect(headings()).toEqual(["Bravo", "Charlie", "Alpha", "Delta", "Echo", "Foxtrot"]);
+    await userEvent.selectOptions(screen.getByLabelText("Sort"), "observations");
+    expect(headings()).toEqual(["Bravo", "Charlie", "Echo", "Alpha", "Delta", "Foxtrot"]);
+    await userEvent.selectOptions(screen.getByLabelText("Sort"), "latest");
+    expect(headings()).toEqual(["Charlie", "Delta", "Bravo", "Alpha", "Echo", "Foxtrot"]);
+
+    for (const [filter, expected] of [
+      ["tiny", "Alpha"], ["small", "Bravo"], ["medium", "Charlie"],
+      ["large", "Delta"], ["very-large", "Echo"], ["unavailable", "Foxtrot"],
+    ]) {
+      await userEvent.selectOptions(screen.getByLabelText("Weight"), filter);
+      expect(headings()).toEqual([expected]);
+    }
+    await userEvent.selectOptions(screen.getByLabelText("Weight"), "small");
+    await userEvent.selectOptions(screen.getByLabelText("Habitat"), "value:Desert");
+    await userEvent.selectOptions(screen.getByLabelText("Category"), "species");
+    await userEvent.type(screen.getByLabelText("Search birds"), "bravo");
+    expect(screen.getByText("Showing 1–1 of 1 matching taxa · 706 total")).toBeVisible();
+    expect(headings()).toEqual(["Bravo"]);
+    await userEvent.clear(screen.getByLabelText("Search birds"));
+    await userEvent.type(screen.getByLabelText("Search birds"), "no-such-taxon");
+    expect(screen.getByText("No Arizona taxa match the current search and filters.")).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: "Reset catalog" }));
+    expect(screen.getByLabelText("Search birds")).toHaveValue("");
+    expect(screen.getByLabelText("Sort")).toHaveValue("name-asc");
+    expect(screen.getByLabelText("Category")).toHaveValue("all");
+    expect(screen.getByLabelText("Family")).toHaveValue("all");
+    expect(screen.getByLabelText("Habitat")).toHaveValue("all");
+    expect(screen.getByLabelText("Weight")).toHaveValue("all");
+    expect(headings()[0]).toBe("Alpha");
+  });
+
   it("renders lazy card media, an original unavailable placeholder, concise attribution, and compact calls", async () => {
     window.history.replaceState(null, "", "/birds");
     const birds = Array.from({ length: 706 }, (_, index) => index === 0 ? withMedia(bird(index), 101) : bird(index));
@@ -208,6 +279,15 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(first).toHaveAttribute("aria-pressed", "false");
     expect(second).toHaveAttribute("aria-pressed", "true");
 
+    for (const [label, value] of [
+      ["Sort", "taxonomy"], ["Category", "species"], ["Family", "value:Fixture Birds"],
+      ["Habitat", "value:Woodland"], ["Weight", "medium"],
+    ]) {
+      await userEvent.selectOptions(screen.getByLabelText(label), value);
+      await waitFor(() => expect(second).toHaveAttribute("aria-pressed", "false"));
+      await userEvent.click(second);
+      expect(second).toHaveAttribute("aria-pressed", "true");
+    }
     await userEvent.type(screen.getByLabelText("Search birds"), "bird001");
     await waitFor(() => expect(second).toHaveAttribute("aria-pressed", "false"));
     expect(pause).toHaveBeenCalled();

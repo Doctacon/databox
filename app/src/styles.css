@@ -152,8 +152,9 @@ summary { min-height: 44px; cursor: pointer; color: var(--teal-950); font-weight
 .birds-main, .bird-profile-main, .my-birds-main { display: block; min-height: calc(100vh - 76px); max-width: 1240px; margin: 0 auto; padding: clamp(18px, 3vw, 32px); }
 .catalog-heading { max-width: 780px; margin-bottom: 20px; }
 .catalog-heading h1 { margin-bottom: 10px; }
-.catalog-controls { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(150px, 1fr) auto; gap: 12px; align-items: end; margin-bottom: 20px; }
-.catalog-controls > div { display: grid; gap: 6px; }
+.catalog-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px; align-items: end; margin-bottom: 20px; }
+.catalog-controls > div { display: grid; gap: 6px; min-width: 0; }
+.catalog-controls .catalog-search { grid-column: span 2; }
 .catalog-controls label, .catalog-controls button { margin: 0; }
 .catalog-count { color: var(--muted); }
 .bird-catalog-grid { list-style-position: inside; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
@@ -225,7 +226,7 @@ button.danger:hover { background: #651b17; }
 }
 @media (max-width: 540px) {
   .summary-grid, .details-list, .species-grid, .bird-catalog-grid, .catalog-controls, .inline-collection-form { grid-template-columns: minmax(0, 1fr); }
-  .catalog-controls button { grid-column: auto; }
+  .catalog-controls .catalog-search, .catalog-controls button { grid-column: auto; }
   .pagination { align-items: flex-start; flex-direction: column; }
   .site-header { padding: 9px 12px; }
   .site-header nav { order: 3; width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }

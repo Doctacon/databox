@@ -9,6 +9,39 @@ const BIRDS_PER_PAGE = 24;
 type Navigate = (path: string) => void;
 
 type CategoryFilter = "all" | "species" | "hybrid";
+type CatalogSort = "name-asc" | "name-desc" | "taxonomy" | "observations" | "latest";
+type WeightFilter = "all" | "tiny" | "small" | "medium" | "large" | "very-large" | "unavailable";
+
+const catalogCollator = new Intl.Collator("en", { sensitivity: "base", numeric: true });
+
+function displayName(bird: BirdCatalogSummary): string {
+  return bird.common_name || bird.scientific_name || bird.species_code;
+}
+
+function familyName(bird: BirdCatalogSummary): string | null {
+  return bird.family_common_name || bird.family_scientific_name;
+}
+
+function compareName(left: BirdCatalogSummary, right: BirdCatalogSummary): number {
+  return catalogCollator.compare(displayName(left), displayName(right))
+    || catalogCollator.compare(left.species_code, right.species_code);
+}
+
+function timestampValue(value: string | null): number | null {
+  if (value === null) return null;
+  return Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(value) ? value : `${value}Z`);
+}
+
+function weightMatches(mass: number | null, filter: WeightFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "unavailable") return mass === null;
+  if (mass === null) return false;
+  if (filter === "tiny") return mass < 20;
+  if (filter === "small") return mass >= 20 && mass < 100;
+  if (filter === "medium") return mass >= 100 && mass < 500;
+  if (filter === "large") return mass >= 500 && mass < 2000;
+  return mass >= 2000;
+}
 
 function link(event: MouseEvent<HTMLAnchorElement>, path: string, navigate: Navigate) {
   if (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
@@ -168,7 +201,11 @@ function CatalogCallPlayer({ call, label, compact = false }: {
 export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
   const [birds, setBirds] = useState<BirdCatalogSummary[]>([]);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<CatalogSort>("name-asc");
   const [category, setCategory] = useState<CategoryFilter>("all");
+  const [family, setFamily] = useState("all");
+  const [habitat, setHabitat] = useState("all");
+  const [weight, setWeight] = useState<WeightFilter>("all");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -185,19 +222,56 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
     return () => { current = false; };
   }, []);
 
-  useEffect(() => setPage(0), [query, category]);
-  useEffect(() => stopAllCatalogAudio(), [query, category, page]);
+  useEffect(() => setPage(0), [query, sort, category, family, habitat, weight]);
+  useEffect(() => stopAllCatalogAudio(), [query, sort, category, family, habitat, weight, page]);
   useEffect(() => () => stopAllCatalogAudio(), []);
+
+  const familyOptions = useMemo(() => {
+    const labels = new Set(birds.map(familyName).filter((value): value is string => value !== null));
+    const options = [...labels].map((label) => ({ value: `value:${label}`, label }));
+    if (birds.some((bird) => familyName(bird) === null)) {
+      options.push({ value: "unavailable", label: "Family unavailable" });
+    }
+    return options.sort((left, right) => catalogCollator.compare(left.label, right.label));
+  }, [birds]);
+  const habitatOptions = useMemo(() => {
+    const labels = new Set(birds.map((bird) => bird.habitat).filter((value): value is string => value !== null));
+    const options = [...labels].map((label) => ({ value: `value:${label}`, label }));
+    if (birds.some((bird) => bird.habitat === null)) {
+      options.push({ value: "unavailable", label: "Habitat unavailable" });
+    }
+    return options.sort((left, right) => catalogCollator.compare(left.label, right.label));
+  }, [birds]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
-    return birds.filter((bird) => {
+    const matches = birds.filter((bird) => {
       const categoryMatches = category === "all" || bird.taxonomic_category === category;
+      const familyMatches = family === "all"
+        || (family === "unavailable" ? familyName(bird) === null : familyName(bird) === family.slice(6));
+      const habitatMatches = habitat === "all"
+        || (habitat === "unavailable" ? bird.habitat === null : bird.habitat === habitat.slice(6));
       const textMatches = !needle || [bird.common_name, bird.scientific_name, bird.species_code]
         .some((value) => value?.toLocaleLowerCase().includes(needle));
-      return categoryMatches && textMatches;
+      return categoryMatches && familyMatches && habitatMatches
+        && weightMatches(bird.mass_g, weight) && textMatches;
     });
-  }, [birds, category, query]);
+    return matches.sort((left, right) => {
+      if (sort === "name-desc") return -compareName(left, right);
+      if (sort === "taxonomy") return left.taxonomic_order - right.taxonomic_order
+        || catalogCollator.compare(left.species_code, right.species_code);
+      if (sort === "observations") return right.recent_public_observation_count
+        - left.recent_public_observation_count || compareName(left, right);
+      if (sort === "latest") {
+        const leftTime = timestampValue(left.latest_public_observation_at);
+        const rightTime = timestampValue(right.latest_public_observation_at);
+        if (leftTime === null && rightTime !== null) return 1;
+        if (leftTime !== null && rightTime === null) return -1;
+        if (leftTime !== rightTime) return (rightTime ?? 0) - (leftTime ?? 0);
+      }
+      return compareName(left, right);
+    });
+  }, [birds, category, family, habitat, query, sort, weight]);
   const lastPage = Math.max(0, Math.ceil(filtered.length / BIRDS_PER_PAGE) - 1);
   const currentPage = Math.min(page, lastPage);
   const start = currentPage * BIRDS_PER_PAGE;
@@ -205,8 +279,8 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
 
   function reset(event: FormEvent) {
     event.preventDefault();
-    setQuery("");
-    setCategory("all");
+    setQuery(""); setSort("name-asc"); setCategory("all"); setFamily("all");
+    setHabitat("all"); setWeight("all");
   }
 
   return <main className="birds-main">
@@ -217,17 +291,21 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
     </section>
     <section className="panel catalog-panel" aria-busy={loading}>
       <form className="catalog-controls" onSubmit={reset}>
-        <div><label htmlFor="bird-search">Search birds</label><input id="bird-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Common name, scientific name, or species code" /></div>
-        <div><label htmlFor="bird-category">Category</label><select id="bird-category" value={category} onChange={(event) => setCategory(event.target.value as CategoryFilter)}><option value="all">All taxa</option><option value="species">Species</option><option value="hybrid">Hybrids</option></select></div>
+        <div className="catalog-search"><label htmlFor="bird-search">Search birds</label><input id="bird-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Common name, scientific name, or species code" /></div>
+        <div><label htmlFor="bird-sort">Sort</label><select id="bird-sort" value={sort} onChange={(event) => setSort(event.target.value as CatalogSort)}><option value="name-asc">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="taxonomy">Taxonomic order</option><option value="observations">Most public observations</option><option value="latest">Latest public sighting</option></select></div>
+        <div><label htmlFor="bird-category">Category</label><select id="bird-category" value={category} onChange={(event) => setCategory(event.target.value as CategoryFilter)}><option value="all">All categories</option><option value="hybrid">Hybrids</option><option value="species">Species</option></select></div>
+        <div><label htmlFor="bird-family">Family</label><select id="bird-family" value={family} onChange={(event) => setFamily(event.target.value)}><option value="all">All families</option>{familyOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
+        <div><label htmlFor="bird-habitat">Habitat</label><select id="bird-habitat" value={habitat} onChange={(event) => setHabitat(event.target.value)}><option value="all">All habitats</option>{habitatOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
+        <div><label htmlFor="bird-weight">Weight</label><select id="bird-weight" value={weight} onChange={(event) => setWeight(event.target.value as WeightFilter)}><option value="all">All weights</option><option value="tiny">Tiny (&lt;20 g)</option><option value="small">Small (20–99.9 g)</option><option value="medium">Medium (100–499.9 g)</option><option value="large">Large (500–1,999.9 g)</option><option value="very-large">Very large (≥2,000 g)</option><option value="unavailable">Weight unavailable</option></select></div>
         <button type="submit">Reset catalog</button>
       </form>
       {error && <div className="error" role="alert"><strong>Could not load Arizona birds.</strong><span>{error}</span></div>}
       {loading && <p role="status">Loading the local Arizona catalog…</p>}
       {!loading && !error && <>
         <p className="catalog-count" aria-live="polite">Showing {filtered.length === 0 ? "0" : `${start + 1}–${start + visible.length}`} of {filtered.length} matching taxa · {birds.length} total</p>
-        {visible.length === 0 ? <p className="empty">No Arizona taxa match this search and category.</p> : <ol className="bird-catalog-grid" start={start + 1}>
+        {visible.length === 0 ? <p className="empty">No Arizona taxa match the current search and filters.</p> : <ol className="bird-catalog-grid" start={start + 1}>
           {visible.map((bird) => {
-            const label = bird.common_name || bird.scientific_name || bird.species_code;
+            const label = displayName(bird);
             const mediaLabel = bird.common_name && bird.scientific_name
               ? `${bird.common_name} (${bird.scientific_name})` : label;
             return <li key={bird.species_code}>
@@ -236,7 +314,7 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
                 <div className="bird-card-identity"><span className="badge">{categoryLabel(bird.taxonomic_category)}</span><span className="bird-code">{bird.species_code}</span></div>
                 <h2><a href={`/birds/${bird.species_code}`} onClick={(event) => link(event, `/birds/${bird.species_code}`, navigate)}>{label}</a></h2>
                 {bird.common_name && bird.scientific_name && <p className="scientific">{bird.scientific_name}</p>}
-                <p>{bird.family_common_name || bird.family_scientific_name || "Family unavailable"}</p>
+                <p>{familyName(bird) || "Family unavailable"}</p>
                 <CatalogCallPlayer call={bird.call} label={label} compact />
                 <ul className="card-status"><li>AVONET traits: {bird.traits_status}</li><li>Recent public observations: {bird.recent_public_observation_count.toLocaleString()}</li></ul>
               </article>
