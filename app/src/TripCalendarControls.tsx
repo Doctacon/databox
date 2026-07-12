@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { actOnTripCalendarInvite, type TripCalendarAction } from "./api";
 import type { TripCalendarInviteStatus } from "./types";
+import { useTransientSuccess } from "./useTransientSuccess";
 
 const labels: Record<TripCalendarAction, string> = {
   send: "Send calendar invite",
@@ -37,11 +38,13 @@ export function TripCalendarControls({
   onChange: (invite: TripCalendarInviteStatus) => void;
 }) {
   const [busy, setBusy] = useState(false);
-  const [announcement, setAnnouncement] = useState<string | null>(null);
+  const [success, setSuccess] = useTransientSuccess();
+  const [persistentNotice, setPersistentNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
   const resultRef = useRef<HTMLParagraphElement>(null);
 
+  const announcement = success || persistentNotice;
   useEffect(() => {
     if (announcement || error) resultRef.current?.focus();
   }, [announcement, error]);
@@ -50,14 +53,17 @@ export function TripCalendarControls({
     if (busyRef.current || !window.confirm(confirmations[action])) return;
     busyRef.current = true;
     setBusy(true);
-    setAnnouncement("Updating calendar invitation status…");
+    setSuccess(null);
+    setPersistentNotice(null);
     setError(null);
     try {
       const next = await actOnTripCalendarInvite(planId, invite, action);
       onChange(next);
-      setAnnouncement(statusText(next));
+      if (next.status === "accepted") setSuccess(statusText(next));
+      else setPersistentNotice(statusText(next));
     } catch (reason) {
-      setAnnouncement(null);
+      setSuccess(null);
+      setPersistentNotice(null);
       setError(reason instanceof Error ? reason.message : "The calendar invitation could not be updated.");
     } finally {
       busyRef.current = false;

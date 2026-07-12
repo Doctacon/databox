@@ -16,6 +16,7 @@ import {
   updateObservation,
 } from "./collectionApi";
 import { compareVisibleLabels } from "./visibleLabel";
+import { useTransientSuccess } from "./useTransientSuccess";
 import type {
   AlertDelivery,
   BirdCatalogSummary,
@@ -161,7 +162,7 @@ export function MyBirdsPage({ navigate }: { navigate: Navigate }) {
   const loadGeneration = useRef(0);
   const errorRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useTransientSuccess();
   const [editingObservation, setEditingObservation] = useState<PersonalObservation | null>(null);
   const [editingWatch, setEditingWatch] = useState<BirdWatch | null>(null);
   const [deletingObservation, setDeletingObservation] = useState<PersonalObservation | null>(null);
@@ -232,7 +233,7 @@ export function ProfileCollectionControls({ bird }: { bird: BirdProfile }) {
   const loadGeneration = useRef(0);
   const errorRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useTransientSuccess();
   useEffect(() => {
     let current = true;
     const generation = ++loadGeneration.current;

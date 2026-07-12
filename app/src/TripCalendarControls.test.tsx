@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TripCalendarControls } from "./TripCalendarControls";
@@ -19,7 +19,7 @@ function state(status: "accepted" | "failed" | "delivery_unknown" | "pending"): 
     acceptance_notice: status === "accepted" ? "Accepted by local mail bridge" : null,
   };
 }
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
 describe("persisted trip calendar controls", () => {
   it("requires confirmation for first send, reports local-Bridge acceptance, and prevents concurrent duplicates", async () => {
@@ -52,6 +52,34 @@ describe("persisted trip calendar controls", () => {
     render(<TripCalendarControls planId="trip_fixture" invite={invite} onChange={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: label }));
     expect(api.actOnTripCalendarInvite).toHaveBeenCalledWith("trip_fixture", invite, expectedAction);
+  });
+
+  it("dismisses accepted success at 3000ms while persistent pending state remains", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(api, "actOnTripCalendarInvite").mockResolvedValue(state("accepted"));
+    render(<TripCalendarControls planId="trip_fixture" invite={notCreated} onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Send calendar invite" }));
+    await act(async () => undefined);
+    const success = screen.getByText("Accepted by local mail bridge. Inbox or calendar delivery is not confirmed.");
+    expect(success).toHaveFocus();
+    act(() => vi.advanceTimersByTime(2999));
+    expect(success).toBeVisible();
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.queryByText("Accepted by local mail bridge. Inbox or calendar delivery is not confirmed.")).not.toBeInTheDocument();
+  });
+
+  it("does not auto-dismiss a delivery-unknown action result", async () => {
+    vi.useFakeTimers();
+    const invite = state("delivery_unknown");
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(api, "actOnTripCalendarInvite").mockResolvedValue(invite);
+    render(<TripCalendarControls planId="trip_fixture" invite={invite} onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Reconcile as accepted by local Bridge" }));
+    await act(async () => undefined);
+    expect(screen.getAllByText(/acceptance is unknown/)).toHaveLength(2);
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(screen.getAllByText(/acceptance is unknown/)).toHaveLength(2);
   });
 
   it("renders persisted pending status on reload without an implicit send", () => {
