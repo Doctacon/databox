@@ -32,7 +32,7 @@ function catalog(): BirdCatalogSummary[] {
 const identity = { catalog_status: "current" as const, common_name: "Arizona Bird 000", scientific_name: "Avis localis0", taxonomic_category: "species" as const };
 const staleIdentity = { catalog_status: "stale" as const, common_name: null, scientific_name: null, taxonomic_category: null };
 function observation(overrides: Partial<PersonalObservation> = {}): PersonalObservation {
-  return { observation_id: "obs-1", species_code: "bird000", observation_date: "2026-07-09", location: null, notes: null, created_at: "2026-07-10T01:00:00Z", updated_at: "2026-07-10T01:00:00Z", identity, ...overrides };
+  return { observation_id: "obs-1", species_code: "bird000", observation_date: "2026-07-09", location: null, location_source: null, location_source_id: null, location_latitude: null, location_longitude: null, location_timezone: null, location_region_code: null, notes: null, created_at: "2026-07-10T01:00:00Z", updated_at: "2026-07-10T01:00:00Z", identity, ...overrides };
 }
 function watched(overrides: Partial<BirdWatch> = {}): BirdWatch {
   return { species_code: "bird000", active: true, center_name: "Prescott, Arizona", center_latitude: 34.54, center_longitude: -112.47, center_timezone: "America/Phoenix", radius_miles: 25, activated_at: "2026-07-10T01:00:00Z", created_at: "2026-07-10T01:00:00Z", updated_at: "2026-07-10T01:00:00Z", identity, ...overrides };

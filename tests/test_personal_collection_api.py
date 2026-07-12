@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import socket
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import databox.personal_collection as collection_storage
@@ -808,3 +808,260 @@ def test_runtime_schema_constraints_and_no_downstream_side_effect_tables(tmp_pat
         "center_latitude",
     } <= columns
     assert not {"matches", "outbox", "calendar_events", "smtp_attempts"} & tables
+
+
+def _selected_location(
+    *,
+    display_name: str = "Watson Lake and Riparian Preserve",
+    source: str = "ebird_hotspot",
+    source_id: str = "L270303",
+    latitude: float = 34.5822319,
+    longitude: float = -112.4259328,
+) -> dict[str, object]:
+    return {
+        "display_name": display_name,
+        "latitude": latitude,
+        "longitude": longitude,
+        "timezone": "America/Phoenix",
+        "region_code": "US-AZ",
+        "source": source,
+        "source_id": source_id,
+        "place_type": "Birding hotspot" if source == "ebird_hotspot" else "Arizona place",
+    }
+
+
+def test_structured_observation_location_create_clear_and_replace(tmp_path: Path) -> None:
+    path = _database(tmp_path)
+    client = _client(path)
+    selected = _selected_location()
+    created = client.post(
+        "/api/observations",
+        json={
+            **_observation(),
+            "location": selected["display_name"],
+            "location_selection": selected,
+        },
+    )
+    assert created.status_code == 201
+    row = created.json()
+    assert {
+        key: row[key]
+        for key in (
+            "location",
+            "location_source",
+            "location_source_id",
+            "location_latitude",
+            "location_longitude",
+            "location_timezone",
+            "location_region_code",
+        )
+    } == {
+        "location": "Watson Lake and Riparian Preserve",
+        "location_source": "ebird_hotspot",
+        "location_source_id": "L270303",
+        "location_latitude": 34.5822319,
+        "location_longitude": -112.4259328,
+        "location_timezone": "America/Phoenix",
+        "location_region_code": "US-AZ",
+    }
+
+    observation_id = row["observation_id"]
+    cleared = client.put(
+        f"/api/observations/{observation_id}",
+        json={**_observation(), "location": "Back yard"},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["location"] == "Back yard"
+    assert all(
+        cleared.json()[key] is None
+        for key in (
+            "location_source",
+            "location_source_id",
+            "location_latitude",
+            "location_longitude",
+            "location_timezone",
+            "location_region_code",
+        )
+    )
+
+    replacement = _selected_location(
+        display_name="Prescott, Arizona, United States",
+        source="open_meteo",
+        source_id="open_meteo_5309842",
+        latitude=34.54002,
+        longitude=-112.4685,
+    )
+    replaced = client.put(
+        f"/api/observations/{observation_id}",
+        json={
+            **_observation(),
+            "location": replacement["display_name"],
+            "location_selection": replacement,
+        },
+    )
+    assert replaced.status_code == 200
+    assert replaced.json()["location_source"] == "open_meteo"
+    assert replaced.json()["location_source_id"] == "open_meteo_5309842"
+
+
+def test_structured_observation_storage_and_service_reject_partial_state(tmp_path: Path) -> None:
+    path = _database(tmp_path)
+    connection = duckdb.connect(str(path))
+    collection_storage.ensure_tables(connection)
+    with pytest.raises(ValueError, match="all-or-none"):
+        collection_storage.create_observation(
+            connection,
+            species_code="gambqu",
+            observation_date=date(2026, 7, 9),
+            location_text="Watson Lake",
+            notes=None,
+            location_source="ebird_hotspot",
+        )
+    assert connection.execute("SELECT COUNT(*) FROM birding_personal.observations").fetchone() == (
+        0,
+    )
+    with pytest.raises(duckdb.ConstraintException):
+        connection.execute(
+            """
+            INSERT INTO birding_personal.observations (
+                observation_id, species_code, observation_date, location_text, notes,
+                created_at, updated_at, location_source
+            ) VALUES ('partial', 'gambqu', DATE '2026-07-09', 'Watson Lake', NULL,
+                      '2026-07-09T12:00:00+00:00', '2026-07-09T12:00:00+00:00',
+                      'ebird_hotspot')
+            """
+        )
+    assert connection.execute("SELECT COUNT(*) FROM birding_personal.observations").fetchone() == (
+        0,
+    )
+    connection.close()
+
+
+def test_structured_observation_location_attacks_rollback(tmp_path: Path) -> None:
+    path = _database(tmp_path)
+    client = _client(path)
+    baseline = client.post("/api/observations", json={**_observation(), "location": "Back yard"})
+    assert baseline.status_code == 201
+    before = client.get("/api/observations").json()
+    selected = _selected_location()
+    attacks = [
+        {**_observation(), "location": "Wrong name", "location_selection": selected},
+        {
+            **_observation(),
+            "location": selected["display_name"],
+            "location_selection": {**selected, "latitude": 40.0},
+        },
+        {
+            **_observation(),
+            "location": selected["display_name"],
+            "location_selection": {**selected, "source": "private_observation"},
+        },
+        {
+            **_observation(),
+            "location": selected["display_name"],
+            "location_selection": {**selected, "place_type": "Arizona place"},
+        },
+        {
+            **_observation(),
+            "location": selected["display_name"],
+            "location_source": "ebird_hotspot",
+        },
+    ]
+    for payload in attacks:
+        response = client.post("/api/observations", json=payload)
+        assert response.status_code == 422
+        assert "L270303" not in response.text
+        assert client.get("/api/observations").json() == before
+
+
+def test_legacy_location_migration_is_idempotent_private_and_transactional(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = _database(tmp_path)
+    connection = duckdb.connect(str(path))
+    connection.execute("CREATE SCHEMA birding_personal")
+    connection.execute(
+        """
+        CREATE TABLE birding_personal.observations (
+            observation_id VARCHAR PRIMARY KEY, species_code VARCHAR NOT NULL,
+            observation_date DATE NOT NULL, location_text VARCHAR, notes VARCHAR,
+            created_at VARCHAR NOT NULL, updated_at VARCHAR NOT NULL
+        )
+        """
+    )
+    legacy = (
+        "legacy-observation",
+        "gambqu",
+        "2026-07-09",
+        "prescott",
+        None,
+        "2026-07-09T12:00:00+00:00",
+        "2026-07-09T12:00:00+00:00",
+    )
+    connection.execute(
+        "INSERT INTO birding_personal.observations VALUES (?, ?, ?, ?, ?, ?, ?)", legacy
+    )
+    connection.close()
+
+    client = _client(path)
+    read_before = client.get("/api/observations").json()["observations"][0]
+    assert read_before["location"] == "prescott"
+    assert read_before["location_source"] is None
+
+    original_add = collection_storage._add_observation_location_columns
+
+    def fail_after_one_column(connection: duckdb.DuckDBPyConnection) -> None:
+        connection.execute(
+            "ALTER TABLE birding_personal.observations ADD COLUMN location_source VARCHAR"
+        )
+        raise duckdb.ConstraintException("structured location migration rollback")
+
+    monkeypatch.setattr(
+        collection_storage, "_add_observation_location_columns", fail_after_one_column
+    )
+    failed = client.put(
+        "/api/observations/legacy-observation", json={**_observation(), "location": "prescott"}
+    )
+    assert failed.status_code == 503
+    connection = duckdb.connect(str(path), read_only=True)
+    assert "location_source" not in {
+        row[0] for row in connection.execute("DESCRIBE birding_personal.observations").fetchall()
+    }
+    rolled_back = connection.execute("SELECT * FROM birding_personal.observations").fetchone()
+    assert rolled_back is not None
+    assert (rolled_back[0], rolled_back[1], str(rolled_back[2]), *rolled_back[3:]) == legacy
+    connection.close()
+
+    monkeypatch.setattr(collection_storage, "_add_observation_location_columns", original_add)
+    migrated = client.put(
+        "/api/observations/legacy-observation", json={**_observation(), "location": "prescott"}
+    )
+    assert migrated.status_code == 200
+    connection = duckdb.connect(str(path))
+    migration_sql = Path("migrations/20260711_structured_observation_locations.sql").read_text()
+    connection.execute(migration_sql)
+    connection.execute(migration_sql)
+    stored = connection.execute(
+        """
+        SELECT observation_id, location_text, location_source, location_source_id,
+               location_latitude, location_longitude, location_timezone, location_region_code
+        FROM birding_personal.observations
+        """
+    ).fetchone()
+    connection.close()
+    assert stored == ("legacy-observation", "prescott", None, None, None, None, None, None)
+
+    private_id = "L_PRIVATE_TEST"
+    created = client.post(
+        "/api/observations",
+        json={
+            **_observation(),
+            "location": "Watson Lake and Riparian Preserve",
+            "location_selection": {**_selected_location(), "source_id": private_id},
+        },
+    )
+    assert created.status_code == 201
+    assert private_id in created.text
+    assert private_id in client.get("/api/observations").text
+    assert private_id not in client.get("/api/birds").text
+    assert private_id not in client.get("/api/life-list").text

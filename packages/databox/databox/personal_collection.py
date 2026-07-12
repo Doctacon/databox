@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import math
+import re
 from datetime import UTC, date, datetime, timedelta
 from hashlib import sha256
 from typing import Any, Literal
 from uuid import uuid4
 
 import duckdb
+
+from databox.agent_tools.arizona_boundary import is_in_arizona
 
 SCHEMA = "birding_personal"
 
@@ -243,6 +247,40 @@ def runtime_identity_migration_required(connection: duckdb.DuckDBPyConnection) -
     return False
 
 
+def observation_location_migration_required(
+    connection: duckdb.DuckDBPyConnection,
+) -> bool:
+    """Return whether the private observation table needs additive place columns."""
+
+    if not _table_exists(connection, "observations"):
+        return False
+    return any(
+        not _column_exists(connection, "observations", column)
+        for column in (
+            "location_source",
+            "location_source_id",
+            "location_latitude",
+            "location_longitude",
+            "location_timezone",
+            "location_region_code",
+        )
+    )
+
+
+def _add_observation_location_columns(connection: duckdb.DuckDBPyConnection) -> None:
+    for column, data_type in (
+        ("location_source", "VARCHAR"),
+        ("location_source_id", "VARCHAR"),
+        ("location_latitude", "DOUBLE"),
+        ("location_longitude", "DOUBLE"),
+        ("location_timezone", "VARCHAR"),
+        ("location_region_code", "VARCHAR"),
+    ):
+        connection.execute(
+            f"ALTER TABLE {SCHEMA}.observations ADD COLUMN IF NOT EXISTS {column} {data_type}"
+        )
+
+
 def ensure_tables(connection: duckdb.DuckDBPyConnection) -> None:
     """Create or migrate runtime-owned personal tables in the caller transaction."""
 
@@ -257,9 +295,29 @@ def ensure_tables(connection: duckdb.DuckDBPyConnection) -> None:
             notes VARCHAR,
             created_at VARCHAR NOT NULL,
             updated_at VARCHAR NOT NULL,
+            location_source VARCHAR,
+            location_source_id VARCHAR,
+            location_latitude DOUBLE,
+            location_longitude DOUBLE,
+            location_timezone VARCHAR,
+            location_region_code VARCHAR,
             CHECK (length(species_code) BETWEEN 1 AND 64),
             CHECK (location_text IS NULL OR length(location_text) BETWEEN 1 AND 300),
-            CHECK (notes IS NULL OR length(notes) BETWEEN 1 AND 2000)
+            CHECK (notes IS NULL OR length(notes) BETWEEN 1 AND 2000),
+            CHECK (location_source IS NULL OR location_source IN ('ebird_hotspot', 'open_meteo')),
+            CHECK (location_source_id IS NULL OR length(location_source_id) BETWEEN 1 AND 64),
+            CHECK (location_timezone IS NULL OR location_timezone = 'America/Phoenix'),
+            CHECK (location_region_code IS NULL OR location_region_code = 'US-AZ'),
+            CHECK (
+                (location_source IS NULL AND location_source_id IS NULL
+                 AND location_latitude IS NULL AND location_longitude IS NULL
+                 AND location_timezone IS NULL AND location_region_code IS NULL)
+                OR
+                (location_text IS NOT NULL AND location_source IS NOT NULL
+                 AND location_source_id IS NOT NULL AND location_latitude IS NOT NULL
+                 AND location_longitude IS NOT NULL AND location_timezone IS NOT NULL
+                 AND location_region_code IS NOT NULL)
+            )
         )
         """
     )
@@ -300,6 +358,7 @@ def ensure_tables(connection: duckdb.DuckDBPyConnection) -> None:
         )
         """
     )
+    _add_observation_location_columns(connection)
     connection.execute(
         f"""CREATE INDEX IF NOT EXISTS observations_species_idx
         ON {SCHEMA}.observations(species_code)"""
@@ -406,6 +465,50 @@ def get_observation(
     return rows[0]
 
 
+def _validate_observation_location(
+    *,
+    location_text: str | None,
+    location_source: str | None,
+    location_source_id: str | None,
+    location_latitude: float | None,
+    location_longitude: float | None,
+    location_timezone: str | None,
+    location_region_code: str | None,
+) -> None:
+    structured = (
+        location_source,
+        location_source_id,
+        location_latitude,
+        location_longitude,
+        location_timezone,
+        location_region_code,
+    )
+    if all(value is None for value in structured):
+        return
+    if any(value is None for value in structured) or location_text is None:
+        raise ValueError("structured observation location must be all-or-none")
+    if location_source not in ("ebird_hotspot", "open_meteo"):
+        raise ValueError("invalid observation location source")
+    if (
+        not isinstance(location_source_id, str)
+        or re.fullmatch(r"[A-Za-z0-9_-]{1,64}", location_source_id) is None
+        or (location_source == "open_meteo" and not location_source_id.startswith("open_meteo_"))
+    ):
+        raise ValueError("invalid observation location identity")
+    if (
+        isinstance(location_latitude, bool)
+        or not isinstance(location_latitude, int | float)
+        or not math.isfinite(location_latitude)
+        or isinstance(location_longitude, bool)
+        or not isinstance(location_longitude, int | float)
+        or not math.isfinite(location_longitude)
+        or not is_in_arizona(float(location_latitude), float(location_longitude))
+    ):
+        raise ValueError("invalid observation location coordinates")
+    if location_timezone != "America/Phoenix" or location_region_code != "US-AZ":
+        raise ValueError("invalid observation location region")
+
+
 def create_observation(
     connection: duckdb.DuckDBPyConnection,
     *,
@@ -413,14 +516,33 @@ def create_observation(
     observation_date: date,
     location_text: str | None,
     notes: str | None,
+    location_source: str | None = None,
+    location_source_id: str | None = None,
+    location_latitude: float | None = None,
+    location_longitude: float | None = None,
+    location_timezone: str | None = None,
+    location_region_code: str | None = None,
 ) -> dict[str, Any]:
+    _validate_observation_location(
+        location_text=location_text,
+        location_source=location_source,
+        location_source_id=location_source_id,
+        location_latitude=location_latitude,
+        location_longitude=location_longitude,
+        location_timezone=location_timezone,
+        location_region_code=location_region_code,
+    )
     if catalog_species(connection, species_code) is None:
         raise LookupError("species")
     timestamp = _now()
     observation_id = str(uuid4())
     connection.execute(
         f"""
-        INSERT INTO {SCHEMA}.observations VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO {SCHEMA}.observations (
+            observation_id, species_code, observation_date, location_text, notes,
+            created_at, updated_at, location_source, location_source_id,
+            location_latitude, location_longitude, location_timezone, location_region_code
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
             observation_id,
@@ -430,6 +552,12 @@ def create_observation(
             notes,
             timestamp,
             timestamp,
+            location_source,
+            location_source_id,
+            location_latitude,
+            location_longitude,
+            location_timezone,
+            location_region_code,
         ],
     )
     result = get_observation(connection, observation_id)
@@ -445,7 +573,22 @@ def update_observation(
     observation_date: date,
     location_text: str | None,
     notes: str | None,
+    location_source: str | None = None,
+    location_source_id: str | None = None,
+    location_latitude: float | None = None,
+    location_longitude: float | None = None,
+    location_timezone: str | None = None,
+    location_region_code: str | None = None,
 ) -> dict[str, Any]:
+    _validate_observation_location(
+        location_text=location_text,
+        location_source=location_source,
+        location_source_id=location_source_id,
+        location_latitude=location_latitude,
+        location_longitude=location_longitude,
+        location_timezone=location_timezone,
+        location_region_code=location_region_code,
+    )
     if catalog_species(connection, species_code) is None:
         raise LookupError("species")
     existing = get_observation(connection, observation_id)
@@ -454,7 +597,10 @@ def update_observation(
     connection.execute(
         f"""
         UPDATE {SCHEMA}.observations
-        SET species_code = ?, observation_date = ?, location_text = ?, notes = ?, updated_at = ?
+        SET species_code = ?, observation_date = ?, location_text = ?, notes = ?,
+            updated_at = ?, location_source = ?, location_source_id = ?,
+            location_latitude = ?, location_longitude = ?, location_timezone = ?,
+            location_region_code = ?
         WHERE observation_id = ?
         """,
         [
@@ -463,6 +609,12 @@ def update_observation(
             location_text,
             notes,
             _timestamp_successor(str(existing["updated_at"])),
+            location_source,
+            location_source_id,
+            location_latitude,
+            location_longitude,
+            location_timezone,
+            location_region_code,
             observation_id,
         ],
     )

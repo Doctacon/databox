@@ -11,8 +11,9 @@ from typing import Literal
 import duckdb
 from fastapi import FastAPI, Query
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from databox.agent_tools.arizona_boundary import is_in_arizona
 from databox.agents.birding_trip_planner import NormalizedLocation, resolve_arizona_location
 from databox.personal_collection import (
     CollectionStorageMigrationError,
@@ -27,6 +28,7 @@ from databox.personal_collection import (
     list_life_list,
     list_observations,
     list_watches,
+    observation_location_migration_required,
     put_watch,
     request_watch_cancellation,
     runtime_identity_migration_required,
@@ -54,18 +56,60 @@ class BirdIdentityResponse(BaseModel):
     taxonomic_category: str | None
 
 
+class ObservationLocationSelectionInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    display_name: str = Field(strict=True, min_length=1, max_length=300)
+    latitude: float = Field(strict=True)
+    longitude: float = Field(strict=True)
+    timezone: Literal["America/Phoenix"]
+    region_code: Literal["US-AZ"]
+    source: Literal["ebird_hotspot", "open_meteo"]
+    source_id: str = Field(strict=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    place_type: Literal["Birding hotspot", "Arizona place"]
+
+    @field_validator("display_name")
+    @classmethod
+    def trim_display_name(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped or re.search(r"[\x00-\x1f\x7f]", stripped) is not None:
+            raise ValueError("invalid location display name")
+        return stripped
+
+    @model_validator(mode="after")
+    def validate_relationships(self) -> ObservationLocationSelectionInput:
+        expected_type = "Birding hotspot" if self.source == "ebird_hotspot" else "Arizona place"
+        if self.place_type != expected_type:
+            raise ValueError("location source and type do not match")
+        if self.source == "open_meteo" and not self.source_id.startswith("open_meteo_"):
+            raise ValueError("location source and identity do not match")
+        if not is_in_arizona(self.latitude, self.longitude):
+            raise ValueError("location is outside Arizona")
+        return self
+
+
 class ObservationInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     species_code: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9]+$")
     observation_date: date
     location: str | None = Field(default=None, max_length=300)
+    location_selection: ObservationLocationSelectionInput | None = None
     notes: str | None = Field(default=None, max_length=2000)
 
     @field_validator("location", "notes")
     @classmethod
     def trim_optional(cls, value: str | None) -> str | None:
         return value.strip() or None if value is not None else None
+
+    @model_validator(mode="after")
+    def selection_matches_location(self) -> ObservationInput:
+        if (
+            self.location_selection is not None
+            and self.location != self.location_selection.display_name
+        ):
+            raise ValueError("location must match the selected display name")
+        return self
 
 
 class ObservationResponse(BaseModel):
@@ -75,10 +119,41 @@ class ObservationResponse(BaseModel):
     species_code: str
     observation_date: date
     location: str | None
+    location_source: Literal["ebird_hotspot", "open_meteo"] | None
+    location_source_id: str | None = Field(
+        default=None, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"
+    )
+    location_latitude: float | None = Field(default=None, allow_inf_nan=False)
+    location_longitude: float | None = Field(default=None, allow_inf_nan=False)
+    location_timezone: Literal["America/Phoenix"] | None
+    location_region_code: Literal["US-AZ"] | None
     notes: str | None
     created_at: datetime
     updated_at: datetime
     identity: BirdIdentityResponse
+
+    @model_validator(mode="after")
+    def structured_location_is_coherent(self) -> ObservationResponse:
+        values = (
+            self.location_source,
+            self.location_source_id,
+            self.location_latitude,
+            self.location_longitude,
+            self.location_timezone,
+            self.location_region_code,
+        )
+        if all(value is None for value in values):
+            return self
+        if any(value is None for value in values) or self.location is None:
+            raise ValueError("structured location must be all-or-none")
+        assert self.location_latitude is not None and self.location_longitude is not None
+        if not is_in_arizona(self.location_latitude, self.location_longitude):
+            raise ValueError("structured location is outside Arizona")
+        if self.location_source == "open_meteo" and not str(self.location_source_id).startswith(
+            "open_meteo_"
+        ):
+            raise ValueError("structured location source is inconsistent")
+        return self
 
 
 class ObservationListResponse(BaseModel):
@@ -220,12 +295,32 @@ def _begin_collection_transaction(connection: duckdb.DuckDBPyConnection) -> None
             except duckdb.TransactionException:
                 pass
             raise
+    if observation_location_migration_required(connection):
+        connection.execute("BEGIN TRANSACTION")
+        try:
+            ensure_tables(connection)
+            connection.execute("COMMIT")
+        except Exception:
+            try:
+                connection.execute("ROLLBACK")
+            except duckdb.TransactionException:
+                pass
+            raise
     connection.execute("BEGIN TRANSACTION")
 
 
 def _observation(row: dict[str, object]) -> ObservationResponse:
     row = dict(row)
     row["location"] = row.pop("location_text")
+    for field in (
+        "location_source",
+        "location_source_id",
+        "location_latitude",
+        "location_longitude",
+        "location_timezone",
+        "location_region_code",
+    ):
+        row.setdefault(field, None)
     return ObservationResponse.model_validate(row)
 
 
@@ -301,6 +396,7 @@ def register_personal_collection_routes(
                 _begin_collection_transaction(connection)
                 transaction = True
                 ensure_tables(connection)
+                selected = payload.location_selection
                 if observation_id is None:
                     row = create_observation(
                         connection,
@@ -308,6 +404,12 @@ def register_personal_collection_routes(
                         observation_date=payload.observation_date,
                         location_text=payload.location,
                         notes=payload.notes,
+                        location_source=selected.source if selected else None,
+                        location_source_id=selected.source_id if selected else None,
+                        location_latitude=selected.latitude if selected else None,
+                        location_longitude=selected.longitude if selected else None,
+                        location_timezone=selected.timezone if selected else None,
+                        location_region_code=selected.region_code if selected else None,
                     )
                 else:
                     row = update_observation(
@@ -317,6 +419,12 @@ def register_personal_collection_routes(
                         observation_date=payload.observation_date,
                         location_text=payload.location,
                         notes=payload.notes,
+                        location_source=selected.source if selected else None,
+                        location_source_id=selected.source_id if selected else None,
+                        location_latitude=selected.latitude if selected else None,
+                        location_longitude=selected.longitude if selected else None,
+                        location_timezone=selected.timezone if selected else None,
+                        location_region_code=selected.region_code if selected else None,
                     )
                 connection.execute("COMMIT")
                 transaction = False
@@ -331,6 +439,10 @@ def register_personal_collection_routes(
                     else "Observation not found",
                     404,
                 )
+            except ValueError:
+                if transaction and connection is not None:
+                    connection.execute("ROLLBACK")
+                return _error("invalid_request", "Check the collection inputs and try again", 422)
             except CollectionStorageMigrationError:
                 if transaction and connection is not None:
                     connection.execute("ROLLBACK")

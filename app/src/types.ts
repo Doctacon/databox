@@ -321,6 +321,12 @@ export interface PersonalObservation {
   species_code: string;
   observation_date: string;
   location: string | null;
+  location_source: "ebird_hotspot" | "open_meteo" | null;
+  location_source_id: string | null;
+  location_latitude: number | null;
+  location_longitude: number | null;
+  location_timezone: "America/Phoenix" | null;
+  location_region_code: "US-AZ" | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -362,6 +368,7 @@ export interface ObservationInput {
   species_code: string;
   observation_date: string;
   location: string | null;
+  location_selection?: LocationSuggestion | null;
   notes: string | null;
 }
 

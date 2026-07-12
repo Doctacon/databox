@@ -62,9 +62,26 @@ function identity(value: unknown): BirdIdentity {
 }
 
 function observation(value: unknown): PersonalObservation {
-  const row = exact(value, ["observation_id", "species_code", "observation_date", "location", "notes", "created_at", "updated_at", "identity"]);
+  const row = exact(value, [
+    "observation_id", "species_code", "observation_date", "location", "notes",
+    "location_source", "location_source_id", "location_latitude", "location_longitude",
+    "location_timezone", "location_region_code", "created_at", "updated_at", "identity",
+  ]);
+  const structured = [row.location_source, row.location_source_id, row.location_latitude,
+    row.location_longitude, row.location_timezone, row.location_region_code];
+  const absent = structured.every((item) => item === null);
+  const validStructured = !structured.some((item) => item === null)
+    && (row.location_source === "ebird_hotspot" || row.location_source === "open_meteo")
+    && text(row.location_source_id, 64)
+    && /^[A-Za-z0-9_-]+$/.test(row.location_source_id as string)
+    && (row.location_source !== "open_meteo" || (row.location_source_id as string).startsWith("open_meteo_"))
+    && finite(row.location_latitude) && row.location_latitude >= 31 && row.location_latitude <= 38
+    && finite(row.location_longitude) && row.location_longitude >= -115 && row.location_longitude <= -108
+    && row.location_timezone === "America/Phoenix" && row.location_region_code === "US-AZ"
+    && text(row.location, 300);
   if (!text(row.observation_id, 128) || !code(row.species_code) || !date(row.observation_date)
     || !text(row.location, 300, true) || !text(row.notes, 2000, true)
+    || (!absent && !validStructured)
     || !timestamp(row.created_at) || !timestamp(row.updated_at)
     || Date.parse(row.created_at) > Date.parse(row.updated_at)) throw new Error("Invalid local collection response");
   return { ...(row as unknown as Omit<PersonalObservation, "identity">), identity: identity(row.identity) };

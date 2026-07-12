@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getCollectionState, listLifeList, listObservations, listWatches } from "./collectionApi";
+import { createObservation, getCollectionState, listLifeList, listObservations, listWatches } from "./collectionApi";
 
 function response(body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }));
@@ -16,6 +16,12 @@ const observation = {
   species_code: "bird001",
   observation_date: "2024-02-29",
   location: null,
+  location_source: null,
+  location_source_id: null,
+  location_latitude: null,
+  location_longitude: null,
+  location_timezone: null,
+  location_region_code: null,
   notes: null,
   created_at: "2026-07-10T01:02:03.123456Z",
   updated_at: "2026-07-10T01:02:04+00:00",
@@ -47,6 +53,45 @@ describe("strict collection response validation", () => {
     { created_at: "2026-07-10T01:02:05Z", updated_at: "2026-07-10T01:02:04Z" },
   ])("rejects invalid date/timestamp row %#", async (change) => {
     await rejects({ observations: [{ ...observation, ...change }] }, listObservations);
+  });
+
+  it("accepts coherent structured locations and rejects partial or inconsistent rows", async () => {
+    const selected = {
+      ...observation,
+      location: "Watson Lake and Riparian Preserve",
+      location_source: "ebird_hotspot",
+      location_source_id: "L270303",
+      location_latitude: 34.5822319,
+      location_longitude: -112.4259328,
+      location_timezone: "America/Phoenix",
+      location_region_code: "US-AZ",
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ observations: [selected] }));
+    await expect(listObservations()).resolves.toEqual([selected]);
+    vi.restoreAllMocks();
+    await rejects({ observations: [{ ...selected, location_source_id: null }] }, listObservations);
+    await rejects({ observations: [{ ...selected, location_source: "open_meteo" }] }, listObservations);
+    await rejects({ observations: [{ ...selected, location_latitude: 40 }] }, listObservations);
+    await rejects({ observations: [{ ...selected, private_trace: "hidden" }] }, listObservations);
+  });
+
+  it("sends an exact selected location only to the private observation API", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(() => response(observation));
+    const selection = {
+      display_name: "Watson Lake and Riparian Preserve", latitude: 34.5822319,
+      longitude: -112.4259328, timezone: "America/Phoenix" as const,
+      region_code: "US-AZ" as const, source: "ebird_hotspot" as const,
+      source_id: "L270303", place_type: "Birding hotspot" as const,
+    };
+    await createObservation({
+      species_code: "bird001", observation_date: "2026-07-09",
+      location: selection.display_name, location_selection: selection, notes: null,
+    });
+    expect(fetch).toHaveBeenCalledWith("/api/observations", expect.objectContaining({ method: "POST" }));
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({
+      species_code: "bird001", observation_date: "2026-07-09",
+      location: selection.display_name, location_selection: selection, notes: null,
+    });
   });
 
   it("rejects unsafe counts and reversed life-list dates", async () => {
