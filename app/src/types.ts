@@ -178,10 +178,17 @@ export interface MapEncounter {
   access_warning: boolean;
 }
 
+export interface MapPhoto {
+  species_code: string;
+  scientific_name: string | null;
+  photo: CatalogPhoto;
+}
+
 export interface MapSnapshot {
   snapshot_latest_observation_at: string | null;
   source_freshness_at: string | null;
   encounters: MapEncounter[];
+  photos: MapPhoto[];
 }
 
 export interface BirdCatalogSummary {

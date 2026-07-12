@@ -59,6 +59,7 @@ from databox.catalog_media import catalog_media_identity_hash, catalog_media_row
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.personal_collection_api import register_personal_collection_routes
 from databox.place_suggestions import merge_fallback_suggestions, search_local_hotspots
+from databox.source_refresh_api import register_source_refresh_routes
 from databox.target_planning_api import register_target_planning_routes
 from databox.trip_plan_calendar import trip_invite_status
 from databox.trip_plan_calendar_api import (
@@ -453,12 +454,21 @@ class MapEncounterResponse(BaseModel):
         return self
 
 
+class MapPhotoResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    species_code: str = Field(strict=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9]+$")
+    scientific_name: str | None = Field(default=None, strict=True, max_length=200)
+    photo: CatalogPhotoResponse
+
+
 class MapSnapshotResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     snapshot_latest_observation_at: datetime | None
     source_freshness_at: datetime | None
     encounters: list[MapEncounterResponse] = Field(max_length=10_000)
+    photos: list[MapPhotoResponse] = Field(max_length=706)
 
     @model_validator(mode="after")
     def snapshot_metadata_matches_rows(self) -> MapSnapshotResponse:
@@ -470,6 +480,10 @@ class MapSnapshotResponse(BaseModel):
             raise ValueError("map snapshot observation identifiers must be unique")
         if self.encounters and self.source_freshness_at is None:
             raise ValueError("map snapshot freshness is required for encounters")
+        encounter_codes = {row.species_code for row in self.encounters}
+        photo_codes = [row.species_code for row in self.photos]
+        if len(photo_codes) != len(set(photo_codes)) or set(photo_codes) != encounter_codes:
+            raise ValueError("map snapshot photos must match encounter species")
         return self
 
 
@@ -1319,12 +1333,23 @@ def _map_snapshot(connection: duckdb.DuckDBPyConnection) -> MapSnapshotResponse:
         )
         encounters.append(MapEncounterResponse.model_validate(row))
         loaded_at.append(loaded)
+    identities = {encounter.species_code: encounter.scientific_name for encounter in encounters}
+    media = catalog_media_rows(connection, sorted(identities))
+    photos = [
+        MapPhotoResponse(
+            species_code=code,
+            scientific_name=identities[code],
+            photo=_catalog_photo(media.get((code, "photo")), code, identities[code]),
+        )
+        for code in sorted(identities)
+    ]
     return MapSnapshotResponse(
         snapshot_latest_observation_at=max(
             (row.observation_at for row in encounters), default=None
         ),
         source_freshness_at=max(loaded_at, default=None),
         encounters=encounters,
+        photos=photos,
     )
 
 
@@ -1562,6 +1587,7 @@ def create_app(
         smtp_settings=trip_smtp_settings or (lambda: settings_from_global(settings)),
         smtp_factory=trip_smtp_factory,
     )
+    register_source_refresh_routes(app)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:

@@ -78,7 +78,7 @@ function ccUrl(value: unknown, text: unknown): boolean {
   return value === `https://creativecommons.org/licenses/${slug}/${version}/`;
 }
 
-function catalogPhoto(value: unknown, scientificName: string | null): CatalogPhoto {
+export function validateCatalogPhoto(value: unknown, scientificName: string | null): CatalogPhoto {
   const row = objectWithKeys(value, photoKeys);
   if ((row.status !== "available" && row.status !== "unavailable") || !caveats(row.caveats)
     || !timestamp(row.lookup_at)) throw new Error("invalid catalog photo");
@@ -139,7 +139,7 @@ function summary(value: unknown): BirdCatalogSummary {
     || ((row.traits_status === "unavailable" || row.taxonomic_category === "hybrid")
       && (row.mass_g !== null || row.habitat !== null))
   ) throw new Error("invalid catalog summary");
-  row.photo = catalogPhoto(row.photo, row.scientific_name);
+  row.photo = validateCatalogPhoto(row.photo, row.scientific_name);
   row.call = catalogCall(row.call, row.scientific_name);
   return row as unknown as BirdCatalogSummary;
 }

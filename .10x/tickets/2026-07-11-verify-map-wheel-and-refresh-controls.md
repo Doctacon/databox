@@ -1,8 +1,8 @@
-Status: open
+Status: active
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-upgrade-map-catalog-and-refresh-controls.md
-Depends-On: .10x/tickets/2026-07-11-add-field-map-encounter-photo-preview.md, .10x/tickets/2026-07-11-build-arizona-bird-wheel-catalog.md, .10x/tickets/2026-07-11-add-header-source-refresh-control.md
+Depends-On: .10x/tickets/done/2026-07-11-add-field-map-encounter-photo-preview.md, .10x/tickets/done/2026-07-11-build-arizona-bird-wheel-catalog.md, .10x/tickets/done/2026-07-11-add-header-source-refresh-control.md
 
 # Verify map, wheel, and refresh controls
 
@@ -29,8 +29,10 @@ No implementation repair hidden inside closure, live provider refresh, model cal
 
 ## Blockers
 
-All implementation children must be done.
+Independent architecture, correctness, privacy/security/source, and UX/accessibility reviews cannot run in this session because the subagent runtime has reached its hard 40/40 spawn limit. Implementation children are done; aggregate closure awaits a fresh-session review fanout.
 
 ## Progress and notes
 
 - 2026-07-11: Opened during ratified shaping; not executable until dependencies close.
+- 2026-07-11: All four implementation children completed. Implementation evidence: `.10x/evidence/2026-07-11-map-wheel-refresh-controls-implementation.md`.
+- 2026-07-11: Aggregate automated gates were run without live provider/refresh/model/email effects. Independent reviews remain the sole closure blocker.

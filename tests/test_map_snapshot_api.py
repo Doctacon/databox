@@ -104,6 +104,28 @@ def test_snapshot_returns_only_bounded_safe_exact_fields(tmp_path: Path) -> None
                 "access_warning": True,
             }
         ],
+        "photos": [
+            {
+                "species_code": "abc123",
+                "scientific_name": "Avis alpha",
+                "photo": {
+                    "status": "unavailable",
+                    "source_record_id": None,
+                    "species_name": None,
+                    "display_url": None,
+                    "source_url": None,
+                    "creator": None,
+                    "rights_holder": None,
+                    "publisher": None,
+                    "format": None,
+                    "license_text": None,
+                    "license_url": None,
+                    "selection_reason": None,
+                    "caveats": ["Catalog photo has not been enriched for this exact taxon"],
+                    "lookup_at": None,
+                },
+            }
+        ],
     }
     serialized = str(response.json()).lower()
     for forbidden in (
@@ -112,7 +134,6 @@ def test_snapshot_returns_only_bounded_safe_exact_fields(tmp_path: Path) -> None
         "credential",
         "watch",
         "plan",
-        "media",
         "trace",
         "payload",
     ):
@@ -145,6 +166,7 @@ def test_ineligible_or_privacy_ambiguous_rows_are_excluded(
         "snapshot_latest_observation_at": None,
         "source_freshness_at": None,
         "encounters": [],
+        "photos": [],
     }
 
 

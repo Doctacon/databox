@@ -19,10 +19,10 @@ Deliver three independent Rufous improvements: photo-backed encounter previews, 
 
 ## Child plan
 
-1. `.10x/tickets/2026-07-11-add-field-map-encounter-photo-preview.md`
-2. `.10x/tickets/2026-07-11-build-arizona-bird-wheel-catalog.md`
-3. `.10x/tickets/2026-07-11-build-local-refresh-runtime-api.md`
-4. `.10x/tickets/2026-07-11-add-header-source-refresh-control.md` (depends on 3)
+1. `.10x/tickets/done/2026-07-11-add-field-map-encounter-photo-preview.md`
+2. `.10x/tickets/done/2026-07-11-build-arizona-bird-wheel-catalog.md`
+3. `.10x/tickets/done/2026-07-11-build-local-refresh-runtime-api.md`
+4. `.10x/tickets/done/2026-07-11-add-header-source-refresh-control.md` (depends on 3)
 5. `.10x/tickets/2026-07-11-verify-map-wheel-and-refresh-controls.md` (depends on 1–4)
 
 Children 1, 2, and 3 are parallelizable. Child 4 follows the refresh API. Aggregate verification follows all implementation children.
@@ -41,7 +41,8 @@ No AVONET/media refresh, external map resources, strong 3D wheel, autoplay, stag
 ## Progress and notes
 
 - 2026-07-11: User ratified highlight-only map preview, subtle wheel, routine six-source refresh, confirmed background execution, temporary warehouse-busy behavior, and validated GBIF thumbnail requests with map resources remaining local.
+- 2026-07-11: All four implementation children are done. Aggregate verification is active with independent reviews as the only blocker.
 
 ## Blockers
 
-None. Parent is a plan, not executable.
+Aggregate verification is active; independent review fanout requires a fresh session because this session exhausted the 40/40 subagent limit.

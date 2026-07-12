@@ -6,6 +6,7 @@ import LocationCombobox from "./LocationCombobox";
 import { MyBirdsPage } from "./MyBirds";
 import { TripCalendarControls } from "./TripCalendarControls";
 import { TargetBirdPage } from "./TargetBird";
+import { SourceRefreshControl } from "./SourceRefreshControl";
 import type {
   CreatePlanInput,
   Evidence,
@@ -624,7 +625,7 @@ export default function App() {
         <a href="/map" aria-current={route.page === "map" ? "page" : undefined} onClick={(event) => navClick(event, "/map")}>Field Map</a>
         <a href="/my-birds" aria-current={route.page === "my-birds" ? "page" : undefined} onClick={(event) => navClick(event, "/my-birds")}>My Birds</a>
       </nav>
-      <p>Local DuckDB · evidence-backed</p>
+      <SourceRefreshControl />
     </header>
     {route.page === "planner" && <PlannerPage />}
     {route.page === "birds" && <BirdCatalogPage navigate={navigate} />}

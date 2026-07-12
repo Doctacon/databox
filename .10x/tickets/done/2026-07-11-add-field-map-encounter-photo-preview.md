@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-upgrade-map-catalog-and-refresh-controls.md
@@ -33,3 +33,6 @@ None.
 ## Progress and notes
 
 - 2026-07-11: Shaped from user-ratified behavior and active media/map boundaries.
+
+- 2026-07-11: Implemented bounded exact map photos, lazy attributed thumbnails/placeholders, and focus/hover-only unclustered preview. Live read-only snapshot: 1,575 encounters, 152 photo identities, 139 available.
+- 2026-07-11: Evidence: `.10x/evidence/2026-07-11-map-wheel-refresh-controls-implementation.md`. Parent executed directly because the session-wide subagent spawn limit was already 40/40.

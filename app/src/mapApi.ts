@@ -1,5 +1,6 @@
+import { validateCatalogPhoto } from "./birdApi";
 import { isoTimestampMicros, isIsoTimestamp } from "./isoDateTime";
-import type { MapEncounter, MapSnapshot } from "./types";
+import type { MapEncounter, MapPhoto, MapSnapshot } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -69,23 +70,36 @@ export async function getMapSnapshot(): Promise<MapSnapshot> {
   let body: unknown;
   try { body = await response.json(); } catch { throw new Error("The local Field Map is unavailable"); }
   if (!response.ok) throw new Error(safeError(response.status, body));
-  const row = exact(body, ["snapshot_latest_observation_at", "source_freshness_at", "encounters"]);
+  const row = exact(body, ["snapshot_latest_observation_at", "source_freshness_at", "encounters", "photos"]);
   if (!isIsoTimestamp(row.snapshot_latest_observation_at, true)
     || !isIsoTimestamp(row.source_freshness_at, true)
-    || !Array.isArray(row.encounters) || row.encounters.length > 10_000) {
+    || !Array.isArray(row.encounters) || row.encounters.length > 10_000
+    || !Array.isArray(row.photos) || row.photos.length > 706) {
     throw new Error("Invalid Field Map response");
   }
   const encounters = row.encounters.map(encounter);
+  const photos = row.photos.map((value): MapPhoto => {
+    const photoRow = exact(value, ["species_code", "scientific_name", "photo"]);
+    if (typeof photoRow.species_code !== "string" || !/^[A-Za-z0-9]{1,64}$/.test(photoRow.species_code)
+      || (photoRow.scientific_name !== null && (typeof photoRow.scientific_name !== "string"
+        || photoRow.scientific_name.length > 200))) throw new Error("Invalid Field Map response");
+    return { species_code: photoRow.species_code, scientific_name: photoRow.scientific_name as string | null,
+      photo: validateCatalogPhoto(photoRow.photo, photoRow.scientific_name as string | null) };
+  });
   const identifiers = encounters.map((item) => item.source_observation_id);
   const latest = encounters.reduce<bigint | null>((current, item) => {
     const value = isoTimestampMicros(item.observation_at)!;
     return current === null || value > current ? value : current;
   }, null);
+  const encounterCodes = new Set(encounters.map((item) => item.species_code));
+  const photoCodes = photos.map((item) => item.species_code);
   if (new Set(identifiers).size !== identifiers.length
+    || new Set(photoCodes).size !== photoCodes.length
+    || photoCodes.some((code) => !encounterCodes.has(code)) || photoCodes.length !== encounterCodes.size
     || (encounters.length > 0 && row.source_freshness_at === null)
     || (row.snapshot_latest_observation_at === null ? latest !== null
       : isoTimestampMicros(row.snapshot_latest_observation_at) !== latest)) {
     throw new Error("Invalid Field Map response");
   }
-  return { ...row, encounters } as MapSnapshot;
+  return { ...row, encounters, photos } as MapSnapshot;
 }

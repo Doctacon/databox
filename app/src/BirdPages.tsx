@@ -1,11 +1,9 @@
-import { FormEvent, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, MouseEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import rufousImage from "./assets/rufous.png";
 import { getBird, listBirds } from "./birdApi";
 import { ProfileCollectionControls } from "./MyBirds";
 import type { BirdCatalogSummary, BirdProfile, CatalogCall, CatalogPhoto } from "./types";
 import { compareVisibleLabels } from "./visibleLabel";
-
-const BIRDS_PER_PAGE = 24;
 
 type Navigate = (path: string) => void;
 
@@ -204,7 +202,8 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
   const [family, setFamily] = useState("all");
   const [habitat, setHabitat] = useState("all");
   const [weight, setWeight] = useState<WeightFilter>("all");
-  const [page, setPage] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const wheelRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -220,8 +219,8 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
     return () => { current = false; };
   }, []);
 
-  useEffect(() => setPage(0), [query, sort, category, family, habitat, weight]);
-  useEffect(() => stopAllCatalogAudio(), [query, sort, category, family, habitat, weight, page]);
+  useEffect(() => setActiveIndex(0), [query, sort, category, family, habitat, weight]);
+  useEffect(() => stopAllCatalogAudio(), [query, sort, category, family, habitat, weight, activeIndex]);
   useEffect(() => () => stopAllCatalogAudio(), []);
 
   const familyOptions = useMemo(() => {
@@ -270,10 +269,37 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
       return compareName(left, right);
     });
   }, [birds, category, family, habitat, query, sort, weight]);
-  const lastPage = Math.max(0, Math.ceil(filtered.length / BIRDS_PER_PAGE) - 1);
-  const currentPage = Math.min(page, lastPage);
-  const start = currentPage * BIRDS_PER_PAGE;
-  const visible = filtered.slice(start, start + BIRDS_PER_PAGE);
+  const currentIndex = Math.min(activeIndex, Math.max(0, filtered.length - 1));
+  const activeBird = filtered[currentIndex] ?? null;
+
+  function center(index: number, behavior: ScrollBehavior = "smooth") {
+    const next = Math.max(0, Math.min(filtered.length - 1, index));
+    setActiveIndex(next);
+    requestAnimationFrame(() => {
+      const option = wheelRef.current?.querySelector<HTMLElement>(`[data-wheel-index="${next}"]`);
+      if (typeof option?.scrollIntoView === "function") option.scrollIntoView({ block: "center", behavior });
+    });
+  }
+
+  function wheelKey(event: KeyboardEvent<HTMLDivElement>) {
+    const jumps: Partial<Record<string, number>> = { ArrowDown: 1, ArrowUp: -1, PageDown: 5, PageUp: -5 };
+    if (event.key === "Home") { event.preventDefault(); center(0); }
+    else if (event.key === "End") { event.preventDefault(); center(filtered.length - 1); }
+    else if (jumps[event.key]) { event.preventDefault(); center(currentIndex + jumps[event.key]!); }
+  }
+
+  function wheelScroll() {
+    const wheel = wheelRef.current;
+    if (!wheel) return;
+    const centerY = wheel.getBoundingClientRect().top + wheel.clientHeight / 2;
+    const options = [...wheel.querySelectorAll<HTMLElement>("[data-wheel-index]")];
+    let nearest = currentIndex; let distance = Number.POSITIVE_INFINITY;
+    for (const option of options) {
+      const rect = option.getBoundingClientRect(); const next = Math.abs(rect.top + rect.height / 2 - centerY);
+      if (next < distance) { distance = next; nearest = Number(option.dataset.wheelIndex); }
+    }
+    if (nearest !== currentIndex) setActiveIndex(nearest);
+  }
 
   function reset(event: FormEvent) {
     event.preventDefault();
@@ -300,26 +326,23 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
       {error && <div className="error" role="alert"><strong>Could not load Arizona birds.</strong><span>{error}</span></div>}
       {loading && <p role="status">Loading the local Arizona catalog…</p>}
       {!loading && !error && <>
-        <p className="catalog-count" aria-live="polite">Showing {filtered.length === 0 ? "0" : `${start + 1}–${start + visible.length}`} of {filtered.length} matching taxa · {birds.length} total</p>
-        {visible.length === 0 ? <p className="empty">No Arizona taxa match the current search and filters.</p> : <ol className="bird-catalog-grid" start={start + 1}>
-          {visible.map((bird) => {
-            const label = displayName(bird);
-            const mediaLabel = bird.common_name && bird.scientific_name
-              ? `${bird.common_name} (${bird.scientific_name})` : label;
-            return <li key={bird.species_code}>
-              <article className="bird-catalog-card">
-                <CatalogPhotoMedia photo={bird.photo} label={mediaLabel} compact />
-                <div className="bird-card-identity"><span className="badge">{categoryLabel(bird.taxonomic_category)}</span><span className="bird-code">{bird.species_code}</span></div>
-                <h2><a href={`/birds/${bird.species_code}`} onClick={(event) => link(event, `/birds/${bird.species_code}`, navigate)}>{label}</a></h2>
-                {bird.common_name && bird.scientific_name && <p className="scientific">{bird.scientific_name}</p>}
-                <p>{familyName(bird) || "Family unavailable"}</p>
-                <CatalogCallPlayer call={bird.call} label={label} compact />
-                <ul className="card-status"><li>AVONET traits: {bird.traits_status}</li><li>Recent public observations: {bird.recent_public_observation_count.toLocaleString()}</li></ul>
-              </article>
-            </li>;
-          })}
-        </ol>}
-        {filtered.length > BIRDS_PER_PAGE && <nav className="pagination" aria-label="Arizona bird catalog pagination"><span>Page {currentPage + 1} of {lastPage + 1}</span><div><button type="button" disabled={currentPage === 0} onClick={() => setPage((value) => Math.max(0, value - 1))}>Previous</button><button type="button" disabled={currentPage === lastPage} onClick={() => setPage((value) => Math.min(lastPage, value + 1))}>Next</button></div></nav>}
+        <p className="catalog-count" aria-live="polite">{filtered.length.toLocaleString()} matching taxa · {birds.length.toLocaleString()} total</p>
+        {!activeBird ? <p className="empty">No Arizona taxa match the current search and filters.</p> : <div className="bird-wheel-layout">
+          <div ref={wheelRef} className="bird-wheel" role="listbox" aria-label="Arizona bird catalog" aria-activedescendant={`wheel-${activeBird.species_code}`} tabIndex={0} onKeyDown={wheelKey} onScroll={wheelScroll}>
+            <div className="bird-wheel-spacer" aria-hidden="true" />
+            {filtered.map((bird, index) => <div id={`wheel-${bird.species_code}`} key={bird.species_code} data-wheel-index={index} role="option" aria-selected={index === currentIndex} className={`bird-wheel-option distance-${Math.min(3, Math.abs(index - currentIndex))}`} onClick={() => center(index)}>{displayName(bird)}</div>)}
+            <div className="bird-wheel-spacer" aria-hidden="true" />
+          </div>
+          <article className="bird-wheel-preview" aria-live="polite">
+            <CatalogPhotoMedia photo={activeBird.photo} label={activeBird.common_name && activeBird.scientific_name ? `${activeBird.common_name} (${activeBird.scientific_name})` : displayName(activeBird)} compact />
+            <div className="bird-card-identity"><span className="badge">{categoryLabel(activeBird.taxonomic_category)}</span><span className="bird-code">{activeBird.species_code}</span></div>
+            <h2>{displayName(activeBird)}</h2>{activeBird.common_name && activeBird.scientific_name && <p className="scientific">{activeBird.scientific_name}</p>}
+            <p>{familyName(activeBird) || "Family unavailable"}</p>
+            <CatalogCallPlayer call={activeBird.call} label={displayName(activeBird)} compact />
+            <ul className="card-status"><li>AVONET traits: {activeBird.traits_status}</li><li>Recent public observations: {activeBird.recent_public_observation_count.toLocaleString()}</li></ul>
+            <a className="button-link" href={`/birds/${activeBird.species_code}`} onClick={(event) => link(event, `/birds/${activeBird.species_code}`, navigate)}>Open bird profile</a>
+          </article>
+        </div>}
       </>}
     </section>
   </main>;

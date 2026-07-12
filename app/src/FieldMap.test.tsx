@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -69,6 +69,11 @@ function snapshot(): MapSnapshot {
       { ...base, source_observation_id: "S3", species_code: "beta", common_name: "Beta", family_common_name: "Alpha Family", observation_at: "2026-06-22T10:00:00", location_id: "L3", location_name: "Trail (private)", access_warning: true },
       { ...base, source_observation_id: "S4", species_code: "fallback", common_name: null, scientific_name: "Gamma scientific", family_common_name: null, observation_at: "2026-07-10T08:00:00", location_id: "L4", location_name: "Public Four" },
     ],
+    photos: ["alpha2", "alpha10", "beta", "fallback"].map((species_code) => ({
+      species_code,
+      scientific_name: species_code === "fallback" ? "Gamma scientific" : "Avis fixture",
+      photo: { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: [], lookup_at: null },
+    })),
   };
 }
 
@@ -90,8 +95,7 @@ describe("Rufous Field Map", () => {
     await waitFor(() => expect(heading).toHaveFocus());
     expect(document.title).toBe("Field Map · Rufous");
     expect(screen.getByRole("link", { name: "Field Map" })).toHaveAttribute("aria-current", "page");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0][0])).toBe("/api/map-snapshot");
+    expect(fetchMock).toHaveBeenCalledWith("/api/map-snapshot", { headers: { "Content-Type": "application/json" } });
     expect(await screen.findByText("4 eligible encounters")).toBeVisible();
     expect(Array.from((screen.getByLabelText("Species") as HTMLSelectElement).options).map((option) => option.text)).toEqual([
       "All species", "Alpha 2", "alpha 10", "Beta", "Gamma scientific",
@@ -127,11 +131,26 @@ describe("Rufous Field Map", () => {
     ]);
     expect(styles).toMatch(/\.field-map-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(280px, 2fr\)/s);
     expect(styles).toMatch(/\.field-map-rail\s*\{[^}]*display:\s*grid;[^}]*gap:\s*18px/s);
-    expect(styles).toMatch(/@media \(max-width:\s*820px\)[\s\S]*?\.field-map-layout\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
+    expect(styles).toMatch(/@media \(max-width:\s*820px\)[\s\S]*?\.field-map-layout[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
     expect(styles).toMatch(/@media \(max-width:\s*540px\)[\s\S]*?\.map-canvas\s*\{\s*min-height:\s*360px/);
     expect(styles).toMatch(/\.encounter-list button span\s*\{[^}]*overflow-wrap:\s*break-word;\s*word-break:\s*normal/s);
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
     expect(styles).toContain("@media (prefers-contrast: more), (forced-colors: active)");
+  });
+
+  it("previews a focused encounter without panning or selecting it", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => String(input) === "/api/map-snapshot" ? response(snapshot()) : response({}));
+    render(<App />);
+    await screen.findByRole("heading", { name: "Accessible encounter list" });
+    const map = mapState.maps[0];
+    act(() => map.handlers.get("load")?.({}));
+    const row = screen.getByRole("button", { name: /Beta/ });
+    fireEvent.focus(row);
+    await waitFor(() => expect(map.setData.mock.calls.at(-1)?.[0].features[0].properties.source_observation_id).toBe("S3"));
+    expect(map.easeTo).not.toHaveBeenCalled();
+    expect(row).toHaveAttribute("aria-pressed", "false");
+    fireEvent.blur(row);
+    await waitFor(() => expect(map.setData.mock.calls.at(-1)?.[0].features).toHaveLength(0));
   });
 
   it("applies the latest filtered source only after load and keeps data, markers, count, and extent aligned", async () => {

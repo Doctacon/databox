@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-upgrade-map-catalog-and-refresh-controls.md
@@ -33,3 +33,6 @@ None.
 ## Progress and notes
 
 - 2026-07-11: User accepted temporary database-busy behavior rather than snapshot/staged-refresh complexity.
+
+- 2026-07-11: Implemented fixed-scope confirmed loopback refresh API with durable atomic status/PID/log state, one-run conflict, stale-process handling, and fake-process tests. No live refresh ran.
+- 2026-07-11: Evidence: `.10x/evidence/2026-07-11-map-wheel-refresh-controls-implementation.md`. Parent executed directly because the session-wide subagent spawn limit was already 40/40.

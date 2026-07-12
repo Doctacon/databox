@@ -1,8 +1,8 @@
-Status: open
+Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-upgrade-map-catalog-and-refresh-controls.md
-Depends-On: .10x/tickets/2026-07-11-build-local-refresh-runtime-api.md
+Depends-On: .10x/tickets/done/2026-07-11-build-local-refresh-runtime-api.md
 
 # Add header source refresh control
 
@@ -29,8 +29,11 @@ No pipeline logic, arbitrary options, cancellation, automatic retry, live refres
 
 ## Blockers
 
-Depends on the refresh runtime/API child.
+None; dependency completed.
 
 ## Progress and notes
 
 - 2026-07-11: Header placement and confirmed background lifecycle ratified by the user.
+
+- 2026-07-11: Added header confirmation, polling, busy disclosure, persistent failure/retry, neutral last-refresh state, and shared exact 3,000-ms success feedback.
+- 2026-07-11: Evidence: `.10x/evidence/2026-07-11-map-wheel-refresh-controls-implementation.md`. Parent executed directly because the session-wide subagent spawn limit was already 40/40.

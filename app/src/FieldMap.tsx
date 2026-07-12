@@ -4,7 +4,8 @@ import type { StyleSpecification } from "maplibre-gl";
 import type { FeatureCollection, GeoJsonProperties, Point } from "geojson";
 import boundariesRaw from "./assets/arizona-boundaries.geojson?raw";
 import { getMapSnapshot } from "./mapApi";
-import type { MapEncounter, MapSnapshot } from "./types";
+import rufousImage from "./assets/rufous.png";
+import type { CatalogPhoto, MapEncounter, MapSnapshot } from "./types";
 import { compareVisibleLabels } from "./visibleLabel";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -30,6 +31,7 @@ const localStyle: StyleSpecification = {
       clusterMaxZoom: 10,
       clusterRadius: 45,
     },
+    preview: { type: "geojson" as const, data: { type: "FeatureCollection", features: [] } as FeatureCollection },
   },
   layers: [
     { id: "background", type: "background" as const, paint: { "background-color": "#f3ead7" } },
@@ -38,6 +40,7 @@ const localStyle: StyleSpecification = {
     { id: "clusters", type: "circle" as const, source: "encounters", filter: ["has", "point_count"], paint: { "circle-color": "#8f3524", "circle-radius": ["step", ["get", "point_count"], 18, 25, 23, 100, 29], "circle-stroke-color": "#201d19", "circle-stroke-width": 2 } },
     { id: "encounter-points", type: "circle" as const, source: "encounters", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#f0b429", "circle-radius": 7, "circle-stroke-color": "#201d19", "circle-stroke-width": 2 } },
     { id: "selected-encounter", type: "circle" as const, source: "encounters", filter: ["==", ["get", "source_observation_id"], ""], paint: { "circle-color": "#fff4c2", "circle-radius": 12, "circle-stroke-color": "#075660", "circle-stroke-width": 4 } },
+    { id: "preview-encounter", type: "circle" as const, source: "preview", paint: { "circle-color": "#fff4c2", "circle-radius": 11, "circle-stroke-color": "#8f3524", "circle-stroke-width": 4 } },
   ],
 };
 
@@ -71,6 +74,16 @@ function reducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
+function EncounterThumbnail({ photo, name }: { photo: CatalogPhoto | undefined; name: string }) {
+  const [failed, setFailed] = useState(false);
+  const available = photo?.status === "available" && photo.display_url && !failed;
+  return <span className="encounter-thumbnail">
+    {available ? <img src={photo.display_url!} alt={name} loading="lazy" onError={() => setFailed(true)} />
+      : <img src={rufousImage} alt="" aria-hidden="true" loading="lazy" />}
+    <small>{available ? `Photo: ${photo.creator || photo.rights_holder} · ${photo.license_text}` : "Photo unavailable"}</small>
+  </span>;
+}
+
 function encounterBounds(rows: MapEncounter[]): [[number, number], [number, number]] {
   const longitudes = rows.map((row) => row.longitude);
   const latitudes = rows.map((row) => row.latitude);
@@ -99,6 +112,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   const [selectedFamily, setSelectedFamily] = useState("all");
   const [recency, setRecency] = useState<Recency>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   useEffect(() => { headingRef.current?.focus(); }, []);
   useEffect(() => {
@@ -128,6 +142,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
       .filter((row) => cutoff === null || new Date(row.observation_at).getTime() >= cutoff);
   }, [recency, selectedFamily, snapshot, species]);
   const selected = selectedId ? filtered.find((row) => row.source_observation_id === selectedId) ?? null : null;
+  const photoBySpecies = useMemo(() => new Map(snapshot?.photos.map((row) => [row.species_code, row.photo]) ?? []), [snapshot]);
 
   useEffect(() => {
     filteredRef.current = filtered;
@@ -138,7 +153,8 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
     previousRecencyRef.current = recency;
     encounterRef.current = new Map(filtered.map((row) => [row.source_observation_id, row]));
     if (selectedId && !encounterRef.current.has(selectedId)) setSelectedId(null);
-  }, [filtered, recency, selectedFamily, selectedId, species]);
+    if (previewId && !encounterRef.current.has(previewId)) setPreviewId(null);
+  }, [filtered, previewId, recency, selectedFamily, selectedId, species]);
 
   const applyFilteredToMap = useCallback((map: MapLibreMap) => {
     const source = map.getSource("encounters") as GeoJSONSource | undefined;
@@ -156,6 +172,12 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
       map.fitBounds(encounterBounds(rows), { padding: 50, maxZoom: 10, duration });
     }
   }, []);
+
+  useEffect(() => {
+    const source = mapRef.current?.getSource("preview") as GeoJSONSource | undefined;
+    const row = previewId ? encounterRef.current.get(previewId) : undefined;
+    source?.setData(row ? points([row]) : points([]));
+  }, [previewId]);
 
   const choose = useCallback((row: MapEncounter) => {
     setSelectedId(row.source_observation_id);
@@ -278,7 +300,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
         <section className="panel map-panel" aria-labelledby="map-canvas-heading"><h2 id="map-canvas-heading">Arizona encounter map</h2><div ref={mapContainer} className="map-canvas" aria-label="Interactive map of eligible Arizona encounters" /></section>
         <aside className="field-map-rail" aria-label="Selected encounter and accessible encounter list">
           <section className="panel selected-encounter" aria-labelledby="selected-encounter-heading" aria-live="polite"><h2 id="selected-encounter-heading">Selected encounter</h2>{selected ? <><h3>{label(selected)}</h3><p>{selected.location_name}</p><p>{dateTime(selected.observation_at)} · {selected.observation_count.toLocaleString()} observed{selected.notable ? " · notable" : ""}</p>{selected.access_warning && <p className="caveat">Access may be restricted. Verify access before visiting.</p>}<a href={`/birds/${selected.species_code}`} onClick={(event) => profileLink(event, `/birds/${selected.species_code}`)}>View bird profile</a></> : <p>Select a map point or encounter-list row for details.</p>}</section>
-          <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible encounter list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onClick={() => choose(row)}><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {row.observation_count.toLocaleString()} observed{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</button></li>)}</ol> : <p className="empty">No encounters to list.</p>}</section>
+          <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible encounter list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onMouseEnter={() => setPreviewId(row.source_observation_id)} onMouseLeave={() => setPreviewId(null)} onFocus={() => setPreviewId(row.source_observation_id)} onBlur={() => setPreviewId(null)} onClick={() => choose(row)}><EncounterThumbnail photo={photoBySpecies.get(row.species_code)} name={label(row)} /><span className="encounter-copy"><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {row.observation_count.toLocaleString()} observed{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</span></button></li>)}</ol> : <p className="empty">No encounters to list.</p>}</section>
         </aside>
       </div>
       <p className="source-status map-attribution">Boundary geometry derived and generalized from January 1, 2025 U.S. Census Bureau TIGERweb data. This product uses Census Bureau data but is not endorsed or certified by the Census Bureau.</p>

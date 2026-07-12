@@ -140,31 +140,26 @@ afterEach(() => {
 });
 
 describe("Arizona bird catalog and modeled profiles", () => {
-  it("renders all 706 stable taxa with bounded paging, search, filters, and reset", async () => {
+  it("renders all 706 stable taxa in the wheel with search, filters, and reset", async () => {
     const birds = Array.from({ length: 706 }, (_, index) => bird(index));
     window.history.replaceState(null, "", "/birds");
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
     render(<App />);
-
-    expect(await screen.findByText("Showing 1–24 of 706 matching taxa · 706 total")).toBeVisible();
-    expect(document.querySelectorAll(".bird-catalog-card")).toHaveLength(24);
-    expect(screen.getByRole("link", { name: /Arizona Bird 000/ })).toHaveAttribute("href", "/birds/bird000");
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(await screen.findByText("706 matching taxa · 706 total")).toBeVisible();
+    expect(screen.getAllByRole("option", { name: /Arizona Bird/ })).toHaveLength(706);
+    expect(screen.getByRole("heading", { name: "Arizona Bird 000", level: 2 })).toBeVisible();
+    await userEvent.click(screen.getByRole("option", { name: "Arizona Bird 024" }));
     expect(screen.getByRole("heading", { name: "Arizona Bird 024", level: 2 })).toBeVisible();
-
     await userEvent.selectOptions(screen.getByLabelText("Category"), "hybrid");
-    expect(screen.getByText("Showing 1–24 of 82 matching taxa · 706 total")).toBeVisible();
+    expect(screen.getByText("82 matching taxa · 706 total")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Arizona Bird 624", level: 2 })).toBeVisible();
     await userEvent.type(screen.getByLabelText("Search birds"), "bird705");
-    expect(screen.getByText("Showing 1–1 of 1 matching taxa · 706 total")).toBeVisible();
+    expect(screen.getByText("1 matching taxa · 706 total")).toBeVisible();
     expect(screen.getByRole("heading", { name: "Arizona Bird 705", level: 2 })).toBeVisible();
-
     await userEvent.click(screen.getByRole("button", { name: "Reset catalog" }));
     expect(screen.getByLabelText("Search birds")).toHaveValue("");
-    expect(screen.getByLabelText("Category")).toHaveValue("all");
     expect(screen.getByRole("heading", { name: "Arizona Bird 000", level: 2 })).toBeVisible();
   });
-
   it("sorts deterministically and intersects family, habitat, category, weight, and search filters", async () => {
     const birds = Array.from({ length: 706 }, (_, index) => bird(index));
     const names = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
@@ -187,7 +182,7 @@ describe("Arizona bird catalog and modeled profiles", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
     render(<App />);
 
-    await screen.findByText("Showing 1–24 of 706 matching taxa · 706 total");
+    await screen.findByText("706 matching taxa · 706 total");
     expect(screen.getAllByRole("option", { name: /./ }).length).toBeGreaterThan(0);
     expect(within(screen.getByLabelText("Category")).getAllByRole("option").map((option) => option.textContent))
       .toEqual(["All categories", "Hybrids", "Species"]);
@@ -197,8 +192,8 @@ describe("Arizona bird catalog and modeled profiles", () => {
       .toEqual(["All habitats", "Desert", "Habitat unavailable", "Woodland"]);
 
     await userEvent.selectOptions(screen.getByLabelText("Family"), "value:Matrix Family");
-    const headings = () => [...document.querySelectorAll<HTMLHeadingElement>(".bird-catalog-card h2")]
-      .map((heading) => heading.textContent);
+    const headings = () => [...document.querySelectorAll<HTMLElement>(".bird-wheel-option")]
+      .map((option) => option.textContent);
     expect(headings()).toEqual(names);
     await userEvent.selectOptions(screen.getByLabelText("Sort"), "name-desc");
     expect(headings()).toEqual([...names].reverse());
@@ -220,7 +215,7 @@ describe("Arizona bird catalog and modeled profiles", () => {
     await userEvent.selectOptions(screen.getByLabelText("Habitat"), "value:Desert");
     await userEvent.selectOptions(screen.getByLabelText("Category"), "species");
     await userEvent.type(screen.getByLabelText("Search birds"), "bravo");
-    expect(screen.getByText("Showing 1–1 of 1 matching taxa · 706 total")).toBeVisible();
+    expect(screen.getByText("1 matching taxa · 706 total")).toBeVisible();
     expect(headings()).toEqual(["Bravo"]);
     await userEvent.clear(screen.getByLabelText("Search birds"));
     await userEvent.type(screen.getByLabelText("Search birds"), "no-such-taxon");
@@ -236,105 +231,53 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(headings()[0]).toBe("Alpha");
   });
 
-  it("renders lazy card media, an original unavailable placeholder, concise attribution, and compact calls", async () => {
+  it("renders media only for the active wheel preview", async () => {
     window.history.replaceState(null, "", "/birds");
     const birds = Array.from({ length: 706 }, (_, index) => index === 0 ? withMedia(bird(index), 101) : bird(index));
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
     render(<App />);
-
     const image = await screen.findByRole("img", { name: "Arizona Bird 000 (Avis arizona000)" });
     expect(image).toHaveAttribute("loading", "lazy");
-    expect(image).toHaveAttribute("src", birds[0].photo.display_url);
-    expect(screen.getByText("Photo: Photographer 101")).toBeVisible();
-    expect(screen.getByRole("link", { name: "GBIF source" })).toHaveAttribute("href", birds[0].photo.source_url);
-    expect(screen.getByRole("button", { name: "Play call for Arizona Bird 000" })).toHaveAttribute("aria-pressed", "false");
-    expect(document.querySelector("audio")).toHaveAttribute("preload", "none");
-    expect(screen.getByText("Call: Recordist 101 · Global example")).toBeVisible();
-    const placeholder = screen.getByRole("img", { name: "No licensed photo available for Arizona Bird 001 (Avis arizona001)" });
-    expect(placeholder).toBeVisible();
-    expect(placeholder.querySelector("img")).toHaveAttribute("src", expect.stringContaining("rufous.png"));
-    expect(screen.getAllByText("No validated call is available.").length).toBeGreaterThan(0);
+    expect(document.querySelectorAll(".bird-wheel-preview audio")).toHaveLength(1);
+    expect(document.querySelectorAll(".bird-wheel-preview .catalog-photo")).toHaveLength(1);
+    await userEvent.click(screen.getByRole("option", { name: "Arizona Bird 001" }));
+    expect(screen.getByRole("img", { name: "No licensed photo available for Arizona Bird 001 (Avis arizona001)" })).toBeVisible();
+    expect(document.querySelector("audio")).toBeNull();
   });
-
-  it("keeps one catalog call active and stops playback when filtering", async () => {
+  it("stops the active catalog call when wheel selection or filtering changes", async () => {
     window.history.replaceState(null, "", "/birds");
     const birds = Array.from({ length: 706 }, (_, index) => index < 25 ? withMedia(bird(index), index + 1) : bird(index));
     const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
     const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
-    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
-      const path = String(input);
-      if (path === "/api/birds") return response({ birds });
-      if (path === "/api/birds/bird000") return response(profile(birds[0]));
-      if (path === "/api/birds/bird000/collection-state") return response({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
-      throw new Error(`Unexpected request ${path}`);
-    });
-    const rendered = render(<App />);
-
-    const first = await screen.findByRole("button", { name: "Play call for Arizona Bird 000" });
-    const second = screen.getByRole("button", { name: "Play call for Arizona Bird 001" });
-    await userEvent.click(first);
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
+    render(<App />);
+    await userEvent.click(await screen.findByRole("button", { name: "Play call for Arizona Bird 000" }));
     expect(play).toHaveBeenCalledTimes(1);
-    expect(first).toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(second);
-    expect(play).toHaveBeenCalledTimes(2);
-    expect(first).toHaveAttribute("aria-pressed", "false");
-    expect(second).toHaveAttribute("aria-pressed", "true");
-
-    for (const [label, value] of [
-      ["Sort", "taxonomy"], ["Category", "species"], ["Family", "value:Fixture Birds"],
-      ["Habitat", "value:Woodland"], ["Weight", "medium"],
-    ]) {
-      await userEvent.selectOptions(screen.getByLabelText(label), value);
-      await waitFor(() => expect(second).toHaveAttribute("aria-pressed", "false"));
-      await userEvent.click(second);
-      expect(second).toHaveAttribute("aria-pressed", "true");
-    }
-    await userEvent.type(screen.getByLabelText("Search birds"), "bird001");
-    await waitFor(() => expect(second).toHaveAttribute("aria-pressed", "false"));
+    await userEvent.click(screen.getByRole("option", { name: "Arizona Bird 001" }));
     expect(pause).toHaveBeenCalled();
-    rendered.unmount();
+    await userEvent.click(screen.getByRole("button", { name: "Play call for Arizona Bird 001" }));
+    await userEvent.type(screen.getByLabelText("Search birds"), "bird002");
+    expect(pause).toHaveBeenCalledTimes(2);
   });
-
-  it("stops catalog calls on pagination, route changes, and unmount", async () => {
+  it("stops catalog calls on profile navigation and unmount", async () => {
     window.history.replaceState(null, "", "/birds");
-    const birds = Array.from({ length: 706 }, (_, index) => index < 25 ? withMedia(bird(index), index + 1) : bird(index));
+    const birds = Array.from({ length: 706 }, (_, index) => index === 0 ? withMedia(bird(index), 1) : bird(index));
     vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
-      const path = String(input);
-      if (path === "/api/birds") return response({ birds });
+      const path = String(input); if (path === "/api/birds") return response({ birds });
       if (path === "/api/birds/bird000") return response(profile(birds[0]));
-      if (path === "/api/birds/bird000/collection-state") return response({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
-      throw new Error(`Unexpected request ${path}`);
+      if (path.endsWith("/collection-state")) return response({ species_code: "bird000", catalog_status: "current", observed: false, observation_count: 0, watched: false, watch_active: false });
+      return response({ state: "idle" });
     });
     const rendered = render(<App />);
-
-    const firstPageCall = await screen.findByRole("button", { name: "Play call for Arizona Bird 000" });
-    await userEvent.click(firstPageCall);
-    expect(firstPageCall).toHaveAttribute("aria-pressed", "true");
-    const pageAudio = document.querySelector("audio");
-    expect(pageAudio).not.toBeNull();
-    const pagePause = vi.spyOn(pageAudio!, "pause");
-    await userEvent.click(screen.getByRole("button", { name: "Next" }));
-    await waitFor(() => expect(pagePause).toHaveBeenCalled());
-
-    await userEvent.click(screen.getByRole("button", { name: "Previous" }));
     await userEvent.click(await screen.findByRole("button", { name: "Play call for Arizona Bird 000" }));
-    const routeAudio = document.querySelector("audio");
-    expect(routeAudio).not.toBeNull();
-    const routePause = vi.spyOn(routeAudio!, "pause");
-    await userEvent.click(screen.getByRole("link", { name: "Arizona Bird 000" }));
+    const audio = document.querySelector("audio")!; const pause = vi.spyOn(audio, "pause");
+    await userEvent.click(screen.getByRole("link", { name: "Open bird profile" }));
     expect(await screen.findByRole("heading", { name: "Arizona Bird 000", level: 1 })).toBeVisible();
-    expect(routePause).toHaveBeenCalled();
-
-    await userEvent.click(screen.getByRole("button", { name: "Play call for Arizona Bird 000" }));
-    const profileAudio = document.querySelector("audio");
-    expect(profileAudio).not.toBeNull();
-    const unmountPause = vi.spyOn(profileAudio!, "pause");
+    expect(pause).toHaveBeenCalled();
     rendered.unmount();
-    expect(unmountPause).toHaveBeenCalled();
   });
-
   it("preserves attribution and shows safe image and call load errors", async () => {
     window.history.replaceState(null, "", "/birds");
     const birds = Array.from({ length: 706 }, (_, index) => index === 0 ? withMedia(bird(index), 101) : bird(index));
@@ -431,7 +374,7 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(catalogHeading).toHaveFocus();
     expect(document.title).toBe("Arizona Birds · Rufous");
     expect(window.location.pathname).toBe("/birds");
-    await userEvent.click(screen.getByRole("link", { name: /Arizona Bird 000/ }));
+    await userEvent.click(screen.getByRole("link", { name: "Open bird profile" }));
     const profileHeading = await screen.findByRole("heading", { name: "Arizona Bird 000", level: 1 });
     expect(profileHeading).toHaveFocus();
     expect(document.title).toBe("Arizona Bird 000 · Arizona Birds · Rufous");

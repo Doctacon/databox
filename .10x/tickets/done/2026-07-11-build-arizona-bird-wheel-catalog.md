@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-upgrade-map-catalog-and-refresh-controls.md
@@ -33,3 +33,6 @@ None.
 ## Progress and notes
 
 - 2026-07-11: User selected a subtle curve rather than strong cylinder or flat list.
+
+- 2026-07-11: Replaced pagination/card grid with the subtle scroll-snapped single-select wheel, one active preview, keyboard controls, and one-active-call cleanup.
+- 2026-07-11: Evidence: `.10x/evidence/2026-07-11-map-wheel-refresh-controls-implementation.md`. Parent executed directly because the session-wide subagent spawn limit was already 40/40.
