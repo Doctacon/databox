@@ -28,7 +28,7 @@ This parent is not executable directly.
 2. `.10x/tickets/done/2026-07-11-persist-structured-observation-locations.md`
 3. `.10x/tickets/done/2026-07-11-add-observation-location-combobox.md`
 4. `.10x/tickets/done/2026-07-11-auto-dismiss-rufous-success-messages.md`
-5. `.10x/tickets/2026-07-11-repair-field-map-interaction-and-layout.md`
+5. `.10x/tickets/done/2026-07-11-repair-field-map-interaction-and-layout.md`
 6. `.10x/tickets/2026-07-11-verify-place-search-feedback-and-map.md`
 
 Hotspot search, success feedback, and map repair are parallelizable. Observation persistence depends on suggestion identity; observation UI depends on both. Aggregate verification follows every child.

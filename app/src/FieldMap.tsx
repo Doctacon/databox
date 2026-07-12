@@ -1,4 +1,4 @@
-import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import type { FeatureCollection, GeoJsonProperties, Point } from "geojson";
@@ -37,6 +37,7 @@ const localStyle: StyleSpecification = {
     { id: "county-lines", type: "line" as const, source: "boundaries", filter: ["==", ["get", "kind"], "county"], paint: { "line-color": "#376a67", "line-width": 1.2, "line-opacity": 0.8 } },
     { id: "clusters", type: "circle" as const, source: "encounters", filter: ["has", "point_count"], paint: { "circle-color": "#8f3524", "circle-radius": ["step", ["get", "point_count"], 18, 25, 23, 100, 29], "circle-stroke-color": "#201d19", "circle-stroke-width": 2 } },
     { id: "encounter-points", type: "circle" as const, source: "encounters", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#f0b429", "circle-radius": 7, "circle-stroke-color": "#201d19", "circle-stroke-width": 2 } },
+    { id: "selected-encounter", type: "circle" as const, source: "encounters", filter: ["==", ["get", "source_observation_id"], ""], paint: { "circle-color": "#fff4c2", "circle-radius": 12, "circle-stroke-color": "#075660", "circle-stroke-width": 4 } },
   ],
 };
 
@@ -70,12 +71,28 @@ function reducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
+function encounterBounds(rows: MapEncounter[]): [[number, number], [number, number]] {
+  const longitudes = rows.map((row) => row.longitude);
+  const latitudes = rows.map((row) => row.latitude);
+  return [
+    [Math.min(...longitudes), Math.min(...latitudes)],
+    [Math.max(...longitudes), Math.max(...latitudes)],
+  ];
+}
+
 export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<Marker[]>([]);
   const encounterRef = useRef<Map<string, MapEncounter>>(new Map());
+  const filteredRef = useRef<MapEncounter[]>([]);
+  const fitArizonaRef = useRef(true);
+  const selectedIdRef = useRef<string | null>(null);
+  const previousRecencyRef = useRef<Recency>("all");
+  const sourceReadyRef = useRef(false);
+  const sourceGenerationRef = useRef(0);
+  const markerReadyGenerationRef = useRef(-1);
   const [snapshot, setSnapshot] = useState<MapSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [species, setSpecies] = useState("all");
@@ -113,9 +130,42 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   const selected = selectedId ? filtered.find((row) => row.source_observation_id === selectedId) ?? null : null;
 
   useEffect(() => {
+    filteredRef.current = filtered;
+    selectedIdRef.current = selectedId;
+    const resetToAll = previousRecencyRef.current !== "all" && recency === "all";
+    fitArizonaRef.current = resetToAll
+      || (species === "all" && selectedFamily === "all" && recency === "all");
+    previousRecencyRef.current = recency;
     encounterRef.current = new Map(filtered.map((row) => [row.source_observation_id, row]));
     if (selectedId && !encounterRef.current.has(selectedId)) setSelectedId(null);
-  }, [filtered, selectedId]);
+  }, [filtered, recency, selectedFamily, selectedId, species]);
+
+  const applyFilteredToMap = useCallback((map: MapLibreMap) => {
+    const source = map.getSource("encounters") as GeoJSONSource | undefined;
+    if (!source) return;
+    const rows = filteredRef.current;
+    sourceGenerationRef.current += 1;
+    markerReadyGenerationRef.current = -1;
+    for (const marker of markerRef.current) marker.remove();
+    markerRef.current = [];
+    source.setData(points(rows));
+    const duration = reducedMotion() ? 0 : 350;
+    if (fitArizonaRef.current || rows.length === 0) {
+      map.fitBounds(ARIZONA_BOUNDS, { padding: 20, duration });
+    } else {
+      map.fitBounds(encounterBounds(rows), { padding: 50, maxZoom: 10, duration });
+    }
+  }, []);
+
+  const choose = useCallback((row: MapEncounter) => {
+    setSelectedId(row.source_observation_id);
+    const map = mapRef.current;
+    map?.easeTo({
+      center: [row.longitude, row.latitude],
+      zoom: Math.max(map.getZoom(), 11),
+      duration: reducedMotion() ? 0 : 350,
+    });
+  }, []);
 
   useEffect(() => {
     if (!snapshot || !mapContainer.current || mapRef.current) return;
@@ -152,36 +202,58 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
         button.type = "button";
         button.className = "map-cluster-count";
         button.textContent = count.toLocaleString();
-        button.setAttribute("aria-label", `Zoom to cluster containing ${count.toLocaleString()} eligible encounters`);
+        button.setAttribute("aria-label", `Zoom to cluster containing ${count.toLocaleString()} eligible encounter${count === 1 ? "" : "s"}`);
         button.addEventListener("click", () => expandCluster(feature));
         markerRef.current.push(new maplibregl.Marker({ element: button })
           .setLngLat(feature.geometry.coordinates as [number, number]).addTo(map));
       }
     };
-    map.on("data", refreshClusterMarkers);
-    map.on("moveend", refreshClusterMarkers);
+    map.on("load", () => {
+      sourceReadyRef.current = true;
+      applyFilteredToMap(map);
+      map.setFilter("selected-encounter", [
+        "==", ["get", "source_observation_id"], selectedIdRef.current ?? "",
+      ]);
+    });
+    map.on("sourcedata", (event) => {
+      if (event.sourceId !== "encounters" || !event.isSourceLoaded) return;
+      markerReadyGenerationRef.current = sourceGenerationRef.current;
+      refreshClusterMarkers();
+    });
+    map.on("moveend", () => {
+      if (sourceReadyRef.current
+        && markerReadyGenerationRef.current === sourceGenerationRef.current) {
+        refreshClusterMarkers();
+      }
+    });
     map.on("click", "clusters", (event) => { const feature = event.features?.[0]; if (feature) expandCluster(feature); });
     map.on("click", "encounter-points", (event) => {
       const id = event.features?.[0]?.properties?.source_observation_id;
-      if (typeof id === "string" && encounterRef.current.has(id)) setSelectedId(id);
+      const row = typeof id === "string" ? encounterRef.current.get(id) : undefined;
+      if (row) choose(row);
     });
     return () => {
       for (const marker of markerRef.current) marker.remove();
       markerRef.current = [];
+      sourceReadyRef.current = false;
+      markerReadyGenerationRef.current = -1;
       map.remove();
       mapRef.current = null;
     };
-  }, [snapshot]);
+  }, [applyFilteredToMap, choose, snapshot]);
 
   useEffect(() => {
-    const source = mapRef.current?.getSource("encounters") as GeoJSONSource | undefined;
-    source?.setData(points(filtered));
-  }, [filtered]);
+    const map = mapRef.current;
+    if (map && sourceReadyRef.current) applyFilteredToMap(map);
+  }, [applyFilteredToMap, filtered]);
 
-  function choose(row: MapEncounter) {
-    setSelectedId(row.source_observation_id);
-    mapRef.current?.easeTo({ center: [row.longitude, row.latitude], zoom: Math.max(mapRef.current.getZoom(), 9), duration: reducedMotion() ? 0 : 350 });
-  }
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !sourceReadyRef.current) return;
+    map.setFilter("selected-encounter", [
+      "==", ["get", "source_observation_id"], selectedId ?? "",
+    ]);
+  }, [selectedId]);
   function profileLink(event: MouseEvent<HTMLAnchorElement>, path: string) {
     if (!event.defaultPrevented && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
       event.preventDefault(); navigate(path);
@@ -204,9 +276,11 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
       {filtered.length === 0 && <p className="empty">{recency === "all" ? "No persisted encounters match these species and family filters." : "No persisted encounters fall inside this current-clock window. The local snapshot may be stale; choose All snapshot to inspect available evidence."}</p>}
       <div className="field-map-layout">
         <section className="panel map-panel" aria-labelledby="map-canvas-heading"><h2 id="map-canvas-heading">Arizona encounter map</h2><div ref={mapContainer} className="map-canvas" aria-label="Interactive map of eligible Arizona encounters" /></section>
-        <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible encounter list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onClick={() => choose(row)}><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {row.observation_count.toLocaleString()} observed{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</button></li>)}</ol> : <p className="empty">No encounters to list.</p>}</section>
+        <aside className="field-map-rail" aria-label="Selected encounter and accessible encounter list">
+          <section className="panel selected-encounter" aria-labelledby="selected-encounter-heading" aria-live="polite"><h2 id="selected-encounter-heading">Selected encounter</h2>{selected ? <><h3>{label(selected)}</h3><p>{selected.location_name}</p><p>{dateTime(selected.observation_at)} · {selected.observation_count.toLocaleString()} observed{selected.notable ? " · notable" : ""}</p>{selected.access_warning && <p className="caveat">Access may be restricted. Verify access before visiting.</p>}<a href={`/birds/${selected.species_code}`} onClick={(event) => profileLink(event, `/birds/${selected.species_code}`)}>View bird profile</a></> : <p>Select a map point or encounter-list row for details.</p>}</section>
+          <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible encounter list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onClick={() => choose(row)}><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {row.observation_count.toLocaleString()} observed{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</button></li>)}</ol> : <p className="empty">No encounters to list.</p>}</section>
+        </aside>
       </div>
-      <section className="panel selected-encounter" aria-labelledby="selected-encounter-heading" aria-live="polite"><h2 id="selected-encounter-heading">Selected encounter</h2>{selected ? <><h3>{label(selected)}</h3><p>{selected.location_name}</p><p>{dateTime(selected.observation_at)} · {selected.observation_count.toLocaleString()} observed{selected.notable ? " · notable" : ""}</p>{selected.access_warning && <p className="caveat">Access may be restricted. Verify access before visiting.</p>}<a href={`/birds/${selected.species_code}`} onClick={(event) => profileLink(event, `/birds/${selected.species_code}`)}>View bird profile</a></> : <p>Select a map point or encounter-list row for details.</p>}</section>
       <p className="source-status map-attribution">Boundary geometry derived and generalized from January 1, 2025 U.S. Census Bureau TIGERweb data. This product uses Census Bureau data but is not endorsed or certified by the Census Bureau.</p>
     </>}
   </main>;

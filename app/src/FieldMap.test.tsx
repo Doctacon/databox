@@ -1,14 +1,18 @@
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import styles from "./styles.css?raw";
 import type { MapSnapshot } from "./types";
 
+type FakeMapEvent = { features?: unknown[]; sourceId?: string; isSourceLoaded?: boolean };
+
 const mapState = vi.hoisted(() => ({ maps: [] as Array<{
   options: Record<string, unknown>;
-  handlers: Map<string, (event: { features?: unknown[] }) => void>;
+  handlers: Map<string, (event: FakeMapEvent) => void>;
   setData: ReturnType<typeof vi.fn>;
+  fitBounds: ReturnType<typeof vi.fn>;
+  setFilter: ReturnType<typeof vi.fn>;
   easeTo: ReturnType<typeof vi.fn>;
   remove: ReturnType<typeof vi.fn>;
   clusterZoom: ReturnType<typeof vi.fn>;
@@ -18,8 +22,10 @@ const mapState = vi.hoisted(() => ({ maps: [] as Array<{
 vi.mock("maplibre-gl", () => {
   class FakeMap {
     options: Record<string, unknown>;
-    handlers = new Map<string, (event: { features?: unknown[] }) => void>();
+    handlers = new Map<string, (event: FakeMapEvent) => void>();
     setData = vi.fn();
+    fitBounds = vi.fn();
+    setFilter = vi.fn();
     easeTo = vi.fn();
     remove = vi.fn();
     clusterZoom = vi.fn().mockResolvedValue(8);
@@ -29,8 +35,8 @@ vi.mock("maplibre-gl", () => {
     getSource() { return { setData: this.setData, getClusterExpansionZoom: this.clusterZoom }; }
     getZoom() { return 5; }
     querySourceFeatures() { return this.features; }
-    on(event: string, layerOrHandler: string | ((event: { features?: unknown[] }) => void), handler?: (event: { features?: unknown[] }) => void) {
-      this.handlers.set(handler ? `${event}:${layerOrHandler}` : event, handler ?? layerOrHandler as (event: { features?: unknown[] }) => void);
+    on(event: string, layerOrHandler: string | ((event: FakeMapEvent) => void), handler?: (event: FakeMapEvent) => void) {
+      this.handlers.set(handler ? `${event}:${layerOrHandler}` : event, handler ?? layerOrHandler as (event: FakeMapEvent) => void);
       return this;
     }
   }
@@ -113,12 +119,87 @@ describe("Rufous Field Map", () => {
     expect(screen.getByText("1 eligible encounter")).toBeVisible();
     expect(screen.getByText(/Source freshness:/)).toBeVisible();
     expect(screen.getByText(/not endorsed or certified/)).toBeVisible();
+    const layout = screen.getByRole("heading", { name: "Arizona encounter map" }).closest(".field-map-layout")!;
+    expect(Array.from(layout.children).map((child) => child.tagName)).toEqual(["SECTION", "ASIDE"]);
+    const rail = layout.querySelector(".field-map-rail")!;
+    expect(Array.from(rail.querySelectorAll(":scope > section h2")).map((heading) => heading.textContent)).toEqual([
+      "Selected encounter", "Accessible encounter list",
+    ]);
     expect(styles).toMatch(/\.field-map-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(280px, 2fr\)/s);
+    expect(styles).toMatch(/\.field-map-rail\s*\{[^}]*display:\s*grid;[^}]*gap:\s*18px/s);
     expect(styles).toMatch(/@media \(max-width:\s*820px\)[\s\S]*?\.field-map-layout\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
     expect(styles).toMatch(/@media \(max-width:\s*540px\)[\s\S]*?\.map-canvas\s*\{\s*min-height:\s*360px/);
     expect(styles).toMatch(/\.encounter-list button span\s*\{[^}]*overflow-wrap:\s*break-word;\s*word-break:\s*normal/s);
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
     expect(styles).toContain("@media (prefers-contrast: more), (forced-colors: active)");
+  });
+
+  it("applies the latest filtered source only after load and keeps data, markers, count, and extent aligned", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response(snapshot()));
+    render(<App />);
+    await screen.findByText("4 eligible encounters");
+    await waitFor(() => expect(mapState.maps).toHaveLength(1));
+    const map = mapState.maps[0];
+    expect(map.setData).not.toHaveBeenCalled();
+
+    await userEvent.selectOptions(screen.getByLabelText("Species"), "alpha10");
+    expect(screen.getByText("1 eligible encounter")).toBeVisible();
+    expect(map.setData).not.toHaveBeenCalled();
+    act(() => map.handlers.get("load")?.({}));
+    expect(map.setData).toHaveBeenCalledTimes(1);
+    expect(map.setData.mock.calls[0][0].features.map((feature: { id: string }) => feature.id)).toEqual(["S2"]);
+    expect(map.fitBounds).toHaveBeenLastCalledWith(
+      [[-112.4, 34.5], [-112.4, 34.5]],
+      expect.objectContaining({ padding: 50, maxZoom: 10 }),
+    );
+
+    map.features = [{ properties: { cluster_id: 2, point_count: 1 }, geometry: { type: "Point", coordinates: [-112.4, 34.5] } }];
+    act(() => map.handlers.get("sourcedata")?.({ sourceId: "encounters", isSourceLoaded: true }));
+    expect(screen.getByRole("button", { name: "Zoom to cluster containing 1 eligible encounter" })).toHaveTextContent("1");
+
+    await userEvent.selectOptions(screen.getByLabelText("Species"), "all");
+    expect(screen.getByText("4 eligible encounters")).toBeVisible();
+    expect(map.setData.mock.lastCall?.[0].features).toHaveLength(4);
+    expect(screen.queryByRole("button", { name: "Zoom to cluster containing 1 eligible encounter" })).not.toBeInTheDocument();
+    act(() => map.handlers.get("moveend")?.({}));
+    expect(screen.queryByRole("button", { name: /Zoom to cluster/ })).not.toBeInTheDocument();
+    map.features = [{ properties: { cluster_id: 4, point_count: 4 }, geometry: { type: "Point", coordinates: [-112.4, 34.5] } }];
+    act(() => map.handlers.get("sourcedata")?.({ sourceId: "encounters", isSourceLoaded: true }));
+    expect(screen.getByRole("button", { name: "Zoom to cluster containing 4 eligible encounters" })).toBeVisible();
+    expect(map.fitBounds).toHaveBeenLastCalledWith(
+      [[-114.82, 31.3], [-109, 37.1]],
+      expect.objectContaining({ padding: 20 }),
+    );
+
+    await userEvent.selectOptions(screen.getByLabelText("Recency"), "48h");
+    expect(screen.getByText("2 eligible encounters")).toBeVisible();
+    expect(map.setData.mock.lastCall?.[0].features).toHaveLength(2);
+    act(() => map.handlers.get("moveend")?.({}));
+    expect(screen.queryByRole("button", { name: /Zoom to cluster/ })).not.toBeInTheDocument();
+    map.features = [{ properties: { cluster_id: 5, point_count: 2 }, geometry: { type: "Point", coordinates: [-112.4, 34.5] } }];
+    act(() => map.handlers.get("sourcedata")?.({ sourceId: "encounters", isSourceLoaded: true }));
+    expect(screen.getByRole("button", { name: "Zoom to cluster containing 2 eligible encounters" })).toBeVisible();
+    await userEvent.selectOptions(screen.getByLabelText("Recency"), "all");
+    expect(map.fitBounds).toHaveBeenLastCalledWith(
+      [[-114.82, 31.3], [-109, 37.1]],
+      expect.objectContaining({ padding: 20 }),
+    );
+
+    await userEvent.selectOptions(screen.getByLabelText("Family"), "Fixtureidae");
+    expect(screen.getByText("1 eligible encounter")).toBeVisible();
+    expect(map.setData.mock.lastCall?.[0].features).toHaveLength(1);
+    await userEvent.selectOptions(screen.getByLabelText("Species"), "alpha10");
+    expect(screen.getByText("0 eligible encounters")).toBeVisible();
+    expect(map.setData.mock.lastCall?.[0].features).toHaveLength(0);
+    expect(map.fitBounds).toHaveBeenLastCalledWith(
+      [[-114.82, 31.3], [-109, 37.1]],
+      expect.objectContaining({ padding: 20 }),
+    );
+    act(() => map.handlers.get("moveend")?.({}));
+    expect(screen.queryByRole("button", { name: /Zoom to cluster/ })).not.toBeInTheDocument();
+    map.features = [];
+    act(() => map.handlers.get("sourcedata")?.({ sourceId: "encounters", isSourceLoaded: true }));
+    expect(screen.queryByRole("button", { name: /Zoom to cluster/ })).not.toBeInTheDocument();
   });
 
   it("keeps list, point, cluster, selected card, warning, and profile navigation equivalent", async () => {
@@ -127,6 +208,11 @@ describe("Rufous Field Map", () => {
     await screen.findByRole("heading", { name: "Accessible encounter list" });
     await waitFor(() => expect(mapState.maps).toHaveLength(1));
     const map = mapState.maps[0];
+    const layers = (map.options.style as { layers: Array<{ id: string }> }).layers.map((layer) => layer.id);
+    expect(layers.indexOf("selected-encounter")).toBeGreaterThan(layers.indexOf("encounter-points"));
+    act(() => map.handlers.get("load")?.({}));
+    expect(map.setData).toHaveBeenCalledWith(expect.objectContaining({ features: expect.any(Array) }));
+    expect(map.setData.mock.lastCall?.[0].features).toHaveLength(4);
     const betaButton = within(screen.getByRole("heading", { name: "Accessible encounter list" }).closest("section")!)
       .getByRole("button", { name: /Beta/ });
     vi.mocked(window.matchMedia).mockReturnValue({ matches: true } as MediaQueryList);
@@ -135,22 +221,29 @@ describe("Rufous Field Map", () => {
     expect(within(selected).getByRole("heading", { name: "Beta" })).toBeVisible();
     expect(within(selected).getByText(/Access may be restricted/)).toBeVisible();
     expect(betaButton).toHaveAttribute("aria-pressed", "true");
-    expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-112.4, 34.5], zoom: 9, duration: 0 }));
+    expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-112.4, 34.5], zoom: 11, duration: 0 }));
+    await waitFor(() => expect(map.setFilter).toHaveBeenLastCalledWith("selected-encounter", ["==", ["get", "source_observation_id"], "S3"]));
     await userEvent.selectOptions(screen.getByLabelText("Species"), "alpha10");
     expect(within(selected).getByText("Select a map point or encounter-list row for details.")).toBeVisible();
+    await waitFor(() => expect(map.setFilter).toHaveBeenLastCalledWith("selected-encounter", ["==", ["get", "source_observation_id"], ""]));
     await userEvent.selectOptions(screen.getByLabelText("Species"), "all");
 
-    map.handlers.get("click:encounter-points")?.({ features: [{ properties: { source_observation_id: "S2" } }] });
+    act(() => map.handlers.get("click:encounter-points")?.({ features: [{ properties: { source_observation_id: "S2" } }] }));
     expect(await screen.findByRole("heading", { name: "alpha 10" })).toBeVisible();
+    const alphaButton = within(screen.getByRole("heading", { name: "Accessible encounter list" }).closest("section")!)
+      .getByRole("button", { name: /alpha 10/ });
+    expect(alphaButton).toHaveAttribute("aria-pressed", "true");
+    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({ center: [-112.4, 34.5], zoom: 11, duration: 0 }));
+    await waitFor(() => expect(map.setFilter).toHaveBeenLastCalledWith("selected-encounter", ["==", ["get", "source_observation_id"], "S2"]));
     map.features = [{ properties: { cluster_id: 7, point_count: 23 }, geometry: { type: "Point", coordinates: [-111, 35] } }];
-    map.handlers.get("data")?.({});
+    map.handlers.get("sourcedata")?.({ sourceId: "encounters", isSourceLoaded: true });
     const clusterButton = await screen.findByRole("button", { name: "Zoom to cluster containing 23 eligible encounters" });
     expect(clusterButton).toHaveTextContent("23");
     await userEvent.click(clusterButton);
     await waitFor(() => expect(map.clusterZoom).toHaveBeenCalledWith(7));
-    map.handlers.get("click:clusters")?.({ features: map.features });
+    act(() => map.handlers.get("click:clusters")?.({ features: map.features }));
     await waitFor(() => expect(map.clusterZoom).toHaveBeenCalledTimes(2));
-    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({ center: [-111, 35], zoom: 8 }));
+    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({ center: [-111, 35], zoom: 8, duration: 0 }));
 
     await userEvent.click(within(selected).getByRole("link", { name: "View bird profile" }));
     expect(window.location.pathname).toBe("/birds/alpha10");

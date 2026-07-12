@@ -2,7 +2,7 @@ Status: open
 Created: 2026-07-11
 Updated: 2026-07-11
 Parent: .10x/tickets/2026-07-11-upgrade-place-search-feedback-and-map.md
-Depends-On: .10x/tickets/done/2026-07-11-add-observation-location-combobox.md, .10x/tickets/done/2026-07-11-auto-dismiss-rufous-success-messages.md, .10x/tickets/2026-07-11-repair-field-map-interaction-and-layout.md
+Depends-On: .10x/tickets/done/2026-07-11-add-observation-location-combobox.md, .10x/tickets/done/2026-07-11-auto-dismiss-rufous-success-messages.md, .10x/tickets/done/2026-07-11-repair-field-map-interaction-and-layout.md
 
 # Verify place search, feedback, and Field Map repairs
 
