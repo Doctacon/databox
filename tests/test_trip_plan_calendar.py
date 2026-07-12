@@ -40,7 +40,7 @@ def _plan(connection: duckdb.DuckDBPyConnection, plan_id: str = "trip_fixture") 
     connection.execute(
         """INSERT INTO birding_agent.trip_plans VALUES
         (?, 'Madera Canyon', 'Madera Canyon Recreation Area', 31.7, -110.88, 'US-AZ',
-         '2026-07-12T06:00:00-07:00', '2026-07-12T09:00:00-07:00', 180,
+         '2026-07-12T06:00:00', '2026-07-12T09:00:00', 180,
          'intermediate', NULL, 'complete', 'Start at the lower trail and scan oak edges.',
          '["Public observations do not guarantee presence."]', ?, ?)""",
         [plan_id, NOW.isoformat(), NOW.isoformat()],
@@ -168,7 +168,7 @@ def test_stable_uid_sequence_canonical_request_and_separate_relationships(
     connection.close()
 
 
-def test_calendar_is_bounded_folded_injection_safe_and_private(database: Path) -> None:
+def test_calendar_interprets_persisted_naive_window_as_arizona_local(database: Path) -> None:
     connection = duckdb.connect(str(database))
     uid = "rufous-trip-" + "a" * 64 + "@local"
     payload = canonical_trip_payload(connection, "trip_fixture", event_uid=uid, sequence=0, now=NOW)

@@ -14,7 +14,7 @@ import ssl
 import unicodedata
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.policy import SMTP
 from html import unescape
@@ -225,8 +225,14 @@ def _parse_time(value: str) -> datetime:
 
 
 def _parse_arizona_time(value: str) -> datetime:
-    parsed = _parse_time(value)
-    if parsed.utcoffset() != timedelta(hours=-7):
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError("timestamp is invalid") from None
+    arizona_offset = timedelta(hours=-7)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone(arizona_offset))
+    if parsed.utcoffset() != arizona_offset:
         raise ValueError("Arizona trip timestamp must use the year-round -07:00 offset")
     return parsed
 
@@ -538,8 +544,8 @@ def _canonical_source(connection: duckdb.DuckDBPyConnection, plan_id: str) -> di
         "location_name": location,
         "latitude": float(plan[2]),
         "longitude": float(plan[3]),
-        "window_start": str(plan[5]),
-        "window_end": str(plan[6]),
+        "window_start": start.isoformat(),
+        "window_end": end.isoformat(),
         "field_plan_text": field_plan,
         "target_common_names": names,
         "weather_status": weather_status,
