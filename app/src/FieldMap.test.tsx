@@ -81,7 +81,7 @@ describe("Rufous Field Map", () => {
     render(<App />);
 
     const heading = await screen.findByRole("heading", { name: "Field Map", level: 1 });
-    expect(heading).toHaveFocus();
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(document.title).toBe("Field Map · Rufous");
     expect(screen.getByRole("link", { name: "Field Map" })).toHaveAttribute("aria-current", "page");
     expect(fetchMock).toHaveBeenCalledTimes(1);
