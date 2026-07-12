@@ -37,6 +37,14 @@ def test_bundle_audit_rejects_alert_smtp_names_and_values(tmp_path: Path) -> Non
     ]
 
 
+def test_bundle_audit_rejects_remote_map_runtime_hosts(tmp_path: Path) -> None:
+    bundle = tmp_path / "dist"
+    bundle.mkdir()
+    (bundle / "app.js").write_text("https://tile.openstreetmap.org/{z}/{x}/{y}.png")
+
+    assert audit_bundle(bundle, {}) == ["tile.openstreetmap.org remote map runtime"]
+
+
 def test_bundle_audit_accepts_bundle_without_configuration(tmp_path: Path) -> None:
     bundle = tmp_path / "dist"
     bundle.mkdir()

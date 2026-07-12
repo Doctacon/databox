@@ -23,6 +23,13 @@ CONFIG_NAMES = (
     "BIRD_ALERT_SMTP_CA_FILE",
 )
 VALUE_NAMES = set(CONFIG_NAMES) - {"BIRD_ALERT_SMTP_ENABLED", "BIRD_ALERT_SMTP_PORT"}
+FORBIDDEN_MAP_RUNTIME_HOSTS = (
+    "api.mapbox.com",
+    "tiles.mapbox.com",
+    "tile.openstreetmap.org",
+    "demotiles.maplibre.org",
+    "fonts.googleapis.com",
+)
 
 
 def audit_bundle(bundle_dir: Path, configured: dict[str, str]) -> list[str]:
@@ -37,6 +44,9 @@ def audit_bundle(bundle_dir: Path, configured: dict[str, str]) -> list[str]:
         value = configured.get(name, "")
         if name in VALUE_NAMES and value and value.encode() in bundle:
             findings.append(f"{name} configured value")
+    for host in FORBIDDEN_MAP_RUNTIME_HOSTS:
+        if host.encode() in bundle:
+            findings.append(f"{host} remote map runtime")
     return findings
 
 

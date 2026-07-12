@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import appSource from "./App.tsx?raw";
 import birdPagesSource from "./BirdPages.tsx?raw";
+import fieldMapSource from "./FieldMap.tsx?raw";
 import myBirdsSource from "./MyBirds.tsx?raw";
 import targetBirdSource from "./TargetBird.tsx?raw";
 import { compareVisibleLabels } from "./visibleLabel";
@@ -11,6 +12,9 @@ const selectInventory = [
   [appSource, "id=\"skill_level\"", "ordinal skill progression with sentinel first"],
   [appSource, "id=\"plan-history\"", "chronological saved-plan history with sentinel first"],
   [targetBirdSource, "id=\"target-duration\"", "numeric duration progression"],
+  [fieldMapSource, "id=\"map-species\"", "sentinel then alphabetical bird labels"],
+  [fieldMapSource, "id=\"map-family\"", "sentinel then alphabetical family labels"],
+  [fieldMapSource, "id=\"map-recency\"", "ordinal recency windows"],
   [myBirdsSource, "observation-species-", "alphabetical bird labels"],
   [myBirdsSource, "id=\"new-watch-species\"", "alphabetical available bird labels"],
   [birdPagesSource, "id=\"bird-sort\"", "semantic sort actions"],
@@ -22,7 +26,7 @@ const selectInventory = [
 
 describe("visible text select ordering", () => {
   it("inventories and classifies every current native select", () => {
-    expect([appSource, birdPagesSource, myBirdsSource, targetBirdSource]
+    expect([appSource, birdPagesSource, fieldMapSource, myBirdsSource, targetBirdSource]
       .reduce((count, source) => count + (source.match(/<select\b/g)?.length ?? 0), 0)).toBe(selectInventory.length);
     for (const [source, marker, classification] of selectInventory) {
       expect(source, classification).toContain(marker);

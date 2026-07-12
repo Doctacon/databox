@@ -550,7 +550,8 @@ def test_bird_pages_have_deterministic_responsive_layout_contract() -> None:
     assert "@media (max-width: 540px)" in styles
     mobile_grid = (
         ".summary-grid, .details-list, .species-grid, .bird-catalog-grid, "
-        ".catalog-controls, .inline-collection-form { grid-template-columns: minmax(0, 1fr); }"
+        ".catalog-controls, .inline-collection-form, .map-controls { "
+        "grid-template-columns: minmax(0, 1fr); }"
     )
     assert mobile_grid in styles
     assert ".site-header nav { order: 3; width: 100%; display: grid;" in styles
@@ -567,6 +568,7 @@ def test_static_frontend_fallback_serves_direct_bird_routes(tmp_path: Path) -> N
 
     assert client.get("/birds").text == "<main>local app shell</main>"
     assert client.get("/birds/bird000").text == "<main>local app shell</main>"
+    assert client.get("/map").text == "<main>local app shell</main>"
     assert client.get("/my-birds").text == "<main>local app shell</main>"
 
 

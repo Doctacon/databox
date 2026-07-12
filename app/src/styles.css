@@ -149,7 +149,7 @@ summary { min-height: 44px; cursor: pointer; color: var(--teal-950); font-weight
 .success { color: var(--success); background: #e4f5e9; }
 .success::before { content: "✓ SUCCESS"; font-weight: 900; }
 
-.birds-main, .bird-profile-main, .my-birds-main { display: block; min-height: calc(100vh - 76px); max-width: 1240px; margin: 0 auto; padding: clamp(18px, 3vw, 32px); }
+.birds-main, .bird-profile-main, .my-birds-main, .field-map-main { display: block; min-height: calc(100vh - 76px); max-width: 1240px; margin: 0 auto; padding: clamp(18px, 3vw, 32px); }
 .catalog-heading { max-width: 780px; margin-bottom: 20px; }
 .catalog-heading h1 { margin-bottom: 10px; }
 .catalog-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px; align-items: end; margin-bottom: 20px; }
@@ -186,6 +186,27 @@ summary { min-height: 44px; cursor: pointer; color: var(--teal-950); font-weight
 .location-list { padding-left: 22px; display: grid; gap: 10px; }
 .location-list li { padding-left: 5px; }
 .location-list span { display: block; color: var(--muted); font-size: .84rem; line-height: 1.5; }
+.field-map-main { display: grid; gap: 18px; }
+.map-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.map-controls h2, .map-freshness { grid-column: 1 / -1; }
+.map-controls > div { display: grid; gap: 6px; min-width: 0; }
+.map-controls label, .map-controls select, .map-controls p { margin: 0; }
+.map-freshness, .map-result-count { color: var(--muted); }
+.map-result-count { margin: 0; font-weight: 800; }
+.field-map-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 18px; align-items: start; }
+.map-panel, .encounter-list-panel { min-width: 0; }
+.map-canvas { width: 100%; min-height: 520px; border: 2px solid var(--ink); background: var(--cream-200); }
+.map-cluster-count { width: 42px; height: 42px; min-width: 42px; min-height: 42px; margin: 0; padding: 0; border-radius: 50%; color: var(--cream-100); background: var(--rust-700); font-size: .72rem; }
+.encounter-list { max-height: 520px; overflow-y: auto; list-style: none; margin: 0; padding: 0 8px 0 0; display: grid; gap: 8px; }
+.encounter-list button { width: 100%; margin: 0; padding: 10px; display: grid; gap: 4px; text-align: left; color: var(--ink); background: var(--cream-100); border-width: 2px; box-shadow: none; }
+.encounter-list button[aria-pressed="true"] { color: var(--cream-100); background: var(--teal-800); }
+.encounter-list button span { font-size: .78rem; line-height: 1.4; overflow-wrap: break-word; word-break: normal; }
+.encounter-list button[aria-pressed="true"] .caveat { color: var(--cream-100); }
+.selected-encounter { min-width: 0; }
+.selected-encounter h3 { margin-top: 0; }
+.map-attribution { overflow-wrap: break-word; word-break: normal; }
+.maplibregl-ctrl button { min-width: 44px; min-height: 44px; margin: 0; }
+.maplibregl-canvas:focus-visible { outline: 3px solid var(--gold-400); outline-offset: 3px; }
 .loading, .welcome { min-height: 320px; display: grid; place-content: center; text-align: center; color: var(--muted); }
 .welcome span { font-size: 3rem; color: var(--rust-600); }
 .welcome h2 { margin-bottom: 0; }
@@ -226,16 +247,18 @@ button.danger:hover { background: #651b17; }
   .site-header p { display: none; }
   .catalog-controls { grid-template-columns: 1fr 1fr; }
   .catalog-controls button { grid-column: 1 / -1; }
+  .field-map-layout { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 540px) {
-  .summary-grid, .details-list, .species-grid, .bird-catalog-grid, .catalog-controls, .inline-collection-form { grid-template-columns: minmax(0, 1fr); }
+  .summary-grid, .details-list, .species-grid, .bird-catalog-grid, .catalog-controls, .inline-collection-form, .map-controls { grid-template-columns: minmax(0, 1fr); }
   .catalog-controls .catalog-search, .catalog-controls button { grid-column: auto; }
   .pagination { align-items: flex-start; flex-direction: column; }
   .site-header { padding: 9px 12px; }
-  .site-header nav { order: 3; width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .site-header nav { order: 3; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .site-header nav a { padding-inline: 4px; font-size: .76rem; text-align: center; }
   .planner-sidebar { padding: 18px 14px; }
-  .content, .birds-main, .bird-profile-main, .my-birds-main { padding: 15px 12px 22px; }
+  .content, .birds-main, .bird-profile-main, .my-birds-main, .field-map-main { padding: 15px 12px 22px; }
+  .map-canvas { min-height: 360px; }
   .panel, .notice, .hero-card { box-shadow: 3px 3px 0 var(--ink); }
   .button-row { align-items: stretch; flex-direction: column; }
   .button-row button { width: 100%; }

@@ -1,4 +1,4 @@
-import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, lazy, MouseEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { createPlan, getPlan, listPlans } from "./api";
 import rufousImage from "./assets/rufous.png";
 import { BirdCatalogPage, BirdProfilePage } from "./BirdPages";
@@ -16,6 +16,8 @@ import type {
 } from "./types";
 import { presentWeather } from "./weather";
 import "./styles.css";
+
+const FieldMapPage = lazy(() => import("./FieldMap").then((module) => ({ default: module.FieldMapPage })));
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -553,10 +555,11 @@ function PlannerPage() {
     </main>;
 }
 
-type Route = { page: "planner" } | { page: "birds" } | { page: "bird"; speciesCode: string } | { page: "target-find"; speciesCode: string } | { page: "target-plan"; planId: string } | { page: "my-birds" };
+type Route = { page: "planner" } | { page: "birds" } | { page: "map" } | { page: "bird"; speciesCode: string } | { page: "target-find"; speciesCode: string } | { page: "target-plan"; planId: string } | { page: "my-birds" };
 
 function currentRoute(): Route {
   if (window.location.pathname === "/my-birds") return { page: "my-birds" };
+  if (window.location.pathname === "/map") return { page: "map" };
   if (window.location.pathname === "/birds") return { page: "birds" };
   const targetPlan = /^\/target-plans\/(target_[0-9a-f]{32})$/.exec(window.location.pathname);
   if (targetPlan) return { page: "target-plan", planId: targetPlan[1] };
@@ -587,11 +590,13 @@ export default function App() {
       ? "Trip Planner · Rufous"
       : route.page === "birds"
         ? "Arizona Birds · Rufous"
-        : route.page === "my-birds"
-          ? "My Birds · Rufous"
-          : route.page === "target-find" || route.page === "target-plan"
-            ? "Find This Bird · Rufous"
-            : "Bird Profile · Arizona Birds · Rufous";
+        : route.page === "map"
+          ? "Field Map · Rufous"
+          : route.page === "my-birds"
+            ? "My Birds · Rufous"
+            : route.page === "target-find" || route.page === "target-plan"
+              ? "Find This Bird · Rufous"
+              : "Bird Profile · Arizona Birds · Rufous";
   }, [route]);
 
   function navigate(path: string) {
@@ -616,12 +621,14 @@ export default function App() {
       <nav aria-label="Primary navigation">
         <a href="/" aria-current={route.page === "planner" ? "page" : undefined} onClick={(event) => navClick(event, "/")}>Trip Planner</a>
         <a href="/birds" aria-current={birdsActive ? "page" : undefined} onClick={(event) => navClick(event, "/birds")}>Arizona Birds</a>
+        <a href="/map" aria-current={route.page === "map" ? "page" : undefined} onClick={(event) => navClick(event, "/map")}>Field Map</a>
         <a href="/my-birds" aria-current={route.page === "my-birds" ? "page" : undefined} onClick={(event) => navClick(event, "/my-birds")}>My Birds</a>
       </nav>
       <p>Local DuckDB · evidence-backed</p>
     </header>
     {route.page === "planner" && <PlannerPage />}
     {route.page === "birds" && <BirdCatalogPage navigate={navigate} />}
+    {route.page === "map" && <Suspense fallback={<main className="field-map-main"><p role="status">Loading the local Field Map interface…</p></main>}><FieldMapPage navigate={navigate} /></Suspense>}
     {route.page === "bird" && <BirdProfilePage speciesCode={route.speciesCode} navigate={navigate} />}
     {route.page === "target-find" && <TargetBirdPage speciesCode={route.speciesCode} navigate={navigate} />}
     {route.page === "target-plan" && <TargetBirdPage planId={route.planId} navigate={navigate} />}

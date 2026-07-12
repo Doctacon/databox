@@ -29,7 +29,7 @@ This is a parent plan and is not executable directly.
 3. `.10x/tickets/done/2026-07-11-fix-bird-profile-information-layout.md`
 4. `.10x/tickets/done/2026-07-11-alphabetize-text-dropdown-options.md`
 5. `.10x/tickets/done/2026-07-11-build-field-map-data-api.md`
-6. `.10x/tickets/2026-07-11-build-rufous-field-map-ui.md`
+6. `.10x/tickets/done/2026-07-11-build-rufous-field-map-ui.md`
 7. `.10x/tickets/2026-07-11-verify-catalog-and-field-map.md`
 
 API summary and map-data children may execute independently. Profile layout and dropdown ordering are independent UI slices. Catalog controls depend on summary fields. Map UI depends on map data/API and local geometry. Theme-wide aggregate verification follows all children.
