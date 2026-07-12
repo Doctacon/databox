@@ -26,6 +26,7 @@ from pydantic import (
     model_validator,
 )
 
+from databox.agent_tools.arizona_boundary import is_in_arizona
 from databox.agent_tools.open_meteo_geocoding import (
     ArizonaLocationSuggestion,
     OpenMeteoGeocodingError,
@@ -377,6 +378,75 @@ class BirdCatalogResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     birds: list[BirdCatalogSummaryResponse] = Field(min_length=706, max_length=706)
+
+
+class MapEncounterResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+
+    source_observation_id: str = Field(
+        strict=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"
+    )
+    species_code: str = Field(strict=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9]+$")
+    common_name: str | None = Field(default=None, strict=True, max_length=200)
+    scientific_name: str | None = Field(default=None, strict=True, max_length=200)
+    family_common_name: str | None = Field(default=None, strict=True, max_length=200)
+    family_scientific_name: str | None = Field(default=None, strict=True, max_length=200)
+    observation_at: datetime
+    observation_count: int = Field(strict=True, ge=1, le=1_000_000)
+    notable: bool = Field(strict=True)
+    location_id: str = Field(strict=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    location_name: str = Field(strict=True, min_length=1, max_length=300)
+    latitude: float = Field(strict=True, ge=-90, le=90)
+    longitude: float = Field(strict=True, ge=-180, le=180)
+    access_warning: bool = Field(strict=True)
+
+    @field_validator(
+        "common_name",
+        "scientific_name",
+        "family_common_name",
+        "family_scientific_name",
+        "location_name",
+    )
+    @classmethod
+    def map_text_is_safe(cls, value: str | None) -> str | None:
+        if value is not None and (
+            not value.strip() or re.search(r"[\x00-\x1f\x7f]", value) is not None
+        ):
+            raise ValueError("map text must contain safe visible text")
+        return value
+
+    @model_validator(mode="after")
+    def map_relationships_are_coherent(self) -> MapEncounterResponse:
+        if self.common_name is None and self.scientific_name is None:
+            raise ValueError("map identity requires a display name")
+        if self.family_common_name is None and self.family_scientific_name is None:
+            raise ValueError("map identity requires a family")
+        if not is_in_arizona(self.latitude, self.longitude):
+            raise ValueError("map coordinates must be within Arizona")
+        expected_warning = re.search(r"\(private\)", self.location_name, re.IGNORECASE) is not None
+        if self.access_warning is not expected_warning:
+            raise ValueError("map access warning does not match location name")
+        return self
+
+
+class MapSnapshotResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    snapshot_latest_observation_at: datetime | None
+    source_freshness_at: datetime | None
+    encounters: list[MapEncounterResponse] = Field(max_length=10_000)
+
+    @model_validator(mode="after")
+    def snapshot_metadata_matches_rows(self) -> MapSnapshotResponse:
+        latest = max((row.observation_at for row in self.encounters), default=None)
+        if self.snapshot_latest_observation_at != latest:
+            raise ValueError("map snapshot latest observation is inconsistent")
+        identifiers = [row.source_observation_id for row in self.encounters]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("map snapshot observation identifiers must be unique")
+        if self.encounters and self.source_freshness_at is None:
+            raise ValueError("map snapshot freshness is required for encounters")
+        return self
 
 
 class BirdTaxonomyResponse(BaseModel):
@@ -1178,6 +1248,62 @@ def _attach_catalog_media(
         row["call"] = _catalog_call(media.get((code, "call")), code, scientific_name)
 
 
+def _map_snapshot(connection: duckdb.DuckDBPyConnection) -> MapSnapshotResponse:
+    rows = _rows(
+        connection.execute(
+            """
+            SELECT
+                o.source_observation_id,
+                o.species_code,
+                c.common_name,
+                c.scientific_name,
+                c.family_common_name,
+                c.family_scientific_name,
+                o.observation_datetime AS observation_at,
+                o.observation_count,
+                o.is_notable AS notable,
+                o.location_id,
+                o.location_name,
+                o.latitude::DOUBLE AS latitude,
+                o.longitude::DOUBLE AS longitude,
+                o.loaded_at
+            FROM environmental_observations.fact_bird_observation AS o
+            INNER JOIN birding_agent.arizona_species_catalog AS c
+                ON c.species_code = o.species_code
+            WHERE
+                o.region_code = 'US-AZ'
+                AND o.is_valid IS TRUE
+                AND o.is_reviewed IS TRUE
+                AND o.is_location_private IS FALSE
+                AND o.observation_count IS NOT NULL
+            ORDER BY o.observation_datetime DESC, o.source_observation_id
+            LIMIT 10001
+            """
+        )
+    )
+    if len(rows) > 10_000:
+        raise ValueError("map snapshot exceeds the response bound")
+    encounters: list[MapEncounterResponse] = []
+    loaded_at: list[datetime] = []
+    for row in rows:
+        loaded = row.pop("loaded_at")
+        if not isinstance(loaded, datetime):
+            raise ValueError("map snapshot freshness is invalid")
+        row["access_warning"] = (
+            isinstance(row["location_name"], str)
+            and re.search(r"\(private\)", row["location_name"], re.IGNORECASE) is not None
+        )
+        encounters.append(MapEncounterResponse.model_validate(row))
+        loaded_at.append(loaded)
+    return MapSnapshotResponse(
+        snapshot_latest_observation_at=max(
+            (row.observation_at for row in encounters), default=None
+        ),
+        source_freshness_at=max(loaded_at, default=None),
+        encounters=encounters,
+    )
+
+
 def _bird_summaries(
     connection: duckdb.DuckDBPyConnection,
 ) -> list[BirdCatalogSummaryResponse]:
@@ -1452,6 +1578,30 @@ def create_app(
             database_ready=database_ready,
             model_ready=model_ready,
         )
+
+    @app.get(
+        "/api/map-snapshot",
+        response_model=MapSnapshotResponse,
+        responses={503: {"model": ErrorResponse}},
+    )
+    async def map_snapshot() -> MapSnapshotResponse | JSONResponse:
+        connection: duckdb.DuckDBPyConnection | None = None
+        try:
+            if not Path(db_path).exists():
+                return _error("database_unavailable", "The local Field Map is unavailable", 503)
+            connection = duckdb.connect(db_path, read_only=True)
+            return _map_snapshot(connection)
+        except duckdb.Error as exc:
+            if _is_database_busy(exc):
+                return _error(
+                    "database_busy", "The warehouse is refreshing; try again shortly", 503
+                )
+            return _error("database_unavailable", "The local Field Map is unavailable", 503)
+        except (TypeError, ValueError, ValidationError):
+            return _error("database_unavailable", "The local Field Map is unavailable", 503)
+        finally:
+            if connection is not None:
+                connection.close()
 
     @app.get(
         "/api/birds",

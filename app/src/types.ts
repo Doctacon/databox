@@ -155,6 +155,29 @@ export interface CatalogCall extends RecommendationCall {
   lookup_at: string | null;
 }
 
+export interface MapEncounter {
+  source_observation_id: string;
+  species_code: string;
+  common_name: string | null;
+  scientific_name: string | null;
+  family_common_name: string | null;
+  family_scientific_name: string | null;
+  observation_at: string;
+  observation_count: number;
+  notable: boolean;
+  location_id: string;
+  location_name: string;
+  latitude: number;
+  longitude: number;
+  access_warning: boolean;
+}
+
+export interface MapSnapshot {
+  snapshot_latest_observation_at: string | null;
+  source_freshness_at: string | null;
+  encounters: MapEncounter[];
+}
+
 export interface BirdCatalogSummary {
   species_code: string;
   common_name: string | null;

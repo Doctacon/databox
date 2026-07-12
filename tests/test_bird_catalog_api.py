@@ -541,7 +541,12 @@ def test_bird_pages_have_deterministic_responsive_layout_contract() -> None:
     assert "@media (max-width: 1100px)" in styles
     assert ".species-grid, .bird-catalog-grid { grid-template-columns: repeat(2" in styles
     assert "@media (max-width: 820px)" in styles
-    assert ".catalog-profile-media-grid { grid-template-columns: 1fr; }" in styles
+    assert (
+        ".catalog-profile-media-grid { display: grid; grid-template-columns: minmax(0, 1fr);"
+        in styles
+    )
+    assert ".bird-profile-main { display: grid; grid-template-columns: minmax(0, 1fr);" in styles
+    assert "minmax(240px" not in styles
     assert "@media (max-width: 540px)" in styles
     mobile_grid = (
         ".summary-grid, .details-list, .species-grid, .bird-catalog-grid, "

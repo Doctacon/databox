@@ -12,12 +12,12 @@ Rufous MUST provide a dedicated `/map` top-level **Field Map** for statewide dis
 
 - Use open-source MapLibre GL JS.
 - The style, sprites if any, state/county geometry, and application assets MUST be bundled locally. Browser runtime MUST make no tile, style, glyph, telemetry, or provider request.
-- A bounded official US Census cartographic-boundary source MUST be transformed to Arizona-only state/county GeoJSON. Record source revision, terms, transformation command, retained fields, row count, and SHA-256. Do not commit unrelated national geometry.
+- A bounded official US Census cartographic-boundary source MUST be transformed to Arizona-only state/county GeoJSON at `app/src/assets/arizona-boundaries.geojson`. Record source revision, terms, transformation command, retained fields, row count, and SHA-256. Do not commit unrelated national geometry. The eventual map source disclosure MUST identify the U.S. Census Bureau source, say the artifact is derived/modified, and state that the product is not endorsed or certified by the Census Bureau.
 - Do not add deck.gl, routing, terrain, remote tiles, or PMTiles in this slice.
 
 ## Observation API
 
-A typed read-only GET returns one bounded snapshot:
+`GET /api/map-snapshot` is the selected local internal interface. It returns one typed read-only snapshot with at most 10,000 encounters. The query MUST inspect up to 10,001 eligible rows and fail closed with a safe 503 rather than truncate when the bound is exceeded:
 
 - snapshot latest observation and source freshness;
 - exact eligible rows from current modeled Arizona observation evidence where region is `US-AZ`, coordinates are within the governed Arizona bounds, `is_valid=true`, `is_reviewed=true`, and `is_location_private=false`;
