@@ -17,7 +17,7 @@ Runtime-owned physical DuckDB tables MUST store personal state separately from S
 
 The former wishlist state is removed. Watch is the sole prospective-interest state; existing wishlist rows are deleted by an explicit idempotent migration and MUST NOT be converted into watches because a valid watch requires user-ratified center/radius semantics.
 
-Observation date is a calendar date and MUST NOT be reinterpreted as a timestamp. Location and notes are user text, not evidence or geocoding claims. Text MUST be trimmed and bounded; empty optional text becomes null. Personal state persists until explicit mutation.
+Observation date is a calendar date and MUST NOT be reinterpreted as a timestamp. Notes and unselected locations are private user text, not evidence or geocoding claims. Explicitly selected structured Arizona locations are governed by `.10x/specs/structured-observation-locations.md`. Text MUST be trimmed and bounded; empty optional text becomes null. Personal state persists until explicit mutation.
 
 Every mutation MUST validate that the species code exists in the exact current Arizona catalog. Hybrids are valid identities. A later catalog refresh MUST NOT silently rewrite or delete existing personal rows; missing-current-catalog references remain visible with a clear stale-identity state until the user edits or deletes them.
 
@@ -74,4 +74,4 @@ Observations and watches persist until explicit user edit/delete. Hard-deleted o
 
 ## Explicit exclusions
 
-No eBird life-list import, attachments, photo/audio binaries, multi-user ownership, remote sync, automatic geocoding of free-text observation locations, social sharing, target planning, match evaluation, or SMTP delivery.
+No eBird life-list import, attachments, photo/audio binaries, multi-user ownership, remote sync, automatic/background geocoding of free-text observation locations, social sharing, target planning, match evaluation, or SMTP delivery.
