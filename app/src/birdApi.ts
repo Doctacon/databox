@@ -1,3 +1,4 @@
+import { curatedPhotoKeys, validateAvailableCuratedPhoto } from "./curatedPhotoValidation";
 import { isIsoDate, isIsoTimestamp } from "./isoDateTime";
 import type { BirdCatalogSummary, BirdProfile, CatalogCall, CatalogPhoto } from "./types";
 
@@ -49,11 +50,7 @@ function timestamp(value: unknown): value is string | null {
   return isIsoTimestamp(value, true);
 }
 
-const photoKeys = [
-  "status", "source_record_id", "species_name", "display_url", "source_url", "creator",
-  "rights_holder", "publisher", "format", "license_text", "license_url", "selection_reason",
-  "caveats", "lookup_at",
-] as const;
+const photoKeys = [...curatedPhotoKeys, "lookup_at"] as const;
 const callKeys = [
   "status", "source_record_id", "recording_id", "species_name", "geographic_scope",
   "recording_type", "quality", "recordist", "locality", "country", "source_url", "audio_url",
@@ -83,20 +80,14 @@ export function validateCatalogPhoto(value: unknown, scientificName: string | nu
   if ((row.status !== "available" && row.status !== "unavailable") || !caveats(row.caveats)
     || !timestamp(row.lookup_at)) throw new Error("invalid catalog photo");
   if (row.status === "unavailable") {
-    if (photoKeys.slice(1, -2).some((key) => row[key] !== null)) throw new Error("invalid unavailable photo");
+    const metadata = photoKeys.filter((key) => !["status", "species_name", "caveats", "lookup_at"].includes(key));
+    if ((row.species_name !== null && row.species_name !== scientificName)
+      || metadata.some((key) => row[key] !== null)) throw new Error("invalid unavailable photo");
     return row as unknown as CatalogPhoto;
   }
-  if (typeof row.source_record_id !== "string" || !/^[1-9]\d*$/.test(row.source_record_id)
-    || row.species_name !== scientificName || typeof row.display_url !== "string"
-    || row.display_url !== `https://api.gbif.org/v1/image/cache/500x500/occurrence/${row.source_record_id}/media/${row.display_url.slice(-32)}`
-    || !/^[0-9a-f]{32}$/.test(row.display_url.slice(-32))
-    || row.source_url !== `https://www.gbif.org/occurrence/${row.source_record_id}`
-    || !boundedText(row.creator) || !boundedText(row.rights_holder)
-    || (row.creator === null && row.rights_holder === null) || !boundedText(row.publisher)
-    || !["image/jpeg", "image/png", "image/webp"].includes(String(row.format))
-    || !ccLicense(row.license_text, false) || !ccUrl(row.license_url, row.license_text)
-    || !boundedText(row.selection_reason, true)
-    || row.lookup_at === null) throw new Error("invalid available photo");
+  if (!validateAvailableCuratedPhoto(row, scientificName) || row.lookup_at === null) {
+    throw new Error("invalid available photo");
+  }
   return row as unknown as CatalogPhoto;
 }
 

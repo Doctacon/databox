@@ -190,7 +190,8 @@ class BirdingTripPlanner:
         *,
         model_client: TripPlanModelClient,
         weather_getter: JsonGetter | None = None,
-        media_gbif_getter: MediaJsonGetter | None = None,
+        media_curated_photo_getter: MediaJsonGetter | None = None,
+        media_before_inaturalist_request: Callable[[], None] | None = None,
         media_xeno_getter: MediaJsonGetter | None = None,
         xeno_api_key: str | None = None,
         now: Callable[[], datetime] | None = None,
@@ -201,7 +202,8 @@ class BirdingTripPlanner:
         self.connection = connection
         self.model_client = model_client
         self.weather_getter = weather_getter
-        self.media_gbif_getter = media_gbif_getter
+        self.media_curated_photo_getter = media_curated_photo_getter
+        self.media_before_inaturalist_request = media_before_inaturalist_request
         self.media_xeno_getter = media_xeno_getter
         self.xeno_api_key = xeno_api_key
         self.now = now or (lambda: datetime.now(UTC))
@@ -314,7 +316,8 @@ class BirdingTripPlanner:
             tool_input={"recommendation_count": len(ranked)},
             call=lambda: enrich_recommendation_media(
                 ranked,
-                gbif_getter=self.media_gbif_getter,
+                curated_photo_getter=self.media_curated_photo_getter,
+                before_inaturalist_request=self.media_before_inaturalist_request,
                 xeno_getter=self.media_xeno_getter,
                 xeno_api_key=self.xeno_api_key,
             ),
@@ -1087,7 +1090,8 @@ class BirdingTripPlannerAdkAgent(BaseAgent):
     request: TripRequest = Field(exclude=True)
     trip_plan_id: str | None = None
     weather_getter: Any = Field(default=None, exclude=True)
-    media_gbif_getter: Any = Field(default=None, exclude=True)
+    media_curated_photo_getter: Any = Field(default=None, exclude=True)
+    media_before_inaturalist_request: Any = Field(default=None, exclude=True)
     media_xeno_getter: Any = Field(default=None, exclude=True)
     xeno_api_key: str | None = Field(default=None, exclude=True)
     model_client: Any = Field(exclude=True)
@@ -1097,7 +1101,8 @@ class BirdingTripPlannerAdkAgent(BaseAgent):
             self.connection,
             model_client=cast(TripPlanModelClient, self.model_client),
             weather_getter=self.weather_getter,
-            media_gbif_getter=self.media_gbif_getter,
+            media_curated_photo_getter=self.media_curated_photo_getter,
+            media_before_inaturalist_request=self.media_before_inaturalist_request,
             media_xeno_getter=self.media_xeno_getter,
             xeno_api_key=self.xeno_api_key,
         )
@@ -1223,7 +1228,8 @@ async def run_trip_planner_agent_async(
     request: TripRequest,
     trip_plan_id: str | None = None,
     weather_getter: JsonGetter | None = None,
-    media_gbif_getter: MediaJsonGetter | None = None,
+    media_curated_photo_getter: MediaJsonGetter | None = None,
+    media_before_inaturalist_request: Callable[[], None] | None = None,
     media_xeno_getter: MediaJsonGetter | None = None,
     xeno_api_key: str | None = None,
     model_client: TripPlanModelClient | None = None,
@@ -1237,7 +1243,8 @@ async def run_trip_planner_agent_async(
         request=request,
         trip_plan_id=trip_plan_id,
         weather_getter=weather_getter,
-        media_gbif_getter=media_gbif_getter,
+        media_curated_photo_getter=media_curated_photo_getter,
+        media_before_inaturalist_request=media_before_inaturalist_request,
         media_xeno_getter=media_xeno_getter,
         xeno_api_key=xeno_api_key,
         model_client=resolved_model_client,
@@ -1279,7 +1286,8 @@ def run_trip_planner_agent(
     request: TripRequest,
     trip_plan_id: str | None = None,
     weather_getter: JsonGetter | None = None,
-    media_gbif_getter: MediaJsonGetter | None = None,
+    media_curated_photo_getter: MediaJsonGetter | None = None,
+    media_before_inaturalist_request: Callable[[], None] | None = None,
     media_xeno_getter: MediaJsonGetter | None = None,
     xeno_api_key: str | None = None,
     model_client: TripPlanModelClient | None = None,
@@ -1295,7 +1303,8 @@ def run_trip_planner_agent(
                 request=request,
                 trip_plan_id=trip_plan_id,
                 weather_getter=weather_getter,
-                media_gbif_getter=media_gbif_getter,
+                media_curated_photo_getter=media_curated_photo_getter,
+                media_before_inaturalist_request=media_before_inaturalist_request,
                 media_xeno_getter=media_xeno_getter,
                 xeno_api_key=xeno_api_key,
                 model_client=model_client,
@@ -1313,7 +1322,8 @@ def plan_trip(
     request: TripRequest,
     trip_plan_id: str | None = None,
     weather_getter: JsonGetter | None = None,
-    media_gbif_getter: MediaJsonGetter | None = None,
+    media_curated_photo_getter: MediaJsonGetter | None = None,
+    media_before_inaturalist_request: Callable[[], None] | None = None,
     media_xeno_getter: MediaJsonGetter | None = None,
     xeno_api_key: str | None = None,
     model_client: TripPlanModelClient | None = None,
@@ -1326,7 +1336,8 @@ def plan_trip(
             request=request,
             trip_plan_id=trip_plan_id,
             weather_getter=weather_getter,
-            media_gbif_getter=media_gbif_getter,
+            media_curated_photo_getter=media_curated_photo_getter,
+            media_before_inaturalist_request=media_before_inaturalist_request,
             media_xeno_getter=media_xeno_getter,
             xeno_api_key=xeno_api_key,
             model_client=model_client,
@@ -1337,6 +1348,9 @@ def main(
     argv: Sequence[str] | None = None,
     *,
     model_client: TripPlanModelClient | None = None,
+    media_curated_photo_getter: MediaJsonGetter | None = None,
+    media_before_inaturalist_request: Callable[[], None] | None = None,
+    media_xeno_getter: MediaJsonGetter | None = None,
 ) -> int:
     parser = argparse.ArgumentParser(description="Generate a Birding Trip Copilot plan")
     parser.add_argument("--database-path", default=settings.database_path)
@@ -1367,6 +1381,9 @@ def main(
         request=request,
         trip_plan_id=args.trip_plan_id,
         weather_getter=_sample_open_meteo_getter if args.mock_open_meteo else None,
+        media_curated_photo_getter=media_curated_photo_getter,
+        media_before_inaturalist_request=media_before_inaturalist_request,
+        media_xeno_getter=media_xeno_getter,
         model_client=model_client,
     )
     print(json.dumps(result.to_dict(), indent=2, sort_keys=True, default=str))

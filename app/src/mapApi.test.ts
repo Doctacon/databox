@@ -13,7 +13,7 @@ const encounter = {
   location_id: "L1", location_name: "Trail (private)", latitude: 34.54,
   longitude: -112.47, access_warning: true,
 };
-const unavailablePhoto = { status: "unavailable", source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: [], lookup_at: null };
+const unavailablePhoto = { status: "unavailable", source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, provider: null, license_code: null, original_width: null, original_height: null, caveats: [], lookup_at: null };
 const snapshot = {
   snapshot_latest_observation_at: encounter.observation_at,
   source_freshness_at: "2026-07-09T13:00:00",

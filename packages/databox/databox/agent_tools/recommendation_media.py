@@ -1,13 +1,12 @@
 """Bounded request-time photo and call selection for fixed recommendations.
 
 Discovery is server-side metadata-only. The default transport reads at most one
-MiB of JSON with a ten-second timeout; tests and callers may inject independent
-GBIF and Xeno-canto getters. Media bytes are never requested or stored.
+MiB of JSON with a ten-second timeout; tests and callers may inject curated-photo
+and Xeno-canto getters. Media bytes are never requested or stored.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -22,20 +21,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GBIF_OCCURRENCE_SEARCH = "https://api.gbif.org/v1/occurrence/search"
 XENO_CANTO_RECORDINGS = "https://xeno-canto.org/api/3/recordings"
 MAX_CANDIDATES = 50
 MAX_RESPONSE_BYTES = 1_048_576
 HTTP_TIMEOUT_SECONDS = 10.0
-GBIF_IMAGE_SIZE = "500x500"
-
 JsonGetter = Callable[[str, Mapping[str, object]], dict[str, Any]]
 MediaStatus = Literal["available", "unavailable"]
 MediaEvidenceType = Literal["recommendation_photo", "recommendation_call"]
 
-_GBIF_IMAGE_CACHE_PATH = re.compile(
-    r"^/v1/image/cache/(500x500)/occurrence/([1-9][0-9]*)/media/([0-9a-f]{32})$"
-)
 _XENO_HOSTS = frozenset({"xeno-canto.org", "www.xeno-canto.org"})
 _CC_HOSTS = frozenset({"creativecommons.org", "www.creativecommons.org"})
 _CC_URL = re.compile(r"^/licenses/([a-z0-9-]+)/([0-9]+(?:\.[0-9]+)?)/?$")
@@ -44,7 +37,6 @@ _CC_STANDARD_SLUGS = frozenset({"by", "by-sa", "by-nc", "by-nc-sa"})
 _CC_AUDIO_ND_SLUGS = frozenset({"by-nd", "by-nc-nd"})
 _CC_STANDARD_VERSIONS = frozenset({"1.0", "2.0", "2.5", "3.0", "4.0"})
 _ID = re.compile(r"^(?:XC)?([0-9]+)$", re.IGNORECASE)
-_IMAGE_FORMATS = frozenset({"image/jpeg", "image/png", "image/webp"})
 
 
 class RecommendationIdentity(Protocol):
@@ -55,7 +47,7 @@ class RecommendationIdentity(Protocol):
 @dataclass(frozen=True)
 class RecommendationMediaEvidence:
     recommendation_id: str
-    source: Literal["gbif", "xeno_canto"]
+    source: Literal["xeno_canto", "inaturalist", "curated_photo"]
     source_record_id: str | None
     evidence_type: Literal["recommendation_photo", "recommendation_call"]
     status: MediaStatus
@@ -72,13 +64,15 @@ class RecommendationMediaBatch:
     available_calls: int
     arizona_calls: int
     global_calls: int
+    request_count: int = 0
     caveats: list[str] = field(default_factory=list)
 
 
 def enrich_recommendation_media(
     recommendations: Sequence[RecommendationIdentity],
     *,
-    gbif_getter: JsonGetter | None = None,
+    curated_photo_getter: JsonGetter | None = None,
+    before_inaturalist_request: Callable[[], None] | None = None,
     xeno_getter: JsonGetter | None = None,
     xeno_api_key: str | None = None,
     evidence_types: frozenset[MediaEvidenceType] = frozenset(
@@ -92,11 +86,11 @@ def enrich_recommendation_media(
         "recommendation_call",
     }:
         raise ValueError("Unsupported recommendation media evidence type set")
-    resolved_gbif = gbif_getter or _get_json
     resolved_xeno = xeno_getter or _get_json
     api_key = xeno_api_key if xeno_api_key is not None else os.getenv("XENO_CANTO_API_KEY")
     evidence: list[RecommendationMediaEvidence] = []
     lookup_count = 0
+    request_count = 0
 
     for recommendation in recommendations:
         scientific_name = _normalize_species(recommendation.scientific_name)
@@ -105,7 +99,7 @@ def enrich_recommendation_media(
                 evidence.append(
                     _unavailable(
                         recommendation.recommendation_id,
-                        "gbif",
+                        "curated_photo",
                         "recommendation_photo",
                         "A conformed binomial scientific name is required for exact photo lookup",
                     )
@@ -122,13 +116,16 @@ def enrich_recommendation_media(
             continue
 
         if "recommendation_photo" in evidence_types:
-            photo, attempted = _lookup_photo(
-                recommendation.recommendation_id,
+            from databox.curated_photo import select_curated_photo
+
+            result = select_curated_photo(
                 scientific_name,
-                resolved_gbif,
+                getter=curated_photo_getter,
+                before_inaturalist_request=before_inaturalist_request,
             )
-            evidence.append(photo)
-            lookup_count += attempted
+            evidence.append(_curated_photo_evidence(recommendation.recommendation_id, result))
+            lookup_count += 1
+            request_count += result.request_count
 
         if "recommendation_call" in evidence_types:
             call, attempted = _lookup_call(
@@ -139,6 +136,7 @@ def enrich_recommendation_media(
             )
             evidence.append(call)
             lookup_count += attempted
+            request_count += attempted
 
     return RecommendationMediaBatch(
         evidence=evidence,
@@ -161,170 +159,44 @@ def enrich_recommendation_media(
             and row.summary.get("geographic_scope") == "Global example"
             for row in evidence
         ),
+        request_count=request_count,
         caveats=sorted({caveat for row in evidence for caveat in row.caveats}),
     )
 
 
-def _lookup_photo(
-    recommendation_id: str,
-    scientific_name: str,
-    getter: JsonGetter,
-) -> tuple[RecommendationMediaEvidence, int]:
-    params: dict[str, object] = {
-        "scientificName": scientific_name,
-        "country": "US",
-        "stateProvince": "Arizona",
-        "mediaType": "StillImage",
-        "limit": MAX_CANDIDATES,
-        "offset": 0,
-    }
-    try:
-        payload = getter(GBIF_OCCURRENCE_SEARCH, params)
-        candidates = _gbif_candidates(payload, scientific_name)
-    except Exception:  # noqa: BLE001 - upstream failures become typed unavailable evidence.
-        return (
-            _unavailable(
-                recommendation_id,
-                "gbif",
-                "recommendation_photo",
-                "GBIF photo lookup was unavailable or malformed",
-            ),
-            1,
-        )
-    if not candidates:
-        return (
-            _unavailable(
-                recommendation_id,
-                "gbif",
-                "recommendation_photo",
-                "No eligible exact-species Arizona GBIF photo was found",
-            ),
-            1,
-        )
-    selected = min(candidates, key=lambda item: item[0])[1]
-    selected["recommendation_id"] = recommendation_id
-    return RecommendationMediaEvidence(**selected), 1
-
-
-def _gbif_candidates(
-    payload: Mapping[str, Any], scientific_name: str
-) -> list[tuple[tuple[object, ...], dict[str, Any]]]:
-    results = payload.get("results")
-    if not isinstance(results, list):
-        raise ValueError("GBIF response is missing results")
-    candidates: list[tuple[tuple[object, ...], dict[str, Any]]] = []
-    for occurrence in results[:MAX_CANDIDATES]:
-        if not isinstance(occurrence, dict):
-            continue
-        occurrence_id = _integer_id(occurrence.get("key"))
-        identity = _occurrence_species(occurrence)
-        media_rows = occurrence.get("media")
-        if (
-            occurrence_id is None
-            or identity != scientific_name
-            or not _is_arizona_gbif_occurrence(occurrence)
-            or not isinstance(media_rows, list)
-        ):
-            continue
-        source_url = f"https://www.gbif.org/occurrence/{occurrence_id}"
-        publisher = _text(occurrence.get("publishingOrgKey")) or _text(
-            occurrence.get("institutionCode")
-        )
-        for media in media_rows[:MAX_CANDIDATES]:
-            if not isinstance(media, dict):
-                continue
-            candidate = _gbif_media(
-                media,
-                occurrence_id=occurrence_id,
-                species=scientific_name,
-                source_url=source_url,
-                publisher=publisher,
-            )
-            if candidate is not None:
-                candidates.append(candidate)
-    return candidates
-
-
-def _gbif_media(
-    media: Mapping[str, Any],
-    *,
-    occurrence_id: str,
-    species: str,
-    source_url: str,
-    publisher: str | None,
-) -> tuple[tuple[object, ...], dict[str, Any]] | None:
-    if _text(media.get("type")) != "StillImage":
-        return None
-    image_format = (_text(media.get("format")) or "").lower()
-    if image_format not in _IMAGE_FORMATS:
-        return None
-    identifier = _safe_https_provenance_url(media.get("identifier"))
-    if identifier is None:
-        return None
-    creator = _text(media.get("creator"))
-    rights_holder = _text(media.get("rightsHolder"))
-    if creator is None and rights_holder is None:
-        return None
-    license_info = parse_creative_commons_license(media.get("license"), allow_audio_nd=False)
-    if license_info is None:
-        return None
-    license_code, license_url, _ = license_info
-    identifier_md5 = _identifier_md5(identifier)
-    display_url = safe_gbif_photo_url(
-        _gbif_cache_url(occurrence_id, identifier_md5),
-        occurrence_id=occurrence_id,
-        original_identifier=identifier,
-    )
-    if display_url is None:
-        return None
-    media_id = f"{occurrence_id}:{identifier_md5}"
-    selection_reason = (
-        "Exact Arizona species image with complete attribution, supported CC license, "
-        "and GBIF cache URL derived from occurrence key plus identifier MD5"
-    )
+def _curated_photo_evidence(recommendation_id: str, result: Any) -> RecommendationMediaEvidence:
     summary = {
-        "kind": "photo",
-        "species_name": species,
-        "creator": creator,
-        "rights_holder": rights_holder,
-        "publisher": publisher,
-        "format": image_format,
-        "license_code": license_code,
-        "license_url": license_url,
-        "source_url": source_url,
-        "display_url": display_url,
-        "selection_reason": selection_reason,
-        "geographic_scope": "Arizona",
+        "species_name": result.species_name,
+        "display_url": result.display_url,
+        "source_url": result.source_url,
+        "creator": result.creator,
+        "rights_holder": None,
+        "publisher": None,
+        "format": None,
+        "license_text": result.license_code,
+        "license_code": result.license_code,
+        "license_url": result.license_url,
+        "original_width": result.original_width,
+        "original_height": result.original_height,
+        "selection_reason": result.selection_reason,
+        "provider": result.source if result.source != "curated_photo" else None,
     }
-    payload = {
-        "gbif_occurrence_id": occurrence_id,
-        "gbif_media_id": media_id,
-        "normalized_species": species,
-        "original_media_identifier": identifier,
-        "original_media_identifier_md5": identifier_md5,
-    }
-    rank = (
-        0 if creator and rights_holder else 1,
-        int(occurrence_id),
-        identifier_md5,
-        identifier,
-        creator or "",
-        rights_holder or "",
-        publisher or "",
-        image_format,
-        license_code,
-        license_url,
-        source_url,
+    return RecommendationMediaEvidence(
+        recommendation_id=recommendation_id,
+        source=result.source,
+        source_record_id=result.source_record_id,
+        evidence_type="recommendation_photo",
+        status=result.status,
+        summary=summary,
+        payload={
+            "identity": result.identity,
+            "attempted_sources": list(result.attempted_sources),
+            "request_count": result.request_count,
+            "failure_class": result.failure_class,
+            "retryable": result.retryable,
+        },
+        caveats=list(result.caveats),
     )
-    return rank, {
-        "source": "gbif",
-        "source_record_id": occurrence_id,
-        "evidence_type": "recommendation_photo",
-        "status": "available",
-        "summary": summary,
-        "payload": payload,
-        "caveats": [],
-    }
 
 
 def _lookup_call(
@@ -464,7 +336,7 @@ def _xeno_candidates(
 
 def _unavailable(
     recommendation_id: str,
-    source: Literal["gbif", "xeno_canto"],
+    source: Literal["xeno_canto", "curated_photo"],
     evidence_type: Literal["recommendation_photo", "recommendation_call"],
     caveat: str,
 ) -> RecommendationMediaEvidence:
@@ -474,23 +346,13 @@ def _unavailable(
         source_record_id=None,
         evidence_type=evidence_type,
         status="unavailable",
-        summary={"kind": "photo" if source == "gbif" else "call", "status": "unavailable"},
+        summary={
+            "kind": "photo" if evidence_type == "recommendation_photo" else "call",
+            "status": "unavailable",
+        },
         payload={},
         caveats=[caveat],
     )
-
-
-def _occurrence_species(row: Mapping[str, Any]) -> str | None:
-    values = [
-        value
-        for value in (row.get("species"), row.get("acceptedScientificName"))
-        if value is not None
-    ]
-    normalized = {_normalize_species(value) for value in values}
-    normalized.discard(None)
-    if len(normalized) != 1:
-        return None
-    return normalized.pop()
 
 
 def _normalize_species(value: object) -> str | None:
@@ -523,16 +385,9 @@ def recommendation_media_evidence_is_safe(
 
     if len(row.caveats) > 10 or any(not 0 < len(item) <= 1000 for item in row.caveats):
         return False
-    if row.evidence_type == "recommendation_photo":
-        kind = "photo"
-        if row.source != "gbif":
-            return False
-    elif row.evidence_type == "recommendation_call":
-        kind = "call"
-        if row.source != "xeno_canto":
-            return False
-    else:
+    if row.evidence_type != "recommendation_call" or row.source != "xeno_canto":
         return False
+    kind = "call"
     if row.status == "unavailable":
         return (
             row.source_record_id is None
@@ -542,28 +397,6 @@ def recommendation_media_evidence_is_safe(
         )
     if row.status != "available" or row.summary.get("species_name") != scientific_name:
         return False
-    if kind == "photo":
-        occurrence_id = _integer_id(row.source_record_id)
-        original = row.payload.get("original_media_identifier")
-        license_info = parse_creative_commons_license(
-            row.summary.get("license_url"), allow_audio_nd=False
-        )
-        return bool(
-            occurrence_id
-            and row.payload.get("normalized_species") == scientific_name
-            and row.payload.get("gbif_occurrence_id") == occurrence_id
-            and safe_gbif_photo_url(
-                row.summary.get("display_url"),
-                occurrence_id=occurrence_id,
-                original_identifier=original,
-            )
-            and row.summary.get("source_url") == f"https://www.gbif.org/occurrence/{occurrence_id}"
-            and (_text(row.summary.get("creator")) or _text(row.summary.get("rights_holder")))
-            and (_text(row.summary.get("format")) or "").lower() in _IMAGE_FORMATS
-            and license_info
-            and row.summary.get("license_code") == license_info[0]
-            and _text(row.summary.get("selection_reason"))
-        )
     recording_id = _integer_id(row.source_record_id)
     source_url = _safe_xeno_url(row.summary.get("source_url"), recording_id or "", audio=False)
     audio_url = _safe_xeno_url(row.summary.get("audio_url"), recording_id or "", audio=True)
@@ -666,89 +499,6 @@ def parse_creative_commons_license(
     )
 
 
-def safe_gbif_photo_url(
-    value: object, *, occurrence_id: str, original_identifier: object
-) -> str | None:
-    """Validate the exact GBIF cache path and its occurrence-key/MD5 relation."""
-
-    raw = _text(value)
-    identifier = _safe_https_provenance_url(original_identifier)
-    if raw is None or identifier is None or not occurrence_id.isdigit():
-        return None
-    try:
-        parsed = urlsplit(raw)
-        if parsed.port is not None:
-            return None
-    except ValueError:
-        return None
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname != "api.gbif.org"
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.query
-        or parsed.fragment
-    ):
-        return None
-    match = _GBIF_IMAGE_CACHE_PATH.fullmatch(parsed.path)
-    if match is None:
-        return None
-    size, path_occurrence_id, identifier_md5 = match.groups()
-    if (
-        size != GBIF_IMAGE_SIZE
-        or path_occurrence_id != str(int(occurrence_id))
-        or identifier_md5 != _identifier_md5(identifier)
-    ):
-        return None
-    return raw
-
-
-def _identifier_md5(identifier: str) -> str:
-    return hashlib.md5(identifier.encode("utf-8"), usedforsecurity=False).hexdigest()
-
-
-def _gbif_cache_url(occurrence_id: str, identifier_md5: str) -> str:
-    return (
-        f"https://api.gbif.org/v1/image/cache/{GBIF_IMAGE_SIZE}/occurrence/"
-        f"{occurrence_id}/media/{identifier_md5}"
-    )
-
-
-def _safe_https_provenance_url(value: object) -> str | None:
-    raw = _text(value)
-    if raw is None:
-        return None
-    try:
-        parsed = urlsplit(raw)
-        if parsed.port is not None:
-            return None
-    except ValueError:
-        return None
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname is None
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.fragment
-    ):
-        return None
-    return raw
-
-
-def _is_arizona_gbif_occurrence(row: Mapping[str, Any]) -> bool:
-    countries = {
-        value.casefold()
-        for value in (_text(row.get("countryCode")), _text(row.get("country")))
-        if value is not None
-    }
-    state = (_text(row.get("stateProvince")) or "").casefold()
-    return (
-        bool(countries)
-        and countries <= {"us", "united states", "united states of america"}
-        and state == "arizona"
-    )
-
-
 def _is_arizona_xeno_recording(row: Mapping[str, Any]) -> bool:
     country = (_text(row.get("cnt")) or "").casefold()
     locality = (_text(row.get("loc")) or "").casefold()
@@ -817,7 +567,7 @@ def _text(value: object) -> str | None:
 def _get_json(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
     """Read one bounded JSON object using the fixed HTTPS discovery endpoints."""
 
-    if endpoint not in {GBIF_OCCURRENCE_SEARCH, XENO_CANTO_RECORDINGS}:
+    if endpoint != XENO_CANTO_RECORDINGS:
         raise ValueError("unsupported recommendation-media endpoint")
     url = f"{endpoint}?{urlencode(params)}"
     request = Request(url, headers={"Accept": "application/json", "User-Agent": "databox/1"})

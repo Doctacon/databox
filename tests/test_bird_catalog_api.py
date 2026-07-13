@@ -11,6 +11,7 @@ import duckdb
 import pytest
 from databox.api import _BIRD_PROFILE_COLUMNS, BirdCatalogSummaryResponse, create_app
 from databox.catalog_media import run_catalog_media_batch
+from databox.curated_photo import INATURALIST_V1_TAXON, INATURALIST_V2_TAXA
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
@@ -243,24 +244,38 @@ def test_catalog_get_returns_validated_persisted_media_and_fails_stale_identity_
     )
     connection.close()
 
-    def gbif(_endpoint: str, params: dict[str, object]) -> dict[str, object]:
-        name = str(params["scientificName"])
-        identifier = "https://images.example/bird.jpg"
+    def curated(endpoint: str, params: dict[str, object]) -> dict[str, object]:
+        if endpoint == INATURALIST_V2_TAXA:
+            return {
+                "results": [
+                    {
+                        "id": 201,
+                        "name": str(params["q"]),
+                        "rank": "species",
+                        "is_active": True,
+                    }
+                ]
+            }
+        assert endpoint == INATURALIST_V1_TAXON.format(taxon_id=201)
         return {
             "results": [
                 {
-                    "key": 101,
-                    "species": name,
-                    "acceptedScientificName": name,
-                    "countryCode": "US",
-                    "stateProvince": "Arizona",
-                    "media": [
+                    "id": 201,
+                    "name": "Avis alpha",
+                    "rank": "species",
+                    "is_active": True,
+                    "taxon_photos": [
                         {
-                            "type": "StillImage",
-                            "format": "image/jpeg",
-                            "identifier": identifier,
-                            "creator": "Fixture",
-                            "license": "https://creativecommons.org/licenses/by/4.0/",
+                            "photo": {
+                                "id": 301,
+                                "license_code": "cc-by",
+                                "attribution": "(c) Fixture, some rights reserved (CC BY)",
+                                "url": (
+                                    "https://inaturalist-open-data.s3.amazonaws.com/"
+                                    "photos/301/square.jpeg"
+                                ),
+                                "original_dimensions": {"width": 1600, "height": 1200},
+                            }
                         }
                     ],
                 }
@@ -290,10 +305,34 @@ def test_catalog_get_returns_validated_persisted_media_and_fails_stale_identity_
         str(path),
         mode="apply",
         batch_size=1,
-        gbif_getter=gbif,
+        curated_photo_getter=curated,
+        before_inaturalist_request=lambda: None,
         xeno_getter=xeno,
         xeno_api_key="test",
     )
+    curated_summary = {
+        "species_name": "Avis alpha",
+        "display_url": "https://inaturalist-open-data.s3.amazonaws.com/photos/301/large.jpeg",
+        "source_url": "https://www.inaturalist.org/photos/301",
+        "creator": "Fixture",
+        "license_code": "CC BY 4.0",
+        "license_url": "https://creativecommons.org/licenses/by/4.0/",
+        "original_width": 1600,
+        "original_height": 1200,
+        "selection_reason": "First eligible curated iNaturalist taxon photo",
+    }
+    curated_payload = {
+        "identity": {"taxon_id": 201, "photo_id": 301, "curated_position": 1},
+        "attempted_sources": ["inaturalist"],
+    }
+    connection = duckdb.connect(str(path))
+    connection.execute(
+        """UPDATE birding_catalog_media.results SET source='inaturalist',
+        source_record_id='301', summary_json=?, payload_json=?, caveats_json='[]'
+        WHERE species_code='bird000' AND media_kind='photo'""",
+        [json.dumps(curated_summary), json.dumps(curated_payload)],
+    )
+    connection.close()
     before_get = hashlib.sha256(path.read_bytes()).hexdigest()
 
     def network_forbidden(*_: object, **__: object) -> object:
@@ -305,7 +344,9 @@ def test_catalog_get_returns_validated_persisted_media_and_fails_stale_identity_
     assert hashlib.sha256(path.read_bytes()).hexdigest() == before_get
     body = response.json()
     assert body["photo"]["status"] == body["call"]["status"] == "available"
-    assert body["photo"]["source_record_id"] == "101"
+    assert body["photo"]["source_record_id"] == "301"
+    assert body["photo"]["provider"] == "inaturalist"
+    assert body["photo"]["original_width"] == 1600
     assert body["call"]["source_record_id"] == "201"
 
     connection = duckdb.connect(str(path))
@@ -313,10 +354,10 @@ def test_catalog_get_returns_validated_persisted_media_and_fails_stale_identity_
         """SELECT summary_json FROM birding_catalog_media.results
         WHERE species_code='bird000' AND media_kind='photo'"""
     ).fetchone()[0]
-    for mutation in ("unsupported_format", "missing_selection_reason"):
+    for mutation in ("insufficient_dimensions", "missing_selection_reason"):
         summary = json.loads(original_summary)
-        if mutation == "unsupported_format":
-            summary["format"] = "image/gif"
+        if mutation == "insufficient_dimensions":
+            summary["original_width"] = 700
         else:
             summary.pop("selection_reason")
         connection.execute(
@@ -328,7 +369,7 @@ def test_catalog_get_returns_validated_persisted_media_and_fails_stale_identity_
         malformed_response = _client(path).get("/api/birds/bird000")
         assert malformed_response.status_code == 200
         malformed = malformed_response.json()
-        assert malformed["photo"]["status"] == "unavailable"
+        assert malformed["photo"]["status"] == "unavailable", mutation
         assert malformed["photo"]["display_url"] is None
         connection = duckdb.connect(str(path))
         connection.execute(
@@ -350,7 +391,8 @@ def test_catalog_get_returns_validated_persisted_media_and_fails_stale_identity_
         str(path),
         mode="apply",
         batch_size=1,
-        gbif_getter=gbif,
+        curated_photo_getter=curated,
+        before_inaturalist_request=lambda: None,
         xeno_getter=xeno,
         xeno_api_key="test",
     )

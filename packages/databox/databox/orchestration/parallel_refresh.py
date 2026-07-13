@@ -351,6 +351,7 @@ def execute_parallel_refresh(
         inspection=inspection,
     )
     if run_transform:
+        print("PHASE_START phase=sqlmesh", flush=True)
         transform_runner()
         if evaluation_runner is not None:
             refresh_payload = [

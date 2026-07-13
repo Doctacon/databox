@@ -7,7 +7,8 @@ import type { Evidence, Recommendation, RecommendationCall, RecommendationPhoto,
 const unavailablePhoto: RecommendationPhoto = {
   status: "unavailable", source_record_id: null, species_name: null, display_url: null,
   source_url: null, creator: null, rights_holder: null, publisher: null, format: null,
-  license_text: null, license_url: null, selection_reason: null, caveats: [],
+  license_text: null, license_url: null, selection_reason: null, provider: null,
+  license_code: null, original_width: null, original_height: null, caveats: [],
 };
 const unavailableCall: RecommendationCall = {
   status: "unavailable", source_record_id: null, recording_id: null, species_name: null,
@@ -17,11 +18,12 @@ const unavailableCall: RecommendationCall = {
 };
 const availablePhoto: RecommendationPhoto = {
   status: "available", source_record_id: "5938231789", species_name: "Aphelocoma wollweberi",
-  display_url: "https://api.gbif.org/v1/image/cache/500x500/occurrence/5938231789/media/0123456789abcdef0123456789abcdef",
-  source_url: "https://www.gbif.org/occurrence/5938231789", creator: "Pat Photographer",
-  rights_holder: "Arizona Bird Archive", publisher: "GBIF Fixture Publisher", format: "image/jpeg",
-  license_text: "CC BY 4.0", license_url: "https://creativecommons.org/licenses/by/4.0/",
-  selection_reason: "Fixture", caveats: [],
+  display_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/5938231789/large.jpg",
+  source_url: "https://www.inaturalist.org/photos/5938231789", creator: "Pat Photographer",
+  rights_holder: null, publisher: null, format: null, provider: "inaturalist",
+  license_text: "CC BY 4.0", license_code: "CC BY 4.0",
+  license_url: "https://creativecommons.org/licenses/by/4.0/", original_width: 1600,
+  original_height: 1200, selection_reason: "Fixture", caveats: [],
 };
 const availableCall: RecommendationCall = {
   status: "available", source_record_id: "1", recording_id: "1",
@@ -55,7 +57,7 @@ const detail: TripPlanDetail = {
 };
 detail.evidence.push(structuredClone(detail.weather!));
 detail.evidence.push({
-  evidence_id: "photo-1", recommendation_id: "rec-1", source: "gbif", source_table: null,
+  evidence_id: "photo-1", recommendation_id: "rec-1", source: "inaturalist", source_table: null,
   source_record_id: "5938231789", evidence_type: "recommendation_photo", status: "available", retrieved_at: null,
   summary: {
     species_name: "Aphelocoma wollweberi", display_url: availablePhoto.display_url,
@@ -188,7 +190,8 @@ describe("Rufous", () => {
     expect(photo).toHaveAttribute("src", availablePhoto.display_url);
     const unavailableCard = document.querySelector<HTMLElement>('[data-recommendation-id="rec-2"]');
     expect(unavailableCard).not.toBeNull();
-    expect(within(unavailableCard!).getByText("No licensed photo is available.")).toBeVisible();
+    expect(within(unavailableCard!).getByText("No licensed photo is available for Zone-tailed Hawk.")).toBeVisible();
+    expect(unavailableCard!.querySelector('.recommendation-photo img[src*="rufous"]')).toHaveAttribute("alt", "");
     expect(within(unavailableCard!).getByText("No licensed call example is available.")).toBeVisible();
     const audio = document.querySelector("audio");
     expect(audio).not.toBeNull();
@@ -203,10 +206,8 @@ describe("Rufous", () => {
     expect(screen.getByText("Arizona recording")).toBeVisible();
     expect(screen.getByText("Recordist: Ada Birder")).toBeVisible();
     expect(screen.getByText("Creator: Pat Photographer")).toBeVisible();
-    expect(screen.getByText("Rights holder: Arizona Bird Archive")).toBeVisible();
-    expect(screen.getByText("Publisher: GBIF Fixture Publisher")).toBeVisible();
     expect(screen.getAllByRole("link", { name: "CC BY 4.0" })).toHaveLength(2);
-    expect(screen.getByRole("link", { name: "View photo source on GBIF" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "View photo source on iNaturalist" })).toHaveAttribute(
       "href", availablePhoto.source_url,
     );
     expect(screen.getByText("Weather changes quickly")).toBeVisible();
@@ -446,21 +447,22 @@ describe("Rufous", () => {
     const image = await screen.findByRole("img", {
       name: "Mexican Jay (Aphelocoma wollweberi)",
     });
+    const photoArea = image.closest("figure");
+    expect(photoArea).not.toBeNull();
     fireEvent.error(image);
-    expect(await screen.findByText("Photo could not be loaded.")).toBeVisible();
+    expect(within(photoArea!).getByRole("status")).toHaveTextContent("Photo could not be loaded.");
+    expect(photoArea!.querySelector('img[src*="rufous"]')).toHaveAttribute("alt", "");
     expect(screen.getByText("Creator: Pat Photographer")).toBeVisible();
-    expect(screen.getByText("Rights holder: Arizona Bird Archive")).toBeVisible();
-    expect(screen.getByText("Publisher: GBIF Fixture Publisher")).toBeVisible();
-    expect(screen.getByRole("link", { name: "View photo source on GBIF" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "View photo source on iNaturalist" })).toBeVisible();
   });
 
   it.each([
     ["https://api.gbif.org/v1/occurrence/search", availablePhoto.source_url],
     [`${availablePhoto.display_url}?raw=true`, availablePhoto.source_url],
-    [(availablePhoto.display_url || "").replace("occurrence/5938231789", "occurrence/1"), availablePhoto.source_url],
-    [availablePhoto.display_url, "https://www.gbif.org/occurrence/1"],
+    [(availablePhoto.display_url || "").replace("photos/5938231789", "photos/1"), availablePhoto.source_url],
+    [availablePhoto.display_url, "https://www.inaturalist.org/photos/1"],
     ["javascript:alert(1)", "javascript:alert(2)"],
-  ])("fails unsafe photo display/source URLs closed without hiding attribution", async (displayUrl, sourceUrl) => {
+  ])("rejects unsafe photo display/source URLs before rendering", async (displayUrl, sourceUrl) => {
     const unsafe = structuredClone(detail);
     unsafe.recommendations[0].photo.display_url = displayUrl;
     unsafe.recommendations[0].photo.source_url = sourceUrl;
@@ -468,14 +470,8 @@ describe("Rufous", () => {
       String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(unsafe.plan)] }) : response(unsafe),
     );
     render(<App />);
-    expect(await screen.findByText("Creator: Pat Photographer")).toBeVisible();
-    const card = document.querySelector<HTMLElement>('[data-recommendation-id="rec-1"]');
-    expect(card).not.toBeNull();
-    const photoArea = card!.querySelector<HTMLElement>(".recommendation-photo");
-    expect(photoArea).not.toBeNull();
-    expect(within(photoArea!).queryByRole("img")).not.toBeInTheDocument();
-    expect(within(photoArea!).getByText("No licensed photo is available.")).toBeVisible();
-    expect(within(photoArea!).getByText(/License:/)).toHaveTextContent("CC BY 4.0");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid trip planner response");
+    expect(document.querySelector('[data-recommendation-id="rec-1"]')).toBeNull();
   });
 
   it("attaches media only from each recommendation object and labels global fallback", async () => {
@@ -618,6 +614,7 @@ describe("Rufous", () => {
 
     const cc0 = structuredClone(detail);
     cc0.recommendations[0].photo.license_text = "CC0 1.0";
+    cc0.recommendations[0].photo.license_code = "CC0 1.0";
     cc0.recommendations[0].photo.license_url = "https://creativecommons.org/publicdomain/zero/1.0/";
     cc0.recommendations[0].call.license_text = "CC0 1.0";
     cc0.recommendations[0].call.license_url = "https://creativecommons.org/publicdomain/zero/1.0/";
@@ -642,8 +639,6 @@ describe("Rufous", () => {
     const long = "Attribution".repeat(40);
     const narrow = structuredClone(detail);
     narrow.recommendations[0].photo.creator = long;
-    narrow.recommendations[0].photo.rights_holder = long;
-    narrow.recommendations[0].photo.publisher = long;
     narrow.recommendations[0].call.recordist = long;
     vi.spyOn(globalThis, "fetch").mockImplementation((input) =>
       String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(narrow.plan)] }) : response(narrow),

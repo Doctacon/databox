@@ -203,6 +203,7 @@ summary { min-height: 44px; cursor: pointer; color: var(--teal-950); font-weight
 .encounter-thumbnail { display: grid; gap: 3px; align-content: start; }
 .encounter-thumbnail img { width: 72px; height: 54px; object-fit: cover; border: 2px solid currentColor; background: var(--cream-200); }
 .encounter-thumbnail small { font-size: .58rem; line-height: 1.15; overflow-wrap: anywhere; }
+.encounter-photo-links { display: block; margin: 4px 10px 0; font-size: .68rem; overflow-wrap: anywhere; }
 .encounter-copy { display: grid; gap: 4px; min-width: 0; }
 .encounter-list button[aria-pressed="true"] { color: var(--cream-100); background: var(--teal-800); }
 .encounter-list button span { font-size: .78rem; line-height: 1.4; overflow-wrap: break-word; word-break: normal; }

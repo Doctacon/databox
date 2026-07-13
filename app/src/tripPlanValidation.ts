@@ -1,3 +1,4 @@
+import { curatedPhotoKeys, validateAvailableCuratedPhoto } from "./curatedPhotoValidation";
 import type {
   Evidence,
   LocationSuggestion,
@@ -175,13 +176,16 @@ function plan(value: unknown): TripPlan {
   return { ...summary, ...(row as unknown as TripPlan), caveats: summary.caveats };
 }
 
-const photoKeys = ["status", "source_record_id", "species_name", "display_url", "source_url", "creator", "rights_holder", "publisher", "format", "license_text", "license_url", "selection_reason", "caveats"];
+const photoKeys = [...curatedPhotoKeys];
 function photo(value: unknown): RecommendationPhoto {
   const row = exact(value, photoKeys);
   if (row.status !== "available" && row.status !== "unavailable") invalid();
-  for (const [key, max] of Object.entries({ source_record_id: 128, species_name: 300, display_url: 2048, source_url: 2048, creator: 500, rights_holder: 500, publisher: 500, format: 128, license_text: 500, license_url: 2048, selection_reason: 1000 })) {
+  for (const [key, max] of Object.entries({ source_record_id: 500, species_name: 300, display_url: 2048, source_url: 2048, creator: 500, rights_holder: 500, publisher: 500, format: 128, license_text: 500, license_url: 2048, selection_reason: 1000, license_code: 500 })) {
     if (!string(row[key], max, true, true)) invalid();
   }
+  if (row.provider !== null && row.provider !== "inaturalist") invalid();
+  if (!(row.original_width === null || integer(row.original_width, 1, 100000))
+    || !(row.original_height === null || integer(row.original_height, 1, 100000))) invalid();
   return { ...(row as unknown as RecommendationPhoto), caveats: caveats(row.caveats) };
 }
 const callKeys = ["status", "source_record_id", "recording_id", "species_name", "geographic_scope", "recording_type", "quality", "recordist", "locality", "country", "source_url", "audio_url", "license_text", "license_url", "selection_reason", "caveats"];
@@ -336,7 +340,9 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
   const enrichmentByRecommendation = new Map<string, Evidence>();
   for (const item of evidenceRows.filter((row) => row.evidence_type === "recommendation_photo" || row.evidence_type === "recommendation_call")) {
     if (item.recommendation_id === null
-      || item.source !== (item.evidence_type === "recommendation_photo" ? "gbif" : "xeno_canto")) invalid();
+      || (item.evidence_type === "recommendation_photo"
+        ? item.source !== "inaturalist" && item.source !== "curated_photo"
+        : item.source !== "xeno_canto")) invalid();
     const key = `${item.recommendation_id}|${item.evidence_type}`;
     if (enrichmentByRecommendation.has(key)) invalid();
     enrichmentByRecommendation.set(key, item);
@@ -348,10 +354,8 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
       if (!allNull(item.photo, photoKeys.filter((key) => key !== "status" && key !== "caveats"))) invalid();
     } else if (!linkedPhoto || linkedPhoto.status !== "available"
       || item.photo.source_record_id !== linkedPhoto.source_record_id
-      || item.photo.source_record_id === null || !exactSpecies(item, item.photo.species_name)
-      || item.photo.display_url === null || item.photo.source_url === null
-      || (item.photo.creator === null && item.photo.rights_holder === null)
-      || item.photo.license_text === null || item.photo.license_url === null
+      || linkedPhoto.source !== item.photo.provider
+      || !validateAvailableCuratedPhoto(item.photo as unknown as Row, item.scientific_name)
       || !equivalent(item.photo.caveats, linkedPhoto.caveats)) invalid();
     if (item.call.status === "unavailable") {
       if (!allNull(item.call, callKeys.filter((key) => key !== "status" && key !== "caveats"))) invalid();

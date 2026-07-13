@@ -14,7 +14,7 @@ const plan: TripPlanDetail = {
     recommendation_id: "rec_fixture", species_code: "mexjay", common_name: "Mexican Jay",
     scientific_name: "Aphelocoma wollweberi", recommendation_group: "high_likelihood", rank_order: 1,
     confidence_label: "high", rationale_text: "Recent public evidence", caveats: [],
-    photo: { status: "unavailable", source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: [] },
+    photo: { status: "unavailable", source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, provider: null, license_code: null, original_width: null, original_height: null, caveats: [] },
     call: { status: "unavailable", source_record_id: null, recording_id: null, species_name: null, geographic_scope: null, recording_type: null, quality: null, recordist: null, locality: null, country: null, source_url: null, audio_url: null, license_text: null, license_url: null, selection_reason: null, caveats: [] },
   }],
   evidence: [{ evidence_id: "evidence_fixture", recommendation_id: "rec_fixture", source: "ebird", source_table: "recent_observation_evidence", source_record_id: "S1", evidence_type: "recent_observation", status: "available", retrieved_at: null, summary: { location_name: "Public park" }, payload: { observation_count: 2 }, caveats: [] }],
@@ -40,11 +40,47 @@ const suggestion = {
   source_id: "open_meteo_prescott", place_type: "Arizona place",
 };
 
+function inaturalistPlan(): TripPlanDetail {
+  const value = structuredClone(plan);
+  value.recommendations[0].photo = {
+    status: "available", source_record_id: "42", species_name: "Aphelocoma wollweberi",
+    display_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/42/large.jpg",
+    source_url: "https://www.inaturalist.org/photos/42", creator: "Fixture Photographer",
+    rights_holder: null, publisher: null, format: null, license_text: "CC BY-SA 4.0",
+    license_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+    selection_reason: "First eligible photo in curated iNaturalist shortlist position 1",
+    provider: "inaturalist", license_code: "CC BY-SA 4.0", original_width: 1600,
+    original_height: 1200, caveats: [],
+  };
+  value.evidence.push({
+    evidence_id: "photo_fixture", recommendation_id: "rec_fixture", source: "inaturalist",
+    source_table: null, source_record_id: "42", evidence_type: "recommendation_photo",
+    status: "available", retrieved_at: null, summary: {}, payload: {}, caveats: [],
+  });
+  return value;
+}
+
 describe("Trip Planner runtime response validation", () => {
   it("accepts exact bounded source-labeled location, summary, and nested detail contracts", () => {
     expect(validateLocationSearch({ locations: [suggestion] })).toHaveLength(1);
     expect(validatePlanList({ plans: [summary()] })).toEqual([summary()]);
     expect(validatePlanDetail(plan)).toEqual(plan);
+    expect(validatePlanDetail(inaturalistPlan()).recommendations[0].photo.provider).toBe("inaturalist");
+  });
+
+  it.each([
+    ["legacy provider", (value: TripPlanDetail) => { (value.recommendations[0].photo.provider as unknown) = "wikimedia_commons"; }],
+    ["wrong display identity", (value: TripPlanDetail) => { value.recommendations[0].photo.display_url = value.recommendations[0].photo.display_url!.replace("/42/", "/41/"); }],
+    ["original variant", (value: TripPlanDetail) => { value.recommendations[0].photo.display_url = value.recommendations[0].photo.display_url!.replace("/large.", "/original."); }],
+    ["wrong source identity", (value: TripPlanDetail) => { value.recommendations[0].photo.source_url = "https://www.inaturalist.org/photos/41"; }],
+    ["explicit port", (value: TripPlanDetail) => { value.recommendations[0].photo.source_url = "https://www.inaturalist.org:443/photos/42"; }],
+    ["unsupported license", (value: TripPlanDetail) => { value.recommendations[0].photo.license_text = value.recommendations[0].photo.license_code = "CC BY-ND 4.0"; value.recommendations[0].photo.license_url = "https://creativecommons.org/licenses/by-nd/4.0/"; }],
+    ["noncanonical license", (value: TripPlanDetail) => { value.recommendations[0].photo.license_url = "https://www.creativecommons.org/licenses/by-sa/4.0/"; }],
+    ["extra photo field", (value: TripPlanDetail) => { (value.recommendations[0].photo as unknown as Record<string, unknown>).raw = "hidden"; }],
+  ])("rejects unsafe planner iNaturalist %s before rendering", (_name, mutate) => {
+    const value = inaturalistPlan();
+    mutate(value);
+    expect(() => validatePlanDetail(value)).toThrow("Invalid trip planner response");
   });
 
   it.each([
@@ -136,7 +172,7 @@ describe("Trip Planner runtime response validation", () => {
 
   it("rejects duplicate/orphan recommendation enrichment and available nested media without evidence", () => {
     const photoEvidence = {
-      evidence_id: "photo_fixture", recommendation_id: "rec_fixture", source: "gbif", source_table: null,
+      evidence_id: "photo_fixture", recommendation_id: "rec_fixture", source: "curated_photo", source_table: null,
       source_record_id: "42", evidence_type: "recommendation_photo", status: "unavailable", retrieved_at: null,
       summary: {}, payload: {}, caveats: ["unavailable"],
     };
@@ -151,8 +187,9 @@ describe("Trip Planner runtime response validation", () => {
     const availablePhoto = structuredClone(plan);
     availablePhoto.recommendations[0].photo = {
       status: "available", source_record_id: "42", species_name: "Avis localis", display_url: "https://example.invalid/photo",
-      source_url: "https://example.invalid/source", creator: "Creator", rights_holder: null, publisher: null, format: "image/jpeg",
-      license_text: "CC BY 4.0", license_url: "https://creativecommons.org/licenses/by/4.0/", selection_reason: null, caveats: [],
+      source_url: "https://example.invalid/source", creator: "Creator", rights_holder: null, publisher: null, format: null,
+      license_text: "CC BY 4.0", license_url: "https://creativecommons.org/licenses/by/4.0/", selection_reason: null,
+      provider: "inaturalist", license_code: "CC BY 4.0", original_width: 1600, original_height: 1200, caveats: [],
     };
     expect(() => validatePlanDetail(availablePhoto)).toThrow("Invalid trip planner response");
 

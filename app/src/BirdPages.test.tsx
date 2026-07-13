@@ -16,7 +16,7 @@ function rawResponse(body: unknown) {
   return Promise.resolve({ ok: true, status: 200, json: async () => body } as Response);
 }
 
-const unavailablePhoto = { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
+const unavailablePhoto = { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, provider: null, license_code: null, original_width: null, original_height: null, caveats: ["Not enriched"], lookup_at: null };
 const unavailableCall = { status: "unavailable" as const, source_record_id: null, recording_id: null, species_name: null, geographic_scope: null, recording_type: null, quality: null, recordist: null, locality: null, country: null, source_url: null, audio_url: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
 
 function bird(index: number): BirdCatalogSummary {
@@ -43,11 +43,14 @@ function withMedia(summary: BirdCatalogSummary, key: number): BirdCatalogSummary
   const value = structuredClone(summary);
   value.photo = {
     status: "available", source_record_id: String(key), species_name: value.scientific_name,
-    display_url: `https://api.gbif.org/v1/image/cache/500x500/occurrence/${key}/media/0123456789abcdef0123456789abcdef`,
-    source_url: `https://www.gbif.org/occurrence/${key}`, creator: `Photographer ${key}`,
-    rights_holder: null, publisher: "Fixture Archive", format: "image/jpeg",
-    license_text: "CC BY 4.0", license_url: "https://creativecommons.org/licenses/by/4.0/",
-    selection_reason: "Exact Arizona catalog photo", caveats: [], lookup_at: "2026-07-11T08:00:00Z",
+    display_url: `https://inaturalist-open-data.s3.amazonaws.com/photos/${key}/large.jpg`,
+    source_url: `https://www.inaturalist.org/photos/${key}`, creator: `Photographer ${key}`,
+    rights_holder: null, publisher: null, format: null, provider: "inaturalist",
+    license_text: "CC BY 4.0", license_code: "CC BY 4.0",
+    license_url: "https://creativecommons.org/licenses/by/4.0/",
+    original_width: 1600, original_height: 1200,
+    selection_reason: "First eligible curated iNaturalist taxon photo", caveats: [],
+    lookup_at: "2026-07-11T08:00:00Z",
   };
   value.call = {
     status: "available", source_record_id: String(key + 1000), recording_id: String(key + 1000),
@@ -136,6 +139,7 @@ beforeEach(() => window.history.replaceState(null, "", "/"));
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/");
 });
 
@@ -160,6 +164,26 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(screen.getByLabelText("Search birds")).toHaveValue("");
     expect(screen.getByRole("heading", { name: "Arizona Bird 000", level: 2 })).toBeVisible();
   });
+  it("keeps wheel keyboard selection and active descendant synchronized", async () => {
+    const birds = Array.from({ length: 706 }, (_, index) => bird(index));
+    window.history.replaceState(null, "", "/birds");
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
+    render(<App />);
+    const wheel = await screen.findByRole("listbox", { name: "Arizona bird catalog" });
+    async function expectActive(index: number) {
+      const code = `bird${index.toString().padStart(3, "0")}`;
+      await waitFor(() => expect(wheel).toHaveAttribute("aria-activedescendant", `wheel-${code}`));
+      expect(screen.getByRole("option", { name: `Arizona Bird ${index.toString().padStart(3, "0")}` })).toHaveAttribute("aria-selected", "true");
+    }
+    await expectActive(0);
+    fireEvent.keyDown(wheel, { key: "ArrowDown" }); await expectActive(1);
+    fireEvent.keyDown(wheel, { key: "ArrowUp" }); await expectActive(0);
+    fireEvent.keyDown(wheel, { key: "PageDown" }); await expectActive(5);
+    fireEvent.keyDown(wheel, { key: "PageUp" }); await expectActive(0);
+    fireEvent.keyDown(wheel, { key: "End" }); await expectActive(705);
+    fireEvent.keyDown(wheel, { key: "Home" }); await expectActive(0);
+  });
+
   it("sorts deterministically and intersects family, habitat, category, weight, and search filters", async () => {
     const birds = Array.from({ length: 706 }, (_, index) => bird(index));
     const names = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
@@ -229,6 +253,49 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(screen.getByLabelText("Habitat")).toHaveValue("all");
     expect(screen.getByLabelText("Weight")).toHaveValue("all");
     expect(headings()[0]).toBe("Alpha");
+  });
+
+  it("centers wheel selection without animation when reduced motion is active", async () => {
+    window.history.replaceState(null, "", "/birds");
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    const birds = Array.from({ length: 706 }, (_, index) => bird(index));
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
+    render(<App />);
+    const option = await screen.findByRole("option", { name: "Arizona Bird 001" });
+    const scrollIntoView = vi.fn();
+    option.scrollIntoView = scrollIntoView;
+    fireEvent.click(option);
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
+  });
+
+  it("recenters the first result after search, sort, filter, and reset", async () => {
+    window.history.replaceState(null, "", "/birds");
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    const original = HTMLElement.prototype.scrollIntoView;
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView });
+    try {
+      const birds = Array.from({ length: 706 }, (_, index) => bird(index));
+      vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
+      render(<App />);
+      await screen.findByText("706 matching taxa · 706 total");
+      scrollIntoView.mockClear();
+
+      await userEvent.selectOptions(screen.getByLabelText("Sort"), "name-desc");
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
+      scrollIntoView.mockClear();
+      await userEvent.selectOptions(screen.getByLabelText("Category"), "hybrid");
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
+      scrollIntoView.mockClear();
+      await userEvent.type(screen.getByLabelText("Search birds"), "bird705");
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
+      scrollIntoView.mockClear();
+      await userEvent.click(screen.getByRole("button", { name: "Reset catalog" }));
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
+      expect(screen.getByRole("listbox", { name: "Arizona bird catalog" })).toHaveAttribute("aria-activedescendant", "wheel-bird000");
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: original });
+    }
   });
 
   it("renders media only for the active wheel preview", async () => {
@@ -310,8 +377,8 @@ describe("Arizona bird catalog and modeled profiles", () => {
 
     expect(await screen.findByRole("heading", { name: "Photo and call" })).toBeVisible();
     expect(document.querySelector(".catalog-photo-profile img")).toHaveAttribute("loading", "lazy");
-    expect(screen.getByText("Publisher: Fixture Archive")).toBeVisible();
-    expect(screen.getByText("Exact Arizona catalog photo")).toBeVisible();
+    expect(screen.getByRole("link", { name: "iNaturalist source" })).toBeVisible();
+    expect(screen.getByText("First eligible curated iNaturalist taxon photo")).toBeVisible();
     expect(screen.getByText("Call: Recordist 102 · Arizona")).toBeVisible();
     expect(screen.getByText("Type: call · quality A")).toBeVisible();
     expect(screen.getByText("Location: Fixture Park, United States")).toBeVisible();
@@ -512,6 +579,33 @@ describe("Arizona bird catalog and modeled profiles", () => {
     await expect(listBirds()).rejects.toThrow();
   });
 
+  it("accepts mixed typed-unavailable and curated iNaturalist catalog photos", async () => {
+    const catalog = Array.from({ length: 706 }, (_, index) => bird(index));
+    catalog[0].photo = { ...catalog[0].photo, species_name: catalog[0].scientific_name };
+    catalog[1].photo = {
+      ...catalog[1].photo,
+      status: "available",
+      source_record_id: "42",
+      species_name: catalog[1].scientific_name,
+      display_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/42/large.jpg",
+      source_url: "https://www.inaturalist.org/photos/42",
+      creator: "Fixture Photographer",
+      license_text: "CC BY 4.0",
+      license_url: "https://creativecommons.org/licenses/by/4.0/",
+      selection_reason: "First eligible photo in curated iNaturalist shortlist position 1",
+      provider: "inaturalist",
+      license_code: "CC BY 4.0",
+      original_width: 1600,
+      original_height: 1200,
+      caveats: [],
+      lookup_at: "2026-07-13T08:00:00Z",
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => response({ birds: catalog }));
+    const validated = await listBirds();
+    expect(validated[0].photo.status).toBe("unavailable");
+    expect(validated[1].photo.provider).toBe("inaturalist");
+  });
+
   it("accepts exact backend date, leap-day, UTC, offset, fractional, and naive timestamp forms", async () => {
     const valid = profile();
     valid.latest_public_observation_at = "2024-02-29T08:00:00.123456Z";
@@ -531,10 +625,12 @@ describe("Arizona bird catalog and modeled profiles", () => {
     const available = bird(0);
     available.photo = {
       status: "available", source_record_id: "101", species_name: available.scientific_name,
-      display_url: "https://api.gbif.org/v1/image/cache/500x500/occurrence/101/media/0123456789abcdef0123456789abcdef",
-      source_url: "https://www.gbif.org/occurrence/101", creator: "Fixture", rights_holder: null,
-      publisher: "Archive", format: "image/jpeg", license_text: "CC BY 4.0",
+      display_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/101/large.jpg",
+      source_url: "https://www.inaturalist.org/photos/101", creator: "Fixture",
+      rights_holder: null, publisher: null, format: null, provider: "inaturalist",
+      license_text: "CC BY 4.0", license_code: "CC BY 4.0",
       license_url: "https://creativecommons.org/licenses/by/4.0/", selection_reason: "Exact",
+      original_width: 1600, original_height: 1200,
       caveats: [], lookup_at: "2026-07-11T08:00:00Z",
     };
     available.call = {
@@ -551,6 +647,11 @@ describe("Arizona bird catalog and modeled profiles", () => {
     for (const mutate of [
       (value: BirdCatalogSummary) => { value.photo.species_name = "Wrong species"; },
       (value: BirdCatalogSummary) => { value.photo.display_url = "https://evil.example/photo"; },
+      (value: BirdCatalogSummary) => { value.photo.display_url = `${value.photo.display_url}?raw=true`; },
+      (value: BirdCatalogSummary) => { value.photo.source_record_id = "999"; },
+      (value: BirdCatalogSummary) => { (value.photo.provider as unknown) = "wikimedia_commons"; },
+      (value: BirdCatalogSummary) => { value.photo.original_width = 700; },
+      (value: BirdCatalogSummary) => { value.photo.license_code = "CC0 1.0"; },
       (value: BirdCatalogSummary) => { value.photo.license_text = "All rights reserved"; },
       (value: BirdCatalogSummary) => { value.call.audio_url = "https://evil.example/audio"; },
       (value: BirdCatalogSummary) => { (value.photo as unknown as { publisher: unknown }).publisher = 42; },

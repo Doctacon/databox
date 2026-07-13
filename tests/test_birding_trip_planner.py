@@ -100,6 +100,46 @@ def _empty_media_response(endpoint: str, params: Mapping[str, object]) -> dict[s
     return {"results": []} if "gbif" in endpoint else {"recordings": []}
 
 
+def _no_media_throttle() -> None:
+    return None
+
+
+_CURATED_SPECIES = {"value": "Aphelocoma wollweberi"}
+
+
+def _curated_photo_response(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+    if endpoint == "https://api.inaturalist.org/v2/taxa":
+        species = str(params["q"])
+        _CURATED_SPECIES["value"] = species
+        return {"results": [{"id": 10, "name": species, "rank": "species", "is_active": True}]}
+    if endpoint == "https://api.inaturalist.org/v1/taxa/10":
+        # All fixture recommendations use a valid binomial; the v1 identity repeats
+        # the v2 query captured by these deterministic tests.
+        species = _CURATED_SPECIES["value"]
+        return {
+            "results": [
+                {
+                    "id": 10,
+                    "name": species,
+                    "rank": "species",
+                    "is_active": True,
+                    "taxon_photos": [
+                        {
+                            "photo": {
+                                "id": 20,
+                                "license_code": "cc-by",
+                                "attribution": "Fixture Photographer",
+                                "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/20/medium.jpg",
+                                "original_dimensions": {"width": 1600, "height": 1200},
+                            }
+                        }
+                    ],
+                }
+            ]
+        }
+    raise AssertionError(f"unexpected curated endpoint {endpoint}")
+
+
 def _seed_planner_views(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("CREATE SCHEMA IF NOT EXISTS birding_agent")
     con.execute(
@@ -335,7 +375,8 @@ def test_ranked_gbif_recommendations_keep_conformed_names_and_do_not_duplicate()
         duckdb.connect(":memory:"),
         model_client=FakeTripPlanModelClient(),
         weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
+        media_curated_photo_getter=_empty_media_response,
+        media_before_inaturalist_request=_no_media_throttle,
         media_xeno_getter=_empty_media_response,
         xeno_api_key="test-key",
     )
@@ -412,7 +453,8 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
         ),
         trip_plan_id="trip-thumb-butte-test",
         weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
+        media_curated_photo_getter=_empty_media_response,
+        media_before_inaturalist_request=_no_media_throttle,
         media_xeno_getter=_empty_media_response,
         xeno_api_key="test-key",
         model_client=model_client,
@@ -550,7 +592,8 @@ def test_ineligible_ebird_rows_never_rank_reach_model_persistence_or_api(
         ),
         trip_plan_id="privacy-filtered-plan",
         weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
+        media_curated_photo_getter=_empty_media_response,
+        media_before_inaturalist_request=_no_media_throttle,
         media_xeno_getter=_empty_media_response,
         xeno_api_key="test-key",
         model_client=model_client,
@@ -593,7 +636,8 @@ def test_ineligible_ebird_rows_never_rank_reach_model_persistence_or_api(
         ),
         trip_plan_id="privacy-empty-plan",
         weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
+        media_curated_photo_getter=_empty_media_response,
+        media_before_inaturalist_request=_no_media_throttle,
         media_xeno_getter=_empty_media_response,
         xeno_api_key="test-key",
         model_client=empty_model,
@@ -612,7 +656,15 @@ def test_ineligible_ebird_rows_never_rank_reach_model_persistence_or_api(
     )
 
 
-def test_request_time_media_persists_exact_cardinality_without_changing_model_grounding() -> None:
+def test_request_time_media_persists_exact_cardinality_without_changing_model_grounding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "databox.curated_photo._get_json",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("deterministic planner test attempted live curated-photo network")
+        ),
+    )
     con = duckdb.connect(":memory:")
     _seed_planner_views(con)
     model = FakeTripPlanModelClient()
@@ -680,7 +732,8 @@ def test_request_time_media_persists_exact_cardinality_without_changing_model_gr
             request=request,
             trip_plan_id="trip-media-cardinality",
             weather_getter=_weather_response,
-            media_gbif_getter=gbif,
+            media_curated_photo_getter=_curated_photo_response,
+            media_before_inaturalist_request=_no_media_throttle,
             media_xeno_getter=xeno,
             xeno_api_key="secret-fixture-key",
             model_client=model,
@@ -760,7 +813,8 @@ def test_async_adk_entry_drains_real_runner_without_cleanup_logs(
             ),
             trip_plan_id="trip-async-test",
             weather_getter=_weather_response,
-            media_gbif_getter=_empty_media_response,
+            media_curated_photo_getter=_empty_media_response,
+            media_before_inaturalist_request=_no_media_throttle,
             media_xeno_getter=_empty_media_response,
             xeno_api_key="test-key",
             model_client=FakeTripPlanModelClient(),
@@ -799,7 +853,8 @@ def test_persistence_failure_never_returns_successful_plan(monkeypatch: Any) -> 
         con,
         model_client=FakeTripPlanModelClient(),
         weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
+        media_curated_photo_getter=_empty_media_response,
+        media_before_inaturalist_request=_no_media_throttle,
         media_xeno_getter=_empty_media_response,
         xeno_api_key="test-key",
     )
@@ -837,7 +892,8 @@ def test_failed_model_call_persists_safe_trace_but_not_completed_plan() -> None:
         request=request,
         trip_plan_id="trip-model-failed",
         weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
+        media_curated_photo_getter=_empty_media_response,
+        media_before_inaturalist_request=_no_media_throttle,
         media_xeno_getter=_empty_media_response,
         xeno_api_key="test-key",
         model_client=FakeTripPlanModelClient(),
@@ -849,7 +905,8 @@ def test_failed_model_call_persists_safe_trace_but_not_completed_plan() -> None:
             request=request,
             trip_plan_id="trip-model-failed",
             weather_getter=_weather_response,
-            media_gbif_getter=_empty_media_response,
+            media_curated_photo_getter=_empty_media_response,
+            media_before_inaturalist_request=_no_media_throttle,
             media_xeno_getter=_empty_media_response,
             xeno_api_key="test-key",
             model_client=FailingTripPlanModelClient(),
@@ -888,7 +945,8 @@ def test_adk_runtime_persists_source_unavailable_caveats_when_evidence_views_are
         ),
         trip_plan_id="trip-sparse-test",
         weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
+        media_curated_photo_getter=_empty_media_response,
+        media_before_inaturalist_request=_no_media_throttle,
         media_xeno_getter=_empty_media_response,
         xeno_api_key="test-key",
         model_client=FakeTripPlanModelClient(),
@@ -926,9 +984,6 @@ def test_adk_runtime_persists_source_unavailable_caveats_when_evidence_views_are
 def test_cli_generates_sample_plan_against_duckdb_file(
     tmp_path: Path, capsys: Any, monkeypatch: Any
 ) -> None:
-    from databox.agent_tools import recommendation_media
-
-    monkeypatch.setattr(recommendation_media, "_get_json", _empty_media_response)
     monkeypatch.delenv("XENO_CANTO_API_KEY", raising=False)
     db_path = tmp_path / "planner.duckdb"
     con = duckdb.connect(str(db_path))
@@ -950,6 +1005,9 @@ def test_cli_generates_sample_plan_against_duckdb_file(
             "--mock-open-meteo",
         ],
         model_client=FakeTripPlanModelClient(),
+        media_curated_photo_getter=_empty_media_response,
+        media_before_inaturalist_request=_no_media_throttle,
+        media_xeno_getter=_empty_media_response,
     )
 
     assert status == 0

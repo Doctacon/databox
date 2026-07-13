@@ -1,0 +1,2 @@
+{"available_call_count": 600, "available_photo_count": 622, "catalog_count": 706, "complete_taxa_count": 706, "lookup_count": 624, "mode": "photo_refresh", "processed_taxa_count": 706, "remaining_taxa_count": 0, "request_count": 1248, "run_id": "catalog_photo_617cb94de24c470b89c8b7ff1e8ca447", "target_taxa_count": 706, "unavailable_call_count": 106, "unavailable_photo_count": 84}
+guard_target_count=82 guard_provider_request_count=0

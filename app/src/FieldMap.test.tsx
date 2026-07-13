@@ -72,9 +72,24 @@ function snapshot(): MapSnapshot {
     photos: ["alpha2", "alpha10", "beta", "fallback"].map((species_code) => ({
       species_code,
       scientific_name: species_code === "fallback" ? "Gamma scientific" : "Avis fixture",
-      photo: { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: [], lookup_at: null },
+      photo: { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, provider: null, license_code: null, original_width: null, original_height: null, caveats: [], lookup_at: null },
     })),
   };
+}
+
+function snapshotWithPhoto(): MapSnapshot {
+  const value = snapshot();
+  value.photos[0].photo = {
+    status: "available", source_record_id: "101", species_name: "Avis fixture",
+    display_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/101/large.jpg",
+    source_url: "https://www.inaturalist.org/photos/101", creator: "Fixture Photographer",
+    rights_holder: null, publisher: null, format: null, provider: "inaturalist",
+    license_text: "CC BY 4.0", license_code: "CC BY 4.0",
+    license_url: "https://creativecommons.org/licenses/by/4.0/",
+    original_width: 1600, original_height: 1200,
+    selection_reason: "Fixture", caveats: [], lookup_at: "2026-07-11T08:00:00Z",
+  };
+  return value;
 }
 
 beforeEach(() => {
@@ -138,7 +153,7 @@ describe("Rufous Field Map", () => {
     expect(styles).toContain("@media (prefers-contrast: more), (forced-colors: active)");
   });
 
-  it("previews a focused encounter without panning or selecting it", async () => {
+  it("keeps hover and focus previews independent without panning or selecting", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => String(input) === "/api/map-snapshot" ? response(snapshot()) : response({}));
     render(<App />);
     await screen.findByRole("heading", { name: "Accessible encounter list" });
@@ -146,11 +161,41 @@ describe("Rufous Field Map", () => {
     act(() => map.handlers.get("load")?.({}));
     const row = screen.getByRole("button", { name: /Beta/ });
     fireEvent.focus(row);
+    fireEvent.mouseEnter(row);
+    fireEvent.mouseLeave(row);
     await waitFor(() => expect(map.setData.mock.calls.at(-1)?.[0].features[0].properties.source_observation_id).toBe("S3"));
     expect(map.easeTo).not.toHaveBeenCalled();
     expect(row).toHaveAttribute("aria-pressed", "false");
     fireEvent.blur(row);
     await waitFor(() => expect(map.setData.mock.calls.at(-1)?.[0].features).toHaveLength(0));
+
+    fireEvent.mouseEnter(row);
+    fireEvent.focus(row);
+    fireEvent.blur(row);
+    await waitFor(() => expect(map.setData.mock.calls.at(-1)?.[0].features[0].properties.source_observation_id).toBe("S3"));
+    fireEvent.mouseLeave(row);
+    await waitFor(() => expect(map.setData.mock.calls.at(-1)?.[0].features).toHaveLength(0));
+  });
+
+  it("preserves photo source, license, and attribution after thumbnail load failure", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response(snapshotWithPhoto()));
+    render(<App />);
+    const image = await screen.findByRole("img", { name: "Alpha 2" });
+    expect(screen.getByText("Photo: Fixture Photographer · CC BY 4.0 · iNaturalist")).toBeVisible();
+    expect(screen.getByRole("link", { name: "iNaturalist photo source" })).toHaveAttribute(
+      "href", "https://www.inaturalist.org/photos/101",
+    );
+    expect(screen.getByRole("link", { name: "CC BY 4.0 license" })).toHaveAttribute(
+      "href", "https://creativecommons.org/licenses/by/4.0/",
+    );
+    fireEvent.error(image);
+    const encounter = image.closest("li");
+    expect(encounter).not.toBeNull();
+    expect(within(encounter!).getByRole("status")).toHaveTextContent(
+      "Photo unavailable · Photo: Fixture Photographer · CC BY 4.0 · iNaturalist",
+    );
+    expect(screen.getByRole("link", { name: "iNaturalist photo source" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "CC BY 4.0 license" })).toBeVisible();
   });
 
   it("applies the latest filtered source only after load and keeps data, markers, count, and extent aligned", async () => {
@@ -229,6 +274,7 @@ describe("Rufous Field Map", () => {
     const map = mapState.maps[0];
     const layers = (map.options.style as { layers: Array<{ id: string }> }).layers.map((layer) => layer.id);
     expect(layers.indexOf("selected-encounter")).toBeGreaterThan(layers.indexOf("encounter-points"));
+    expect(layers.indexOf("selected-encounter")).toBeGreaterThan(layers.indexOf("preview-encounter"));
     act(() => map.handlers.get("load")?.({}));
     expect(map.setData).toHaveBeenCalledWith(expect.objectContaining({ features: expect.any(Array) }));
     expect(map.setData.mock.lastCall?.[0].features).toHaveLength(4);

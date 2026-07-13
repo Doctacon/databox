@@ -28,6 +28,10 @@ function timestampValue(value: string | null): number | null {
   return Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(value) ? value : `${value}Z`);
 }
 
+function reducedMotion(): boolean {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+
 function weightMatches(mass: number | null, filter: WeightFilter): boolean {
   if (filter === "all") return true;
   if (filter === "unavailable") return mass === null;
@@ -96,6 +100,10 @@ function RufousSilhouette({ label }: { label: string }) {
   </div>;
 }
 
+function photoProviderLabel(photo: CatalogPhoto): string {
+  return "iNaturalist";
+}
+
 function CatalogPhotoMedia({ photo, label, compact = false }: {
   photo: CatalogPhoto; label: string; compact?: boolean;
 }) {
@@ -114,7 +122,7 @@ function CatalogPhotoMedia({ photo, label, compact = false }: {
       {available ? <>
         <span>Photo: {attribution}</span>
         {!compact && photo.publisher && <span>Publisher: {photo.publisher}</span>}
-        {photo.source_url && <a href={photo.source_url} target="_blank" rel="noreferrer">GBIF source</a>}
+        {photo.source_url && <a href={photo.source_url} target="_blank" rel="noreferrer">{photoProviderLabel(photo)} source</a>}
         {photo.license_url && <a href={photo.license_url} target="_blank" rel="noreferrer">{photo.license_text}</a>}
         {!compact && photo.selection_reason && <span>{photo.selection_reason}</span>}
         {!compact && <span>Looked up: {formatDate(photo.lookup_at)}</span>}
@@ -219,7 +227,6 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
     return () => { current = false; };
   }, []);
 
-  useEffect(() => setActiveIndex(0), [query, sort, category, family, habitat, weight]);
   useEffect(() => stopAllCatalogAudio(), [query, sort, category, family, habitat, weight, activeIndex]);
   useEffect(() => () => stopAllCatalogAudio(), []);
 
@@ -272,12 +279,22 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
   const currentIndex = Math.min(activeIndex, Math.max(0, filtered.length - 1));
   const activeBird = filtered[currentIndex] ?? null;
 
-  function center(index: number, behavior: ScrollBehavior = "smooth") {
+  useEffect(() => {
+    setActiveIndex(0);
+    requestAnimationFrame(() => {
+      const option = wheelRef.current?.querySelector<HTMLElement>('[data-wheel-index="0"]');
+      if (typeof option?.scrollIntoView === "function") {
+        option.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
+      }
+    });
+  }, [birds, query, sort, category, family, habitat, weight]);
+
+  function center(index: number) {
     const next = Math.max(0, Math.min(filtered.length - 1, index));
     setActiveIndex(next);
     requestAnimationFrame(() => {
       const option = wheelRef.current?.querySelector<HTMLElement>(`[data-wheel-index="${next}"]`);
-      if (typeof option?.scrollIntoView === "function") option.scrollIntoView({ block: "center", behavior });
+      if (typeof option?.scrollIntoView === "function") option.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
     });
   }
 

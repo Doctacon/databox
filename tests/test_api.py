@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import socket
 from collections.abc import Mapping
@@ -138,6 +137,42 @@ def _empty_media(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
     return {"results": []} if "gbif" in endpoint else {"recordings": []}
 
 
+_CURATED_SPECIES = {"value": "Aphelocoma wollweberi"}
+
+
+def _curated_media(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+    if endpoint == "https://api.inaturalist.org/v2/taxa":
+        species = str(params["q"])
+        _CURATED_SPECIES["value"] = species
+        return {"results": [{"id": 10, "name": species, "rank": "species", "is_active": True}]}
+    if endpoint == "https://api.inaturalist.org/v1/taxa/10":
+        # All fixture recommendations use a valid binomial; the v1 identity repeats
+        # the v2 query captured by these deterministic tests.
+        species = _CURATED_SPECIES["value"]
+        return {
+            "results": [
+                {
+                    "id": 10,
+                    "name": species,
+                    "rank": "species",
+                    "is_active": True,
+                    "taxon_photos": [
+                        {
+                            "photo": {
+                                "id": 20,
+                                "license_code": "cc-by",
+                                "attribution": "Fixture Photographer",
+                                "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/20/medium.jpg",
+                                "original_dimensions": {"width": 1600, "height": 1200},
+                            }
+                        }
+                    ],
+                }
+            ]
+        }
+    raise AssertionError(f"unexpected curated endpoint {endpoint}")
+
+
 def _client(
     tmp_path: Path,
     model: object | None = None,
@@ -150,7 +185,8 @@ def _client(
             model_client=model or FakeModelClient(),  # type: ignore[arg-type]
             weather_getter=weather_getter,  # type: ignore[arg-type]
             geocoding_getter=geocoding_getter,  # type: ignore[arg-type]
-            media_gbif_getter=_empty_media,
+            media_curated_photo_getter=_empty_media,
+            media_before_inaturalist_request=(lambda: None),
             media_xeno_getter=_empty_media,
             xeno_api_key="test-key",
             static_dir=tmp_path / "missing-dist",
@@ -205,6 +241,10 @@ PHOTO_KEYS = {
     "license_text",
     "license_url",
     "selection_reason",
+    "provider",
+    "license_code",
+    "original_width",
+    "original_height",
     "caveats",
 }
 CALL_KEYS = {
@@ -505,7 +545,8 @@ def test_source_scientific_name_survives_lookup_persistence_and_api_reload(
             model_client=FakeModelClient(),
             weather_getter=_weather,
             geocoding_getter=_geocoding,
-            media_gbif_getter=gbif_media,
+            media_curated_photo_getter=_curated_media,
+            media_before_inaturalist_request=(lambda: None),
             media_xeno_getter=xeno_media,
             xeno_api_key="test-key",
             static_dir=tmp_path / "missing-dist",
@@ -529,32 +570,28 @@ def test_source_scientific_name_survives_lookup_persistence_and_api_reload(
     assert recommendation["scientific_name"] == "Sialia mexicana"
     assert recommendation["photo"] == {
         "status": "available",
-        "source_record_id": "5938231789",
+        "source_record_id": "20",
         "species_name": "Sialia mexicana",
-        "display_url": (
-            "https://api.gbif.org/v1/image/cache/500x500/occurrence/5938231789/media/"
-            + hashlib.md5(
-                b"https://images.inaturalist.org/bluebird.jpg", usedforsecurity=False
-            ).hexdigest()
-        ),
-        "source_url": "https://www.gbif.org/occurrence/5938231789",
+        "display_url": "https://inaturalist-open-data.s3.amazonaws.com/photos/20/large.jpg",
+        "source_url": "https://www.inaturalist.org/photos/20",
         "creator": "Fixture Photographer",
         "rights_holder": None,
-        "publisher": "Fixture publisher",
-        "format": "image/jpeg",
+        "publisher": None,
+        "format": None,
         "license_text": "CC BY 4.0",
         "license_url": "https://creativecommons.org/licenses/by/4.0/",
-        "selection_reason": (
-            "Exact Arizona species image with complete attribution, supported CC license, "
-            "and GBIF cache URL derived from occurrence key plus identifier MD5"
-        ),
+        "selection_reason": "First eligible photo in curated iNaturalist shortlist position 1",
+        "provider": "inaturalist",
+        "license_code": "CC BY 4.0",
+        "original_width": 1600,
+        "original_height": 1200,
         "caveats": [],
     }
     assert recommendation["call"]["status"] == "available"
     assert recommendation["call"]["recording_id"] == "314"
     assert recommendation["call"]["geographic_scope"] == "Arizona"
     assert recommendation["call"]["audio_url"] == "https://xeno-canto.org/314/download"
-    assert media_calls == 2
+    assert media_calls == 1
     gbif_evidence = next(
         row
         for row in created["evidence"]
@@ -577,7 +614,7 @@ def test_source_scientific_name_survives_lookup_persistence_and_api_reload(
     assert loaded.status_code == 200
     assert loaded.json()["recommendations"][0]["photo"] == recommendation["photo"]
     assert loaded.json()["recommendations"][0]["call"] == recommendation["call"]
-    assert media_calls == 2
+    assert media_calls == 1
     loaded_gbif = next(
         row
         for row in loaded.json()["evidence"]
@@ -590,7 +627,12 @@ def test_source_scientific_name_survives_lookup_persistence_and_api_reload(
         row for row in created["evidence"] if row["evidence_type"] == "recommendation_photo"
     )
     assert "original_media_identifier" not in persisted_photo["payload"]
-    assert "original_media_identifier_md5" in persisted_photo["payload"]
+    assert "original_media_identifier_md5" not in persisted_photo["payload"]
+    assert persisted_photo["payload"]["identity"] == {
+        "taxon_id": 10,
+        "photo_id": 20,
+        "curated_position": 1,
+    }
     tampered_summary = dict(persisted_photo["summary"])
     tampered_summary["display_url"] = "https://api.gbif.org/v1/occurrence/search"
     connection = duckdb.connect(str(database_path))

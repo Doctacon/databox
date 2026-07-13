@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -11,11 +10,11 @@ from urllib.error import HTTPError, URLError
 import pytest
 from databox.agent_tools import recommendation_media
 from databox.agent_tools.recommendation_media import (
-    GBIF_OCCURRENCE_SEARCH,
     MAX_CANDIDATES,
     XENO_CANTO_RECORDINGS,
     enrich_recommendation_media,
 )
+from databox.curated_photo import CuratedPhotoResult
 
 
 @dataclass(frozen=True)
@@ -24,41 +23,28 @@ class Recommendation:
     scientific_name: str | None
 
 
-def _gbif_media(
-    *,
-    identifier: str,
-    license_value: str = "https://creativecommons.org/licenses/by/4.0/",
-    creator: str | None = "Ada Birder",
-    media_type: str = "StillImage",
-    image_format: str = "image/jpeg",
-) -> dict[str, Any]:
-    return {
-        "type": media_type,
-        "format": image_format,
-        "identifier": identifier,
-        "license": license_value,
-        "creator": creator,
-        "rightsHolder": None,
-    }
+@pytest.fixture(autouse=True)
+def _deterministic_curated_selector(monkeypatch: Any) -> None:
+    def select(scientific_name: str, **_kwargs: Any) -> CuratedPhotoResult:
+        return CuratedPhotoResult(
+            status="available",
+            source="inaturalist",
+            source_record_id="42",
+            species_name=scientific_name,
+            display_url="https://inaturalist-open-data.s3.amazonaws.com/photos/42/large.jpg",
+            source_url="https://www.inaturalist.org/photos/42",
+            creator="Fixture Creator",
+            license_code="CC BY 4.0",
+            license_url="https://creativecommons.org/licenses/by/4.0/",
+            original_width=1600,
+            original_height=1200,
+            selection_reason="Deterministic curated fixture",
+            lookup_at="2026-07-12T00:00:00+00:00",
+            identity={"taxon_id": 7, "photo_id": 42, "curated_position": 1},
+            attempted_sources=("inaturalist",),
+        )
 
-
-def _gbif_occurrence(
-    species: str,
-    key: int,
-    media: list[dict[str, Any]],
-    *,
-    accepted: str | None = None,
-) -> dict[str, Any]:
-    return {
-        "key": key,
-        "species": species,
-        "acceptedScientificName": accepted or species,
-        "countryCode": "US",
-        "country": "United States",
-        "stateProvince": "Arizona",
-        "publishingOrgKey": "Arizona bird archive",
-        "media": media,
-    }
+    monkeypatch.setattr("databox.curated_photo.select_curated_photo", select)
 
 
 def _xeno_recording(
@@ -90,11 +76,6 @@ def _xeno_recording(
     }
 
 
-def _gbif_cache_url(key: int, identifier: str) -> str:
-    identifier_md5 = hashlib.md5(identifier.encode("utf-8"), usedforsecurity=False).hexdigest()
-    return f"https://api.gbif.org/v1/image/cache/500x500/occurrence/{key}/media/{identifier_md5}"
-
-
 def test_queen_valley_fixture_persists_one_photo_and_call_for_all_eight_species() -> None:
     species = [
         "Anser rossii",
@@ -108,24 +89,6 @@ def test_queen_valley_fixture_persists_one_photo_and_call_for_all_eight_species(
     ]
     recommendations = [Recommendation(f"rec-{index}", name) for index, name in enumerate(species)]
     calls: list[tuple[str, Mapping[str, object]]] = []
-
-    def gbif(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
-        assert endpoint == GBIF_OCCURRENCE_SEARCH
-        assert params["country"] == "US"
-        assert params["stateProvince"] == "Arizona"
-        assert params["mediaType"] == "StillImage"
-        assert params["limit"] == MAX_CANDIDATES
-        name = str(params["scientificName"])
-        index = species.index(name) + 1
-        return {
-            "results": [
-                _gbif_occurrence(
-                    name,
-                    1000 + index,
-                    [_gbif_media(identifier=f"https://images.inaturalist.org/{index}.jpg")],
-                )
-            ]
-        }
 
     def xeno(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
         assert endpoint == XENO_CANTO_RECORDINGS
@@ -152,7 +115,6 @@ def test_queen_valley_fixture_persists_one_photo_and_call_for_all_eight_species(
 
     result = enrich_recommendation_media(
         recommendations,
-        gbif_getter=gbif,
         xeno_getter=xeno,
         xeno_api_key="test-key",
     )
@@ -183,234 +145,73 @@ def test_queen_valley_fixture_persists_one_photo_and_call_for_all_eight_species(
     assert all("test-key" not in str(row) for row in result.evidence)
 
 
-def test_photo_selection_is_order_independent_and_rejects_identity_license_and_url_attacks() -> (
-    None
-):
-    valid_nd = _gbif_occurrence(
-        "Sialia mexicana",
-        30,
-        [
-            _gbif_media(
-                identifier="https://images.inaturalist.org/nd.jpg",
-                license_value="https://creativecommons.org/licenses/by-nd/4.0/",
-            )
-        ],
-    )
-    valid_preferred = _gbif_occurrence(
-        "Sialia mexicana",
-        20,
-        [_gbif_media(identifier="https://images.inaturalist.org/preferred.jpg")],
-    )
-    lower_stable_id = _gbif_occurrence(
-        "Sialia mexicana",
-        10,
-        [
-            _gbif_media(identifier="https://images.inaturalist.org/stable.jpg"),
-            _gbif_media(
-                identifier="https://images.inaturalist.org/stable.jpg",
-                creator="Zed Photographer",
-            ),
-        ],
-    )
-    attacks = [
-        _gbif_occurrence(
-            "Sialia currucoides",
-            1,
-            [_gbif_media(identifier="https://images.inaturalist.org/wrong-species.jpg")],
-        ),
-        _gbif_occurrence(
-            "Sialia mexicana",
-            2,
-            [_gbif_media(identifier="http://evil.example/photo.jpg")],
-        ),
-        _gbif_occurrence(
-            "Sialia mexicana",
-            3,
-            [
-                _gbif_media(
-                    identifier="https://images.inaturalist.org/unlicensed.jpg",
-                    license_value="all rights reserved",
-                )
-            ],
-        ),
-        _gbif_occurrence(
-            "Sialia mexicana",
-            4,
-            [_gbif_media(identifier="https://user@images.inaturalist.org/credential.jpg")],
-        ),
-        _gbif_occurrence(
-            "Sialia mexicana",
-            5,
-            [_gbif_media(identifier="https://images.inaturalist.org/no-credit.jpg", creator=None)],
-        ),
-        _gbif_occurrence(
-            "Sialia mexicana",
-            6,
-            [
-                _gbif_media(
-                    identifier="https://images.inaturalist.org/movie.mp4",
-                    image_format="video/mp4",
-                )
-            ],
-        ),
-    ]
-    ordered = [valid_nd, valid_preferred, lower_stable_id, *attacks]
+def test_production_photo_enrichment_uses_curated_selector_metadata(
+    monkeypatch: Any,
+) -> None:
+    selected: list[str] = []
 
-    def run(rows: list[dict[str, Any]]) -> object:
-        return enrich_recommendation_media(
-            [Recommendation("rec-bluebird", "Sialia mexicana")],
-            gbif_getter=lambda endpoint, params: {"results": rows},
-            xeno_getter=lambda endpoint, params: {"recordings": []},
-            xeno_api_key="test-key",
-        ).evidence[0]
-
-    reversed_rows = []
-    for row in reversed(ordered):
-        reversed_rows.append({**row, "media": list(reversed(row["media"]))})
-    first = run(ordered)
-    reverse = run(reversed_rows)
-    assert first == reverse
-    assert first.status == "available"
-    assert first.source_record_id == "10"
-    assert first.summary["display_url"] == _gbif_cache_url(
-        10, "https://images.inaturalist.org/stable.jpg"
-    )
-    assert first.summary["license_code"] == "CC BY 4.0"
-    assert first.payload["original_media_identifier"] == "https://images.inaturalist.org/stable.jpg"
-    assert "test-key" not in str(first)
-
-
-def test_gbif_cache_url_requires_exact_path_key_and_identifier_md5_relation() -> None:
-    identifier = "https://images.inaturalist.org/bird.jpg"
-    valid = _gbif_cache_url(42, identifier)
-    assert (
-        recommendation_media.safe_gbif_photo_url(
-            valid, occurrence_id="42", original_identifier=identifier
-        )
-        == valid
-    )
-    attacks = [
-        "https://api.gbif.org/",
-        "https://api.gbif.org/v1/occurrence/search",
-        valid.replace("/occurrence/42/", "/occurrence/41/"),
-        valid[:-1] + ("0" if valid[-1] != "0" else "1"),
-        valid.replace("/500x500/", "/9999x9999/"),
-        valid + "?download=true",
-        valid + "#fragment",
-        valid.replace("/occurrence/42/", "/occurrence/42/../42/"),
-        valid.replace("api.gbif.org", "user@api.gbif.org"),
-    ]
-    for attack in attacks:
-        assert (
-            recommendation_media.safe_gbif_photo_url(
-                attack, occurrence_id="42", original_identifier=identifier
-            )
-            is None
+    def select(scientific_name: str, **kwargs: Any) -> CuratedPhotoResult:
+        selected.append(scientific_name)
+        assert kwargs["getter"] is None
+        return CuratedPhotoResult(
+            status="available",
+            source="inaturalist",
+            source_record_id="42",
+            species_name=scientific_name,
+            display_url="https://inaturalist-open-data.s3.amazonaws.com/photos/42/large.jpg",
+            source_url="https://www.inaturalist.org/photos/42",
+            creator="Fixture Creator",
+            license_code="CC BY 4.0",
+            license_url="https://creativecommons.org/licenses/by/4.0/",
+            original_width=1600,
+            original_height=1200,
+            selection_reason="Curated fixture",
+            lookup_at="2026-07-12T00:00:00+00:00",
+            identity={"taxon_id": 7},
+            attempted_sources=("inaturalist",),
         )
 
-
-def test_no_derivatives_photo_is_unavailable_without_an_exact_original_policy() -> None:
-    def gbif(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
-        return {
-            "results": [
-                _gbif_occurrence(
-                    "Anser rossii",
-                    42,
-                    [
-                        _gbif_media(
-                            identifier="https://evil.example/ross.jpg",
-                            license_value="https://creativecommons.org/licenses/by-nc-nd/4.0/",
-                        ),
-                        _gbif_media(
-                            identifier="https://images.inaturalist.org/ross.jpg",
-                            license_value="https://creativecommons.org/licenses/by-nc-nd/4.0/",
-                        ),
-                    ],
-                )
-            ]
-        }
-
-    result = enrich_recommendation_media(
-        [Recommendation("rec-ross", "Anser rossii")],
-        gbif_getter=gbif,
-        xeno_getter=lambda endpoint, params: {"recordings": []},
-        xeno_api_key="test-key",
+    monkeypatch.setattr("databox.curated_photo.select_curated_photo", select)
+    batch = enrich_recommendation_media(
+        [Recommendation("rec-bluebird", "Sialia mexicana")],
+        evidence_types=frozenset({"recommendation_photo"}),
     )
-    photo = result.evidence[0]
-    assert photo.status == "unavailable"
-    assert "display_url" not in photo.summary
-
-
-def test_arizona_labels_require_returned_candidate_geography() -> None:
-    wrong_country = _gbif_occurrence(
-        "Sialia mexicana",
-        1,
-        [_gbif_media(identifier="https://images.inaturalist.org/wrong-country.jpg")],
-    )
-    wrong_country["countryCode"] = "MX"
-    wrong_country["country"] = "Mexico"
-    wrong_state = _gbif_occurrence(
-        "Sialia mexicana",
-        2,
-        [_gbif_media(identifier="https://images.inaturalist.org/wrong-state.jpg")],
-    )
-    wrong_state["stateProvince"] = "New Mexico"
-    conflicting_country = _gbif_occurrence(
-        "Sialia mexicana",
-        3,
-        [_gbif_media(identifier="https://images.inaturalist.org/conflict.jpg")],
-    )
-    conflicting_country["country"] = "Mexico"
-    valid = _gbif_occurrence(
-        "Sialia mexicana",
-        4,
-        [_gbif_media(identifier="https://images.inaturalist.org/arizona.jpg")],
-    )
-    valid["country"] = "United States of America"
-
-    queries: list[str] = []
-
-    def xeno(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
-        query = str(params["query"])
-        queries.append(query)
-        if 'loc:"Arizona"' in query:
-            return {
-                "recordings": [
-                    _xeno_recording("Sialia mexicana", 10, country="Mexico", locality="Sonora"),
-                    _xeno_recording("Sialia mexicana", 11, locality="Albuquerque, New Mexico"),
-                ]
-            }
-        return {
-            "recordings": [
-                _xeno_recording("Sialia mexicana", 10, country="Mexico", locality="Sonora")
-            ]
-        }
-
-    result = enrich_recommendation_media(
-        [Recommendation("rec", "Sialia mexicana")],
-        gbif_getter=lambda endpoint, params: {
-            "results": [wrong_country, wrong_state, conflicting_country, valid]
-        },
-        xeno_getter=xeno,
-        xeno_api_key="test-key",
-    )
-    assert result.evidence[0].source_record_id == "4"
-    assert result.evidence[0].summary["geographic_scope"] == "Arizona"
-    assert len(queries) == 2
-    assert result.evidence[1].source_record_id == "10"
-    assert result.evidence[1].summary["geographic_scope"] == "Global example"
-
-    local = enrich_recommendation_media(
-        [Recommendation("rec-local", "Sialia mexicana")],
-        gbif_getter=lambda endpoint, params: {"results": []},
-        xeno_getter=lambda endpoint, params: {
-            "recordings": [
-                _xeno_recording("Sialia mexicana", 12, locality="Madera Canyon, Arizona")
-            ]
-        },
-        xeno_api_key="test-key",
-    )
-    assert local.evidence[1].summary["geographic_scope"] == "Arizona"
+    assert selected == ["Sialia mexicana"]
+    assert batch.lookup_count == 1
+    assert batch.available_photos == 1
+    assert batch.evidence == [
+        recommendation_media.RecommendationMediaEvidence(
+            recommendation_id="rec-bluebird",
+            source="inaturalist",
+            source_record_id="42",
+            evidence_type="recommendation_photo",
+            status="available",
+            summary={
+                "provider": "inaturalist",
+                "species_name": "Sialia mexicana",
+                "display_url": "https://inaturalist-open-data.s3.amazonaws.com/photos/42/large.jpg",
+                "source_url": "https://www.inaturalist.org/photos/42",
+                "creator": "Fixture Creator",
+                "rights_holder": None,
+                "publisher": None,
+                "format": None,
+                "license_text": "CC BY 4.0",
+                "license_code": "CC BY 4.0",
+                "license_url": "https://creativecommons.org/licenses/by/4.0/",
+                "original_width": 1600,
+                "original_height": 1200,
+                "selection_reason": "Curated fixture",
+            },
+            payload={
+                "identity": {"taxon_id": 7},
+                "attempted_sources": ["inaturalist"],
+                "request_count": 0,
+                "failure_class": None,
+                "retryable": False,
+            },
+            caveats=[],
+        )
+    ]
 
 
 def test_call_selection_prefers_arizona_then_call_quality_and_numeric_id() -> None:
@@ -439,7 +240,6 @@ def test_call_selection_prefers_arizona_then_call_quality_and_numeric_id() -> No
     def run(rows: list[dict[str, Any]]) -> object:
         return enrich_recommendation_media(
             [Recommendation("rec-acorn", "Melanerpes formicivorus")],
-            gbif_getter=lambda endpoint, params: {"results": []},
             xeno_getter=lambda endpoint, params: {"recordings": rows},
             xeno_api_key="test-key",
         ).evidence[1]
@@ -480,7 +280,6 @@ def test_case_equivalent_xeno_outputs_have_total_order_when_reversed(
     def run(candidates: list[dict[str, Any]]) -> object:
         return enrich_recommendation_media(
             [Recommendation("rec-case", "Melanerpes formicivorus")],
-            gbif_getter=lambda endpoint, params: {"results": []},
             xeno_getter=lambda endpoint, params: {"recordings": candidates},
             xeno_api_key="test-key",
         ).evidence[1]
@@ -506,7 +305,6 @@ def test_call_global_fallback_and_transport_or_malformed_failures_are_typed_unav
 
     global_result = enrich_recommendation_media(
         [Recommendation("rec-ross", "Anser rossii")],
-        gbif_getter=lambda endpoint, params: {"results": []},
         xeno_getter=global_only,
         xeno_api_key="test-key",
     )
@@ -520,23 +318,26 @@ def test_call_global_fallback_and_transport_or_malformed_failures_are_typed_unav
 
     partial = enrich_recommendation_media(
         [Recommendation("rec-partial", "Anser rossii")],
-        gbif_getter=timeout,
         xeno_getter=global_only,
         xeno_api_key="test-key",
     )
-    assert [row.status for row in partial.evidence] == ["unavailable", "available"]
+    assert [row.status for row in partial.evidence] == ["available", "available"]
 
     unavailable = enrich_recommendation_media(
         [
             Recommendation("rec-timeout", "Anser rossii"),
             Recommendation("rec-no-name", None),
         ],
-        gbif_getter=timeout,
         xeno_getter=lambda endpoint, params: {"unexpected": []},
         xeno_api_key="test-key",
     )
     assert len(unavailable.evidence) == 4
-    assert all(row.status == "unavailable" for row in unavailable.evidence)
+    assert [row.status for row in unavailable.evidence] == [
+        "available",
+        "unavailable",
+        "unavailable",
+        "unavailable",
+    ]
     assert "private transport detail" not in str(unavailable)
     assert [row.evidence_type for row in unavailable.evidence] == [
         "recommendation_photo",
@@ -556,7 +357,6 @@ def test_xeno_identity_url_license_attribution_attacks_fail_closed() -> None:
     ]
     result = enrich_recommendation_media(
         [Recommendation("rec-ross", "Anser rossii")],
-        gbif_getter=lambda endpoint, params: {"results": []},
         xeno_getter=lambda endpoint, params: {"recordings": rows},
         xeno_api_key="test-key",
     )
@@ -599,20 +399,8 @@ def test_unknown_insane_and_photo_nd_licenses_fail_closed(value: str) -> None:
 def test_selective_photo_enrichment_does_not_invoke_xeno() -> None:
     recommendation = Recommendation("rec-photo", "Sialia mexicana")
 
-    def gbif_getter(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
-        return {
-            "results": [
-                _gbif_occurrence(
-                    "Sialia mexicana",
-                    42,
-                    [_gbif_media(identifier="https://images.inaturalist.org/selective.jpg")],
-                )
-            ]
-        }
-
     result = enrich_recommendation_media(
         [recommendation],
-        gbif_getter=gbif_getter,
         xeno_getter=lambda *_: (_ for _ in ()).throw(AssertionError("unexpected Xeno lookup")),
         xeno_api_key="test-key",
         evidence_types=frozenset({"recommendation_photo"}),
@@ -621,7 +409,7 @@ def test_selective_photo_enrichment_does_not_invoke_xeno() -> None:
     assert result.lookup_count == 1
 
 
-def test_exact_gbif_http_creative_commons_license_is_canonicalized_to_https() -> None:
+def test_http_creative_commons_license_is_canonicalized_to_https() -> None:
     parsed = recommendation_media.parse_creative_commons_license(
         "http://creativecommons.org/licenses/by-nc/4.0/", allow_audio_nd=False
     )
@@ -671,7 +459,7 @@ def test_default_transport_response_bytes_are_bounded(
 
     monkeypatch.setattr(recommendation_media, "urlopen", fake_urlopen)
     with pytest.raises(RuntimeError, match="discovery failed"):
-        recommendation_media._get_json(GBIF_OCCURRENCE_SEARCH, {"limit": MAX_CANDIDATES})
+        recommendation_media._get_json(XENO_CANTO_RECORDINGS, {"query": "x"})
     assert observed_timeout == [recommendation_media.HTTP_TIMEOUT_SECONDS]
 
 
@@ -720,7 +508,6 @@ def test_missing_xeno_key_and_candidate_bounds_are_explicit() -> None:
 
     result = enrich_recommendation_media(
         [Recommendation("rec", "Sialia mexicana")],
-        gbif_getter=lambda endpoint, params: {"results": []},
         xeno_getter=must_not_call,
         xeno_api_key="",
     )

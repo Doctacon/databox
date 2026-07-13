@@ -7,7 +7,7 @@ import type { BirdCatalogSummary, BirdProfile, BirdWatch, ObservationInput, Pers
 function json(body: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
 }
-const unavailablePhoto = { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
+const unavailablePhoto = { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, provider: null, license_code: null, original_width: null, original_height: null, caveats: ["Not enriched"], lookup_at: null };
 const unavailableCall = { status: "unavailable" as const, source_record_id: null, recording_id: null, species_name: null, geographic_scope: null, recording_type: null, quality: null, recordist: null, locality: null, country: null, source_url: null, audio_url: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
 
 function catalog(): BirdCatalogSummary[] {

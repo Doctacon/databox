@@ -1,6 +1,7 @@
 import { FormEvent, lazy, MouseEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { createPlan, getPlan, listPlans } from "./api";
 import rufousImage from "./assets/rufous.png";
+import { validateAvailableCuratedPhoto } from "./curatedPhotoValidation";
 import { BirdCatalogPage, BirdProfilePage } from "./BirdPages";
 import LocationCombobox from "./LocationCombobox";
 import { MyBirdsPage } from "./MyBirds";
@@ -119,21 +120,6 @@ function safeLicense(
   }
 }
 
-function safeGbifPhotoUrl(value: unknown, occurrenceId: string | null): string | null {
-  const raw = text(value);
-  if (!raw || !occurrenceId || !/^[1-9]\d*$/.test(occurrenceId)) return null;
-  const grammar = /^https:\/\/api\.gbif\.org\/v1\/image\/cache\/500x500\/occurrence\/([1-9]\d*)\/media\/([0-9a-f]{32})$/;
-  const match = grammar.exec(raw);
-  return match && match[0] === raw && match[1] === occurrenceId ? raw : null;
-}
-
-function safeGbifSourceUrl(value: unknown, occurrenceId: string | null): string | null {
-  const raw = text(value);
-  if (!raw || !occurrenceId || !/^[1-9]\d*$/.test(occurrenceId)) return null;
-  const match = /^https:\/\/(?:gbif\.org|www\.gbif\.org)\/occurrence\/([1-9]\d*)\/?$/.exec(raw);
-  return match && match[0] === raw && match[1] === occurrenceId ? raw : null;
-}
-
 function evidenceSummary(row: Evidence): string {
   const values = [
     text(row.summary.common_name),
@@ -154,20 +140,16 @@ function PhotoArea({ row }: { row: Recommendation }) {
   const photo = record(row.photo);
   const caveats = safeCaveats(photo?.caveats);
   const status = text(photo?.status);
-  const occurrenceId = text(photo?.source_record_id);
-  const identityMatches = mediaSpeciesMatches(row, photo?.species_name);
-  const displayUrl = safeGbifPhotoUrl(photo?.display_url, occurrenceId);
-  const sourceUrl = identityMatches ? safeGbifSourceUrl(photo?.source_url, occurrenceId) : null;
+  const validated = photo ? validateAvailableCuratedPhoto(photo, row.scientific_name) : null;
+  const displayUrl = validated?.displayUrl ?? null;
+  const sourceUrl = validated?.sourceUrl ?? null;
   const creator = text(photo?.creator);
   const rightsHolder = text(photo?.rights_holder);
   const publisher = text(photo?.publisher);
   const licenseText = text(photo?.license_text);
-  const license = safeLicense(photo?.license_url, licenseText);
-  const metadataTrusted = Boolean(photo && identityMatches);
-  const available = Boolean(
-    metadataTrusted && caveats.valid && status === "available"
-    && displayUrl && sourceUrl && license && (creator || rightsHolder),
-  );
+  const license = validated ? { href: validated.licenseUrl, code: validated.licenseCode } : null;
+  const metadataTrusted = Boolean(photo && row.scientific_name !== null && photo.species_name === row.scientific_name);
+  const available = Boolean(metadataTrusted && caveats.valid && status === "available" && validated);
   const name = birdName(row);
   const alt = row.common_name && row.scientific_name
     ? `${row.common_name} (${row.scientific_name})`
@@ -177,7 +159,10 @@ function PhotoArea({ row }: { row: Recommendation }) {
     <div className="photo-frame">
       {available && !loadFailed
         ? <img className="responsive-bird-photo" src={displayUrl!} alt={alt} loading="lazy" onError={() => setLoadFailed(true)} />
-        : <div className="media-placeholder">{loadFailed ? "Photo could not be loaded." : "No licensed photo is available."}</div>}
+        : <div className="media-placeholder" role={loadFailed ? "status" : undefined}>
+          <img src={rufousImage} alt="" aria-hidden="true" loading="lazy" />
+          <span>{loadFailed ? "Photo could not be loaded." : `No licensed photo is available for ${name}.`}</span>
+        </div>}
     </div>
     <figcaption className="media-metadata">
       {metadataTrusted ? <>
@@ -188,8 +173,8 @@ function PhotoArea({ row }: { row: Recommendation }) {
           ? <span>License: <a href={license.href} target="_blank" rel="noreferrer">{license.code}</a></span>
           : (licenseText || status === "available") && <span>License: unavailable</span>}
         {sourceUrl
-          ? <a href={sourceUrl} target="_blank" rel="noreferrer">View photo source on GBIF</a>
-          : status === "available" && <span className="empty">GBIF photo source page unavailable.</span>}
+          ? <a href={sourceUrl} target="_blank" rel="noreferrer">View photo source on {validated?.providerLabel}</a>
+          : status === "available" && <span className="empty">Curated photo source page unavailable.</span>}
         {caveats.values.map((caveat) => <span className="caveat" key={caveat}>{caveat}</span>)}
       </> : photo && <span className="caveat">Photo metadata did not match this recommendation.</span>}
     </figcaption>

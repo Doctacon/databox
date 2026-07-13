@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-07-11
 Updated: 2026-07-11
-Parent: .10x/tickets/2026-07-11-upgrade-map-catalog-and-refresh-controls.md
+Parent: .10x/tickets/done/2026-07-11-upgrade-map-catalog-and-refresh-controls.md
 Depends-On: None
 
 # Build local refresh runtime and API

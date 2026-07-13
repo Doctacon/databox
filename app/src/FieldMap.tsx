@@ -39,8 +39,8 @@ const localStyle: StyleSpecification = {
     { id: "county-lines", type: "line" as const, source: "boundaries", filter: ["==", ["get", "kind"], "county"], paint: { "line-color": "#376a67", "line-width": 1.2, "line-opacity": 0.8 } },
     { id: "clusters", type: "circle" as const, source: "encounters", filter: ["has", "point_count"], paint: { "circle-color": "#8f3524", "circle-radius": ["step", ["get", "point_count"], 18, 25, 23, 100, 29], "circle-stroke-color": "#201d19", "circle-stroke-width": 2 } },
     { id: "encounter-points", type: "circle" as const, source: "encounters", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#f0b429", "circle-radius": 7, "circle-stroke-color": "#201d19", "circle-stroke-width": 2 } },
-    { id: "selected-encounter", type: "circle" as const, source: "encounters", filter: ["==", ["get", "source_observation_id"], ""], paint: { "circle-color": "#fff4c2", "circle-radius": 12, "circle-stroke-color": "#075660", "circle-stroke-width": 4 } },
     { id: "preview-encounter", type: "circle" as const, source: "preview", paint: { "circle-color": "#fff4c2", "circle-radius": 11, "circle-stroke-color": "#8f3524", "circle-stroke-width": 4 } },
+    { id: "selected-encounter", type: "circle" as const, source: "encounters", filter: ["==", ["get", "source_observation_id"], ""], paint: { "circle-color": "#fff4c2", "circle-radius": 12, "circle-stroke-color": "#075660", "circle-stroke-width": 4 } },
   ],
 };
 
@@ -76,12 +76,23 @@ function reducedMotion(): boolean {
 
 function EncounterThumbnail({ photo, name }: { photo: CatalogPhoto | undefined; name: string }) {
   const [failed, setFailed] = useState(false);
-  const available = photo?.status === "available" && photo.display_url && !failed;
+  const metadataAvailable = photo?.status === "available" && Boolean(photo.display_url);
+  const provider = "iNaturalist";
+  const attribution = metadataAvailable ? `Photo: ${photo.creator || photo.rights_holder} · ${photo.license_text} · ${provider}` : null;
   return <span className="encounter-thumbnail">
-    {available ? <img src={photo.display_url!} alt={name} loading="lazy" onError={() => setFailed(true)} />
+    {metadataAvailable && !failed ? <img src={photo.display_url!} alt={name} loading="lazy" onError={() => setFailed(true)} />
       : <img src={rufousImage} alt="" aria-hidden="true" loading="lazy" />}
-    <small>{available ? `Photo: ${photo.creator || photo.rights_holder} · ${photo.license_text}` : "Photo unavailable"}</small>
+    <small role={failed ? "status" : undefined}>{failed && attribution ? `Photo unavailable · ${attribution}` : attribution || "Photo unavailable"}</small>
   </span>;
+}
+
+function EncounterPhotoLinks({ photo }: { photo: CatalogPhoto | undefined }) {
+  if (photo?.status !== "available" || !photo.source_url || !photo.license_url || !photo.license_code) return null;
+  const provider = "iNaturalist";
+  return <small className="encounter-photo-links">
+    <a href={photo.source_url} target="_blank" rel="noreferrer">{provider} photo source</a>
+    {" · "}<a href={photo.license_url} target="_blank" rel="noreferrer">{photo.license_code} license</a>
+  </small>;
 }
 
 function encounterBounds(rows: MapEncounter[]): [[number, number], [number, number]] {
@@ -112,7 +123,9 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   const [selectedFamily, setSelectedFamily] = useState("all");
   const [recency, setRecency] = useState<Recency>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [hoverPreviewId, setHoverPreviewId] = useState<string | null>(null);
+  const [focusPreviewId, setFocusPreviewId] = useState<string | null>(null);
+  const previewId = focusPreviewId ?? hoverPreviewId;
 
   useEffect(() => { headingRef.current?.focus(); }, []);
   useEffect(() => {
@@ -153,8 +166,9 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
     previousRecencyRef.current = recency;
     encounterRef.current = new Map(filtered.map((row) => [row.source_observation_id, row]));
     if (selectedId && !encounterRef.current.has(selectedId)) setSelectedId(null);
-    if (previewId && !encounterRef.current.has(previewId)) setPreviewId(null);
-  }, [filtered, previewId, recency, selectedFamily, selectedId, species]);
+    if (hoverPreviewId && !encounterRef.current.has(hoverPreviewId)) setHoverPreviewId(null);
+    if (focusPreviewId && !encounterRef.current.has(focusPreviewId)) setFocusPreviewId(null);
+  }, [filtered, focusPreviewId, hoverPreviewId, recency, selectedFamily, selectedId, species]);
 
   const applyFilteredToMap = useCallback((map: MapLibreMap) => {
     const source = map.getSource("encounters") as GeoJSONSource | undefined;
@@ -300,7 +314,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
         <section className="panel map-panel" aria-labelledby="map-canvas-heading"><h2 id="map-canvas-heading">Arizona encounter map</h2><div ref={mapContainer} className="map-canvas" aria-label="Interactive map of eligible Arizona encounters" /></section>
         <aside className="field-map-rail" aria-label="Selected encounter and accessible encounter list">
           <section className="panel selected-encounter" aria-labelledby="selected-encounter-heading" aria-live="polite"><h2 id="selected-encounter-heading">Selected encounter</h2>{selected ? <><h3>{label(selected)}</h3><p>{selected.location_name}</p><p>{dateTime(selected.observation_at)} · {selected.observation_count.toLocaleString()} observed{selected.notable ? " · notable" : ""}</p>{selected.access_warning && <p className="caveat">Access may be restricted. Verify access before visiting.</p>}<a href={`/birds/${selected.species_code}`} onClick={(event) => profileLink(event, `/birds/${selected.species_code}`)}>View bird profile</a></> : <p>Select a map point or encounter-list row for details.</p>}</section>
-          <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible encounter list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onMouseEnter={() => setPreviewId(row.source_observation_id)} onMouseLeave={() => setPreviewId(null)} onFocus={() => setPreviewId(row.source_observation_id)} onBlur={() => setPreviewId(null)} onClick={() => choose(row)}><EncounterThumbnail photo={photoBySpecies.get(row.species_code)} name={label(row)} /><span className="encounter-copy"><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {row.observation_count.toLocaleString()} observed{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</span></button></li>)}</ol> : <p className="empty">No encounters to list.</p>}</section>
+          <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible encounter list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onMouseEnter={() => setHoverPreviewId(row.source_observation_id)} onMouseLeave={() => setHoverPreviewId(null)} onFocus={() => setFocusPreviewId(row.source_observation_id)} onBlur={() => setFocusPreviewId(null)} onClick={() => choose(row)}><EncounterThumbnail photo={photoBySpecies.get(row.species_code)} name={label(row)} /><span className="encounter-copy"><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {row.observation_count.toLocaleString()} observed{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</span></button><EncounterPhotoLinks photo={photoBySpecies.get(row.species_code)} /></li>)}</ol> : <p className="empty">No encounters to list.</p>}</section>
         </aside>
       </div>
       <p className="source-status map-attribution">Boundary geometry derived and generalized from January 1, 2025 U.S. Census Bureau TIGERweb data. This product uses Census Bureau data but is not endorsed or certified by the Census Bureau.</p>

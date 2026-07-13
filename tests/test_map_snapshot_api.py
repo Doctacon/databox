@@ -121,7 +121,11 @@ def test_snapshot_returns_only_bounded_safe_exact_fields(tmp_path: Path) -> None
                     "license_text": None,
                     "license_url": None,
                     "selection_reason": None,
-                    "caveats": ["Catalog photo has not been enriched for this exact taxon"],
+                    "provider": None,
+                    "license_code": None,
+                    "original_width": None,
+                    "original_height": None,
+                    "caveats": ["Curated catalog photo has not been enriched for this exact taxon"],
                     "lookup_at": None,
                 },
             }

@@ -32,10 +32,7 @@ from databox.agent_tools.open_meteo_geocoding import (
     OpenMeteoGeocodingError,
     search_arizona_locations,
 )
-from databox.agent_tools.recommendation_media import (
-    parse_creative_commons_license,
-    safe_gbif_photo_url,
-)
+from databox.agent_tools.recommendation_media import parse_creative_commons_license
 from databox.agents.birding_trip_planner import (
     NormalizedLocation,
     TripRequest,
@@ -55,8 +52,14 @@ from databox.agents.cloudflare_workers_ai import (
 )
 from databox.bird_alert_delivery import BirdAlertSmtpSettings, SmtpFactory, settings_from_global
 from databox.bird_alert_delivery_api import register_bird_alert_delivery_routes
-from databox.catalog_media import catalog_media_identity_hash, catalog_media_rows
+from databox.catalog_media import (
+    CatalogTaxon,
+    catalog_media_identity_hash,
+    catalog_media_rows,
+    curated_photo_result_from_row,
+)
 from databox.config.settings import PROJECT_ROOT, settings
+from databox.curated_photo import CuratedPhotoResult, curated_photo_result_is_safe
 from databox.personal_collection_api import register_personal_collection_routes
 from databox.place_suggestions import merge_fallback_suggestions, search_local_hotspots
 from databox.source_refresh_api import register_source_refresh_routes
@@ -201,6 +204,10 @@ class RecommendationPhotoResponse(BaseModel):
     license_text: str | None
     license_url: str | None
     selection_reason: str | None
+    provider: Literal["inaturalist"] | None = None
+    license_code: str | None = None
+    original_width: int | None = None
+    original_height: int | None = None
     caveats: list[str]
 
 
@@ -297,6 +304,10 @@ class PlanListResponse(BaseModel):
 class CatalogPhotoResponse(RecommendationPhotoResponse):
     model_config = ConfigDict(extra="forbid")
 
+    provider: Literal["inaturalist"] | None = None
+    license_code: str | None = None
+    original_width: int | None = Field(default=None, ge=1)
+    original_height: int | None = Field(default=None, ge=1)
     caveats: list[str] = Field(max_length=10)
     lookup_at: datetime | None
 
@@ -312,6 +323,7 @@ class CatalogPhotoResponse(RecommendationPhotoResponse):
         "license_text",
         "license_url",
         "selection_reason",
+        "license_code",
     )
     @classmethod
     def bounded_text(cls, value: str | None) -> str | None:
@@ -786,29 +798,6 @@ def _media_response(row: EvidenceResponse) -> MediaResponse:
     )
 
 
-def _safe_gbif_source_url(value: object, occurrence_id: str | None) -> str | None:
-    raw = _text(value)
-    if raw is None or occurrence_id is None or not occurrence_id.isdigit():
-        return None
-    try:
-        parsed = urlsplit(raw)
-        if parsed.port is not None:
-            return None
-    except ValueError:
-        return None
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname not in {"gbif.org", "www.gbif.org"}
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.path.rstrip("/") != f"/occurrence/{occurrence_id}"
-        or parsed.query
-        or parsed.fragment
-    ):
-        return None
-    return raw
-
-
 def _unavailable_photo(caveats: list[str]) -> RecommendationPhotoResponse:
     return RecommendationPhotoResponse(
         status="unavailable",
@@ -823,6 +812,10 @@ def _unavailable_photo(caveats: list[str]) -> RecommendationPhotoResponse:
         license_text=None,
         license_url=None,
         selection_reason=None,
+        provider=None,
+        license_code=None,
+        original_width=None,
+        original_height=None,
         caveats=caveats,
     )
 
@@ -834,50 +827,54 @@ def _recommendation_photo(
         return _unavailable_photo(
             row.caveats if row is not None else ["Photo was not enriched for this plan"]
         )
-    occurrence_id = _text(row.source_record_id)
-    species_name = _text(row.summary.get("species_name"))
-    display_url = safe_gbif_photo_url(
-        row.summary.get("display_url"),
-        occurrence_id=occurrence_id or "",
-        original_identifier=row.payload.get("original_media_identifier"),
-    )
-    source_url = _safe_gbif_source_url(row.summary.get("source_url"), occurrence_id)
-    creator = _text(row.summary.get("creator"))
-    rights_holder = _text(row.summary.get("rights_holder"))
-    image_format = (_text(row.summary.get("format")) or "").lower()
-    selection_reason = _text(row.summary.get("selection_reason"))
-    license_text, license_url = _license(row.summary.get("license_url"), allow_audio_nd=False)
-    identity_matches = (
-        scientific_name is not None
-        and species_name is not None
-        and scientific_name.casefold() == species_name.casefold()
-    )
-    if (
-        display_url is None
-        or source_url is None
-        or (creator is None and rights_holder is None)
-        or image_format not in {"image/jpeg", "image/png", "image/webp"}
-        or selection_reason is None
-        or license_url is None
-        or not identity_matches
-    ):
-        return _unavailable_photo(
-            [*row.caveats, "Persisted photo metadata failed safety validation"]
+    if row.source in {"inaturalist"}:
+        try:
+            result = CuratedPhotoResult(
+                status="available",
+                source=cast(Any, row.source),
+                source_record_id=row.source_record_id,
+                species_name=cast(str | None, row.summary.get("species_name")),
+                display_url=cast(str | None, row.summary.get("display_url")),
+                source_url=cast(str | None, row.summary.get("source_url")),
+                creator=cast(str | None, row.summary.get("creator")),
+                license_code=cast(str | None, row.summary.get("license_code")),
+                license_url=cast(str | None, row.summary.get("license_url")),
+                original_width=cast(int | None, row.summary.get("original_width")),
+                original_height=cast(int | None, row.summary.get("original_height")),
+                selection_reason=cast(str | None, row.summary.get("selection_reason")),
+                lookup_at=row.retrieved_at or "",
+                identity=cast(dict[str, str | int | None], row.payload.get("identity", {})),
+                caveats=tuple(row.caveats),
+                attempted_sources=tuple(cast(list[str], row.payload.get("attempted_sources", []))),
+            )
+        except (TypeError, ValueError):
+            result = None
+        if result is None or not curated_photo_result_is_safe(result, scientific_name):
+            return _unavailable_photo(
+                [*row.caveats, "Persisted curated photo metadata failed safety validation"]
+            )
+        return RecommendationPhotoResponse(
+            status="available",
+            source_record_id=result.source_record_id,
+            species_name=result.species_name,
+            display_url=result.display_url,
+            source_url=result.source_url,
+            creator=result.creator,
+            rights_holder=None,
+            publisher=None,
+            format=None,
+            license_text=result.license_code,
+            license_url=result.license_url,
+            selection_reason=result.selection_reason,
+            provider=cast(Any, result.source),
+            license_code=result.license_code,
+            original_width=result.original_width,
+            original_height=result.original_height,
+            caveats=list(result.caveats),
         )
-    return RecommendationPhotoResponse(
-        status="available",
-        source_record_id=occurrence_id,
-        species_name=species_name,
-        display_url=display_url,
-        source_url=source_url,
-        creator=creator,
-        rights_holder=rights_holder,
-        publisher=_text(row.summary.get("publisher")),
-        format=image_format,
-        license_text=license_text,
-        license_url=license_url,
-        selection_reason=selection_reason,
-        caveats=row.caveats,
+
+    return _unavailable_photo(
+        [*row.caveats, "Legacy representative-photo evidence is not a curated provider"]
     )
 
 
@@ -1171,51 +1168,66 @@ _BIRD_PROFILE_COLUMNS = f"""
 def _catalog_photo(
     row: dict[str, Any] | None, species_code: str, scientific_name: str | None
 ) -> CatalogPhotoResponse:
-    lookup_at = None
     if (
         row is None
         or row.get("scientific_name") != scientific_name
         or row.get("identity_hash") != catalog_media_identity_hash(species_code, scientific_name)
-        or row.get("source") != "gbif"
+        or row.get("source") not in {"inaturalist", "curated_photo"}
     ):
         return CatalogPhotoResponse(
             **_unavailable_photo(
-                ["Catalog photo has not been enriched for this exact taxon"]
+                ["Curated catalog photo has not been enriched for this exact taxon"]
             ).model_dump(),
             lookup_at=None,
         )
     try:
-        caveats = json.loads(row["caveats_json"])
-        summary = json.loads(row["summary_json"])
-        payload = json.loads(row["payload_json"])
-        if (
-            not isinstance(caveats, list)
-            or len(caveats) > 10
-            or any(not isinstance(item, str) or not 0 < len(item) <= 1000 for item in caveats)
-            or not isinstance(summary, dict)
-            or not isinstance(payload, dict)
-        ):
-            raise ValueError("invalid catalog photo metadata")
-        evidence = EvidenceResponse(
-            evidence_id=f"catalog_photo_{row['species_code']}",
-            recommendation_id=row["species_code"],
-            source=row["source"],
-            source_table=None,
-            source_record_id=row["source_record_id"],
-            evidence_type="recommendation_photo",
-            status=row["status"],
-            retrieved_at=row["lookup_at"],
-            summary=summary,
-            payload=payload,
-            caveats=caveats,
+        taxon = CatalogTaxon(
+            species_code=species_code,
+            scientific_name=scientific_name,
+            taxonomic_category="species",
+            identity_hash=catalog_media_identity_hash(species_code, scientific_name),
         )
-        lookup_at = datetime.fromisoformat(row["lookup_at"])
-        media = _recommendation_photo(evidence, scientific_name)
-        return CatalogPhotoResponse(**media.model_dump(), lookup_at=lookup_at)
-    except (TypeError, ValueError, ValidationError):
+        persisted = (
+            row["species_code"],
+            "photo",
+            row["scientific_name"],
+            row["identity_hash"],
+            row["source"],
+            row["source_record_id"],
+            row["status"],
+            row["summary_json"],
+            row["payload_json"],
+            row["caveats_json"],
+            row["lookup_at"],
+            "api_read",
+        )
+        result = curated_photo_result_from_row(persisted, taxon)
+        if result is None:
+            raise ValueError("invalid curated catalog photo metadata")
+        return CatalogPhotoResponse(
+            status=result.status,
+            source_record_id=result.source_record_id,
+            species_name=result.species_name,
+            display_url=result.display_url,
+            source_url=result.source_url,
+            creator=result.creator,
+            rights_holder=None,
+            publisher=None,
+            format=None,
+            license_text=result.license_code,
+            license_url=result.license_url,
+            selection_reason=result.selection_reason,
+            provider=(result.source if result.source in {"inaturalist"} else None),
+            license_code=result.license_code,
+            original_width=result.original_width,
+            original_height=result.original_height,
+            caveats=list(result.caveats),
+            lookup_at=datetime.fromisoformat(result.lookup_at),
+        )
+    except (TypeError, ValueError, ValidationError, json.JSONDecodeError):
         return CatalogPhotoResponse(
             **_unavailable_photo(
-                ["Persisted catalog photo metadata failed safety validation"]
+                ["Persisted curated catalog photo metadata failed safety validation"]
             ).model_dump(),
             lookup_at=None,
         )
@@ -1550,7 +1562,8 @@ def create_app(
     model_client: TripPlanModelClient | None = None,
     weather_getter: JsonGetter | None = None,
     geocoding_getter: JsonGetter | None = None,
-    media_gbif_getter: JsonGetter | None = None,
+    media_curated_photo_getter: JsonGetter | None = None,
+    media_before_inaturalist_request: Callable[[], None] | None = None,
     media_xeno_getter: JsonGetter | None = None,
     xeno_api_key: str | None = None,
     static_dir: Path | None = None,
@@ -1839,7 +1852,8 @@ def create_app(
                     ),
                     model_client=model_client,
                     weather_getter=weather_getter,
-                    media_gbif_getter=media_gbif_getter,
+                    media_curated_photo_getter=media_curated_photo_getter,
+                    media_before_inaturalist_request=media_before_inaturalist_request,
                     media_xeno_getter=media_xeno_getter,
                     xeno_api_key=xeno_api_key,
                 )

@@ -536,7 +536,6 @@ def test_thumb_butte_golden_trip_plan_uses_tools_and_persists_evidence() -> None
         con,
         model_client=FakeTripPlanModelClient(),
         weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
         media_xeno_getter=_empty_media_response,
         xeno_api_key="test-key",
     )
@@ -590,7 +589,6 @@ def test_sparse_trip_plan_surfaces_unavailable_source_caveats() -> None:
         con,
         model_client=FakeTripPlanModelClient(),
         weather_getter=_weather_response,
-        media_gbif_getter=_empty_media_response,
         media_xeno_getter=_empty_media_response,
         xeno_api_key="test-key",
     )
