@@ -1,5 +1,75 @@
 # Changelog
 
+## [0.6.0](https://github.com/Doctacon/databox/compare/v0.5.0...v0.6.0) (2026-07-15)
+
+
+### Features
+
+* add Arizona bird catalog ([5d8fca4](https://github.com/Doctacon/databox/commit/5d8fca486aef0f1066a22dd1ec08f7bf47c86f81))
+* add Arizona catalog discovery controls ([a166e23](https://github.com/Doctacon/databox/commit/a166e236492e87886c7d5f81329fc7ce978e8d81))
+* add AVONET bird traits source ([0f7b926](https://github.com/Doctacon/databox/commit/0f7b9262616b51ac045336d59d40cc743bbbe77c))
+* add bird alert calendar outbox ([8431e50](https://github.com/Doctacon/databox/commit/8431e50e0c7eaf55e46568bf2a2c63ab42428e2a))
+* add bird wheel map previews and source refresh ([a70af1c](https://github.com/Doctacon/databox/commit/a70af1cd861c13c4734bd67eee1f89f7de74faa9))
+* add local birding place suggestions ([0158676](https://github.com/Doctacon/databox/commit/0158676de79da88d11fd5865b5a9358d597e115a))
+* add local Field Map data API ([fcb6e71](https://github.com/Doctacon/databox/commit/fcb6e712548831fcdc572975908b1de081b7a20f))
+* add local Rufous Field Map ([0708615](https://github.com/Doctacon/databox/commit/07086154c4c22173532e9e70045100306e88b584))
+* add media to Arizona bird catalog ([2028f2e](https://github.com/Doctacon/databox/commit/2028f2e22c5b4a948c579c56485eff0863073c0e))
+* add My Birds collection UI ([0d798aa](https://github.com/Doctacon/databox/commit/0d798aa2b1df2db036e4c17e79eed4a3fb428b68))
+* add observation place suggestions ([6bb174b](https://github.com/Doctacon/databox/commit/6bb174b76761912b33a603f6b5ca7ba4f466a816))
+* add personal bird collection API ([bf597d9](https://github.com/Doctacon/databox/commit/bf597d978401102068d23defeba6aae557ef76c7))
+* add target bird planning ([3c7a9f3](https://github.com/Doctacon/databox/commit/3c7a9f3c7bbe97949f962a9d6227e80a93eb387d))
+* add trip plan calendar controls ([f2ada9c](https://github.com/Doctacon/databox/commit/f2ada9c9a28cce3500c0bb3c48d0985d861257c1))
+* add trip plan calendar invitations ([c913916](https://github.com/Doctacon/databox/commit/c9139168757402bcf452598543261e9e5c597aa3))
+* add turbo-search skill ([f52814b](https://github.com/Doctacon/databox/commit/f52814b63a03abb7b095beedc50a948b16c8dc41))
+* consolidate wishlist into watches ([5de792b](https://github.com/Doctacon/databox/commit/5de792b07de3287fda3e87daae54a4098f1ff7c1))
+* curate bird photos and harden refresh lifecycle ([3c5959f](https://github.com/Doctacon/databox/commit/3c5959f7e9b3841ba6730c53c7fa07bbffc27127))
+* deliver bird alerts via Proton Bridge ([a7212c9](https://github.com/Doctacon/databox/commit/a7212c9693eb5e93e4c367fea163da7bb9c6c4d0))
+* enrich Arizona catalog media ([28cf13c](https://github.com/Doctacon/databox/commit/28cf13c790bbef9390e534e479f1a71f541a63bb))
+* evaluate watched bird alerts ([b5d0976](https://github.com/Doctacon/databox/commit/b5d097697160489fe99149c5b3ce2fd5c3dbe813))
+* expose catalog discovery traits ([2af9f75](https://github.com/Doctacon/databox/commit/2af9f751f596af1b9f807403663b2ebdbf1f8d29))
+* model AVONET Arizona bird catalog ([47e2743](https://github.com/Doctacon/databox/commit/47e27436977d46412b56b7e1846be54151345286))
+* paginate trip plan results ([ae62cba](https://github.com/Doctacon/databox/commit/ae62cbaafea7518dbef5bb5d49d3cd2a5053af31))
+* persist structured observation locations ([73f4d8b](https://github.com/Doctacon/databox/commit/73f4d8bc931f17d38ca64025732b5d37dbbf4371))
+* rebrand product as Rufous ([86ade5a](https://github.com/Doctacon/databox/commit/86ade5a0ea5d064fb3b1802f86737b0283463243))
+* unify source contract and CI ([1299130](https://github.com/Doctacon/databox/commit/1299130c6cf7566204ba22dd0e7ef81ef3ab2fd6))
+* use custom Rufous artwork ([5ddb3fe](https://github.com/Doctacon/databox/commit/5ddb3fe9a1a674f71d658c5160bb94d69234d46f))
+
+
+### Bug Fixes
+
+* accept persisted trip weather evidence ([e7c710d](https://github.com/Doctacon/databox/commit/e7c710d757b41a6c22560292db7140ed12e369de))
+* alphabetize Rufous text selectors ([0133b6f](https://github.com/Doctacon/databox/commit/0133b6f772ba33f0c4dfffa1a8d3744b203190c7))
+* apply AVONET catalog models ([7fbf17d](https://github.com/Doctacon/databox/commit/7fbf17d378e6af17c820fd66e7100a312b6ea724))
+* auto-dismiss Rufous success feedback ([abb4f72](https://github.com/Doctacon/databox/commit/abb4f724dffb5737a2473990b0c590b2b2626c6d))
+* close calendar description privacy bypasses ([d074463](https://github.com/Doctacon/databox/commit/d0744639e3efea0bdc99d3a0d6594f3e10eedf2d))
+* drain ADK runner before returning plan ([e77ec0f](https://github.com/Doctacon/databox/commit/e77ec0fe1bd7e797ff161bb715221c740454d1a8))
+* enlarge custom Rufous artwork ([c01a507](https://github.com/Doctacon/databox/commit/c01a507e710ffe95f0918d519d74c1cf0dbb88bd))
+* filter private trip planner evidence ([47d88bf](https://github.com/Doctacon/databox/commit/47d88bfe64405845997ff4394db44ef243faf7f8))
+* harden browser timestamp validation ([a643b80](https://github.com/Doctacon/databox/commit/a643b8048897aeef718533519df8da557565a525))
+* harden trip calendar description privacy ([73aba8f](https://github.com/Doctacon/databox/commit/73aba8f6c139b761deebdaede77238497b2d33fe))
+* harden trip planner browser validation ([78493fb](https://github.com/Doctacon/databox/commit/78493fbd61ee049fba3bd0aefcebb0ffa6d40eec))
+* isolate source VCR tests ([3a3f5da](https://github.com/Doctacon/databox/commit/3a3f5da87efaf515217ed3c14b1a116510c737d1))
+* normalize Arizona trip calendar windows ([19bca11](https://github.com/Doctacon/databox/commit/19bca11a63fa6373fe3809aec8af45dbd1cbd263))
+* refine Rufous planner branding ([2e0b86d](https://github.com/Doctacon/databox/commit/2e0b86d0764c50733fe4221500fda81e02ae3dd5))
+* repair Field Map interaction layout ([b655793](https://github.com/Doctacon/databox/commit/b65579350ac5e034dd57024b95dc00fb91d9224d))
+* stack Arizona bird profile panels ([955a34d](https://github.com/Doctacon/databox/commit/955a34d461ebecc31b6097faf9f0e07941bd8e4c))
+
+
+### Documentation
+
+* close catalog discovery and Field Map ([a6d3299](https://github.com/Doctacon/databox/commit/a6d3299afaec3093ff14c9d1eb918f1b267ec040))
+* close local birding pokedex ([fe0ca51](https://github.com/Doctacon/databox/commit/fe0ca51d7776b8a274d847c3c7c70a43ac2ccd5b))
+* close place search feedback and map repairs ([79427b6](https://github.com/Doctacon/databox/commit/79427b6351a83038c651f8a90cb73d741a674f4e))
+* close Rufous product evolution ([dc7842d](https://github.com/Doctacon/databox/commit/dc7842dd383a6453b88d0484d880a30e85370f62))
+* refresh bird traits dictionary ([6db35d9](https://github.com/Doctacon/databox/commit/6db35d9a15a28e83659d6dde0eae17c75697ca5d))
+* shape catalog discovery and Field Map ([214f858](https://github.com/Doctacon/databox/commit/214f85881da09027b4f89c47c6be39e78fd856cf))
+* shape local birding pokedex ([ef037c6](https://github.com/Doctacon/databox/commit/ef037c63d4232bee0aeec61ac0e68d0461fe7e04))
+* shape local place search and map repairs ([07e0d35](https://github.com/Doctacon/databox/commit/07e0d353acc3104c7e4a2479463d96977bec29b1))
+* shape map wheel and refresh controls ([d68a223](https://github.com/Doctacon/databox/commit/d68a223e011f62f76a2fc0fad658941c90969309))
+* shape Rufous product evolution ([2b30a90](https://github.com/Doctacon/databox/commit/2b30a90ad4597ee55d6e9d189afc9a394266422b))
+* specify AVONET bird profiles ([06b9648](https://github.com/Doctacon/databox/commit/06b96488ef4e1819180817b48917a7b35c54d313))
+* specify remaining birding pokedex ([64c4477](https://github.com/Doctacon/databox/commit/64c4477d9f94270ca11d2ae9c800b5a04a72b3a7))
+
 ## [0.5.0](https://github.com/Doctacon/databox/compare/v0.4.0...v0.5.0) (2026-07-10)
 
 

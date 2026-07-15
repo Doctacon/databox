@@ -1,6 +1,6 @@
 [project]
 name = "databox-workspace"
-version = "0.5.0"
+version = "0.6.0"
 description = "Databox uv workspace root (coordinator, not packaged)"
 requires-python = ">=3.12"
 dependencies = [
