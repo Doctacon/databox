@@ -14,6 +14,21 @@ public sources → dlt → DuckDB → SQLMesh → Soda
                       Dagster
 ```
 
+## From source to model
+
+New dlt sources move through a reviewable, agent-guided modeling workflow:
+
+```text
+dlt schema → annotations + taxonomy → ontology → Kimball CDM → SQLMesh models
+```
+
+The project skills—[`annotate-sources`](.pi/skills/annotate-sources/SKILL.md),
+[`create-ontology`](.pi/skills/create-ontology/SKILL.md),
+[`generate-cdm`](.pi/skills/generate-cdm/SKILL.md), and
+[`create-transformation`](.pi/skills/create-transformation/SKILL.md)—turn raw
+schemas into business-aware warehouse models before transformation SQL is
+written. [See the workflow](docs/source-layout.md#adding-model-behavior).
+
 The included Rufous bird app is a reference consumer of the warehouse, not the
 core of the project.
 
