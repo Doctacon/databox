@@ -6,8 +6,10 @@ from unittest.mock import patch, sentinel
 
 import duckdb
 import pytest
+from databox.config.sources import SOURCES
 from databox.destinations import dedupe_quack_raw_tables
 from databox.destinations.quack import (
+    _RAW_DEDUPE_KEYS,
     QuackServer,
     _drop_legacy_raw_views,
     _drop_quack_metadata_read_views,
@@ -16,6 +18,17 @@ from databox.destinations.quack import (
     dlt_destination,
     quack_ingest_session,
 )
+
+
+def test_quack_dedupe_membership_matches_parallel_registry_inventory() -> None:
+    expected = {
+        (source.raw_catalog, table)
+        for source in SOURCES
+        if source.parallel_refresh
+        for table in source.raw_tables
+    }
+    assert set(_RAW_DEDUPE_KEYS) == expected
+    assert all(keys for keys in _RAW_DEDUPE_KEYS.values())
 
 
 def test_dlt_destination_always_uses_quack_credentials() -> None:

@@ -1,7 +1,8 @@
 """{{ name_title }} domain — scaffolded stub.
 
-This file is wired into `definitions.py` with empty asset lists so Dagster
-loads clean on day one. Fill in as you add resources:
+This module is discoverable through the canonical registry with empty asset
+lists, but its source skip marker keeps completed contract/CI validation failed.
+Fill in these obligations before removing that marker:
 
   1. In `databox_sources/{{ name }}/source.py`, define `@dlt.resource`s and a
      `@dlt.source` that yields them.
@@ -11,13 +12,23 @@ loads clean on day one. Fill in as you add resources:
      are owned by the cross-source CDM model layer after `.schema` review.
   4. Replace the placeholder jobs/schedule below when the source is real.
 
-Until then, the empty splats below are no-ops — Dagster sees the module.
+Until then, the empty splats are no-ops for Dagster; the contract checker still
+reports the source as an incomplete scaffold.
 """
 
 from __future__ import annotations
 
-import dagster as dg
+import typing as t
 
+import dagster as dg
+from databox_sources.{{ name }}.source import {{ name }}_source
+
+
+def _build_source() -> t.Any:
+    return {{ name }}_source()
+
+
+assets: list[dg.AssetsDefinition] = []
 dlt_asset_keys: list[dg.AssetKey] = []
 sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []

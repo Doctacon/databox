@@ -17,9 +17,6 @@ from typing import Any
 
 import dlt
 import pendulum
-from databox.config.pipeline_config import PipelineConfig
-from databox.config.settings import settings
-from databox.destinations import dlt_destination, dlt_pipeline, prepare_dlt_source
 from dlt.sources.helpers import requests as dlt_requests
 
 from databox_sources._logging import get_logger
@@ -204,70 +201,3 @@ def _safe_float(val: str | None) -> float | None:
         return float(val) if val else None
     except (ValueError, TypeError):
         return None
-
-
-class UsgsPipelineSource:
-    """USGS pipeline source implementing the PipelineSource protocol."""
-
-    def __init__(self, config: PipelineConfig) -> None:
-        self.name = config.name
-        self.config = config
-        self._state_cd = config.params.get("state_cd", DEFAULT_STATE)
-        self._parameter_cds = config.params.get("parameter_cds", DEFAULT_PARAMETER_CDS)
-        self._days_back = config.params.get("days_back", 30)
-
-    def resources(self) -> Any:
-        source = usgs_source(
-            state_cd=self._state_cd,
-            parameter_cds=self._parameter_cds,
-            days_back=self._days_back,
-        )
-        return source.resources.values()
-
-    def load(self, smoke: bool = False) -> Any:
-        schema_name = self.config.resolve_schema_name()
-        pipeline = dlt_pipeline(
-            pipeline_name=f"{self.name}_api",
-            destination=dlt_destination(settings.raw_catalog_path("usgs")),
-            dataset_name=settings.raw_dataset_name("usgs"),
-            pipelines_dir=settings.dlt_data_dir,
-            progress="log",
-        )
-        source = usgs_source(
-            state_cd=self._state_cd,
-            parameter_cds=self._parameter_cds,
-            days_back=self._days_back,
-        )
-        if smoke:
-            source.add_limit(max_items=5)
-        source = prepare_dlt_source(source)
-
-        run_log = log.bind(
-            pipeline=pipeline.pipeline_name,
-            source="usgs",
-            schema=schema_name,
-            state=self._state_cd,
-            parameters=self._parameter_cds,
-            days_back=self._days_back,
-            smoke=smoke,
-        )
-        started = pendulum.now()
-        run_log.info("pipeline_start")
-
-        info = pipeline.run(source)
-
-        duration_ms = int((pendulum.now() - started).total_seconds() * 1000)
-        run_log.info(
-            "pipeline_complete",
-            load_id=info.loads_ids[-1] if info.loads_ids else None,
-            duration_ms=duration_ms,
-            has_failed_jobs=info.has_failed_jobs,
-        )
-        return pipeline
-
-    def validate_config(self) -> bool:
-        return True  # USGS requires no API key
-
-
-def create_pipeline(config: PipelineConfig) -> UsgsPipelineSource:
-    return UsgsPipelineSource(config)

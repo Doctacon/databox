@@ -1,82 +1,51 @@
-"""Dagster definitions — assembles per-domain modules into one Definitions.
-
-Each domain (ebird, noaa, usgs, analytics) owns its own dlt assets, SQLMesh
-asset key list, Soda checks, job, and schedule. This file only composes them.
-"""
+"""Dagster definitions composed from the canonical source registry."""
 
 from __future__ import annotations
+
+from importlib import import_module
+from types import ModuleType
 
 import dagster as dg
 from dagster_dlt import DagsterDltResource
 from dagster_sqlmesh import SQLMeshResource
 
+from databox.config.sources import SOURCES
 from databox.orchestration._factories import (
     DataboxConfig,
     freshness_violation_sensor,
     openlineage_sensor_or_none,
     sqlmesh_project,
 )
-from databox.orchestration.domains import (
-    analytics,
-    avonet,
-    ebird,
-    gbif,
-    noaa,
-    usgs,
-    usgs_earthquakes,
-    xeno_canto,
-)
+from databox.orchestration.domains import analytics
 from databox.orchestration.parallel_refresh import (
     parallel_quack_full_refresh,
     parallel_quack_schedule,
 )
 
+
+def _load_source_domains() -> dict[str, ModuleType]:
+    return {source.name: import_module(source.domain_module) for source in SOURCES}
+
+
+_SOURCE_DOMAINS = _load_source_domains()
 _openlineage_sensor = openlineage_sensor_or_none()
 
 defs = dg.Definitions(
     assets=[
-        avonet.avonet_dlt_assets,
-        ebird.ebird_dlt_assets,
-        gbif.gbif_dlt_assets,
-        xeno_canto.xeno_canto_dlt_assets,
-        noaa.noaa_dlt_assets,
-        usgs.usgs_dlt_assets,
-        usgs_earthquakes.usgs_earthquakes_dlt_assets,
+        *(asset for module in _SOURCE_DOMAINS.values() for asset in module.assets),
         sqlmesh_project,
     ],
     asset_checks=[
-        *avonet.asset_checks,
-        *ebird.asset_checks,
-        *gbif.asset_checks,
-        *xeno_canto.asset_checks,
-        *noaa.asset_checks,
-        *usgs.asset_checks,
-        *usgs_earthquakes.asset_checks,
+        *(check for module in _SOURCE_DOMAINS.values() for check in module.asset_checks),
         *analytics.asset_checks,
     ],
     jobs=[
-        avonet.ingest_job,
-        ebird.ingest_job,
-        gbif.ingest_job,
-        xeno_canto.ingest_job,
-        noaa.ingest_job,
-        usgs.ingest_job,
-        usgs_earthquakes.ingest_job,
-        ebird.daily_pipeline,
-        gbif.daily_pipeline,
-        xeno_canto.daily_pipeline,
-        noaa.daily_pipeline,
-        usgs.daily_pipeline,
-        usgs_earthquakes.daily_pipeline,
+        *(module.ingest_job for module in _SOURCE_DOMAINS.values()),
+        *(_SOURCE_DOMAINS[source.name].daily_pipeline for source in SOURCES if source.scheduled),
         parallel_quack_full_refresh,
     ],
     schedules=[
-        ebird.schedule,
-        gbif.schedule,
-        xeno_canto.schedule,
-        noaa.schedule,
-        usgs.schedule,
-        usgs_earthquakes.schedule,
+        *(_SOURCE_DOMAINS[source.name].schedule for source in SOURCES if source.scheduled),
         parallel_quack_schedule,
     ],
     sensors=[freshness_violation_sensor, *([_openlineage_sensor] if _openlineage_sensor else [])],

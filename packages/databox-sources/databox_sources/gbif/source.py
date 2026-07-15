@@ -14,9 +14,6 @@ from typing import Any
 
 import dlt
 import pendulum
-from databox.config.pipeline_config import PipelineConfig
-from databox.config.settings import settings
-from databox.destinations import dlt_destination, dlt_pipeline, prepare_dlt_source
 from dlt.sources.helpers import requests as dlt_requests
 
 from databox_sources._logging import get_logger
@@ -258,70 +255,3 @@ def gbif_source(
             offset += len(results)
 
     return [occurrences]
-
-
-class GbifPipelineSource:
-    """GBIF pipeline source implementing the PipelineSource protocol."""
-
-    def __init__(self, config: PipelineConfig) -> None:
-        self.name = config.name
-        self.config = config
-        self._country_code = config.params.get("country_code", "US")
-        self._state_province = config.params.get("state_province", "Arizona")
-        self._taxon_key = int(config.params.get("taxon_key", GBIF_AVES_TAXON_KEY))
-        self._max_records = int(config.params.get("max_records", 1000))
-        self._has_coordinate = bool(config.params.get("has_coordinate", True))
-
-    def _source(self) -> Any:
-        return gbif_source(
-            country_code=self._country_code,
-            state_province=self._state_province,
-            taxon_key=self._taxon_key,
-            max_records=self._max_records,
-            has_coordinate=self._has_coordinate,
-        )
-
-    def resources(self) -> list[Any]:
-        source = self._source()
-        return list(source.resources.values())
-
-    def load(self, smoke: bool = False) -> Any:
-        pipeline = dlt_pipeline(
-            pipeline_name=f"{self.name}_api",
-            destination=dlt_destination(settings.raw_catalog_path("gbif")),
-            dataset_name=settings.raw_dataset_name("gbif"),
-            pipelines_dir=settings.dlt_data_dir,
-            progress="log",
-        )
-        source = self._source()
-        if smoke:
-            source.add_limit(max_items=5)
-        source = prepare_dlt_source(source)
-
-        run_log = log.bind(
-            pipeline=pipeline.pipeline_name,
-            source="gbif",
-            schema=self.config.resolve_schema_name(),
-            country_code=self._country_code,
-            state_province=self._state_province,
-            taxon_key=self._taxon_key,
-            smoke=smoke,
-        )
-        started = pendulum.now()
-        run_log.info("pipeline_start")
-        info = pipeline.run(source)
-        duration_ms = int((pendulum.now() - started).total_seconds() * 1000)
-        run_log.info(
-            "pipeline_complete",
-            load_id=info.loads_ids[-1] if info.loads_ids else None,
-            duration_ms=duration_ms,
-            has_failed_jobs=info.has_failed_jobs,
-        )
-        return pipeline
-
-    def validate_config(self) -> bool:
-        return True
-
-
-def create_pipeline(config: PipelineConfig) -> GbifPipelineSource:
-    return GbifPipelineSource(config)

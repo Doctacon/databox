@@ -1,0 +1,89 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/geo+json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+    method: GET
+    uri: https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson
+  response:
+    body:
+      string: '{"type": "FeatureCollection", "metadata": {"generated": 1784070690000,
+        "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+        "title": "USGS All Earthquakes, Past Day", "status": 200, "api": "2.7.0",
+        "count": 282}, "features": [{"type": "Feature", "properties": {"mag": 0.83,
+        "place": "11 km WNW of Cobb, CA", "time": 1784070304900, "updated": 1784070400960,
+        "tz": null, "url": "https://earthquake.usgs.gov/earthquakes/eventpage/nc75396026",
+        "detail": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/nc75396026.geojson",
+        "felt": null, "cdi": null, "mmi": null, "alert": null, "status": "automatic",
+        "tsunami": 0, "sig": 11, "net": "nc", "code": "75396026", "ids": ",nc75396026,",
+        "sources": ",nc,", "types": ",nearby-cities,origin,phase-data,", "nst": 10,
+        "dmin": 0.01154, "rms": 0.02, "gap": 140, "magType": "md", "type": "earthquake",
+        "title": "M 0.8 - 11 km WNW of Cobb, CA"}, "geometry": {"type": "Point", "coordinates":
+        [-122.837997436523, 38.8561668395996, 1.30999994277954]}, "id": "nc75396026"},
+        {"type": "Feature", "properties": {"mag": 1.4, "place": "16 km WSW of Johannesburg,
+        CA", "time": 1784069681830, "updated": 1784069885492, "tz": null, "url": "https://earthquake.usgs.gov/earthquakes/eventpage/ci40654882",
+        "detail": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/ci40654882.geojson",
+        "felt": null, "cdi": null, "mmi": null, "alert": null, "status": "automatic",
+        "tsunami": 0, "sig": 30, "net": "ci", "code": "40654882", "ids": ",ci40654882,",
+        "sources": ",ci,", "types": ",nearby-cities,origin,phase-data,scitech-link,",
+        "nst": 50, "dmin": 0.05892, "rms": 0.23, "gap": 58, "magType": "ml", "type":
+        "earthquake", "title": "M 1.4 - 16 km WSW of Johannesburg, CA"}, "geometry":
+        {"type": "Point", "coordinates": [-117.798333333333, 35.3118333333333, 6.11]},
+        "id": "ci40654882"}], "bbox": [-178.5092, -22.7425, -2.85, 171.4439, 65.068,
+        574.304]}'
+    headers:
+      Access-Control-Allow-Headers:
+      - '*'
+      Access-Control-Allow-Methods:
+      - GET, OPTIONS
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Max-Age:
+      - '86400'
+      Age:
+      - '45'
+      Cache-Control:
+      - public, max-age=60
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Tue, 14 Jul 2026 23:11:30 GMT
+      Expires:
+      - Tue, 14 Jul 2026 23:12:30 GMT
+      Last-Modified:
+      - Tue, 14 Jul 2026 23:11:30 GMT
+      Server:
+      - Apache/2.4.52 (Ubuntu)
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Accept-Encoding
+      Via:
+      - 1.1 21f063c5df4ff3c4a8628d9d6e0e4a24.cloudfront.net (CloudFront)
+      X-Amz-Cf-Id:
+      - JlkGTQA6VAEJmEXQzRm3P7JXR1j5j0Kj5Rdy6VQw6mbWsnklie0koA==
+      X-Amz-Cf-Pop:
+      - LAX54-P2
+      X-Cache:
+      - Hit from cloudfront
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '1'
+      content-length:
+      - '201947'
+    status:
+      code: 200
+      message: OK
+version: 1

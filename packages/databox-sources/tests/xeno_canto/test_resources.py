@@ -4,24 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from databox.config.pipeline_config import load_pipeline_config
+import pytest
+from databox.orchestration.domains import xeno_canto as xeno_domain
 from databox_sources.xeno_canto import source as xeno_module
 from databox_sources.xeno_canto.source import (
     XENO_CANTO_DEFAULT_QUERY,
     process_recording,
     xeno_canto_source,
 )
-
-
-class _Response:
-    def __init__(self, payload: dict[str, Any]) -> None:
-        self._payload = payload
-
-    def raise_for_status(self) -> None:
-        return None
-
-    def json(self) -> dict[str, Any]:
-        return self._payload
 
 
 def _recording_payload() -> dict[str, Any]:
@@ -97,40 +87,40 @@ def test_process_recording_preserves_media_license_and_provenance_fields() -> No
     assert row["_loaded_at"] == "2026-07-08T00:00:00Z"
 
 
-def test_recordings_resource_fetches_authenticated_metadata_endpoint(monkeypatch) -> None:
-    calls: list[dict[str, Any]] = []
-
-    def fake_get(url: str, *, headers: dict[str, Any], params: dict[str, Any]) -> _Response:
-        calls.append({"url": url, "headers": headers, "params": params})
-        return _Response(
-            {
-                "numRecordings": "1",
-                "numSpecies": "1",
-                "page": 1,
-                "numPages": 1,
-                "recordings": [_recording_payload()],
-            }
-        )
-
-    monkeypatch.setenv("XENO_CANTO_API_KEY", "test-key")
-    monkeypatch.setattr(xeno_module.dlt_requests, "get", fake_get)
-
-    source = xeno_canto_source(query=XENO_CANTO_DEFAULT_QUERY, max_records=1, per_page=50)
+@pytest.mark.vcr
+def test_recordings_resource_fetches_authenticated_metadata_endpoint() -> None:
+    source = xeno_domain._build_source(max_records=2, per_page=2)
     rows = list(source.resources["recordings"])
 
-    assert len(rows) == 1
-    assert rows[0]["id"] == "123456"
+    assert len(rows) == 2
+    assert all(row["id"] for row in rows)
+    assert all(row["_source_url"] == xeno_module.XENO_CANTO_RECORDINGS for row in rows)
+    assert all(row["_query"] == XENO_CANTO_DEFAULT_QUERY for row in rows)
+    assert all(row["_query_page"] == 1 for row in rows)
+
+
+def test_canonical_builder_owns_production_defaults(monkeypatch) -> None:
+    calls: list[dict[str, Any]] = []
+    sentinel = object()
+
+    def fake_source(**kwargs: Any) -> object:
+        calls.append(kwargs)
+        return sentinel
+
+    monkeypatch.setattr(xeno_domain, "xeno_canto_source", fake_source)
+    assert xeno_domain._build_source() is sentinel
+    assert xeno_domain._build_source(max_records=2, per_page=2) is sentinel
     assert calls == [
         {
-            "url": xeno_module.XENO_CANTO_RECORDINGS,
-            "headers": {"Accept": "application/json"},
-            "params": {
-                "query": XENO_CANTO_DEFAULT_QUERY,
-                "per_page": 1,
-                "page": 1,
-                "key": "test-key",
-            },
-        }
+            "query": XENO_CANTO_DEFAULT_QUERY,
+            "max_records": 1000,
+            "per_page": 100,
+        },
+        {
+            "query": XENO_CANTO_DEFAULT_QUERY,
+            "max_records": 2,
+            "per_page": 2,
+        },
     ]
 
 
@@ -145,12 +135,3 @@ def test_recordings_resource_requires_api_key(monkeypatch) -> None:
         assert "XENO_CANTO_API_KEY" in str(exc)
     else:  # pragma: no cover - defensive assertion path
         raise AssertionError("expected missing XENO_CANTO_API_KEY to fail")
-
-
-def test_xeno_canto_config_loads_source_params() -> None:
-    config = load_pipeline_config("xeno_canto")
-
-    assert config.source_module == "databox_sources.xeno_canto.source"
-    assert config.params["query"] == XENO_CANTO_DEFAULT_QUERY
-    assert config.params["max_records"] == 1000
-    assert config.params["per_page"] == 100

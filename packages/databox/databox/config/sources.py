@@ -12,10 +12,16 @@ domain modules (domain modules may import the registry, not the other way).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Literal
 
 import dagster as dg
+
+VerificationProfile = Literal["http", "file_snapshot"]
+
+SOURCE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 
 _DEFAULT_FRESHNESS = dg.FreshnessPolicy.cron(
     deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
@@ -38,6 +44,7 @@ class Source:
         by cross-domain CDM/analytics SQLMesh assets (the slowest upstream wins).
       scheduled: whether the source has a recurring daily pipeline and schedule.
       parallel_refresh: whether the source participates in the shared full refresh.
+      verification_profile: profile enforced by the registry-derived source test contract.
     """
 
     name: str
@@ -46,10 +53,15 @@ class Source:
     analytics_anchor: bool = False
     scheduled: bool = True
     parallel_refresh: bool = True
+    verification_profile: VerificationProfile = "http"
 
     @property
     def raw_catalog(self) -> str:
         return f"raw_{self.name}"
+
+    @property
+    def domain_module(self) -> str:
+        return f"databox.orchestration.domains.{self.name}"
 
 
 SOURCES: list[Source] = [
@@ -60,6 +72,8 @@ SOURCES: list[Source] = [
             "notable_observations",
             "hotspots",
             "species_list",
+            "taxonomy",
+            "region_stats",
         ),
     ),
     Source(name="gbif", raw_tables=("occurrences",)),
@@ -68,11 +82,12 @@ SOURCES: list[Source] = [
         raw_tables=("species_traits",),
         scheduled=False,
         parallel_refresh=False,
+        verification_profile="file_snapshot",
     ),
     Source(name="xeno_canto", raw_tables=("recordings",)),
     Source(
         name="noaa",
-        raw_tables=("daily_weather", "stations"),
+        raw_tables=("daily_weather", "stations", "datasets"),
         analytics_anchor=True,
     ),
     Source(name="usgs", raw_tables=("daily_values", "sites")),

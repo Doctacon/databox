@@ -1,20 +1,17 @@
-"""Unit tests for scripts/new_source.py.
-
-Exercises the generator against a synthetic repo root in tmp_path. Uses
-monkeypatch to rebind the module's path constants so the real check_source_layout
-linter can verify the scaffolded ingestion tree.
-"""
+"""Unit tests for the canonical-registry source scaffold."""
 
 from __future__ import annotations
 
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
+from databox.config.sources import Source
 
-NEW_SOURCE_SCRIPT = Path(__file__).parent.parent / "scripts" / "new_source.py"
-LAYOUT_SCRIPT = Path(__file__).parent.parent / "scripts" / "check_source_layout.py"
+NEW_SOURCE_SCRIPT = Path(__file__).parent.parent / "scripts/new_source.py"
+LAYOUT_SCRIPT = Path(__file__).parent.parent / "scripts/check_source_layout.py"
 
 
 def _load(name: str, path: Path):
@@ -28,228 +25,142 @@ def _load(name: str, path: Path):
     return module
 
 
-def _scaffold_repo(tmp_path: Path) -> Path:
-    """Build a minimal repo skeleton the generator can write into."""
-    (tmp_path / "packages/databox-sources/databox_sources").mkdir(parents=True)
-    (tmp_path / "packages/databox-sources/databox_sources/__init__.py").write_text("")
-    (tmp_path / "transforms/main/models").mkdir(parents=True)
-    (tmp_path / "soda/contracts").mkdir(parents=True)
-    (tmp_path / "packages/databox/databox/orchestration/domains").mkdir(parents=True)
-    (tmp_path / "packages/databox/databox/orchestration/domains/__init__.py").write_text("")
-
-    defs_path = tmp_path / "packages/databox/databox/orchestration/definitions.py"
-    defs_path.write_text(
-        '''"""Dagster definitions — stub for tests."""
-
-from __future__ import annotations
-
-import dagster as dg
-
-from databox.orchestration.domains import analytics, ebird, noaa, usgs
-
-all_pipelines = dg.define_asset_job(
-    name="all_pipelines",
-    selection=dg.AssetSelection.assets(
-        *ebird.dlt_asset_keys,
-        *noaa.dlt_asset_keys,
-        *usgs.dlt_asset_keys,
-        *ebird.sqlmesh_asset_keys,
-        *noaa.sqlmesh_asset_keys,
-        *usgs.sqlmesh_asset_keys,
-        *analytics.sqlmesh_asset_keys,
-    ),
-)
-
-defs = dg.Definitions(
-    asset_checks=[
-        *ebird.asset_checks,
-        *noaa.asset_checks,
-        *usgs.asset_checks,
-        *analytics.asset_checks,
-    ],
-)
-'''
+def _repo(root: Path) -> None:
+    (root / "packages/databox-sources/databox_sources").mkdir(parents=True)
+    (root / "packages/databox/databox/orchestration/domains").mkdir(parents=True)
+    (root / "transforms/main/models").mkdir(parents=True)
+    (root / "soda/contracts").mkdir(parents=True)
+    (root / ".env.example").write_text("EBIRD_API_TOKEN=\n")
+    config = root / "packages/databox/databox/config"
+    config.mkdir(parents=True)
+    (config / "sources.py").write_text(
+        'SOURCES = [\n    Source(name="ebird", raw_tables=("recent",)),\n]\n'
     )
 
-    env_example = tmp_path / ".env.example"
-    env_example.write_text("EBIRD_API_TOKEN=\n")
 
-    config_dir = tmp_path / "packages/databox/databox/config"
-    config_dir.mkdir(parents=True)
-    sources_path = config_dir / "sources.py"
-    sources_path.write_text(
-        '''"""Stub source registry for tests."""
-
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class Source:
-    name: str
-    raw_tables: tuple[str, ...] = ()
-
-
-SOURCES: list[Source] = [
-    Source(name="ebird", raw_tables=("recent_observations",)),
-]
-'''
-    )
-    return tmp_path
-
-
-def _rebind(gen_module, layout_module, root: Path) -> None:
-    gen_module.ROOT = root
-    gen_module.SOURCES_PKG_DIR = root / "packages/databox-sources/databox_sources"
-    gen_module.MODELS_DIR = root / "transforms/main/models"
-    gen_module.CONTRACTS_DIR = root / "soda/contracts"
-    gen_module.DOMAINS_DIR = root / "packages/databox/databox/orchestration/domains"
-    gen_module.DEFINITIONS_PATH = root / "packages/databox/databox/orchestration/definitions.py"
-    gen_module.SOURCES_REGISTRY_PATH = root / "packages/databox/databox/config/sources.py"
-    gen_module.ENV_EXAMPLE_PATH = root / ".env.example"
-
-    layout_module.SOURCES_DIR = gen_module.SOURCES_PKG_DIR
-    layout_module.DOMAINS_DIR = gen_module.DOMAINS_DIR
+def _rebind(gen, layout, root: Path) -> None:
+    gen.ROOT = root
+    gen.SOURCES_PKG_DIR = root / "packages/databox-sources/databox_sources"
+    gen.MODELS_DIR = root / "transforms/main/models"
+    gen.CONTRACTS_DIR = root / "soda/contracts"
+    gen.DOMAINS_DIR = root / "packages/databox/databox/orchestration/domains"
+    gen.SOURCES_REGISTRY_PATH = root / "packages/databox/databox/config/sources.py"
+    gen.ENV_EXAMPLE_PATH = root / ".env.example"
+    layout.PROJECT_ROOT = root
+    layout.SOURCES_DIR = gen.SOURCES_PKG_DIR
+    layout.DOMAINS_DIR = gen.DOMAINS_DIR
+    layout.TESTS_DIR = root / "packages/databox-sources/tests"
 
 
 @pytest.fixture
 def env(tmp_path: Path):
     gen = _load("new_source", NEW_SOURCE_SCRIPT)
     layout = _load("check_source_layout", LAYOUT_SCRIPT)
-    root = _scaffold_repo(tmp_path)
-    _rebind(gen, layout, root)
-    return gen, layout, root
+    _repo(tmp_path)
+    _rebind(gen, layout, tmp_path)
+    return gen, layout, tmp_path
 
 
-def test_validate_name_rejects_uppercase() -> None:
+def test_validate_name_rejects_invalid_names() -> None:
     gen = _load("new_source", NEW_SOURCE_SCRIPT)
-    with pytest.raises(ValueError):
-        gen.validate_name("Bad")
+    for name in ("Bad", "analytics", "foo__bar", "foo_", "_foo"):
+        with pytest.raises(ValueError):
+            gen.validate_name(name)
 
 
-def test_validate_name_rejects_reserved() -> None:
+@pytest.mark.parametrize("name", ["foo", "foo2", "foo_bar", "foo2_bar3"])
+def test_validate_name_uses_canonical_source_pattern(name: str) -> None:
     gen = _load("new_source", NEW_SOURCE_SCRIPT)
-    with pytest.raises(ValueError):
-        gen.validate_name("analytics")
+    gen.validate_name(name)
 
 
-@pytest.mark.parametrize("shape", ["rest", "file", "database"])
-def test_generated_tree_passes_layout_lint(env, shape: str) -> None:
-    gen, layout, _ = env
+@pytest.mark.parametrize(("shape", "profile"), [("rest", "http"), ("file", "file_snapshot")])
+def test_generated_tree_and_registry_profile(env, shape: str, profile: str) -> None:
+    gen, layout, root = env
     assert gen.main(["demo", "--shape", shape]) == 0
+    source_dir = root / "packages/databox-sources/databox_sources/demo"
+    assert not (source_dir / "config.yaml").exists()
     report = layout.check_source("demo")
-    assert report.skipped
-    assert report.skip_reason == "scaffolded"
-    assert report.ok
+    assert report.skipped and not report.ok
+    incomplete = Source(
+        name="demo",
+        raw_tables=(),
+        verification_profile=cast(Any, profile),
+    )
+    assert not layout.validate_sources([incomplete]).ok
+    registry = (root / "packages/databox/databox/config/sources.py").read_text()
+    assert f'verification_profile="{profile}"' in registry
+    domain = (root / "packages/databox/databox/orchestration/domains/demo.py").read_text()
+    assert "def _build_source()" in domain
 
 
-def test_definitions_wired_idempotently(env) -> None:
-    gen, _, root = env
-    assert gen.main(["demo"]) == 0
-    defs = (root / "packages/databox/databox/orchestration/definitions.py").read_text()
-    assert "import analytics, demo, ebird" in defs
-    assert "*demo.dlt_asset_keys," in defs
-    assert "*demo.sqlmesh_asset_keys," in defs
-    assert "*demo.asset_checks," in defs
-
-    # Second call with --force regenerates; wiring stays singular.
-    assert gen.main(["demo", "--force"]) == 0
-    defs2 = (root / "packages/databox/databox/orchestration/definitions.py").read_text()
-    assert defs2.count("*demo.dlt_asset_keys,") == 1
-    assert defs2.count("*demo.sqlmesh_asset_keys,") == 1
-    assert defs2.count("*demo.asset_checks,") == 1
-
-
-def test_source_registry_wired_idempotently(env) -> None:
-    gen, _, root = env
-    sources_path = root / "packages/databox/databox/config/sources.py"
-
-    assert gen.main(["demo"]) == 0
-    sources = sources_path.read_text()
-    assert 'Source(name="demo", raw_tables=()),' in sources
-
-    # Second call with --force regenerates; entry stays singular.
-    assert gen.main(["demo", "--force"]) == 0
-    sources2 = sources_path.read_text()
-    assert sources2.count('Source(name="demo"') == 1
-
-
-def test_collision_without_force_refuses(env) -> None:
+def test_file_scaffold_requires_manifest_tests_and_failed_contract(env, capsys) -> None:
     gen, _, _ = env
+    assert gen.main(["demo", "--shape", "file"]) == 0
+    output = capsys.readouterr().out
+    assert "pinned `config.yaml` manifest" in output
+    assert "test_staged_publish.py" in output
+    assert "CI matrix fail" in output
+
+
+def test_database_shape_is_not_supported(env) -> None:
+    gen, _, _ = env
+    with pytest.raises(SystemExit):
+        gen.main(["demo", "--shape", "database"])
+
+
+def test_registry_wiring_is_idempotent(env) -> None:
+    gen, _, root = env
     assert gen.main(["demo"]) == 0
-    # Second run without --force must fail.
+    assert gen.main(["demo", "--force"]) == 0
+    registry = (root / "packages/databox/databox/config/sources.py").read_text()
+    assert registry.count('Source(name="demo"') == 1
+
+
+def test_collision_and_dry_run(env, capsys) -> None:
+    gen, _, root = env
+    assert gen.main(["demo", "--dry-run"]) == 0
+    assert not (root / "packages/databox-sources/databox_sources/demo").exists()
+    assert "no files written" in capsys.readouterr().out
+    assert gen.main(["demo"]) == 0
     assert gen.main(["demo"]) == 1
 
 
-def test_dry_run_writes_nothing(env, capsys) -> None:
+def test_rest_auth_modes(env) -> None:
     gen, _, root = env
-    assert gen.main(["demo", "--dry-run"]) == 0
-    # No source directory should have been created.
-    assert not (root / "packages/databox-sources/databox_sources/demo").exists()
-    out = capsys.readouterr().out
-    assert "Would create" in out
-    assert "no files written" in out
+    assert gen.main(["demo"]) == 0
+    assert "API_KEY_DEMO=" in (root / ".env.example").read_text()
+    assert gen.main(["public", "--no-auth"]) == 0
+    source = (root / "packages/databox-sources/databox_sources/public/source.py").read_text()
+    assert "API_KEY_PUBLIC" not in source
 
 
-def test_rest_shape_adds_env_stub(env) -> None:
-    gen, _, root = env
-    assert gen.main(["demo", "--shape", "rest"]) == 0
-    env_text = (root / ".env.example").read_text()
-    assert "API_KEY_DEMO=" in env_text
-
-
-def test_no_auth_flag_skips_api_key_guard(env) -> None:
-    gen, _, root = env
-    assert gen.main(["demo", "--shape", "rest", "--no-auth"]) == 0
-    src_py = (root / "packages/databox-sources/databox_sources/demo/source.py").read_text()
-    assert "API_KEY_DEMO" not in src_py
-    assert "os.environ.get" not in src_py
-    assert "public endpoint" in src_py
-    env_text = (root / ".env.example").read_text()
-    assert "API_KEY_DEMO=" not in env_text
-
-
-def test_no_auth_flag_requires_rest_shape(env) -> None:
+def test_no_auth_requires_rest(env) -> None:
     gen, _, _ = env
     assert gen.main(["demo", "--shape", "file", "--no-auth"]) == 2
 
 
-def test_generated_no_auth_source_is_valid_python(env) -> None:
-    gen, _, root = env
-    assert gen.main(["demo", "--shape", "rest", "--no-auth"]) == 0
-    src_py = (root / "packages/databox-sources/databox_sources/demo/source.py").read_text()
-    compile(src_py, "demo_source.py", "exec")
-
-
-def test_file_shape_does_not_touch_env_example(env) -> None:
-    gen, _, root = env
-    assert gen.main(["demo", "--shape", "file"]) == 0
-    env_text = (root / ".env.example").read_text()
-    assert "API_KEY_DEMO=" not in env_text
-
-
-def test_generated_source_py_has_skip_marker(env) -> None:
+def test_generated_stub_is_safe_for_registry_composition(env, monkeypatch) -> None:
     gen, _, root = env
     assert gen.main(["demo"]) == 0
-    src_py = (
-        (root / "packages/databox-sources/databox_sources/demo/source.py")
-        .read_text()
-        .splitlines()[:10]
-    )
-    assert any("scaffold-lint: skip=scaffolded" in line for line in src_py)
+    import types
+
+    source_module = types.ModuleType("databox_sources.demo.source")
+    vars(source_module)["demo_source"] = lambda: object()
+    monkeypatch.setitem(sys.modules, "databox_sources.demo.source", source_module)
+    domain_path = root / "packages/databox/databox/orchestration/domains/demo.py"
+    spec = importlib.util.spec_from_file_location("generated_demo_domain", domain_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.assets == []
+    assert module.ingest_job.name == "demo_ingest"
+    assert list(module.assets) == []
 
 
-def test_source_scaffold_does_not_create_per_source_sqlmesh_dirs(env) -> None:
+def test_scaffold_avoids_manual_composition_and_model_dirs(env) -> None:
     gen, _, root = env
     assert gen.main(["demo"]) == 0
     assert not (root / "transforms/main/models/demo").exists()
-    assert not (root / "soda/contracts/demo_staging").exists()
     assert not (root / "soda/contracts/demo").exists()
-
-
-def test_domain_stub_is_valid_python(env) -> None:
-    gen, _, root = env
-    assert gen.main(["demo"]) == 0
-    domain = (root / "packages/databox/databox/orchestration/domains/demo.py").read_text()
-    compile(domain, "demo.py", "exec")
-    assert "dlt_asset_keys: list" in domain
-    assert "asset_checks: list" in domain
+    assert not hasattr(gen, "wire_definitions")

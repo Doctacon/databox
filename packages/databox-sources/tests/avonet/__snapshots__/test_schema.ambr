@@ -1,0 +1,211 @@
+# serializer version: 1
+# name: test_avonet_schema_snapshot
+  '''
+  name: avonet_source
+  normalizers:
+    json:
+      module: dlt.common.normalizers.json.relational
+    names: snake_case
+  settings:
+    default_hints:
+      not_null:
+      - _dlt_id
+      - _dlt_root_id
+      - _dlt_parent_id
+      - _dlt_list_idx
+      - _dlt_load_id
+      parent_key:
+      - _dlt_parent_id
+      root_key:
+      - _dlt_root_id
+      row_key:
+      - _dlt_id
+      unique:
+      - _dlt_id
+    detections:
+    - iso_timestamp
+  tables:
+    _dlt_loads:
+      columns:
+        inserted_at:
+          data_type: timestamp
+          nullable: false
+        load_id:
+          data_type: text
+          nullable: false
+        schema_name:
+          data_type: text
+          nullable: true
+        schema_version_hash:
+          data_type: text
+          nullable: true
+        status:
+          data_type: bigint
+          nullable: false
+      description: Created by DLT. Tracks completed loads
+      resource: _dlt_loads
+      write_disposition: skip
+    _dlt_pipeline_state:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        created_at:
+          data_type: timestamp
+          nullable: false
+        engine_version:
+          data_type: bigint
+          nullable: false
+        pipeline_name:
+          data_type: text
+          nullable: false
+        state:
+          data_type: text
+          nullable: false
+        version:
+          data_type: bigint
+          nullable: false
+        version_hash:
+          data_type: text
+          nullable: true
+      file_format: preferred
+      resource: _dlt_pipeline_state
+      write_disposition: append
+    _dlt_version:
+      columns:
+        engine_version:
+          data_type: bigint
+          nullable: false
+        inserted_at:
+          data_type: timestamp
+          nullable: false
+        schema:
+          data_type: text
+          nullable: false
+        schema_name:
+          data_type: text
+          nullable: false
+        version:
+          data_type: bigint
+          nullable: false
+        version_hash:
+          data_type: text
+          nullable: false
+      description: Created by DLT. Tracks schema updates
+      resource: _dlt_version
+      write_disposition: skip
+    species_traits:
+      columns:
+        _dlt_id:
+          data_type: text
+          nullable: false
+          row_key: true
+          unique: true
+        _dlt_load_id:
+          data_type: text
+          nullable: false
+        avibase_id:
+          data_type: text
+          nullable: false
+          primary_key: true
+        beak_depth_mm:
+          data_type: double
+        beak_length_culmen_mm:
+          data_type: double
+        beak_length_nares_mm:
+          data_type: double
+        beak_width_mm:
+          data_type: double
+        complete_measures:
+          data_type: bigint
+          nullable: false
+        dataset_doi:
+          data_type: text
+          nullable: false
+        dataset_license:
+          data_type: text
+          nullable: false
+        dataset_version:
+          data_type: text
+          nullable: false
+        family:
+          data_type: text
+          nullable: false
+        female_individuals:
+          data_type: bigint
+          nullable: false
+        habitat:
+          data_type: text
+        habitat_density_code:
+          data_type: bigint
+          nullable: false
+        hand_wing_index:
+          data_type: double
+        inference:
+          data_type: bool
+          nullable: false
+        kipps_distance_mm:
+          data_type: double
+        loaded_at:
+          data_type: timestamp
+          nullable: false
+        male_individuals:
+          data_type: bigint
+          nullable: false
+        mass_g:
+          data_type: double
+        mass_reference_other:
+          data_type: text
+        mass_source:
+          data_type: text
+        migration_code:
+          data_type: bigint
+        order_name:
+          data_type: text
+          nullable: false
+        primary_lifestyle:
+          data_type: text
+          nullable: false
+        reference_species:
+          data_type: text
+        secondary_length_mm:
+          data_type: double
+        source_file_id:
+          data_type: bigint
+          nullable: false
+        source_file_md5:
+          data_type: text
+          nullable: false
+        source_scientific_name:
+          data_type: text
+          nullable: false
+        source_url:
+          data_type: text
+          nullable: false
+        tail_length_mm:
+          data_type: double
+        tarsus_length_mm:
+          data_type: double
+        total_individuals:
+          data_type: bigint
+          nullable: false
+        traits_inferred:
+          data_type: text
+        trophic_level:
+          data_type: text
+        trophic_niche:
+          data_type: text
+        unknown_sex_individuals:
+          data_type: bigint
+          nullable: false
+        wing_length_mm:
+          data_type: double
+      resource: species_traits
+      write_disposition: replace
+  '''
+# ---

@@ -17,8 +17,12 @@ from databox.destinations import (
 from databox.orchestration._factories import dlt_translator
 
 
+def _build_source() -> t.Any:
+    return usgs_earthquakes_source()
+
+
 @dlt_assets(
-    dlt_source=usgs_earthquakes_source(),
+    dlt_source=_build_source(),
     dlt_pipeline=dlt_pipeline(
         pipeline_name="usgs_earthquakes_api",
         destination=dlt_destination(settings.raw_catalog_path("usgs_earthquakes")),
@@ -31,13 +35,14 @@ from databox.orchestration._factories import dlt_translator
 def usgs_earthquakes_dlt_assets(
     context: AssetExecutionContext, dlt: DagsterDltResource
 ) -> t.Iterator[t.Any]:
-    source = usgs_earthquakes_source()
+    source = _build_source()
     if settings.smoke:
         source.add_limit(max_items=5)
     with quack_ingest_session(settings.raw_dataset_name("usgs_earthquakes")):
         yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
+assets = [usgs_earthquakes_dlt_assets]
 dlt_asset_keys = [spec.key for spec in usgs_earthquakes_dlt_assets.specs]
 sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []

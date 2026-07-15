@@ -4,9 +4,10 @@
 TODO: describe the source files — location, format (CSV / Parquet / JSON),
 partitioning, and cadence.
 
-The `scaffold-lint: skip=scaffolded` marker tells the layout linter to
-tolerate an in-flight source. Remove it once source.py, config.yaml, and the
-Dagster domain are real.
+The `scaffold-lint: skip=scaffolded` marker makes the in-flight source visible,
+but completed contract/CI validation still fails. Remove it only after source.py,
+the pinned config.yaml manifest, canonical inventory, Dagster domain, and all
+file-snapshot profile tests (including staged publication) are complete.
 """
 
 from __future__ import annotations

@@ -1,0 +1,120 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+    method: GET
+    uri: https://xeno-canto.org/api/3/recordings?key=REDACTED&page=1&per_page=2&query=cnt%3A%22United+States%22+loc%3A%22Arizona%22+grp%3Abirds
+  response:
+    body:
+      string: '{"numRecordings": "11711", "numSpecies": "368", "page": 1, "numPages":
+        235, "recordings": [{"id": "728080", "gen": "Dendrocygna", "sp": "autumnalis",
+        "en": "Black-bellied Whistling Duck", "cnt": "United States", "type": "flight
+        call", "url": "https://xeno-canto.org/728080", "file": "https://xeno-canto.org/728080/download",
+        "lic": "https://creativecommons.org/licenses/by-nc-sa/4.0/", "q": "B", "date":
+        "2022-05-29"}, {"id": "780557", "gen": "Dendrocygna", "sp": "autumnalis",
+        "en": "Black-bellied Whistling Duck", "cnt": "United States", "type": "call",
+        "url": "https://xeno-canto.org/780557", "file": "https://xeno-canto.org/780557/download",
+        "lic": "https://creativecommons.org/licenses/by-nc-sa/4.0/", "q": "C", "date":
+        "2022-07-25"}]}'
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - DNT, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type,
+        Range, Authorization, key
+      Access-Control-Allow-Methods:
+      - GET, POST, OPTIONS
+      Access-Control-Allow-Origin:
+      - '*'
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      - no-cache, private
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 14 Jul 2026 23:12:14 GMT
+      Server:
+      - nginx/1.31.2
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      content-length:
+      - '100090'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+    method: GET
+    uri: https://xeno-canto.org/api/3/recordings?key=REDACTED&page=1&per_page=2&query=cnt%3A%22United+States%22+loc%3A%22Arizona%22+grp%3Abirds
+  response:
+    body:
+      string: '{"numRecordings": "11711", "numSpecies": "368", "page": 1, "numPages":
+        235, "recordings": [{"id": "728080", "gen": "Dendrocygna", "sp": "autumnalis",
+        "en": "Black-bellied Whistling Duck", "cnt": "United States", "type": "flight
+        call", "url": "https://xeno-canto.org/728080", "file": "https://xeno-canto.org/728080/download",
+        "lic": "https://creativecommons.org/licenses/by-nc-sa/4.0/", "q": "B", "date":
+        "2022-05-29"}, {"id": "780557", "gen": "Dendrocygna", "sp": "autumnalis",
+        "en": "Black-bellied Whistling Duck", "cnt": "United States", "type": "call",
+        "url": "https://xeno-canto.org/780557", "file": "https://xeno-canto.org/780557/download",
+        "lic": "https://creativecommons.org/licenses/by-nc-sa/4.0/", "q": "C", "date":
+        "2022-07-25"}]}'
+    headers:
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - DNT, User-Agent, X-Requested-With, If-Modified-Since, Cache-Control, Content-Type,
+        Range, Authorization, key
+      Access-Control-Allow-Methods:
+      - GET, POST, OPTIONS
+      Access-Control-Allow-Origin:
+      - '*'
+      Cache-Control:
+      - max-age=0, private, must-revalidate
+      - no-cache, private
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 14 Jul 2026 23:12:15 GMT
+      Server:
+      - nginx/1.31.2
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      content-length:
+      - '100090'
+    status:
+      code: 200
+      message: OK
+version: 1

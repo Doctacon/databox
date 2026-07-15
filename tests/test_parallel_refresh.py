@@ -293,6 +293,35 @@ def test_refresh_inspection_reports_rows_and_rejects_main_dlt(tmp_path: Path) ->
         inspect_refresh_state(str(db_path), ["gbif"])
 
 
+def test_refresh_inspection_uses_complete_ebird_and_noaa_inventories(tmp_path: Path) -> None:
+    db_path = tmp_path / "databox.duckdb"
+    tables = {
+        "ebird": (
+            "recent_observations",
+            "notable_observations",
+            "hotspots",
+            "species_list",
+            "taxonomy",
+            "region_stats",
+        ),
+        "noaa": ("daily_weather", "stations", "datasets"),
+    }
+    con = duckdb.connect(str(db_path))
+    for source, source_tables in tables.items():
+        con.execute(f"CREATE SCHEMA raw_{source}")
+        for table in source_tables:
+            con.execute(f"CREATE TABLE raw_{source}.{table} (id INTEGER)")
+            con.execute(f"INSERT INTO raw_{source}.{table} VALUES (1)")
+    con.close()
+
+    inspection = inspect_refresh_state(str(db_path), ["ebird", "noaa"])
+    assert inspection.row_counts == tuple(
+        (f"raw_{source}.{table}", 1)
+        for source, source_tables in tables.items()
+        for table in source_tables
+    )
+
+
 def test_parallel_refresh_job_is_available_in_dagster_definitions() -> None:
     from databox.orchestration.definitions import defs
 

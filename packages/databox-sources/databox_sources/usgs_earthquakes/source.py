@@ -14,9 +14,6 @@ from typing import Any
 
 import dlt
 import pendulum
-from databox.config.pipeline_config import PipelineConfig
-from databox.config.settings import settings
-from databox.destinations import dlt_destination, dlt_pipeline, prepare_dlt_source
 from dlt.sources.helpers import requests as dlt_requests
 
 from databox_sources._logging import get_logger
@@ -98,53 +95,3 @@ def usgs_earthquakes_source() -> Any:
                 yield _flatten_feature(feature, loaded_at)
 
     return [events]
-
-
-class UsgsEarthquakesPipelineSource:
-    """USGS earthquakes pipeline source implementing the PipelineSource protocol."""
-
-    def __init__(self, config: PipelineConfig) -> None:
-        self.name = config.name
-        self.config = config
-
-    def resources(self) -> list[Any]:
-        source = usgs_earthquakes_source()
-        return list(source.resources.values())
-
-    def load(self, smoke: bool = False) -> Any:
-        pipeline = dlt_pipeline(
-            pipeline_name=f"{self.name}_api",
-            destination=dlt_destination(settings.raw_catalog_path("usgs_earthquakes")),
-            dataset_name=settings.raw_dataset_name("usgs_earthquakes"),
-            pipelines_dir=settings.dlt_data_dir,
-            progress="log",
-        )
-        source = usgs_earthquakes_source()
-        if smoke:
-            source.add_limit(max_items=5)
-        source = prepare_dlt_source(source)
-
-        run_log = log.bind(
-            pipeline=pipeline.pipeline_name,
-            source="usgs_earthquakes",
-            schema=self.config.resolve_schema_name(),
-            smoke=smoke,
-        )
-        started = pendulum.now()
-        run_log.info("pipeline_start")
-        info = pipeline.run(source)
-        duration_ms = int((pendulum.now() - started).total_seconds() * 1000)
-        run_log.info(
-            "pipeline_complete",
-            load_id=info.loads_ids[-1] if info.loads_ids else None,
-            duration_ms=duration_ms,
-            has_failed_jobs=info.has_failed_jobs,
-        )
-        return pipeline
-
-    def validate_config(self) -> bool:
-        return True
-
-
-def create_pipeline(config: PipelineConfig) -> UsgsEarthquakesPipelineSource:
-    return UsgsEarthquakesPipelineSource(config)

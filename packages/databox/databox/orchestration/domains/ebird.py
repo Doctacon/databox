@@ -17,10 +17,14 @@ from databox.destinations import (
 from databox.orchestration._factories import dlt_translator
 
 
-@dlt_assets(
-    dlt_source=ebird_source(
+def _build_source() -> t.Any:
+    return ebird_source(
         region_code="US-AZ", max_results=10000, days_back=settings.days_back("ebird")
-    ),
+    )
+
+
+@dlt_assets(
+    dlt_source=_build_source(),
     dlt_pipeline=dlt_pipeline(
         pipeline_name="ebird_api",
         destination=dlt_destination(settings.raw_catalog_path("ebird")),
@@ -31,15 +35,14 @@ from databox.orchestration._factories import dlt_translator
     dagster_dlt_translator=dlt_translator("raw_ebird"),
 )
 def ebird_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> t.Iterator[t.Any]:
-    source = ebird_source(
-        region_code="US-AZ", max_results=10000, days_back=settings.days_back("ebird")
-    )
+    source = _build_source()
     if settings.smoke:
         source.add_limit(max_items=5)
     with quack_ingest_session(settings.raw_dataset_name("ebird")):
         yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
+assets = [ebird_dlt_assets]
 dlt_asset_keys = [spec.key for spec in ebird_dlt_assets.specs]
 sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []

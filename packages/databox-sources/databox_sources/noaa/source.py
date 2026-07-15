@@ -9,9 +9,6 @@ from typing import Any
 
 import dlt
 import pendulum
-from databox.config.pipeline_config import PipelineConfig
-from databox.config.settings import settings
-from databox.destinations import dlt_destination, dlt_pipeline, prepare_dlt_source
 from dlt.sources.helpers import requests as dlt_requests
 from dotenv import load_dotenv
 
@@ -208,74 +205,3 @@ def noaa_source(
         yield data
 
     return [daily_weather, stations, datasets]
-
-
-class NoaaPipelineSource:
-    """NOAA pipeline source implementing the PipelineSource protocol."""
-
-    def __init__(self, config: PipelineConfig) -> None:
-        self.name = config.name
-        self.config = config
-        self._location = config.params.get("location_id", DEFAULT_LOCATION)
-        self._dataset = config.params.get("dataset_id", DEFAULT_DATASET)
-        self._days_back = config.params.get("days_back", 30)
-        self._datatypes = config.params.get("datatypes", DEFAULT_DATATYPES)
-
-    def resources(self) -> Any:
-        source = noaa_source(
-            location_id=self._location,
-            dataset_id=self._dataset,
-            days_back=self._days_back,
-            datatypes=self._datatypes,
-        )
-        return source.resources.values()
-
-    def load(self, smoke: bool = False) -> Any:
-        schema_name = self.config.resolve_schema_name()
-        pipeline = dlt_pipeline(
-            pipeline_name=f"{self.name}_api",
-            destination=dlt_destination(settings.raw_catalog_path("noaa")),
-            dataset_name=settings.raw_dataset_name("noaa"),
-            pipelines_dir=settings.dlt_data_dir,
-            progress="log",
-        )
-
-        source = noaa_source(
-            location_id=self._location,
-            dataset_id=self._dataset,
-            days_back=self._days_back,
-            datatypes=self._datatypes,
-        )
-        if smoke:
-            source.add_limit(max_items=5)
-        source = prepare_dlt_source(source)
-
-        run_log = log.bind(
-            pipeline=pipeline.pipeline_name,
-            source="noaa",
-            schema=schema_name,
-            location=self._location,
-            dataset=self._dataset,
-            days_back=self._days_back,
-            smoke=smoke,
-        )
-        started = pendulum.now()
-        run_log.info("pipeline_start")
-
-        info = pipeline.run(source)
-
-        duration_ms = int((pendulum.now() - started).total_seconds() * 1000)
-        run_log.info(
-            "pipeline_complete",
-            load_id=info.loads_ids[-1] if info.loads_ids else None,
-            duration_ms=duration_ms,
-            has_failed_jobs=info.has_failed_jobs,
-        )
-        return pipeline
-
-    def validate_config(self) -> bool:
-        return bool(os.getenv("NOAA_API_TOKEN"))
-
-
-def create_pipeline(config: PipelineConfig) -> NoaaPipelineSource:
-    return NoaaPipelineSource(config)

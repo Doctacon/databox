@@ -17,12 +17,16 @@ from databox.destinations import (
 from databox.orchestration._factories import dlt_translator
 
 
-@dlt_assets(
-    dlt_source=xeno_canto_source(
+def _build_source(*, max_records: int = 1000, per_page: int = 100) -> t.Any:
+    return xeno_canto_source(
         query=XENO_CANTO_DEFAULT_QUERY,
-        max_records=1000,
-        per_page=100,
-    ),
+        max_records=max_records,
+        per_page=per_page,
+    )
+
+
+@dlt_assets(
+    dlt_source=_build_source(),
     dlt_pipeline=dlt_pipeline(
         pipeline_name="xeno_canto_api",
         destination=dlt_destination(settings.raw_catalog_path("xeno_canto")),
@@ -35,17 +39,14 @@ from databox.orchestration._factories import dlt_translator
 def xeno_canto_dlt_assets(
     context: AssetExecutionContext, dlt: DagsterDltResource
 ) -> t.Iterator[t.Any]:
-    source = xeno_canto_source(
-        query=XENO_CANTO_DEFAULT_QUERY,
-        max_records=1000,
-        per_page=100,
-    )
+    source = _build_source()
     if settings.smoke:
         source.add_limit(max_items=5)
     with quack_ingest_session(settings.raw_dataset_name("xeno_canto")):
         yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
+assets = [xeno_canto_dlt_assets]
 dlt_asset_keys = [spec.key for spec in xeno_canto_dlt_assets.specs]
 sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []

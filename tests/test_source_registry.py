@@ -16,7 +16,22 @@ import pytest
 from databox.config.settings import settings
 from databox.config.sources import SOURCES
 
-EXPECTED_DOMAIN_EXPORTS = ("dlt_asset_keys", "sqlmesh_asset_keys", "ingest_job")
+EXPECTED_DOMAIN_EXPORTS = (
+    "assets",
+    "dlt_asset_keys",
+    "sqlmesh_asset_keys",
+    "ingest_job",
+    "_build_source",
+)
+EXPECTED_SOURCES = {
+    "avonet",
+    "ebird",
+    "gbif",
+    "noaa",
+    "usgs",
+    "usgs_earthquakes",
+    "xeno_canto",
+}
 
 
 @pytest.mark.parametrize("source", SOURCES, ids=lambda source: source.name)
@@ -50,9 +65,30 @@ def test_every_domain_module_is_registered() -> None:
     )
 
 
-def test_source_names_unique() -> None:
+def test_source_names_unique_and_complete() -> None:
     names = [s.name for s in SOURCES]
     assert len(names) == len(set(names)), f"duplicate source names in registry: {names}"
+    assert set(names) == EXPECTED_SOURCES
+
+
+def test_domain_identity_and_verification_profiles() -> None:
+    for source in SOURCES:
+        assert source.domain_module == f"databox.orchestration.domains.{source.name}"
+        expected = "file_snapshot" if source.name == "avonet" else "http"
+        assert source.verification_profile == expected
+
+
+def test_source_complete_raw_table_inventory() -> None:
+    sources = {source.name: source for source in SOURCES}
+    assert sources["ebird"].raw_tables == (
+        "recent_observations",
+        "notable_observations",
+        "hotspots",
+        "species_list",
+        "taxonomy",
+        "region_stats",
+    )
+    assert sources["noaa"].raw_tables == ("daily_weather", "stations", "datasets")
 
 
 def test_raw_catalogs_match_name() -> None:

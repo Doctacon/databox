@@ -165,8 +165,12 @@ def avonet_staged_publish(
         raise
 
 
+def _build_source() -> t.Any:
+    return avonet_source()
+
+
 @dlt_assets(
-    dlt_source=avonet_source(),
+    dlt_source=_build_source(),
     dlt_pipeline=dlt_pipeline(
         pipeline_name="avonet_file",
         destination=dlt_destination(settings.raw_catalog_path("avonet")),
@@ -184,9 +188,10 @@ def avonet_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -
         expected_rows=avonet_source_module.AVONET_EXPECTED_ROWS,
     ):
         with quack_ingest_session(_AVONET_STAGING_SCHEMA):
-            yield from dlt.run(context=context, dlt_source=prepare_dlt_source(avonet_source()))
+            yield from dlt.run(context=context, dlt_source=prepare_dlt_source(_build_source()))
 
 
+assets = [avonet_dlt_assets]
 dlt_asset_keys = [spec.key for spec in avonet_dlt_assets.specs]
 sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []

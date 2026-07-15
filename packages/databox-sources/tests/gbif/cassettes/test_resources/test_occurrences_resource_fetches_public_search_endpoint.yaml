@@ -1,0 +1,68 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - dlt/1.14.1
+    method: GET
+    uri: https://api.gbif.org/v1/occurrence/search?classKey=212&country=US&hasCoordinate=true&limit=2&offset=0&stateProvince=Arizona
+  response:
+    body:
+      string: '{"offset": 0, "limit": 2, "endOfRecords": false, "count": 37041938,
+        "results": [{"key": 5938027803, "basisOfRecord": "HUMAN_OBSERVATION", "occurrenceStatus":
+        "PRESENT", "scientificName": "Aythya valisineria (A.Wilson, 1814)", "acceptedScientificName":
+        "Aythya valisineria (A.Wilson, 1814)", "stateProvince": "Arizona", "eventDate":
+        "2026-01-02T16:52:33", "references": "https://example.invalid/gbif-occurrence",
+        "license": "http://creativecommons.org/licenses/by/4.0/legalcode", "class":
+        "Aves", "countryCode": "US", "gbifID": "5938027803"}, {"key": 5938028359,
+        "basisOfRecord": "HUMAN_OBSERVATION", "occurrenceStatus": "PRESENT", "scientificName":
+        "Corthylio calendula (Linnaeus, 1766)", "acceptedScientificName": "Regulus
+        calendula (Linnaeus, 1766)", "stateProvince": "Arizona", "eventDate": "2026-01-03T08:41",
+        "references": "https://example.invalid/gbif-occurrence", "license": "http://creativecommons.org/licenses/by-nc/4.0/legalcode",
+        "class": "Aves", "countryCode": "US", "gbifID": "5938028359"}], "facets":
+        []}'
+    headers:
+      Accept-Ranges:
+      - bytes
+      Age:
+      - '181'
+      Cache-Control:
+      - public, max-age=600
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '12724'
+      Content-Type:
+      - application/json
+      Date:
+      - Tue, 14 Jul 2026 23:09:15 GMT
+      Expires:
+      - '0'
+      Pragma:
+      - no-cache
+      Vary:
+      - Origin, Access-Control-Request-Method, Access-Control-Request-Headers
+      Via:
+      - 1.1 prodapicache2-vh.gbif.org (Varnish/9.0)
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+      X-Varnish:
+      - 54690938981 54686580871
+      X-Varnish-RLG:
+      - '250'
+      X-Varnish-RLI:
+      - '18'
+      X-XSS-Protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+version: 1

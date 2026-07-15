@@ -17,10 +17,14 @@ from databox.destinations import (
 from databox.orchestration._factories import dlt_translator
 
 
-@dlt_assets(
-    dlt_source=usgs_source(
+def _build_source() -> t.Any:
+    return usgs_source(
         state_cd="AZ", parameter_cds="00060,00065,00010", days_back=settings.days_back("usgs")
-    ),
+    )
+
+
+@dlt_assets(
+    dlt_source=_build_source(),
     dlt_pipeline=dlt_pipeline(
         pipeline_name="usgs_api",
         destination=dlt_destination(settings.raw_catalog_path("usgs")),
@@ -31,15 +35,14 @@ from databox.orchestration._factories import dlt_translator
     dagster_dlt_translator=dlt_translator("raw_usgs"),
 )
 def usgs_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> t.Iterator[t.Any]:
-    source = usgs_source(
-        state_cd="AZ", parameter_cds="00060,00065,00010", days_back=settings.days_back("usgs")
-    )
+    source = _build_source()
     if settings.smoke:
         source.add_limit(max_items=5)
     with quack_ingest_session(settings.raw_dataset_name("usgs")):
         yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
+assets = [usgs_dlt_assets]
 dlt_asset_keys = [spec.key for spec in usgs_dlt_assets.specs]
 sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []

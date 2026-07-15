@@ -11,6 +11,7 @@ Every test module under packages/databox-sources/tests/<source>/ gets:
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,11 @@ import pytest
 import yaml
 
 TESTS_ROOT = Path(__file__).parent
+_GBIF_REFERENCE_PLACEHOLDER = "https://example.invalid/gbif-occurrence"
+_EBIRD_PRIVATE_LOCATION_NAME = "Private location (sanitized)"
+_EBIRD_PRIVATE_LOCATION_ID_PREFIX = "PRIVATE-LOCATION-"
+_EBIRD_PRIVATE_SUBMISSION_ID_PREFIX = "PRIVATE-SUBMISSION-"
+_EBIRD_PRIVATE_COORDINATE = 0.0
 
 _NOISY_SCHEMA_KEYS: tuple[str, ...] = (
     "version_hash",
@@ -48,28 +54,121 @@ def normalize_schema_yaml(raw: str) -> str:
     return "\n".join(line.rstrip() for line in dumped.splitlines())
 
 
+def _sanitize_ebird_private_locations(payload: list[Any]) -> list[Any]:
+    """Replace private eBird location data with non-resolvable synthetic values."""
+    location_ids: dict[str, int] = {}
+    submission_ids: dict[str, int] = {}
+    for row in payload:
+        if not isinstance(row, dict) or row.get("locationPrivate") is not True:
+            continue
+        location_key = str(row.get("locId", ""))
+        submission_key = str(row.get("subId", ""))
+        location_index = location_ids.setdefault(location_key, len(location_ids) + 1)
+        submission_index = submission_ids.setdefault(submission_key, len(submission_ids) + 1)
+        row.update(
+            {
+                "locName": _EBIRD_PRIVATE_LOCATION_NAME,
+                "locId": f"{_EBIRD_PRIVATE_LOCATION_ID_PREFIX}{location_index:03d}",
+                "subId": f"{_EBIRD_PRIVATE_SUBMISSION_ID_PREFIX}{submission_index:03d}",
+                "lat": _EBIRD_PRIVATE_COORDINATE,
+                "lng": _EBIRD_PRIVATE_COORDINATE,
+            }
+        )
+    return payload
+
+
+def _bounded_provider_payload(payload: Any) -> Any:
+    """Minimize newly recorded public fixtures to fields required by source tests."""
+    if isinstance(payload, list):
+        return _sanitize_ebird_private_locations(payload)
+    if not isinstance(payload, dict):
+        return payload
+    results = payload.get("results")
+    if (
+        isinstance(results, list)
+        and results
+        and isinstance(results[0], dict)
+        and ("key" in results[0] or "gbifID" in results[0])
+    ):
+        allowed = {
+            "key",
+            "gbifID",
+            "scientificName",
+            "acceptedScientificName",
+            "class",
+            "countryCode",
+            "stateProvince",
+            "eventDate",
+            "basisOfRecord",
+            "occurrenceStatus",
+            "license",
+            "references",
+        }
+        payload["results"] = [
+            {
+                key: (_GBIF_REFERENCE_PLACEHOLDER if key == "references" else value)
+                for key, value in row.items()
+                if key in allowed
+            }
+            for row in results[:2]
+        ]
+    elif isinstance(payload.get("recordings"), list):
+        allowed = {
+            "id",
+            "gen",
+            "sp",
+            "group",
+            "en",
+            "cnt",
+            "type",
+            "url",
+            "file",
+            "lic",
+            "q",
+            "date",
+        }
+        payload["recordings"] = [
+            {key: value for key, value in row.items() if key in allowed}
+            for row in payload["recordings"][:2]
+        ]
+    elif isinstance(payload.get("features"), list):
+        payload["features"] = payload["features"][:2]
+    return payload
+
+
 def _scrub_response_body(response: dict[str, Any]) -> dict[str, Any]:
-    """Strip known token echoes from response bodies.
-
-    NOAA and eBird don't echo tokens in bodies today, but this is cheap
-    insurance — if the API ever starts leaking them, the filter already exists.
-    """
-    ebird = os.getenv("EBIRD_API_TOKEN", "")
-    noaa = os.getenv("NOAA_API_TOKEN", "")
-
-    tokens = [t for t in (ebird, noaa) if t]
-    if not tokens:
-        return response
+    """Bound provider fixtures and strip credentials/session cookies."""
+    headers = response.get("headers", {})
+    if isinstance(headers, dict):
+        for key in list(headers):
+            if str(key).lower() == "set-cookie":
+                del headers[key]
 
     body = response.get("body", {})
     raw = body.get("string")
+    if isinstance(raw, bytes | str):
+        try:
+            decoded = raw.decode() if isinstance(raw, bytes) else raw
+            raw = json.dumps(_bounded_provider_payload(json.loads(decoded))).encode()
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            pass
+
+    tokens = [
+        token
+        for token in (
+            os.getenv("EBIRD_API_TOKEN", ""),
+            os.getenv("NOAA_API_TOKEN", ""),
+            os.getenv("XENO_CANTO_API_KEY", ""),
+        )
+        if token
+    ]
     if isinstance(raw, bytes):
-        for tok in tokens:
-            raw = raw.replace(tok.encode(), b"REDACTED")
+        for token in tokens:
+            raw = raw.replace(token.encode(), b"REDACTED")
         body["string"] = raw
     elif isinstance(raw, str):
-        for tok in tokens:
-            raw = raw.replace(tok, "REDACTED")
+        for token in tokens:
+            raw = raw.replace(token, "REDACTED")
         body["string"] = raw
     return response
 
@@ -82,10 +181,12 @@ def vcr_config() -> dict[str, Any]:
             ("x-ebirdapitoken", "REDACTED"),
             ("token", "REDACTED"),
             ("x-api-key", "REDACTED"),
+            ("cookie", "REDACTED"),
         ],
         "filter_query_parameters": [
             ("token", "REDACTED"),
             ("api_key", "REDACTED"),
+            ("key", "REDACTED"),
         ],
         "ignore_hosts": ["telemetry.scalevector.ai"],
         "before_record_response": _scrub_response_body,
@@ -135,7 +236,7 @@ def _fake_api_tokens_when_missing(monkeypatch):
     real tokens. Token values leaked into cassettes are filtered via
     filter_headers/filter_query_parameters on recording.
     """
-    for var in ("EBIRD_API_TOKEN", "NOAA_API_TOKEN"):
+    for var in ("EBIRD_API_TOKEN", "NOAA_API_TOKEN", "XENO_CANTO_API_KEY"):
         if not os.getenv(var):
             monkeypatch.setenv(var, "test-token-for-vcr-replay")
 

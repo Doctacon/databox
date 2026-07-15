@@ -4,20 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from databox.config.pipeline_config import load_pipeline_config
+import pytest
+from databox.orchestration.domains import gbif as gbif_domain
 from databox_sources.gbif import source as gbif_module
-from databox_sources.gbif.source import GBIF_AVES_TAXON_KEY, gbif_source, process_occurrence
-
-
-class _Response:
-    def __init__(self, payload: dict[str, Any]) -> None:
-        self._payload = payload
-
-    def raise_for_status(self) -> None:
-        return None
-
-    def json(self) -> dict[str, Any]:
-        return self._payload
+from databox_sources.gbif.source import GBIF_AVES_TAXON_KEY, process_occurrence
 
 
 def _occurrence_payload() -> dict[str, Any]:
@@ -91,54 +81,43 @@ def test_process_occurrence_preserves_planner_fields() -> None:
     assert row["_loaded_at"] == "2026-07-08T00:00:00Z"
 
 
-def test_occurrences_resource_fetches_public_search_endpoint(monkeypatch) -> None:
-    calls: list[dict[str, Any]] = []
-
-    def fake_get(url: str, *, headers: dict[str, Any], params: dict[str, Any]) -> _Response:
-        calls.append({"url": url, "headers": headers, "params": params})
-        return _Response(
-            {
-                "offset": 0,
-                "limit": params["limit"],
-                "endOfRecords": True,
-                "results": [_occurrence_payload()],
-            }
-        )
-
-    monkeypatch.setattr(gbif_module.dlt_requests, "get", fake_get)
-
-    source = gbif_source(
-        country_code="US",
-        state_province="Arizona",
-        taxon_key=GBIF_AVES_TAXON_KEY,
-        max_records=1,
-    )
+@pytest.mark.vcr
+def test_occurrences_resource_fetches_public_search_endpoint() -> None:
+    source = gbif_domain._build_source(max_records=2)
     rows = list(source.resources["occurrences"])
 
-    assert len(rows) == 1
-    assert rows[0]["key"] == 123
+    assert len(rows) == 2
+    assert all(row["key"] is not None for row in rows)
+    assert all(row["_source_url"] == gbif_module.GBIF_OCCURRENCE_SEARCH for row in rows)
+    assert all(row["_query_country_code"] == "US" for row in rows)
+    assert all(row["_query_state_province"] == "Arizona" for row in rows)
+    assert all(row["_query_taxon_key"] == GBIF_AVES_TAXON_KEY for row in rows)
+
+
+def test_canonical_builder_owns_production_defaults(monkeypatch) -> None:
+    calls: list[dict[str, Any]] = []
+    sentinel = object()
+
+    def fake_source(**kwargs: Any) -> object:
+        calls.append(kwargs)
+        return sentinel
+
+    monkeypatch.setattr(gbif_domain, "gbif_source", fake_source)
+    assert gbif_domain._build_source() is sentinel
+    assert gbif_domain._build_source(max_records=2) is sentinel
     assert calls == [
         {
-            "url": gbif_module.GBIF_OCCURRENCE_SEARCH,
-            "headers": {"Accept": "application/json"},
-            "params": {
-                "classKey": GBIF_AVES_TAXON_KEY,
-                "country": "US",
-                "hasCoordinate": "true",
-                "stateProvince": "Arizona",
-                "limit": 1,
-                "offset": 0,
-            },
-        }
+            "country_code": "US",
+            "state_province": "Arizona",
+            "taxon_key": GBIF_AVES_TAXON_KEY,
+            "max_records": 1000,
+            "has_coordinate": True,
+        },
+        {
+            "country_code": "US",
+            "state_province": "Arizona",
+            "taxon_key": GBIF_AVES_TAXON_KEY,
+            "max_records": 2,
+            "has_coordinate": True,
+        },
     ]
-
-
-def test_gbif_config_loads_source_params() -> None:
-    config = load_pipeline_config("gbif")
-
-    assert config.source_module == "databox_sources.gbif.source"
-    assert config.params["country_code"] == "US"
-    assert config.params["state_province"] == "Arizona"
-    assert config.params["taxon_key"] == GBIF_AVES_TAXON_KEY
-    assert config.params["max_records"] == 1000
-    assert config.params["has_coordinate"] is True

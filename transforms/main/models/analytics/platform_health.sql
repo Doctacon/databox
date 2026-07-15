@@ -74,6 +74,8 @@ ebird_rows AS (
     UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.notable_observations GROUP BY 1
     UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.hotspots GROUP BY 1
     UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.species_list GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.taxonomy GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.region_stats GROUP BY 1
   ) t GROUP BY 1
 ),
 gbif_rows AS (
@@ -90,6 +92,7 @@ noaa_rows AS (
   SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
     SELECT _dlt_load_id, COUNT(*) AS n FROM raw_noaa.daily_weather GROUP BY 1
     UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_noaa.stations GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_noaa.datasets GROUP BY 1
   ) t GROUP BY 1
 ),
 usgs_rows AS (

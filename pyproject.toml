@@ -99,12 +99,6 @@ omit = [
     "*/__init__.py",
     # Top-level Dagster wiring; no meaningful branches to exercise.
     "*/orchestration/definitions.py",
-    # Legacy PipelineSource/registry layer predating the SOURCES registry;
-    # flagged for removal in ticket:overengineering-trim.
-    "*/quality/engine.py",
-    "*/config/pipeline_config.py",
-    "*/databox_sources/base.py",
-    "*/databox_sources/registry.py",
 ]
 
 [tool.coverage.report]

@@ -17,14 +17,18 @@ from databox.destinations import (
 from databox.orchestration._factories import dlt_translator
 
 
-@dlt_assets(
-    dlt_source=gbif_source(
+def _build_source(*, max_records: int = 1000) -> t.Any:
+    return gbif_source(
         country_code="US",
         state_province="Arizona",
         taxon_key=212,
-        max_records=1000,
+        max_records=max_records,
         has_coordinate=True,
-    ),
+    )
+
+
+@dlt_assets(
+    dlt_source=_build_source(),
     dlt_pipeline=dlt_pipeline(
         pipeline_name="gbif_api",
         destination=dlt_destination(settings.raw_catalog_path("gbif")),
@@ -35,19 +39,14 @@ from databox.orchestration._factories import dlt_translator
     dagster_dlt_translator=dlt_translator("raw_gbif"),
 )
 def gbif_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> t.Iterator[t.Any]:
-    source = gbif_source(
-        country_code="US",
-        state_province="Arizona",
-        taxon_key=212,
-        max_records=1000,
-        has_coordinate=True,
-    )
+    source = _build_source()
     if settings.smoke:
         source.add_limit(max_items=5)
     with quack_ingest_session(settings.raw_dataset_name("gbif")):
         yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
+assets = [gbif_dlt_assets]
 dlt_asset_keys = [spec.key for spec in gbif_dlt_assets.specs]
 sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []

@@ -1,10 +1,12 @@
 # databox-sources
 
-dlt ingestion sources for databox. Three upstream APIs:
+dlt ingestion sources for Databox. The canonical inventory and verification
+profile for every active source live in `databox.config.sources.SOURCES`.
+Dagster composition and source CI derive from that registry.
 
-- **ebird** — eBird API v2 (requires `EBIRD_API_TOKEN`)
-- **noaa** — NOAA Climate Data Online v2 (requires `NOAA_API_TOKEN`)
-- **usgs** — USGS Water Services NWIS (no auth)
+Current sources are AVONET, eBird, GBIF, NOAA, USGS, USGS Earthquakes, and
+Xeno-canto. AVONET retains a source-specific pinned integrity manifest; other
+sources do not use generic per-source pipeline YAML.
 
 ## Test Harness
 
@@ -55,7 +57,7 @@ automatically. Response bodies are scrubbed of any known token echoes via
 
 ### What each test file covers
 
-Every source gets three test files:
+Every HTTP-profile source gets resource, schema, smoke, idempotency, and canonical-builder coverage:
 
 - `test_resources.py` — Invoke a single `@dlt.resource` generator and assert row
   shape (primary keys present, expected types).
@@ -64,6 +66,12 @@ Every source gets three test files:
   adds/drops/retypes.
 - `test_smoke.py` — Full pipeline run through `:memory:` DuckDB; assert no
   failed jobs and row counts > 0.
+
+A `file_snapshot` source additionally requires a source-specific pinned
+`config.yaml` manifest and `test_staged_publish.py` proving atomic replacement,
+failure preservation, and cleanup with bounded local fixtures. The scaffold
+marker is informational, but completed layout and CI validation remain failing
+until these obligations and the canonical raw-table inventory are complete.
 
 ### Freezing time
 
@@ -74,7 +82,7 @@ cassette request URLs stay stable between recording and replay.
 ### Adding tests for a new source
 
 1. Create `tests/<new_source>/` with `__init__.py`, `test_resources.py`,
-   `test_schema.py`, `test_smoke.py`.
+   `test_schema.py`, `test_smoke.py`, and `test_idempotency.py`.
 2. Copy patterns from one of the existing sources.
 3. Record cassettes with `--record-mode=once`, snapshot schema with
    `--snapshot-update`.

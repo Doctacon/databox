@@ -17,13 +17,17 @@ from databox.destinations import (
 from databox.orchestration._factories import dlt_translator
 
 
-@dlt_assets(
-    dlt_source=noaa_source(
+def _build_source() -> t.Any:
+    return noaa_source(
         location_id="FIPS:04",
         dataset_id="GHCND",
         days_back=settings.days_back("noaa"),
         datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
-    ),
+    )
+
+
+@dlt_assets(
+    dlt_source=_build_source(),
     dlt_pipeline=dlt_pipeline(
         pipeline_name="noaa_api",
         destination=dlt_destination(settings.raw_catalog_path("noaa")),
@@ -34,18 +38,14 @@ from databox.orchestration._factories import dlt_translator
     dagster_dlt_translator=dlt_translator("raw_noaa"),
 )
 def noaa_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> t.Iterator[t.Any]:
-    source = noaa_source(
-        location_id="FIPS:04",
-        dataset_id="GHCND",
-        days_back=settings.days_back("noaa"),
-        datatypes="TMAX,TMIN,PRCP,SNOW,AWND",
-    )
+    source = _build_source()
     if settings.smoke:
         source.add_limit(max_items=5)
     with quack_ingest_session(settings.raw_dataset_name("noaa")):
         yield from dlt.run(context=context, dlt_source=prepare_dlt_source(source))
 
 
+assets = [noaa_dlt_assets]
 dlt_asset_keys = [spec.key for spec in noaa_dlt_assets.specs]
 sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []

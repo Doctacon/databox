@@ -3,10 +3,10 @@
 
 TODO: describe the upstream API, auth model, rate limits, pagination.
 
-The `scaffold-lint: skip=scaffolded` marker above tells
-`scripts/check_source_layout.py` to tolerate an in-flight source while this
-source is being built. Remove the marker once source.py, config.yaml, and the
-Dagster domain are real.
+The `scaffold-lint: skip=scaffolded` marker above makes the in-flight source
+visible in `scripts/check_source_layout.py`; completed contract/CI validation
+still fails. Remove the marker only after source.py, the canonical inventory,
+the Dagster domain, and all HTTP-profile tests are complete.
 """
 
 from __future__ import annotations

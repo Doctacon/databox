@@ -72,46 +72,46 @@ interactions:
         12:03","howMany":1,"lat":38.8941281,"lng":-77.0365387,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324693411"},{"speciesCode":"grycat","comName":"Gray
         Catbird","sciName":"Dumetella carolinensis","locId":"L1327532","locName":"The
         Ellipse","obsDt":"2026-04-20 12:03","howMany":1,"lat":38.8941281,"lng":-77.0365387,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324693411"},{"speciesCode":"perfal","comName":"Peregrine
-        Falcon","sciName":"Falco peregrinus","locId":"L55733272","locName":"1201 Constitution
-        Ave NW, Washington US-DC 38.89315, -77.02892","obsDt":"2026-04-20 11:59","howMany":1,"lat":38.893148,"lng":-77.028923,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324690842"},{"speciesCode":"chiswi","comName":"Chimney
-        Swift","sciName":"Chaetura pelagica","locId":"L38902397","locName":"1200 N
-        St NW, Washington US-DC 38.90667, -77.02866","obsDt":"2026-04-20 10:57","howMany":1,"lat":38.906665,"lng":-77.028664,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324663080"},{"speciesCode":"rudduc","comName":"Ruddy
+        Falcon","sciName":"Falco peregrinus","locId":"PRIVATE-LOCATION-001","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 11:59","howMany":1,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-001"},{"speciesCode":"chiswi","comName":"Chimney
+        Swift","sciName":"Chaetura pelagica","locId":"PRIVATE-LOCATION-002","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:57","howMany":1,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-002"},{"speciesCode":"rudduc","comName":"Ruddy
         Duck","sciName":"Oxyura jamaicensis","locId":"L10127619","locName":"U. S.
         Capitol Grounds","obsDt":"2026-04-20 10:50","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324666588"},{"speciesCode":"houwre","comName":"Northern
         House Wren","sciName":"Troglodytes aedon","locId":"L168994","locName":"East
         Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":3,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"barswa","comName":"Barn
-        Swallow","sciName":"Hirundo rustica","locId":"L57871438","locName":"Bolling
-        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":4,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"savspa","comName":"Savannah
+        Swallow","sciName":"Hirundo rustica","locId":"PRIVATE-LOCATION-003","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":4,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"savspa","comName":"Savannah
         Sparrow","sciName":"Passerculus sandwichensis","locId":"L168994","locName":"East
         Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"chispa","comName":"Chipping
         Sparrow","sciName":"Spizella passerina","locId":"L168994","locName":"East
         Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":5,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"caster1","comName":"Caspian
-        Tern","sciName":"Hydroprogne caspia","locId":"L57871438","locName":"Bolling
-        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":5,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"blkvul","comName":"Black
-        Vulture","sciName":"Coragyps atratus","locId":"L57871438","locName":"Bolling
-        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"greegr","comName":"Great
-        Egret","sciName":"Ardea alba","locId":"L57871438","locName":"Bolling AFB waterfront","obsDt":"2026-04-20
-        10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"treswa","comName":"Tree
+        Tern","sciName":"Hydroprogne caspia","locId":"PRIVATE-LOCATION-003","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":5,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"blkvul","comName":"Black
+        Vulture","sciName":"Coragyps atratus","locId":"PRIVATE-LOCATION-003","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":1,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"greegr","comName":"Great
+        Egret","sciName":"Ardea alba","locId":"PRIVATE-LOCATION-003","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":1,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"treswa","comName":"Tree
         Swallow","sciName":"Tachycineta bicolor","locId":"L168994","locName":"East
         Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"grbher3","comName":"Great
-        Blue Heron","sciName":"Ardea herodias","locId":"L57871438","locName":"Bolling
-        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"forter","comName":"Forster''s
-        Tern","sciName":"Sterna forsteri","locId":"L57871438","locName":"Bolling AFB
-        waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":false,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"baleag","comName":"Bald
-        Eagle","sciName":"Haliaeetus leucocephalus","locId":"L57871438","locName":"Bolling
-        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":3,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"rebwoo","comName":"Red-bellied
+        Blue Heron","sciName":"Ardea herodias","locId":"PRIVATE-LOCATION-003","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":2,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"forter","comName":"Forster''s
+        Tern","sciName":"Sterna forsteri","locId":"PRIVATE-LOCATION-003","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":1,"lat":0.0,"lng":0.0,"obsValid":false,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"baleag","comName":"Bald
+        Eagle","sciName":"Haliaeetus leucocephalus","locId":"PRIVATE-LOCATION-003","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":3,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"rebwoo","comName":"Red-bellied
         Woodpecker","sciName":"Melanerpes carolinus","locId":"L168994","locName":"East
         Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"cangoo","comName":"Canada
-        Goose","sciName":"Branta canadensis","locId":"L57871438","locName":"Bolling
-        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"bcnher","comName":"Black-crowned
+        Goose","sciName":"Branta canadensis","locId":"PRIVATE-LOCATION-003","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":2,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"bcnher","comName":"Black-crowned
         Night Heron","sciName":"Nycticorax nycticorax","locId":"L168994","locName":"East
         Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":2,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"sonspa","comName":"Song
         Sparrow","sciName":"Melospiza melodia","locId":"L168994","locName":"East Potomac
         Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":5,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"doccor","comName":"Double-crested
-        Cormorant","sciName":"Nannopterum auritum","locId":"L57871438","locName":"Bolling
-        AFB waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"osprey","comName":"Osprey","sciName":"Pandion
-        haliaetus","locId":"L57871438","locName":"Bolling AFB waterfront","obsDt":"2026-04-20
-        10:23","howMany":2,"lat":38.846196,"lng":-77.019514,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"comyel","comName":"Common
+        Cormorant","sciName":"Nannopterum auritum","locId":"PRIVATE-LOCATION-003","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":1,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"osprey","comName":"Osprey","sciName":"Pandion
+        haliaetus","locId":"PRIVATE-LOCATION-003","locName":"Private location (sanitized)","obsDt":"2026-04-20
+        10:23","howMany":2,"lat":0.0,"lng":0.0,"obsValid":true,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-003"},{"speciesCode":"comyel","comName":"Common
         Yellowthroat","sciName":"Geothlypis trichas","locId":"L168994","locName":"East
         Potomac Park--Hains Pt.","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":false,"locationPrivate":false,"subId":"S324676065"},{"speciesCode":"amegfi","comName":"American
         Goldfinch","sciName":"Spinus tristis","locId":"L168994","locName":"East Potomac
@@ -164,8 +164,8 @@ interactions:
       string: '[{"speciesCode":"naswar","comName":"Nashville Warbler","sciName":"Leiothlypis
         ruficapilla","locId":"L10127619","locName":"U. S. Capitol Grounds","obsDt":"2026-04-20
         12:29","howMany":1,"lat":38.8897649,"lng":-77.0112222,"obsValid":false,"obsReviewed":false,"locationPrivate":false,"subId":"S324736993"},{"speciesCode":"forter","comName":"Forster''s
-        Tern","sciName":"Sterna forsteri","locId":"L57871438","locName":"Bolling AFB
-        waterfront","obsDt":"2026-04-20 10:23","howMany":1,"lat":38.846196,"lng":-77.019514,"obsValid":false,"obsReviewed":false,"locationPrivate":true,"subId":"S324662132"},{"speciesCode":"bbwduc","comName":"Black-bellied
+        Tern","sciName":"Sterna forsteri","locId":"PRIVATE-LOCATION-001","locName":"Private
+        location (sanitized)","obsDt":"2026-04-20 10:23","howMany":1,"lat":0.0,"lng":0.0,"obsValid":false,"obsReviewed":false,"locationPrivate":true,"subId":"PRIVATE-SUBMISSION-001"},{"speciesCode":"bbwduc","comName":"Black-bellied
         Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
         Potomac Park--Hains Pt.","obsDt":"2026-04-19 19:16","howMany":11,"lat":38.87311,"lng":-77.0257888,"obsValid":true,"obsReviewed":true,"locationPrivate":false,"subId":"S324458175"},{"speciesCode":"bbwduc","comName":"Black-bellied
         Whistling-Duck","sciName":"Dendrocygna autumnalis","locId":"L168994","locName":"East
