@@ -8,18 +8,25 @@ A local-first data warehouse built around DuckDB. Databox ingests public data
 with dlt, transforms it with SQLMesh, validates it with Soda, and orchestrates
 everything in Dagster—without always-on infrastructure.
 
-```text
-public sources → dlt → DuckDB → SQLMesh → Soda
-                         ↑
-                      Dagster
+```mermaid
+flowchart LR
+    sources[Public sources] --> dlt[dlt] --> duckdb[(DuckDB)]
+    duckdb --> sqlmesh[SQLMesh] --> soda[Soda]
+    dagster[Dagster] -. orchestrates .-> dlt
+    dagster -. orchestrates .-> sqlmesh
+    dagster -. orchestrates .-> soda
 ```
 
 ## From source to model
 
 New dlt sources move through a reviewable, agent-guided modeling workflow:
 
-```text
-dlt schema → annotations + taxonomy → ontology → Kimball CDM → SQLMesh models
+```mermaid
+flowchart LR
+    schema[dlt schema] --> annotate["annotate-sources<br/>annotations + taxonomy"]
+    annotate --> ontology[create-ontology]
+    ontology --> cdm["generate-cdm<br/>Kimball CDM"]
+    cdm --> transform["create-transformation<br/>SQLMesh models"]
 ```
 
 The project skills—[`annotate-sources`](.pi/skills/annotate-sources/SKILL.md),
