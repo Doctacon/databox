@@ -72,3 +72,12 @@ After a source lands and raw dlt schemas exist, use the project skills in order:
 
 `create-transformation` writes SQLMesh CDM models; it does not create dlt
 transformation scripts.
+
+`scripts/check_source_modeling.py` and
+`tests/test_source_modeling_contract.py` enforce this chain for every registry
+source. Every registered raw table must be modeled or explicitly excluded with
+a reason; modeled concepts must reach the ontology and CDM; modeled tables must
+have AST-parsed SQLMesh `FROM`/`JOIN` dependencies in CDM-declared models with
+matching source entities (write targets do not count); and every source must
+contribute at least one transformed business table. Changes under `.schema/` or SQLMesh
+models trigger the full CI suite.

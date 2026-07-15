@@ -50,6 +50,7 @@ jobs:
               - 'Taskfile.yaml'
               - '.pre-commit-config.yaml'
             cross_cutting:
+              - '.schema/**'
               - 'packages/databox/**'
               - 'packages/databox-sources/databox_sources/__init__.py'
               - 'packages/databox-sources/databox_sources/_*.py'
@@ -57,7 +58,7 @@ jobs:
               - 'packages/databox-sources/databox_sources/registry.py'
               - 'scripts/**'
               - 'tests/**'
-              - 'transforms/main/models/analytics/**'
+              - 'transforms/main/models/**'
               - 'soda/contracts/analytics/**'
               - 'pyproject.toml'
               - 'uv.lock'

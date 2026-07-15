@@ -38,11 +38,11 @@ def _load_module():
     return module
 
 
-def _source_related_patterns() -> list[str]:
+def _filter_patterns(name: str) -> list[str]:
     workflow = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
     filters = workflow["jobs"]["changes"]["steps"][1]["with"]["filters"]
     lines = filters.splitlines()
-    start = lines.index("source_related:") + 1
+    start = lines.index(f"{name}:") + 1
     patterns: list[str] = []
     for line in lines[start:]:
         if line and not line.startswith(" "):
@@ -51,6 +51,10 @@ def _source_related_patterns() -> list[str]:
         if stripped.startswith("- "):
             patterns.append(stripped[2:].strip("'\""))
     return patterns
+
+
+def _source_related_patterns() -> list[str]:
+    return _filter_patterns("source_related")
 
 
 def test_matrix_is_exact_and_deterministic() -> None:
@@ -177,6 +181,19 @@ def test_coverage_uses_isolated_shared_and_per_source_processes() -> None:
 def test_omitted_source_and_shared_paths_trigger_complete_matrix(path: str) -> None:
     patterns = _source_related_patterns()
     assert any(fnmatch.fnmatch(path, pattern) for pattern in patterns), path
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ".schema/environmental_observations/taxonomy.json",
+        ".schema/environmental_observations/ontology.ison",
+        ".schema/environmental_observations/CDM.dbml",
+        "transforms/main/models/environmental_observations/fact_example.sql",
+    ],
+)
+def test_modeling_contract_artifacts_trigger_full_ci(path: str) -> None:
+    assert any(fnmatch.fnmatch(path, pattern) for pattern in _filter_patterns("cross_cutting"))
 
 
 def test_workflow_consumes_registry_matrix_without_source_names() -> None:
