@@ -5,12 +5,13 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A local-first data warehouse built around DuckDB. Databox ingests public data
-with dlt, transforms it with SQLMesh, validates it with Soda, and orchestrates
-everything in Dagster—without always-on infrastructure.
+with dlt, coordinates concurrent writes through Quack, transforms it with
+SQLMesh, validates it with Soda, and orchestrates the workflow with
+Dagster—without always-on infrastructure.
 
 ```mermaid
 flowchart LR
-    sources[Public sources] --> dlt[dlt] --> duckdb[(DuckDB)]
+    sources[Public sources] --> dlt[dlt] --> quack[Quack] --> duckdb[(DuckDB)]
     duckdb --> sqlmesh[SQLMesh] --> soda[Soda]
     dagster[Dagster] -. orchestrates .-> dlt
     dagster -. orchestrates .-> sqlmesh
@@ -36,29 +37,45 @@ The project skills—[`annotate-sources`](.pi/skills/annotate-sources/SKILL.md),
 schemas into business-aware warehouse models before transformation SQL is
 written. [See the workflow](docs/source-layout.md#adding-model-behavior).
 
-The included Rufous bird app is a reference consumer of the warehouse, not the
-core of the project.
+The included [Rufous bird app](docs/rufous-operations.md) is a reference
+consumer of the warehouse, not the core of the project.
 
 ## Quickstart
 
-```bash
-# Install and evaluate the repository offline.
-task install           # creates .env from .env.example when absent
-task ci
+Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/), and
+[Task 3](https://taskfile.dev/). Node.js and npm are only needed for Rufous.
 
-# Optional: configure credentials and build the local warehouse.
-$EDITOR .env
-task full-refresh      # build data/databox.duckdb
-task dagster:dev       # inspect assets at localhost:3000
+### Evaluate without live providers
+
+```bash
+git clone https://github.com/Doctacon/databox.git
+cd databox
+task install   # creates .env from .env.example when absent
+task ci
 ```
 
-## Details
+After the initial dependency install, the warehouse checks use recorded source
+responses and need neither provider credentials nor a populated warehouse.
+
+### Build the local warehouse
+
+Configure the source credentials in `.env`, then run:
+
+```bash
+$EDITOR .env
+task full-refresh   # ingest and transform into data/databox.duckdb
+task dagster:dev    # inspect assets at http://localhost:3000
+```
+
+## Learn more
 
 - [Documentation and data dictionary](https://doctacon.github.io/databox/)
 - [Architecture decisions](docs/adr/)
 - [Configuration](docs/configuration.md)
 - [Commands](docs/commands.md)
 - [Adding a source](docs/new-source.md)
+- [Running Rufous](docs/rufous-operations.md)
+- [Forking and rebranding Databox](docs/template.md)
 
 ## License
 
