@@ -42,11 +42,14 @@ core of the project.
 ## Quickstart
 
 ```bash
-task install
-cp .env.example .env
+# Install and evaluate the repository offline.
+task install           # creates .env from .env.example when absent
+task ci
+
+# Optional: configure credentials and build the local warehouse.
 $EDITOR .env
 task full-refresh      # build data/databox.duckdb
-task dagster:dev       # open Dagster at localhost:3000
+task dagster:dev       # inspect assets at localhost:3000
 ```
 
 ## Details

@@ -62,6 +62,11 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Local tool runtime state
+.task/
+.pi-subagents/
+.deepeval/
+
 # Temporary
 tmp/
 temp/

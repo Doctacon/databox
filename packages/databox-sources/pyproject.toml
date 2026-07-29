@@ -3,7 +3,6 @@ name = "databox-sources"
 version = "0.6.0"
 requires-python = ">=3.12"
 dependencies = [
-    "databox",
     "dlt[duckdb]>=1.14.1",
     "openpyxl>=3.1.5",
     "pendulum>=3.0.0",
@@ -15,6 +14,3 @@ dependencies = [
 [build-system]
 requires = ["setuptools>=70.0.0"]
 build-backend = "setuptools.build_meta"
-
-[tool.uv.sources]
-databox = { workspace = true }

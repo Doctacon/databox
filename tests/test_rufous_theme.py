@@ -22,6 +22,7 @@ def test_rufous_display_name_and_api_title(tmp_path: Path) -> None:
             "app/src/MyBirds.tsx",
             "app/src/TargetBird.tsx",
             "docs/commands.md",
+            "docs/rufous-operations.md",
         )
     )
     assert "Birding Trip Copilot" not in visible_sources

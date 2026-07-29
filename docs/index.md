@@ -1,47 +1,67 @@
 # Databox
 
-Dataset-agnostic single-operator data platform. Ingests bird, weather, and
-streamflow sources with dlt, transforms with SQLMesh, validates with Soda
-contracts, and orchestrates with Quack-backed local DuckDB.
+Databox is a local-first data warehouse built around DuckDB. dlt ingests public
+data, SQLMesh transforms it, Soda validates it, and Dagster orchestrates the
+workflow. Quack coordinates safe access to the single local DuckDB file.
 
-## What's here
+<a id="whats-here"></a>
 
-- **[Data dictionary](dictionary/index.md)** — every model, its columns and
-  types, the Soda contract in effect, and direct lineage. Auto-generated
-  from SQLMesh and Soda metadata.
-- **[Lineage](dictionary/lineage.md)** — full model dependency graph rendered
-  with Mermaid. Each node links to its dictionary page.
-- **[Metrics](metrics.md)** — semantic metrics layer over the CDM fact model
-  (`environmental_observations.fact_bird_observation`).
-- **[Analytics examples](analytics-examples.md)** — representative queries
-  the CDM model layer supports.
-- **[Contracts](contracts.md)** — Soda quality contract conventions.
-- **[Incremental loading](incremental-loading.md)** — dlt incremental and
-  SQLMesh incremental-by-time notes.
+## Start here
 
-## Architecture decisions
-
-Seven backfilled ADRs (Nygard format) explain the load-bearing choices:
-
-- [ADR-0001 — DuckDB as the primary warehouse](adr/0001-duckdb-as-primary-warehouse.md)
-- [ADR-0002 — SQLMesh over dbt](adr/0002-sqlmesh-over-dbt.md)
-- [ADR-0003 — Single SQLMesh project across all sources](adr/0003-single-sqlmesh-project.md)
-- [ADR-0004 — Per-source raw DuckDB catalogs](adr/0004-per-source-raw-catalogs.md) (superseded)
-- [ADR-0005 — Dagster as the sole orchestrator](adr/0005-dagster-as-sole-orchestrator.md)
-- [ADR-0006 — MotherDuck as the cloud path](adr/0006-motherduck-as-cloud-path.md) (superseded; historical)
-- [ADR-0007 — Quack single-file local ingest](adr/0007-quack-single-file-local-ingest.md)
-
-The root README frames the platform as a case study with system and
-data-flow diagrams in Mermaid.
-
-## Regenerate
-
-Everything under [dictionary/](dictionary/index.md) is generated from the repo — do
-not hand-edit. Rebuild with:
+### Evaluate offline
 
 ```bash
-uv run python scripts/generate_docs.py
+task install   # creates .env from .env.example when absent
+task ci
 ```
 
-Target runtime: under 30 seconds; observed runtime: ~1–2 seconds for the
-current model set.
+This runs the repository's static, test, secret, and generated-artifact gates.
+It does not require a provider refresh or populated warehouse.
+
+### Build and inspect the warehouse
+
+Configure source credentials in the `.env` created by `task install`, then run:
+
+```bash
+$EDITOR .env
+task full-refresh   # ingest → transform → quality
+task dagster:dev    # inspect assets at localhost:3000
+```
+
+The result is `data/databox.duckdb`. See [configuration](configuration.md), the
+[commands reference](commands.md), and the [operations runbook](runbook.md).
+
+### Understand the data
+
+- [Data dictionary](dictionary/index.md) — models, columns, types, contracts,
+  and direct lineage
+- [Lineage](dictionary/lineage.md) — the complete model dependency graph
+- [Analytics examples](analytics-examples.md) — representative CDM queries
+- [Metrics](metrics.md) — canonical semantic metrics
+- [Contracts](contracts.md) — Soda quality conventions
+
+### Add a source
+
+Start with the [new-source workflow](new-source.md), then follow the authoritative
+[source layout](source-layout.md). After ingestion, the project skills move each
+source through annotation and taxonomy, ontology, Kimball CDM design, and SQLMesh
+transformation. The registry-derived modeling guard verifies that every source
+completes this chain.
+
+<a id="architecture-decisions"></a>
+
+## Operating and extending
+
+- [Incremental loading](incremental-loading.md)
+- [Environments](environments.md)
+- [Freshness](freshness.md)
+- [Observability](observability.md)
+- [CI routing](ci.md)
+- [Rufous operations](rufous-operations.md) — reference-consumer application
+  commands and recovery procedures
+- [Architecture decisions](adr/README.md)
+
+<a id="regenerate"></a>
+
+Everything under [`dictionary/`](dictionary/index.md) is generated from SQLMesh
+and Soda metadata. Do not hand-edit it.

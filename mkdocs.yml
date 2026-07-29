@@ -54,27 +54,33 @@ plugins:
   - search
 
 nav:
-  - Home: index.md
-  - Data dictionary:
-      - Overview: dictionary/index.md
-      - Lineage: dictionary/lineage.md
-  - Analytics examples: analytics-examples.md
-  - Metrics: metrics.md
-  - Contracts: contracts.md
-  - Staging codegen: staging.md
-  - Source layout: source-layout.md
-  - Source typing: source-typing.md
-  - New source generator: new-source.md
-  - Forking the scaffold: template.md
-  - CI routing: ci.md
-  - Configuration: configuration.md
-  - Secrets: secrets.md
-  - Environments: environments.md
-  - Freshness SLAs: freshness.md
-  - Observability: observability.md
-  - Incident runbook: runbook.md
-  - Commands: commands.md
-  - Incremental loading: incremental-loading.md
+  - Start:
+      - Home: index.md
+      - Configuration: configuration.md
+      - Commands: commands.md
+  - Warehouse:
+      - Data dictionary:
+          - Overview: dictionary/index.md
+          - Lineage: dictionary/lineage.md
+      - Analytics examples: analytics-examples.md
+      - Metrics: metrics.md
+      - Contracts: contracts.md
+      - Incremental loading: incremental-loading.md
+      - Environments: environments.md
+  - Extend:
+      - New source: new-source.md
+      - Source layout: source-layout.md
+      - Source typing: source-typing.md
+      - Staging codegen: staging.md
+      - Forking the scaffold: template.md
+  - Operate:
+      - Incident runbook: runbook.md
+      - Freshness SLAs: freshness.md
+      - Observability: observability.md
+      - Secrets: secrets.md
+      - CI routing: ci.md
+  - Rufous:
+      - Operations: rufous-operations.md
   - Architecture decisions:
       - Overview: adr/README.md
       - ADR-0001 DuckDB warehouse: adr/0001-duckdb-as-primary-warehouse.md

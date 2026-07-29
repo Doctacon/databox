@@ -1,9 +1,9 @@
 """Declarative source registry — the one list every dataset-agnostic code path reads.
 
 Adding a new source means adding one `Source(...)` entry to `SOURCES` below;
-`_factories.FRESHNESS_BY_SOURCE`, `settings.sqlmesh_config()` catalog dicts,
-`scripts/smoke.py`, and the generated `platform_health.sql` all derive from
-this list. No other file should iterate a hardcoded tuple of source names.
+Dagster source composition, refresh eligibility, source CI, freshness policies,
+and generated platform-health SQL all derive from this list. No other file
+should iterate a hardcoded tuple of source names.
 
 The registry is static Python so it can be imported from anywhere — including
 SQL codegen and Dagster definition time — without triggering an import of the

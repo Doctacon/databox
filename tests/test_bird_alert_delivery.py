@@ -625,6 +625,7 @@ def test_manual_retry_releases_a_newer_already_enqueued_event(tmp_path: Path) ->
     connection.close()
 
 
+@pytest.mark.time_machine(NOW.isoformat())
 def test_safe_operator_api_is_read_only_on_get_and_confirms_actions(tmp_path: Path) -> None:
     path = tmp_path / "api.duckdb"
     connection = _database(path)
