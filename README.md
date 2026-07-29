@@ -11,11 +11,13 @@ Dagster—without always-on infrastructure.
 
 ```mermaid
 flowchart LR
-    sources[Public sources] --> dlt[dlt] --> quack[Quack] --> duckdb[(DuckDB)]
-    duckdb --> sqlmesh[SQLMesh] --> soda[Soda]
+    sources[Public sources] --> dlt[dlt]
+    dlt -->|writes through Quack| duckdb[(DuckDB)]
+    duckdb --> sqlmesh[SQLMesh]
+    soda[Soda] -. validates .-> duckdb
     dagster[Dagster] -. orchestrates .-> dlt
     dagster -. orchestrates .-> sqlmesh
-    dagster -. orchestrates .-> soda
+    dagster -. asset checks .-> soda
 ```
 
 ## From source to model
@@ -42,8 +44,9 @@ consumer of the warehouse, not the core of the project.
 
 ## Quickstart
 
-Prerequisites: Python 3.12, [uv](https://docs.astral.sh/uv/), and
-[Task 3](https://taskfile.dev/). Node.js and npm are only needed for Rufous.
+Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), and
+[Task](https://taskfile.dev/). Node.js 22+ and npm are only needed for
+Rufous.
 
 ### Evaluate without live providers
 
@@ -54,18 +57,25 @@ task install   # creates .env from .env.example when absent
 task ci
 ```
 
-After the initial dependency install, the warehouse checks use recorded source
-responses and need neither provider credentials nor a populated warehouse.
+After the initial dependency install, source tests replay recorded responses, so
+`task ci` needs neither provider credentials nor a populated warehouse.
 
 ### Build the local warehouse
 
-Configure the source credentials in `.env`, then run:
+Configure the source credentials in `.env`. For a new database, bootstrap the
+pinned AVONET snapshot once, then refresh the routine sources:
 
 ```bash
 $EDITOR .env
+mkdir -p data .dagster
+DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
+  uv run dg launch --target-path packages/databox --job avonet_ingest
 task full-refresh   # ingest and transform into data/databox.duckdb
 task dagster:dev    # inspect assets at http://localhost:3000
 ```
+
+AVONET is intentionally excluded from routine refreshes. See the
+[operations runbook](docs/runbook.md#rebuild-local-warehouse-from-sources).
 
 ## Learn more
 
@@ -74,7 +84,6 @@ task dagster:dev    # inspect assets at http://localhost:3000
 - [Configuration](docs/configuration.md)
 - [Commands](docs/commands.md)
 - [Adding a source](docs/new-source.md)
-- [Running Rufous](docs/rufous-operations.md)
 - [Forking and rebranding Databox](docs/template.md)
 
 ## License
