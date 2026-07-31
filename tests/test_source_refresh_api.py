@@ -289,6 +289,41 @@ def test_terminal_write_wins_interleaving_with_recovery_cas(tmp_path: Path, monk
     assert source_refresh_api.read_status(path)["state"] == "succeeded"
 
 
+@pytest.mark.parametrize(
+    ("snapshot", "expected"),
+    [
+        (" 222 Z\n 222 Z+\n 999 S\n", False),
+        (" 222 Z\n 222 S+\n", True),
+        (" 999 S\n", False),
+        (" 222\n", None),
+    ],
+)
+def test_process_group_liveness_uses_authoritative_process_states(
+    monkeypatch, snapshot: str, expected: bool | None
+) -> None:
+    monkeypatch.setattr(source_refresh_api.os, "killpg", lambda _pid, _signal: None)
+    completed = subprocess.CompletedProcess(
+        ["ps", "-axo", "pgid=,stat="],
+        0,
+        stdout=snapshot,
+        stderr="",
+    )
+    monkeypatch.setattr(source_refresh_api.subprocess, "run", lambda *_args, **_kwargs: completed)
+    assert source_refresh_api.process_group_exists(222) is expected
+
+
+def test_process_group_liveness_inspection_failure_stays_unknown(monkeypatch) -> None:
+    monkeypatch.setattr(source_refresh_api.os, "killpg", lambda _pid, _signal: None)
+    completed = subprocess.CompletedProcess(
+        ["ps", "-axo", "pgid=,stat="],
+        1,
+        stdout="",
+        stderr="inspection denied",
+    )
+    monkeypatch.setattr(source_refresh_api.subprocess, "run", lambda *_args, **_kwargs: completed)
+    assert source_refresh_api.process_group_exists(222) is None
+
+
 def test_missing_gate_leader_with_surviving_group_stays_fail_closed(
     tmp_path: Path, monkeypatch
 ) -> None:

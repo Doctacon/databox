@@ -297,7 +297,7 @@ def _child_process_matches(value: dict[str, object]) -> bool | None:
 
 
 def process_group_exists(process_group_id: int) -> bool | None:
-    """Return group existence; inspection uncertainty is deliberately distinct."""
+    """Return live group existence; inspection uncertainty is deliberately distinct."""
     try:
         os.killpg(process_group_id, 0)
     except ProcessLookupError:
@@ -306,7 +306,40 @@ def process_group_exists(process_group_id: int) -> bool | None:
         return True
     except OSError:
         return None
-    return True
+    # Linux may retain a terminated group as zombie-only membership indefinitely
+    # under a non-reaping PID 1, even though no member can execute more work.
+    try:
+        completed = subprocess.run(
+            ["ps", "-axo", "pgid=,stat="],
+            capture_output=True,
+            text=True,
+            timeout=1,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+
+    matching_states: list[str] = []
+    for line in completed.stdout.splitlines():
+        if not line.strip():
+            continue
+        fields = line.split(maxsplit=1)
+        if len(fields) != 2:
+            return None
+        try:
+            group_id = int(fields[0])
+        except ValueError:
+            return None
+        state = fields[1].strip()
+        if not state:
+            return None
+        if group_id == process_group_id:
+            matching_states.append(state)
+    if not matching_states:
+        return False
+    return any(not state.startswith("Z") for state in matching_states)
 
 
 def owner_state(value: dict[str, object]) -> Literal["active", "orphan", "stale", "unknown"]:

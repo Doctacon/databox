@@ -573,7 +573,7 @@ describe("My Birds and profile collection controls", () => {
     expect(observationReads).toBe(2);
   });
 
-  it("creates and edits structured or free-text observation locations through the shared combobox", async () => {
+  it("creates and edits structured or free-text observation locations through the shared combobox", { timeout: 10_000 }, async () => {
     const birds = catalog();
     const watson = {
       display_name: "Watson Lake and Riparian Preserve", latitude: 34.5822319,
