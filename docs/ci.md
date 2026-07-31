@@ -19,9 +19,11 @@ publishes these relevant outputs:
 | `docs` | `docs/**`, root Markdown files, and `mkdocs.yml` |
 | `source_related` | all source packages/tests, canonical registry, destinations, orchestration, scripts, top-level tests, CI workflows, and dependency/task configuration |
 | `cross_cutting` | shared application/orchestration/scripts/tests and analytics/codegen surfaces |
+| `frontend` | `app/**`, its manifest/lockfile, the bundle audit, its tests, task config, and the CI workflow |
 | `ci_config` | `.github/workflows/**` |
 | `needs_full` | every push to `main`, or any cross-cutting/CI workflow change |
 | `needs_any_source` | exactly the broad `source_related` result |
+| `needs_frontend` | every push to `main`, manual dispatch, or a frontend/CI workflow change |
 
 The source filter is deliberately broad. At seven sources, running all source
 suites is cheaper and safer than maintaining changed-source exceptions. A
@@ -58,8 +60,12 @@ CI source list. An incomplete source makes matrix generation fail.
 | Source contract/layout validation | every push and pull request |
 | Schema contract gate | every pull request |
 | Aggregate coverage | `needs_full` |
+| Frontend TypeScript, Vitest, production build, bundle audit | `needs_frontend` |
+| Recursive tracked-file secret scan | every push and pull request |
 
-Workflow changes force the full matrix, and pushes to `main` always run it.
+Workflow changes force the full matrix and frontend job. Pushes to `main` always
+run both. The frontend job uses Node 22 and system Python only; it does not
+install the Python/data stack.
 
 ## Aggregate coverage
 

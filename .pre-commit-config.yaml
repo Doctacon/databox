@@ -21,3 +21,10 @@ repos:
         args: [ --fix ]
       # Run the formatter.
       - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: check-secrets
+        name: Scan for committed credentials
+        entry: python3 scripts/check_secrets.py
+        language: system

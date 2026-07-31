@@ -280,7 +280,7 @@ def test_calendar_interprets_persisted_naive_window_as_arizona_local(database: P
         ("caveats_json", "31.7˚N | 110.8˚W"),
         ("field_plan_text", "31.7 N (WGS84 / EPSG:4326) 110.8 W"),
         ("caveats_json", "31.7° N\nEPSG:4326:\n110.8° W"),
-        ("caveats_json", "-----BEGIN PRIVATE KEY----- hidden"),
+        ("caveats_json", "-----BEGIN PRIVATE KEY----- hidden"),  # secret-scan: allow
     ],
 )
 def test_prohibited_description_markers_fail_before_calendar_writes(

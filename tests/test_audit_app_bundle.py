@@ -8,9 +8,28 @@ from typing import cast
 import pytest
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "audit_app_bundle.py"
-audit_bundle = cast(
-    Callable[[Path, dict[str, str]], list[str]], runpy.run_path(str(SCRIPT))["audit_bundle"]
-)
+MODULE = runpy.run_path(str(SCRIPT))
+audit_bundle = cast(Callable[[Path, dict[str, str]], list[str]], MODULE["audit_bundle"])
+dotenv_values = cast(Callable[[Path], dict[str, str]], MODULE["dotenv_values"])
+
+
+def test_dotenv_reader_is_standard_library_only(tmp_path: Path) -> None:
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(
+        "# local values\n"
+        "export API_KEY='synthetic-value'\n"
+        "PLAIN=value # comment\n"
+        'QUOTED="actual-secret" # comment\n'
+        "HASH='value # retained' # comment\n",
+        encoding="utf-8",
+    )
+
+    assert dotenv_values(dotenv) == {
+        "API_KEY": "synthetic-value",
+        "PLAIN": "value",
+        "QUOTED": "actual-secret",
+        "HASH": "value # retained",
+    }
 
 
 def test_bundle_audit_rejects_configured_names_and_values(tmp_path: Path) -> None:

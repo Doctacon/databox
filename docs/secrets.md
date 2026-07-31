@@ -152,8 +152,17 @@ external-ref schemes (`op://`, `vault://`, `aws-secrets://`, `doppler://`)
 as pointers, not plaintext. Committing `openlineage_api_key: "op://databox/openlineage/api-key"`
 in `secret_refs.yaml` is safe — the string is a lookup key, not a credential.
 
-If you introduce a new scheme, add it to `ALLOWED_VALUES` in
-`scripts/check_secrets.py` and document it here.
+Directory invocations enumerate eligible tracked text files recursively and
+report only the path, line number, and finding category, never the matched
+material. Exact generated/cache directory names are excluded. An ordinary
+untracked local `.env` is absent from Git's inventory, while any explicitly
+passed or force-tracked `.env` is scanned; `.github`, lockfiles, key files,
+settings modules, tests, and documentation also remain in scope. A reviewed
+synthetic fixture may use `secret-scan: allow` on the same line. Do not use that
+directive for application or configuration data.
+
+If you introduce a new external reference scheme, add its exact prefix to
+`REFERENCE_PREFIXES` in `scripts/check_secrets.py` and document it here.
 
 ## When to migrate
 

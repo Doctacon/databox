@@ -9,6 +9,31 @@ with dlt, coordinates concurrent writes through Quack, transforms it with
 SQLMesh, validates it with Soda, and orchestrates the workflow with
 Dagster—without always-on infrastructure.
 
+## Rufous
+
+![Rufous trip planner showing a persisted, evidence-grounded Arizona field plan](docs/images/rufous-trip-planner.jpg)
+
+Rufous is the user-facing birding product built on Databox: a React/TypeScript
+interface for interactive Arizona encounter maps, personal collections,
+explicit source refresh, watched-bird alerts, and evidence-grounded trip
+planning.
+
+`React/TypeScript -> typed FastAPI APIs -> DuckDB warehouse -> bounded Google ADK workflow and strict-schema model inference`
+
+Rufous is local-first and loopback-only. It is not a deployed multi-tenant SaaS
+product; DuckDB and model credentials stay behind the local typed API.
+
+```bash
+task verify            # populate the local warehouse
+task app:dev           # FastAPI :8000 + Vite :5173 with hot reload
+task app:check         # typecheck + tests + build + configured bundle audit
+task app:audit-bundle  # audit an existing build
+task app               # build and serve at http://127.0.0.1:8000
+```
+
+See the [Rufous operations guide](docs/rufous-operations.md) for local setup and
+operator-only delivery procedures.
+
 ```mermaid
 flowchart LR
     sources[Public sources] --> dlt[dlt]
@@ -38,9 +63,6 @@ The project skills—[`annotate-sources`](.pi/skills/annotate-sources/SKILL.md),
 [`create-transformation`](.pi/skills/create-transformation/SKILL.md)—turn raw
 schemas into business-aware warehouse models before transformation SQL is
 written. [See the workflow](docs/source-layout.md#adding-model-behavior).
-
-The included [Rufous bird app](docs/rufous-operations.md) is a reference
-consumer of the warehouse, not the core of the project.
 
 ## Quickstart
 

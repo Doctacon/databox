@@ -16,21 +16,28 @@ fi
 
 # Install the pre-commit hooks
 echo "🪝 Installing hooks..."
-pre-commit install
+hook_installed=true
+if ! pre-commit install; then
+    hook_installed=false
+    echo "⚠️  Hook installation was skipped; check the repository's core.hooksPath setting."
+fi
 
 # Run against all files to check current state
 echo "🔍 Running initial check on all files..."
 pre-commit run --all-files || true
 
-echo "✅ Pre-commit hooks installed successfully!"
+if [[ "$hook_installed" == "true" ]]; then
+    echo "✅ Pre-commit hooks installed successfully!"
+else
+    echo "⚠️  Checks are configured, but the Git hook was not installed."
+fi
 echo ""
-echo "The following checks will run on every commit:"
+echo "The configured pre-commit checks are:"
 echo "  - Trailing whitespace removal"
 echo "  - End of file fixing"
 echo "  - YAML/JSON/TOML validation"
 echo "  - Python formatting (ruff)"
 echo "  - Python linting (ruff)"
-echo "  - Type checking (mypy)"
 echo "  - 🔒 Secret detection"
 echo ""
 echo "To run checks manually: pre-commit run --all-files"

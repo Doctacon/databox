@@ -780,13 +780,17 @@ wheels = [
 [[package]]
 name = "dagster-sqlmesh"
 version = "0.22.0"
-source = { git = "https://github.com/Doctacon/dagster-sqlmesh.git#cd56c588f1e81c2ef14f25c58b5ef7a4d9e56288" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dagster" },
     { name = "pyarrow" },
     { name = "pydantic" },
     { name = "pytest" },
     { name = "sqlmesh" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/46/ba/8f7d5474a9f850c8cbb82544eed6ffdea59bedba48aebfc739491fa4810a/dagster_sqlmesh-0.22.0.tar.gz", hash = "sha256:f12098d0d563d155e3bc9b0dc14469bec5622cf153e2e55ca40381c1392ab8f5", size = 224801, upload-time = "2025-11-11T21:57:22.893Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9b/b1/f7164f47763ea536d7913ed9a15432bd81d8ea63f11e556bb8dfd756efba/dagster_sqlmesh-0.22.0-py3-none-any.whl", hash = "sha256:668050f705dae960072d65b898cdec2b1af80d3ed1437951c723dc1475125fb5", size = 40193, upload-time = "2025-11-11T21:57:21.7Z" },
 ]
 
 [[package]]
@@ -838,7 +842,7 @@ lineage = [
 requires-dist = [
     { name = "dagster", specifier = ">=1.5.0" },
     { name = "dagster-dlt", specifier = ">=0.1.0" },
-    { name = "dagster-sqlmesh", git = "https://github.com/Doctacon/dagster-sqlmesh.git" },
+    { name = "dagster-sqlmesh", specifier = "==0.22.0" },
     { name = "dagster-webserver", specifier = ">=1.5.0" },
     { name = "databox-sources", editable = "packages/databox-sources" },
     { name = "dlt", extras = ["duckdb"], specifier = ">=1.14.1" },

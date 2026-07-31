@@ -42,7 +42,8 @@ Auto-generated files under `docs/dictionary/` are *not* rewritten directly — t
 ## What does NOT change
 
 - **Python package name.** `packages/databox/` stays `databox`, because `from databox.config import …` imports appear in every source package. Renaming the Python package would cascade through every source, test, and Dagster wiring — far outside the scope of a one-command rebrand.
-- **External dependencies.** `dagster-sqlmesh` continues to pull from the upstream fork. If you fork that too, edit `packages/databox/pyproject.toml` manually.
+- **External dependencies.** `dagster-sqlmesh` is pinned to its public PyPI release in
+  `packages/databox/pyproject.toml`; update the pin and lockfile together when upgrading it.
 - **The three example sources.** eBird, NOAA, USGS stay as working examples. Delete them (or replace them) at your own pace — the layout lint (`python scripts/check_source_layout.py`) enforces the shape new sources must follow.
 - **`.loom/` history.** The `.loom/` records document how this scaffold was built; they are historical artifacts, not project identity.
 

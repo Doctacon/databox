@@ -16,7 +16,7 @@ dependencies = [
     "dlt[duckdb]>=1.14.1",
     "duckdb>=1.5.3",
     "sqlmesh>=0.204.0",
-    "dagster-sqlmesh",
+    "dagster-sqlmesh==0.22.0",
     "google-adk>=2.4.0",
     "httpx>=0.28.1",
     "fastapi>=0.115.0",
@@ -50,4 +50,3 @@ code_location_name = "databox"
 
 [tool.uv.sources]
 databox-sources = { workspace = true }
-dagster-sqlmesh = { git = "https://github.com/Doctacon/dagster-sqlmesh.git" }

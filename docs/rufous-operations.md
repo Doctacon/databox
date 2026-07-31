@@ -124,8 +124,11 @@ never stored. Pure builders add organizer/attendee only in memory and produce
 RFC 5545/5546 calendar plus deterministic multipart calendar MIME. Atomic claims,
 pre-send lease recovery, post-send `delivery_unknown`, supersession, terminal
 suppression, append-only safe attempt facts, and 90-day payload cleanup are local
-state mechanics only. No command in this slice opens an SMTP socket, schedules a
-retry, or sends email; transport and operator actions remain the next ticket.
+state mechanics only. Bird-alert outbox construction, suppression, and
+reconciliation never open an SMTP connection or send mail. Transport is
+implemented separately and runs only through the explicit operator commands
+documented below; application startup, watch evaluation, and background refresh
+never invoke it automatically.
 
 Trip Planner eBird evidence is independently constrained in its SQLMesh view and
 Python lookup to valid, reviewed, non-private rows. To inspect or remediate saved
@@ -194,22 +197,33 @@ test copy; it does not create a missing database.
 
 ## Bird alert delivery operations
 
-Bird-alert email is never sent by app startup, GET requests, watch changes, or tests. These
-explicit commands use generic SMTP and print bounded states only—never host, port,
-identities, certificate paths, or credentials.
+No live bird-alert mail is sent by application startup, GET requests, watch
+changes, refresh/watch evaluation, outbox construction, My Birds reconciliation
+or cleanup actions, or tests. Rufous has no scheduler or background mail worker.
+SMTP runs only when an operator invokes one of these commands; output is bounded
+and never includes host, port, identities, certificate paths, or credentials.
 
 ```bash
-# Validate loopback, exact public-certificate trust, STARTTLS hostname
-# verification, and Bridge-generated authentication without sending.
+# Open and authenticate a loopback STARTTLS connection using exact public-
+# certificate trust and hostname verification, without calling send.
 uv run --no-sync python scripts/verify_bird_alert_smtp.py --preflight
 
-# Deliver at most one due persisted outbox row.
+# Attempt delivery for at most one due persisted outbox row.
 uv run --no-sync python scripts/deliver_bird_alerts.py
 
-# Bounded live verification; each kind is durably limited to one attempt.
+# Explicit live sends; each verification kind is durably limited to one attempt.
 uv run --no-sync python scripts/verify_bird_alert_smtp.py --test-email
 uv run --no-sync python scripts/verify_bird_alert_smtp.py --test-invitation
 ```
+
+A transient failure persists `next_attempt_at`, but no process dispatches it
+automatically; rerun the delivery command after it becomes due. Each invocation
+handles at most one row. `delivery_unknown` is never automatically resubmitted
+and requires explicit reconciliation. The SMTP boundary accepts only a numeric
+loopback host, STARTTLS, one exact public CA certificate, and an organizer equal
+to the authenticated username. An `accepted` result means only that the local
+Bridge accepted the message, not that an inbox received or a calendar rendered
+it.
 
 My Birds → Alert Delivery shows safe local status and only state-derived actions. Active
 ambiguous results can be marked not delivered and retried with a greater sequence;
@@ -221,9 +235,12 @@ ambiguous rows remain until reconciliation.
 
 ## Trip-plan calendar invitations
 
-Trip invitations are created only by a confirmed `POST` to
-`/api/trip-plans/{plan_id}/calendar-invite?confirm=true`. Plan creation,
-application startup, replay, and all `GET` routes are status-only and never send.
+Trip invitations are enqueued and, when SMTP is configured, attempted only by a
+confirmed `POST` to
+`/api/trip-plans/{plan_id}/calendar-invite?confirm=true`. Confirmed retry and
+not-delivered reconciliation actions may also attempt their replacement
+immediately. Plan creation, application startup, replay, and all `GET` routes
+are status-only and never send.
 The action reuses the server-only `BIRD_ALERT_SMTP_*` loopback STARTTLS settings;
 no recipient or transport value is returned by the API.
 
@@ -240,9 +257,10 @@ regenerate the canonical plan with the stable UID and a greater sequence, and im
 claim/send the replacement through the confirmed reconciliation API. Transient rows are
 scheduled at 1, 5, and 15 minutes; an operator or local worker must invoke confirmed
 `POST /api/trip-calendar-deliveries/deliver-due?confirm=true` at or after `next_attempt_at`
-to claim and send one due row. This endpoint never claims `delivery_unknown`; those rows
-remain manual-reconciliation-only. Resolved non-current rows may be cleaned after 90 days;
-the current intent/action and unresolved unknown rows are retained.
+to claim and send at most one due row. No worker is bundled. This endpoint never
+claims `delivery_unknown`; those rows remain manual-reconciliation-only. Resolved
+non-current rows may be cleaned after 90 days; the current intent/action and
+unresolved unknown rows are retained.
 
 Feature verification must use an injected fake SMTP transport. The prior bounded
 live Bridge authorization is exhausted; do not run another live verification

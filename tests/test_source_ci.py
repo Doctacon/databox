@@ -196,6 +196,53 @@ def test_modeling_contract_artifacts_trigger_full_ci(path: str) -> None:
     assert any(fnmatch.fnmatch(path, pattern) for pattern in _filter_patterns("cross_cutting"))
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "app/src/App.tsx",
+        "app/package.json",
+        "app/package-lock.json",
+        "scripts/audit_app_bundle.py",
+        "tests/test_audit_app_bundle.py",
+        "Taskfile.yaml",
+        ".github/workflows/ci.yaml",
+    ],
+)
+def test_frontend_paths_trigger_frontend_ci(path: str) -> None:
+    assert any(fnmatch.fnmatch(path, pattern) for pattern in _filter_patterns("frontend"))
+
+
+def test_frontend_job_runs_complete_node_22_gate_without_python_install() -> None:
+    workflow = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
+    job = workflow["jobs"]["frontend"]
+    assert job["if"] == "needs.changes.outputs.needs_frontend == 'true'"
+    rendered = WORKFLOW.read_text()
+    steps = job["steps"]
+    setup_node = next(
+        step for step in steps if str(step.get("uses", "")).startswith("actions/setup-node@")
+    )
+    assert setup_node["with"]["node-version"] == "22"
+    commands = [step.get("run") for step in steps if step.get("run")]
+    assert commands == [
+        "npm ci",
+        "npm run typecheck",
+        "npm test",
+        "npm run build",
+        "python3 scripts/audit_app_bundle.py",
+    ]
+    frontend_text = rendered[rendered.index("  frontend:\n") : rendered.index("\n  lint:\n")]
+    assert "setup-uv" not in frontend_text
+    assert "uv sync" not in frontend_text
+
+
+def test_secret_scan_job_uses_system_python_on_every_workflow_run() -> None:
+    workflow = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
+    job = workflow["jobs"]["secret-scan"]
+    assert "if" not in job
+    assert job["steps"][-1]["run"] == "python3 scripts/check_secrets.py ."
+    assert all("setup-uv" not in str(step.get("uses", "")) for step in job["steps"])
+
+
 def test_workflow_consumes_registry_matrix_without_source_names() -> None:
     text = WORKFLOW.read_text()
     assert "fromJSON(needs.source-matrix.outputs.matrix)" in text

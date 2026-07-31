@@ -5,8 +5,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from dotenv import dotenv_values
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_NAMES = (
     "CF_WORKERS_AI_API_KEY",
@@ -32,6 +30,55 @@ FORBIDDEN_MAP_RUNTIME_HOSTS = (
 )
 
 
+def _parse_dotenv_value(raw_value: str) -> str:
+    """Parse one dotenv value without treating quoted inline comments as data."""
+    value = raw_value.strip()
+    if not value or value[0] not in {"'", '"'}:
+        return value.split(" #", maxsplit=1)[0].rstrip()
+
+    quote = value[0]
+    parsed: list[str] = []
+    escaped = False
+    for character in value[1:]:
+        if escaped:
+            if character in {quote, "\\"}:
+                parsed.append(character)
+            else:
+                parsed.extend(("\\", character))
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == quote:
+            return "".join(parsed)
+        else:
+            parsed.append(character)
+    if escaped:
+        parsed.append("\\")
+    return "".join(parsed)
+
+
+def dotenv_values(path: Path) -> dict[str, str]:
+    """Read the simple KEY=VALUE subset used by this project's local .env.
+
+    Keeping this audit standard-library-only lets the frontend CI job inspect
+    the compiled bundle without installing the Python/data dependency graph.
+    """
+    if not path.is_file():
+        return {}
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line.removeprefix("export ").lstrip()
+        key, separator, value = line.partition("=")
+        if not separator or not key.strip():
+            continue
+        values[key.strip()] = _parse_dotenv_value(value)
+    return values
+
+
 def audit_bundle(bundle_dir: Path, configured: dict[str, str]) -> list[str]:
     """Return configuration names whose name or configured value occurs in the bundle."""
     if not bundle_dir.is_dir():
@@ -51,7 +98,7 @@ def audit_bundle(bundle_dir: Path, configured: dict[str, str]) -> list[str]:
 
 
 def main() -> int:
-    dotenv = {key: value or "" for key, value in dotenv_values(PROJECT_ROOT / ".env").items()}
+    dotenv = dotenv_values(PROJECT_ROOT / ".env")
     configured = {name: os.environ.get(name, dotenv.get(name, "")) for name in CONFIG_NAMES}
     findings = audit_bundle(PROJECT_ROOT / "app" / "dist", configured)
     if findings:

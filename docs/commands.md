@@ -73,13 +73,13 @@ uv run dagster asset wipe --all \
 
 ```bash
 uv run pre-commit run --all-files    # run every hook across every file
-uv run pre-commit run ruff           # run one hook
+uv run pre-commit run ruff-check     # run one hook
 ```
 
 ## Secret scan
 
 ```bash
-python scripts/check_secrets.py      # scan repo root
+python scripts/check_secrets.py      # scan eligible tracked files from repo root
 python scripts/check_secrets.py path/to/file.py
 ```
 

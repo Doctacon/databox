@@ -1,225 +1,397 @@
 #!/usr/bin/env python3
-"""Check for sensitive environment variables and secrets in code."""
+"""Scan tracked text files for credentials without printing secret material."""
+
+from __future__ import annotations
 
 import re
+import subprocess
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
-# Patterns that indicate sensitive information
-SENSITIVE_PATTERNS = [
-    # Environment variable assignments
-    (
-        r'(?:export\s+)?([A-Z_]+(?:KEY|TOKEN|SECRET|PASSWORD|PASS|PWD|AUTH|CREDENTIAL|API|PRIVATE)(?:[A-Z_]*)?)\s*=\s*["\']?([^"\'\s]+)',
-        "Environment variable with sensitive name",
-    ),
-    # Direct API keys/tokens
-    (
-        r'(?:api[_-]?key|token|secret|password|auth[_-]?token)\s*[:=]\s*["\']([a-zA-Z0-9\-_]{20,})["\']',
-        "Hardcoded API key/token",
-    ),
-    # AWS credentials
-    (r"(?:AKIA|ASIA|ABIA|ACCA)[A-Z0-9]{16}", "AWS Access Key ID"),
-    (
-        r'(?:aws[_-]?secret[_-]?access[_-]?key)\s*[:=]\s*["\']([a-zA-Z0-9/+=]{40})["\']',
-        "AWS Secret Access Key",
-    ),
-    # Database URLs with credentials
-    (
-        r"(?:postgresql|postgres|mysql|mongodb|redis)://[^:]+:[^@]+@[^/]+",
-        "Database URL with credentials",
-    ),
-    # Bearer tokens
-    (r"Bearer\s+[a-zA-Z0-9\-_\.]{20,}", "Bearer token"),
-    # Private keys
-    (r"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----", "Private key"),
-    # Generic secrets
-    (r'(?:secret|password|passwd|pwd)\s*[:=]\s*["\'](.{8,})["\']', "Hardcoded password/secret"),
-]
+ALLOW_DIRECTIVE = "secret-scan: allow"
 
-# File patterns to check
-INCLUDE_PATTERNS = [
-    "*.py",
-    "*.js",
-    "*.ts",
-    "*.jsx",
-    "*.tsx",
-    "*.java",
-    "*.go",
-    "*.rs",
-    "*.yml",
-    "*.yaml",
-    "*.json",
-    "*.toml",
-    "*.ini",
-    "*.conf",
-    "*.config",
-    "*.sh",
-    "*.bash",
-    "*.zsh",
-    "*.fish",
-    "Makefile",
-]
-
-# Files/directories to exclude
-EXCLUDE_PATTERNS = [
-    ".git",
-    ".dlt",
-    ".sqlmesh",
-    "__pycache__",
-    "node_modules",
-    ".venv",
-    "venv",
-    "*.pyc",
-    "*.pyo",
-    "*.pyd",
-    ".DS_Store",
-    "*.log",
+TEXT_SUFFIXES = {
+    ".bash",
+    ".conf",
+    ".config",
+    ".css",
     ".env",
-    ".env.*",
-    "config/settings.py",  # These are expected to have env vars
-]
-
-# Allowed false positives (add specific strings that are known to be safe)
-ALLOWED_VALUES = {
-    "your_api_key_here",
-    "your_token_here",
-    "your_secret_here",
-    "example_key",
-    "test_token",
-    "dummy_secret",
-    "placeholder",
-    "<your-api-key>",
-    "${API_KEY}",
-    "${TOKEN}",
-    "os.environ.get",
-    "os.getenv",
-    "settings.",
-    "config.",
-    # External secrets-manager reference schemes. These are *pointers* to a
-    # secret, not the secret itself — a 1Password / Vault / AWS / Doppler
-    # backend resolves them at settings-load time. See docs/secrets.md.
-    "op://",
-    "vault://",
-    "aws-secrets://",
-    "doppler://",
+    ".fish",
+    ".go",
+    ".hcl",
+    ".htm",
+    ".html",
+    ".ini",
+    ".java",
+    ".js",
+    ".json",
+    ".jsx",
+    ".key",
+    ".lock",
+    ".md",
+    ".mjs",
+    ".pem",
+    ".properties",
+    ".py",
+    ".rs",
+    ".sh",
+    ".sql",
+    ".toml",
+    ".ts",
+    ".tsx",
+    ".tf",
+    ".txt",
+    ".xml",
+    ".yaml",
+    ".yml",
+    ".zsh",
 }
+TEXT_FILENAMES = {
+    ".env",
+    ".env.example",
+    ".env.sample",
+    ".env.template",
+    ".netrc",
+    ".npmrc",
+    ".pypirc",
+    "Dockerfile",
+    "Makefile",
+    "Taskfile",
+}
+EXCLUDED_DIRECTORIES = {
+    ".cache",
+    ".dagster",
+    ".dlt",
+    ".git",
+    ".logs",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".sqlmesh",
+    ".task",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "htmlcov",
+    "logs",
+    "node_modules",
+    "site",
+    "venv",
+}
+EXCLUDED_FILENAMES = {".DS_Store"}
+
+# These are exact non-credential values used by tests or documentation. Real
+# provider-shaped tokens are checked first and cannot be bypassed by this list.
+SYNTHETIC_VALUES = {
+    "ABCDEFGHIJKLMNOP/20260710/eu-west-1/s3/aws4_request",
+    "bridge-secret",
+    "configured-bridge-secret",
+    "configured-secret",
+    "marquez",
+    "private-value",
+    "secret-fixture-key",
+    "secret-never-rendered",
+    "synthetic-password",
+    "test-key",
+    "test-secret-that-must-not-appear",
+    "your_ebird_api_token_here",
+    "your_noaa_api_token_here",
+    "your_xeno_canto_api_key_here",
+}
+SYNTHETIC_HIGH_CONFIDENCE_VALUES = {"-----BEGIN PRIVATE KEY----- hidden"}
+PLACEHOLDER_VALUE = re.compile(
+    r"(?:test|fake|dummy|synthetic|example|placeholder|redacted|changeme)"
+    r"(?:[-_][a-z0-9]+)*",
+    re.IGNORECASE,
+)
+REFERENCE_PREFIXES = ("op://", "vault://", "aws-secrets://", "doppler://")
+ENVIRONMENT_REFERENCE = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*|\{[A-Za-z_][A-Za-z0-9_]*\})")
+CODE_REFERENCE = re.compile(
+    r"(?:config|settings)(?:\.[A-Za-z_][A-Za-z0-9_]*)+"
+    r"|os\.(?:environ|getenv)(?:\.[A-Za-z_][A-Za-z0-9_]*)*",
+    re.IGNORECASE,
+)
+CODE_SUFFIXES = {".go", ".java", ".js", ".jsx", ".mjs", ".py", ".rs", ".ts", ".tsx"}
+CODE_IDENTIFIER_REFERENCE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*")
+ENVIRONMENT_ACCESS = re.compile(
+    r"os\.(?:getenv|environ\.get)\(\s*[\"'][A-Za-z_][A-Za-z0-9_]*[\"']\s*\)"
+)
+WRAPPED_LITERAL = re.compile(
+    r"[A-Za-z_][A-Za-z0-9_.]*\(\s*(?P<literal>\"[^\"\r\n]*\"|'[^'\r\n]*')\s*\)"
+)
+
+# Provider formats are intentionally independent from the generic assignment
+# heuristic. This keeps a real-looking key detectable even in a test fixture.
+HIGH_CONFIDENCE_PATTERNS = (
+    (re.compile(r"\b(?:AKIA|ASIA|ABIA|ACCA)[A-Z0-9]{16}\b"), "AWS access key ID"),
+    (re.compile(r"\bgh[opusr]_[A-Za-z0-9]{36,255}\b"), "GitHub token"),
+    (re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}\b"), "GitLab token"),
+    (re.compile(r"\bnpm_[A-Za-z0-9]{36}\b"), "npm token"),
+    (re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b"), "OpenAI-style API key"),
+    (re.compile(r"\bsk_live_[A-Za-z0-9]{16,}\b"), "Stripe live secret key"),
+    (re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"), "Slack token"),
+    (re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"), "Google API key"),
+    (
+        re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----"),
+        "private key",
+    ),
+    (
+        re.compile(
+            r"\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://"
+            r"[^\s:/]+:[^\s/@]+@[^\s/]+",
+            re.IGNORECASE,
+        ),
+        "database URL with credentials",
+    ),
+    (
+        re.compile(r"\bBearer\s+([A-Za-z0-9._~+/=-]{20,})", re.IGNORECASE),
+        "bearer token",
+    ),
+)
+
+ASSIGNMENT = re.compile(
+    r"(?:"
+    r"(?P<quote>[\"'])(?P<quoted_name>[A-Za-z_][A-Za-z0-9_-]*)(?P=quote)"
+    r"|(?<![\"'A-Za-z0-9_-])(?P<bare_name>[A-Za-z_][A-Za-z0-9_-]*)"
+    r")\s*[:=]\s*"
+    r"(?P<value>"
+    r"[A-Za-z_][A-Za-z0-9_.]*\(\s*(?:\"[^\"\r\n]{8,}\"|'[^'\r\n]{8,}')\s*\)"
+    r"|\"[^\"\r\n]{8,}\"|'[^'\r\n]{8,}'"
+    r"|[A-Za-z0-9][A-Za-z0-9_./+@:$=-]{7,}"
+    r")"
+)
 
 
-def should_check_file(file_path: Path) -> bool:
-    """Check if file should be scanned."""
-    # Check excludes
-    for pattern in EXCLUDE_PATTERNS:
-        if pattern in str(file_path):
-            return False
+def _is_sensitive_name(name: str) -> bool:
+    separated = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
+    parts = {part for part in re.split(r"[_-]+", separated.lower()) if part}
+    if parts & {
+        "auth",
+        "credential",
+        "credentials",
+        "password",
+        "passwd",
+        "pwd",
+        "secret",
+        "token",
+    }:
+        return True
 
-    # Check includes
-    for pattern in INCLUDE_PATTERNS:
-        if file_path.match(pattern):
+    compact = "".join(parts)
+    if compact.endswith(
+        (
+            "apikey",
+            "apitoken",
+            "accesstoken",
+            "authtoken",
+            "bearertoken",
+            "claimtoken",
+            "clientsecret",
+            "privatekey",
+            "refreshtoken",
+        )
+    ):
+        return True
+
+    key_qualifiers = {
+        "access",
+        "api",
+        "auth",
+        "client",
+        "credential",
+        "encryption",
+        "private",
+        "secret",
+        "signing",
+        "ssh",
+    }
+    return "key" in parts and bool(parts & key_qualifiers)
+
+
+def _literal_value(raw_value: str) -> tuple[str, bool]:
+    wrapper = WRAPPED_LITERAL.fullmatch(raw_value)
+    if wrapper is not None:
+        raw_value = wrapper.group("literal")
+    quoted = len(raw_value) >= 2 and raw_value[0] == raw_value[-1] and raw_value[0] in "\"'"
+    return (raw_value[1:-1] if quoted else raw_value).strip(), quoted
+
+
+def _is_safe_assignment_value(raw_value: str, *, name: str, path: Path) -> bool:
+    if ENVIRONMENT_ACCESS.fullmatch(raw_value):
+        return True
+    value, quoted = _literal_value(raw_value)
+    lowered = value.lower()
+    if value in SYNTHETIC_VALUES or PLACEHOLDER_VALUE.fullmatch(value):
+        return True
+    if lowered.startswith(REFERENCE_PREFIXES):
+        return True
+    if ENVIRONMENT_REFERENCE.fullmatch(value):
+        return True
+    if lowered in {"none", "null", "true", "false", "disabled"}:
+        return True
+    if value.casefold() == name.casefold():
+        return True
+    if CODE_REFERENCE.fullmatch(value):
+        return True
+    if path.suffix.lower() in CODE_SUFFIXES:
+        if not quoted and CODE_IDENTIFIER_REFERENCE.fullmatch(value):
             return True
-
+        if quoted and re.fullmatch(r"(?:\{[^{}\r\n]+\})+", value):
+            return True
     return False
 
 
-def is_allowed_value(value: str) -> bool:
-    """Check if the value is in allowed list or is a reference."""
-    value_lower = value.lower()
-
-    # Check if it's a known safe value
-    for allowed in ALLOWED_VALUES:
-        if allowed.lower() in value_lower:
+def _is_exact_synthetic_high_confidence_match(line: str, *, column: int) -> bool:
+    for value in SYNTHETIC_HIGH_CONFIDENCE_VALUES:
+        if column == 0 or line[column : column + len(value)] != value:
+            continue
+        quote = line[column - 1]
+        if quote in "\"'" and line[column + len(value) : column + len(value) + 1] == quote:
             return True
-
-    # Check if it's an environment variable reference
-    if value.startswith("$") or value.startswith("${"):
-        return True
-
-    # Check if it's a function call or attribute access
-    if "(" in value or "." in value:
-        return True
-
     return False
 
 
-def scan_file(file_path: Path) -> list[tuple[int, str, str]]:
-    """Scan a file for secrets. Returns list of (line_number, issue, match)."""
-    issues = []
-
+def _path_is_excluded(path: Path, *, root: Path) -> bool:
     try:
-        with open(file_path, encoding="utf-8") as f:
-            content = f.read()
-            content.splitlines()
-
-        for pattern, description in SENSITIVE_PATTERNS:
-            for match in re.finditer(pattern, content, re.IGNORECASE | re.MULTILINE):
-                # Get line number
-                line_num = content[: match.start()].count("\n") + 1
-                matched_text = match.group(0)
-
-                # Check if it's an allowed value
-                if is_allowed_value(matched_text):
-                    continue
-
-                # For environment variable patterns, check the value
-                if match.groups():
-                    value = match.groups()[-1] if len(match.groups()) > 1 else match.group(1)
-                    if is_allowed_value(value):
-                        continue
-
-                issues.append((line_num, description, matched_text))
-
-    except Exception as e:
-        print(f"Error reading {file_path}: {e}")
-
-    return issues
+        relative = path.absolute().relative_to(root.absolute())
+    except ValueError:
+        relative = Path(path.name)
+    return path.name in EXCLUDED_FILENAMES or any(
+        part in EXCLUDED_DIRECTORIES for part in relative.parts
+    )
 
 
-def main():
-    """Main function to check files passed as arguments."""
-    if len(sys.argv) < 2:
-        print("No files to check")
-        return 0
+def should_check_file(path: Path, *, root: Path) -> bool:
+    """Return whether *path* is an eligible, non-excluded text file."""
+    if _path_is_excluded(path, root=root) or not path.is_file():
+        return False
+    return (
+        path.suffix.lower() in TEXT_SUFFIXES
+        or path.name in TEXT_FILENAMES
+        or path.name.startswith(".env.")
+    )
 
-    all_issues = []
 
-    for file_arg in sys.argv[1:]:
-        file_path = Path(file_arg)
+def _git_files(directory: Path) -> tuple[Path, list[Path]] | None:
+    """Return tracked files below *directory*, or None when it is not in Git."""
+    probe = subprocess.run(
+        ["git", "-C", str(directory), "rev-parse", "--show-toplevel"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if probe.returncode != 0:
+        return None
+    root = Path(probe.stdout.strip()).resolve()
+    try:
+        relative = directory.resolve().relative_to(root)
+    except ValueError:
+        return None
+    result = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z", "--", relative.as_posix() or "."],
+        check=False,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return None
+    return root, [root / item.decode() for item in result.stdout.split(b"\0") if item]
 
-        if not file_path.exists():
+
+def iter_files(arguments: Iterable[str]) -> list[Path]:
+    """Expand files and directories, preferring Git's tracked-file inventory."""
+    files: dict[Path, Path] = {}
+    for argument in arguments:
+        path = Path(argument)
+        if path.is_file():
+            inventory = _git_files(path.parent)
+            root = inventory[0] if inventory is not None else path.parent
+            files[path] = root
             continue
-
-        if not should_check_file(file_path):
+        if not path.is_dir():
             continue
+        inventory = _git_files(path)
+        if inventory is None:
+            root = path.resolve()
+            candidates = [candidate for candidate in path.rglob("*") if candidate.is_file()]
+        else:
+            root, candidates = inventory
+        files.update((candidate, root) for candidate in candidates)
+    return sorted(
+        (path for path, root in files.items() if should_check_file(path, root=root)),
+        key=lambda item: str(item),
+    )
 
-        issues = scan_file(file_path)
+
+def scan_file(path: Path) -> list[tuple[int, str]]:
+    """Return redacted ``(line number, description)`` findings for one file."""
+    content = path.read_text(encoding="utf-8")
+    lines = content.splitlines()
+    findings: list[tuple[int, str]] = []
+
+    for pattern, description in HIGH_CONFIDENCE_PATTERNS:
+        for match in pattern.finditer(content):
+            line_number = content.count("\n", 0, match.start()) + 1
+            line = lines[line_number - 1] if line_number <= len(lines) else ""
+            line_start = content.rfind("\n", 0, match.start()) + 1
+            if _is_exact_synthetic_high_confidence_match(line, column=match.start() - line_start):
+                continue
+            findings.append((line_number, description))
+
+    for line_number, line in enumerate(lines, start=1):
+        if ALLOW_DIRECTIVE in line:
+            continue
+        for match in ASSIGNMENT.finditer(line):
+            name = match.group("quoted_name") or match.group("bare_name")
+            if not _is_sensitive_name(name):
+                continue
+            if _is_safe_assignment_value(match.group("value"), name=name, path=path):
+                continue
+            findings.append((line_number, "credential-like literal assignment"))
+
+    return sorted(set(findings))
+
+
+def main(arguments: list[str] | None = None) -> int:
+    """Scan explicit paths, defaulting to the current repository directory."""
+    requested_paths = arguments or ["."]
+    directory_scan = any(Path(argument).is_dir() for argument in requested_paths)
+    paths = iter_files(requested_paths)
+    if directory_scan and not paths:
+        print("Secret scan failed: no eligible files found for directory scan.", file=sys.stderr)
+        return 2
+    findings: list[tuple[Path, list[tuple[int, str]]]] = []
+    read_errors: list[tuple[Path, str]] = []
+    for path in paths:
+        try:
+            issues = scan_file(path)
+        except (OSError, UnicodeError) as exc:
+            read_errors.append((path, str(exc)))
+            continue
         if issues:
-            all_issues.append((file_path, issues))
+            findings.append((path, issues))
 
-    if all_issues:
-        print("\n❌ SECURITY CHECK FAILED: Potential secrets detected!\n")
+    if read_errors:
+        print("Secret scan could not read eligible files:", file=sys.stderr)
+        for path, error in read_errors:
+            print(f"  {path}: {error}", file=sys.stderr)
+        return 2
 
-        for file_path, issues in all_issues:
-            print(f"📄 {file_path}")
-            for line_num, description, match in issues:
-                # Truncate match for display
-                display_match = match[:50] + "..." if len(match) > 50 else match
-                print(f"  Line {line_num}: {description}")
-                print(f"    Found: {display_match}")
-            print()
-
-        print("🔒 Security Tips:")
-        print("  - Use environment variables for sensitive values")
-        print("  - Add sensitive files to .gitignore")
-        print("  - Use .env files for local development")
-        print("  - Never commit real API keys, tokens, or passwords")
-        print("\nIf these are false positives, you can:")
-        print("  1. Add the value to ALLOWED_VALUES in scripts/check_secrets.py")
-        print("  2. Use environment variable references like ${API_KEY}")
-        print("  3. Move sensitive config to .env files")
-
+    if findings:
+        print("Secret scan failed: potential credentials detected.", file=sys.stderr)
+        for path, issues in findings:
+            for line_number, description in issues:
+                print(f"  {path}:{line_number}: {description}", file=sys.stderr)
+        print(
+            f"Use '{ALLOW_DIRECTIVE}' only for a reviewed synthetic fixture.",
+            file=sys.stderr,
+        )
         return 1
 
+    print(f"Secret scan passed: {len(paths)} eligible files checked.")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main(sys.argv[1:]))
