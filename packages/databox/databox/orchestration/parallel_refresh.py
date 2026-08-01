@@ -24,6 +24,7 @@ from databox.destinations import QuackServer, cleanup_quack_clients, dedupe_quac
 
 _SHARED_SERVER_ENV = "DATABOX_QUACK_SHARED_SERVER"
 _TIMELINE_DIR_ENV = "DATABOX_QUACK_TIMELINE_DIR"
+_SQLMESH_CACHE_DIR_ENV = "SQLMESH__CACHE_DIR"
 
 
 @dataclass(frozen=True)
@@ -294,7 +295,15 @@ def execute_parallel_refresh(
                     for name in names:
                         workdir = work_root / name
                         workdir.mkdir()
-                        future = pool.submit(source_runner, name, workdir, env)
+                        source_env = dict(env)
+                        # Loading any Dagster source job imports the SQLMesh-backed
+                        # asset definitions. SQLMesh's file cache writes directly to
+                        # its final gzip/pickle path, so concurrent imports must not
+                        # share a cache directory. The production transform runs only
+                        # after these workers finish and continues to use its normal
+                        # project cache.
+                        source_env[_SQLMESH_CACHE_DIR_ENV] = str(workdir / "sqlmesh-cache")
+                        future = pool.submit(source_runner, name, workdir, source_env)
                         future_sources[future] = name
                     for future in as_completed(future_sources):
                         name = future_sources[future]

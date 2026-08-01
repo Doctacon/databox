@@ -8,7 +8,7 @@ Updated: 2026-07-09
 
 The product expansion ratified in `.10x/decisions/local-single-user-birding-pokedex-expansion.md` requires concrete definitions for Arizona catalog membership, manual life-list entry, target-planning origin privacy, and which eBird records may cause an external watch alert.
 
-Current source inspection found 706 eBird `US-AZ` regional taxa in the warehouse: 624 taxonomy rows categorized as species and 82 categorized as hybrids. eBird records expose stable submission IDs, reviewed/valid flags, private-location flags, observation timestamps, and coordinates; refreshes overlap a rolling 30-day window.
+Current source inspection found 706 eBird `US-AZ` regional taxa in the warehouse: 624 taxonomy rows categorized as species and 82 categorized as hybrids. eBird records expose stable submission IDs, reviewed/valid flags, private-location flags, observation timestamps, and coordinates; refreshes overlap the provider's rolling 30-days-back period, including both boundary dates.
 
 ## Decision
 

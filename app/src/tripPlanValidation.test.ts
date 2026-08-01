@@ -12,8 +12,8 @@ const plan: TripPlanDetail = {
   },
   recommendations: [{
     recommendation_id: "rec_fixture", species_code: "mexjay", common_name: "Mexican Jay",
-    scientific_name: "Aphelocoma wollweberi", recommendation_group: "high_likelihood", rank_order: 1,
-    confidence_label: "high", rationale_text: "Recent public evidence", caveats: [],
+    scientific_name: "Aphelocoma wollweberi", recommendation_group: "recently_reported", rank_order: 1,
+    evidence_label: "one recent report", rationale_text: "Recent public evidence", caveats: [],
     photo: { status: "unavailable", source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, provider: null, license_code: null, original_width: null, original_height: null, caveats: [] },
     call: { status: "unavailable", source_record_id: null, recording_id: null, species_name: null, geographic_scope: null, recording_type: null, quality: null, recordist: null, locality: null, country: null, source_url: null, audio_url: null, license_text: null, license_url: null, selection_reason: null, caveats: [] },
   }],

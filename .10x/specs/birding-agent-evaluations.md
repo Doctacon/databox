@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-08
-Updated: 2026-07-09
+Updated: 2026-08-01
 
 # Birding Agent Evaluations
 
@@ -45,5 +45,5 @@ The first eval suite SHOULD prefer small, deterministic, local fixtures over liv
 - The eval checks expected tool use rather than only final text similarity.
 - The eval checks that output includes evidence/provenance or references persisted evidence artifacts.
 - The eval checks that no stored personal history/life-list assumption is used in the MVP.
-- The default eval suite performs no paid/live model calls and verifies the configured model boundary does not fall back from `@cf/zai-org/glm-5.2`.
+- The default eval suite performs no paid/live model calls and verifies the configured model boundary does not fall back from `@cf/zai-org/glm-4.7-flash`.
 - The eval command/path is documented for future runs.

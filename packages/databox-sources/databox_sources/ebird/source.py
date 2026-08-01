@@ -53,7 +53,7 @@ def ebird_source(
     loaded_at = pendulum.now().isoformat()
 
     @dlt.resource(
-        primary_key="subId",
+        primary_key=["subId", "speciesCode"],
         write_disposition="merge",
         columns={
             "howMany": {"data_type": "bigint"},
@@ -82,7 +82,7 @@ def ebird_source(
             )
 
     @dlt.resource(
-        primary_key="subId",
+        primary_key=["subId", "speciesCode"],
         write_disposition="merge",
         columns={
             "howMany": {"data_type": "bigint"},

@@ -60,11 +60,17 @@ def ensure_birding_agent_persistence_tables(
             scientific_name TEXT,
             recommendation_group TEXT NOT NULL,
             rank_order BIGINT NOT NULL,
-            confidence_label TEXT,
+            evidence_label TEXT,
             rationale_text TEXT,
             caveats_json TEXT NOT NULL DEFAULT '[]',
             created_at TEXT NOT NULL
         )
+        """
+    )
+    connection.execute(
+        f"""
+        ALTER TABLE {schema_ident}.trip_plan_recommendations
+        ADD COLUMN IF NOT EXISTS evidence_label TEXT
         """
     )
     connection.execute(

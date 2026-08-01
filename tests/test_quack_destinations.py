@@ -29,6 +29,14 @@ def test_quack_dedupe_membership_matches_parallel_registry_inventory() -> None:
     }
     assert set(_RAW_DEDUPE_KEYS) == expected
     assert all(keys for keys in _RAW_DEDUPE_KEYS.values())
+    assert _RAW_DEDUPE_KEYS[("raw_ebird", "recent_observations")] == (
+        "sub_id",
+        "species_code",
+    )
+    assert _RAW_DEDUPE_KEYS[("raw_ebird", "notable_observations")] == (
+        "sub_id",
+        "species_code",
+    )
 
 
 def test_dlt_destination_always_uses_quack_credentials() -> None:
@@ -51,6 +59,7 @@ def test_dedupe_quack_raw_tables_keeps_physical_raw_tables(tmp_path: Path) -> No
             """
             CREATE TABLE raw_ebird.recent_observations (
                 sub_id TEXT,
+                species_code TEXT,
                 value INTEGER,
                 _dlt_load_id TEXT,
                 _dlt_id TEXT
@@ -60,8 +69,9 @@ def test_dedupe_quack_raw_tables_keeps_physical_raw_tables(tmp_path: Path) -> No
         con.execute(
             """
             INSERT INTO raw_ebird.recent_observations VALUES
-                ('S1', 1, 'load-1', 'a'),
-                ('S1', 2, 'load-2', 'b')
+                ('S1', 'norcar', 1, 'load-1', 'a'),
+                ('S1', 'norcar', 2, 'load-2', 'b'),
+                ('S1', 'amerob', 3, 'load-1', 'c')
             """
         )
         con.execute("CREATE TABLE raw_ebird._dlt_loads (schema_name TEXT, load_id TEXT)")
@@ -83,8 +93,14 @@ def test_dedupe_quack_raw_tables_keeps_physical_raw_tables(tmp_path: Path) -> No
 
     con = duckdb.connect(str(db_path), read_only=True)
     try:
-        assert changed == ["raw_ebird.recent_observations: 2 -> 1"]
-        assert con.execute("SELECT value FROM raw_ebird.recent_observations").fetchone() == (2,)
+        assert changed == ["raw_ebird.recent_observations: 3 -> 2"]
+        assert con.execute(
+            """
+            SELECT sub_id, species_code, value
+            FROM raw_ebird.recent_observations
+            ORDER BY species_code
+            """
+        ).fetchall() == [("S1", "amerob", 3), ("S1", "norcar", 2)]
         assert con.execute("SELECT load_id FROM raw_ebird._dlt_loads").fetchall() == [("load-2",)]
         assert con.execute("SELECT version FROM raw_ebird._dlt_version").fetchall() == [(1,)]
         table_types = dict(

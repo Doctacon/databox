@@ -220,13 +220,13 @@ Table dim_streamgage_site [note: 'table_type:dimension; surrogate_key:streamgage
   loaded_at timestamp
 }
 
-Table fact_bird_observation [note: 'table_type:fact; grain:one row per eBird observation submission id across recent and notable observation feeds; source_entity:BirdObservation'] {
-  bird_observation_sk varchar [pk, note: 'Stable string hash of source_pipeline and sub_id']
+Table fact_bird_observation [note: 'table_type:fact; grain:one row per eBird checklist submission and species across recent and notable observation feeds; source_entity:BirdObservation'] {
+  bird_observation_sk varchar [pk, note: 'Stable string hash of source_pipeline, sub_id, and species_code']
   species_sk varchar [not null, ref: > dim_species.species_sk]
   bird_hotspot_sk varchar [not null, ref: > dim_bird_hotspot.bird_hotspot_sk]
   source_pipeline varchar [not null]
   source_table varchar [not null]
-  source_observation_id varchar [not null, note: 'eBird sub_id']
+  source_observation_id varchar [not null, note: 'Composite eBird record id: sub_id|species_code']
   observation_datetime timestamp
   observation_date date
   observation_year bigint

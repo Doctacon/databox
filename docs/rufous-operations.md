@@ -22,7 +22,7 @@ Opt in to one live credential/model check with:
 task smoke:cloudflare-ai
 ```
 
-The smoke command uses only `@cf/zai-org/glm-5.2` and never prints
+The smoke command uses only `@cf/zai-org/glm-4.7-flash` and never prints
 Cloudflare credentials.
 
 ## Rufous local birding app
@@ -34,8 +34,10 @@ task app:audit-bundle  # audit an existing build for configured names and values
 task app               # build and serve the complete app at http://127.0.0.1:8000
 ```
 
-Both launch paths bind to loopback. Run `task verify` first to populate the
-local warehouse. Rufous uses an original local rust-orange/teal field-device theme with no remote fonts or theme assets. The Trip Planner remains at `/`; the read-only Arizona Birds
+Both launch paths bind to loopback. On a new database, follow the README's
+one-time AVONET bootstrap and run `task full-refresh` to populate the local
+warehouse. `task verify` is only a bounded smoke refresh. Rufous uses an original
+local rust-orange/teal field-device theme with no remote fonts or theme assets. The Trip Planner remains at `/`; the read-only Arizona Birds
 catalog is available at `/birds`, with direct modeled profiles at
 `/birds/{species_code}`. Native browser history supports direct reload,
 back, and forward without a routing dependency. Catalog search, species/hybrid
@@ -89,7 +91,7 @@ Each current bird profile links to `/birds/{species_code}/find`. Target planning
 requires an Arizona origin, 1–300-mile radius, local start, and 1–1440-minute
 duration. `POST /api/target-plans` ranks at most ten exact-species valid,
 reviewed, non-private public eBird locations with Haversine distance, then calls
-Open-Meteo and the sole strict-schema GLM 5.2 model before atomically persisting
+Open-Meteo and the sole strict-schema GLM 4.7 Flash model before atomically persisting
 the result. `GET /api/target-plans` and `GET /api/target-plans/{id}` replay only
 persisted facts without network access or writes. Direct result routes use
 `/target-plans/{id}`. Target plans never read personal collection state or
@@ -101,7 +103,7 @@ Evaluation uses exact species/submission identity, the watch activation boundary
 a 48-hour freshness window, reviewed valid non-private public locations, and the
 per-watch 1–300-mile radius. It persists deterministic decisions, at most ten
 ranked public clusters, the earliest sunrise-centered two-hour morning, optional
-strict-schema GLM 5.2 emphasis, and stable-UID event intent in `birding_alerts`.
+strict-schema GLM 4.7 Flash emphasis, and stable-UID event intent in `birding_alerts`.
 The GLM prompt contains only target identity, the confirmed public destination
 and derived distance, morning, weather, caveats, and fact grounding—never the
 personal watch-center name or coordinates. Model/weather failure degrades to
@@ -166,6 +168,16 @@ while the scientific name remains visible underneath. Open-Meteo measurements
 are reloaded from the persisted trip-plan evidence payload and displayed in both
 US customary and metric units; the browser does not refetch or ask the model to
 convert weather values.
+
+Trip Planner recommendations are evidence prominence, not encounter probability.
+Species with distinct eBird submissions in the configured eBird lookback (30
+days back by default, with both boundary dates included) form the recently
+reported group, ranked by eligible submission count, newest report, then species
+name. Species without qualifying eBird submissions in that lookback but supported
+by GBIF records form the occurrence-context group, ranked by distinct occurrence
+count, newest occurrence date or year, then species name. Each source record
+counts once. The planner trace records the exact inclusive date range; all eBird
+and GBIF evidence used for ranking is within the enforced 50 km radius.
 
 Xeno-canto metadata, URLs, recordist attribution, and licenses are reloaded from
 persisted DuckDB evidence. The API exposes a separate typed media projection and

@@ -28,7 +28,7 @@ function safeText(value: unknown, max: number, nullable = false): value is strin
 
 function encounter(value: unknown): MapEncounter {
   const row = exact(value, encounterKeys);
-  if (typeof row.source_observation_id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(row.source_observation_id)
+  if (typeof row.source_observation_id !== "string" || !/^[A-Za-z0-9_|-]{1,64}$/.test(row.source_observation_id)
     || typeof row.species_code !== "string" || !/^[A-Za-z0-9]{1,64}$/.test(row.species_code)
     || !safeText(row.common_name, 200, true) || !safeText(row.scientific_name, 200, true)
     || (row.common_name === null && row.scientific_name === null)

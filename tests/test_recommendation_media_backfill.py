@@ -72,9 +72,12 @@ def _database(path: Path) -> None:
                 """
                 INSERT INTO birding_agent.trip_plan_recommendations (
                     recommendation_id, trip_plan_id, common_name, scientific_name,
-                    recommendation_group, rank_order, confidence_label, rationale_text,
+                    recommendation_group, rank_order, evidence_label, rationale_text,
                     created_at
-                ) VALUES (?, ?, ?, ?, 'high_likelihood', ?, 'high', ?, '2026-07-09T12:00:00')
+                ) VALUES (
+                    ?, ?, ?, ?, 'recently_reported', ?, 'recent report', ?,
+                    '2026-07-09T12:00:00'
+                )
                 """,
                 [
                     recommendation_id,

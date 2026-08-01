@@ -26,7 +26,7 @@ it("renders a direct persisted target plan with a native profile link, dual unit
   expect(screen.getByText("39 %")).toBeVisible();
   expect(screen.getByText("330 m")).toBeVisible();
   expect(screen.getByText(/Retrieved:/)).toBeVisible();
-  expect(screen.getByText(/sole configured Cloudflare GLM 5.2 model/)).toBeVisible();
+  expect(screen.getByText(/sole configured Cloudflare GLM 4.7 Flash model/)).toBeVisible();
   const profileLink = screen.getByRole("link", { name: "← Back to bird profile" });
   expect(profileLink).toHaveAttribute("href", "/birds/target1");
   await userEvent.click(profileLink);

@@ -19,7 +19,7 @@ Table "recent_observations" [note: 'concept: BirdObservation | role: primary'] {
   "how_many" bigint
   "lat" double
   "lng" double
-  "species_code" text
+  "species_code" text [primary_key, not null]
   "com_name" text
   "sci_name" text
   "loc_id" text
@@ -42,7 +42,7 @@ Table "notable_observations" [note: 'concept: BirdObservation | role: secondary'
   "how_many" bigint
   "lat" double
   "lng" double
-  "species_code" text
+  "species_code" text [primary_key, not null]
   "com_name" text
   "sci_name" text
   "loc_id" text

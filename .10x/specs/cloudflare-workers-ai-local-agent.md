@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-09
-Updated: 2026-07-09
+Updated: 2026-08-01
 
 # Cloudflare Workers AI Local Agent
 
@@ -21,9 +21,9 @@ Cloudflare provides remote model inference only. No Cloudflare Worker is deploye
 
 The only permitted model is Cloudflare's official identifier:
 
-`@cf/zai-org/glm-5.2`
+`@cf/zai-org/glm-4.7-flash`
 
-The user explicitly replaced the former GLM 4.7 Flash selection with Cloudflare's provider-qualified `@cf/zai-org/glm-5.2` identifier.
+The user explicitly selected Cloudflare's provider-qualified `@cf/zai-org/glm-4.7-flash` identifier because GLM 5.2 requires Workers Paid and this installation uses Workers AI Free.
 
 The runtime MUST NOT silently use Gemini, another Google model, another Cloudflare model, or any fallback model. If the configured model is unavailable, the plan run MUST fail or persist an explicit model-unavailable state.
 
@@ -35,7 +35,7 @@ The local Python process MUST read these values from `.env`/environment through 
 - `CF_WORKERS_AI_ACCOUNT_ID`
 - `CF_WORKERS_AI_MODEL_BASE_URL`
 
-`CF_WORKERS_AI_MODEL_BASE_URL` MUST accept either an HTTPS `api.cloudflare.com` Workers AI URL or the exact allowlisted identifier `@cf/zai-org/glm-5.2`. The local configured selector MUST be `@cf/zai-org/glm-5.2`. In both cases the client MUST derive and send credentials only to `https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions`. Plain HTTP, arbitrary hosts, embedded credentials, and every other non-URL value MUST be rejected.
+`CF_WORKERS_AI_MODEL_BASE_URL` MUST accept either an HTTPS `api.cloudflare.com` Workers AI URL or the exact allowlisted identifier `@cf/zai-org/glm-4.7-flash`. The local configured selector MUST be `@cf/zai-org/glm-4.7-flash`. In both cases the client MUST derive and send credentials only to `https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions`. Plain HTTP, arbitrary hosts, embedded credentials, and every other non-URL value MUST be rejected.
 
 These values MUST NOT be:
 
@@ -52,6 +52,8 @@ These values MUST NOT be:
 The model input MUST be grounded in bounded tool results, strictly bound collection/string/serialized sizes, and include only the data needed to choose a field strategy. Model output tokens MUST be capped.
 
 The OpenAI-compatible request MUST include `response_format.type=json_schema` with a fixed bounded schema and `strict=true`. The schema MUST allow only the action identifiers and grounding fields accepted by `GroundedSynthesisResult`; it MUST reject additional properties. Cloudflare schema enforcement supplements rather than replaces local Pydantic and exact-grounding validation.
+
+For GLM 4.7 Flash, the request MUST set `chat_template_kwargs.enable_thinking=false` so the response remains bounded to the schema JSON. Its Cloudflare-facing schema MUST omit the unsupported `uniqueItems` keyword; local result validators MUST still reject duplicate action or emphasis identifiers fail-closed.
 
 The model MUST return only a bounded structured selection of allowlisted field-action identifiers plus exact grounding values. It MUST preserve:
 
@@ -72,11 +74,11 @@ The model MUST NOT return user-facing factual prose or replace evidence-derived 
 
 Unit and DeepEval coverage MUST use a deterministic fake model client by default. CI MUST NOT require live Cloudflare calls or consume inference spend.
 
-A separate opt-in smoke command MAY call live Cloudflare Workers AI and MUST assert that the configured model is exactly `@cf/zai-org/glm-5.2`.
+A separate opt-in smoke command MAY call live Cloudflare Workers AI and MUST assert that the configured model is exactly `@cf/zai-org/glm-4.7-flash`.
 
 ## Acceptance criteria
 
-- A local ADK trip-plan run calls the configured HTTP(S) Cloudflare endpoint, or the official endpoint derived from the exact allowlisted identifier, with only `@cf/zai-org/glm-5.2`.
+- A local ADK trip-plan run calls the configured HTTP(S) Cloudflare endpoint, or the official endpoint derived from the exact allowlisted identifier, with only `@cf/zai-org/glm-4.7-flash`.
 - Secrets stay server-side and are absent from browser assets/logs/records.
 - Bounded structured selection, deterministic rendering, async-safe ADK execution, atomic persistence, and explicit failure handling are tested.
 - Existing deterministic test/eval workflows remain offline and green.

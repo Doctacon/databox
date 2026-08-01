@@ -2,8 +2,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { TripEvidenceMap } from "./FieldMap";
 import styles from "./styles.css?raw";
-import type { MapSnapshot } from "./types";
+import type { Evidence, MapSnapshot, TripPlanDetail } from "./types";
 
 type FakeMapEvent = { features?: unknown[]; sourceId?: string; isSourceLoaded?: boolean };
 
@@ -90,6 +91,126 @@ function snapshotWithPhoto(): MapSnapshot {
     selection_reason: "Fixture", caveats: [], lookup_at: "2026-07-11T08:00:00Z",
   };
   return value;
+}
+
+function tripEvidence(
+  evidenceId: string,
+  source: "ebird" | "gbif",
+  sourceRecordId: string | null,
+  latitude: unknown,
+  longitude: unknown,
+  distanceKm: unknown,
+  overrides: Partial<Evidence> = {},
+): Evidence {
+  const isEbird = source === "ebird";
+  return {
+    evidence_id: evidenceId,
+    recommendation_id: null,
+    source,
+    source_table: isEbird ? "recent_observation_evidence" : "gbif_occurrence_evidence",
+    source_record_id: sourceRecordId,
+    evidence_type: isEbird ? "recent_observation" : "occurrence_context",
+    status: "available",
+    retrieved_at: null,
+    summary: {
+      common_name: isEbird ? "Mexican Jay" : "Zone-tailed Hawk",
+      ...(isEbird ? { location_name: "Thumb Butte" } : { locality: "Prescott National Forest" }),
+      distance_km: distanceKm,
+    },
+    payload: { latitude, longitude, distance_km: distanceKm },
+    caveats: [],
+    ...overrides,
+  };
+}
+
+function tripDetail(): TripPlanDetail {
+  const latitude = 34.54;
+  const longitude = -112.47;
+  const gbifDistance = 111.32 * 0.01 * Math.cos(latitude * Math.PI / 180);
+  const radiusKm = 50;
+  const boundaryLatitude = latitude + radiusKm / 111.32;
+  return {
+    plan: {
+      trip_plan_id: "plan-map",
+      requested_location: "Thumb Butte, Prescott, AZ",
+      normalized_location_name: "Thumb Butte, Prescott, AZ",
+      latitude,
+      longitude,
+      region_code: "US-AZ",
+      timezone: "America/Phoenix",
+      window_start: "2026-07-12T06:00:00-07:00",
+      window_end: "2026-07-12T07:30:00-07:00",
+      duration_minutes: 90,
+      skill_level: "beginner",
+      constraints_text: null,
+      plan_status: "complete",
+      field_plan_text: "Listen first.",
+      caveats: [],
+      created_at: "2026-07-11T12:00:00Z",
+      updated_at: "2026-07-11T12:00:00Z",
+    },
+    recommendations: [],
+    evidence: [
+      tripEvidence("ev-ebird", "ebird", "S1", latitude + 0.01, longitude, 1.1132),
+      tripEvidence("ev-gbif", "gbif", "G1", latitude, longitude + 0.01, gbifDistance),
+      tripEvidence("ev-boundary", "gbif", "G2", boundaryLatitude, longitude, radiusKm, {
+        summary: { common_name: "Pinyon Jay", locality: "Radius boundary", distance_km: radiusKm },
+      }),
+      tripEvidence("ev-duplicate", "ebird", "S1", latitude + 0.01, longitude, 1.1132),
+      tripEvidence("ev-same-submission-other-species", "ebird", "S1", latitude + 0.01, longitude, 1.1132, {
+        summary: { common_name: "Juniper Titmouse", location_name: "Thumb Butte", distance_km: 1.1132 },
+      }),
+      tripEvidence("ev-far", "ebird", "FAR", latitude + 0.56, longitude, 62.3392, {
+        summary: { common_name: "Far Bird", location_name: "Outside radius", distance_km: 62.3392 },
+      }),
+      tripEvidence("ev-malformed", "ebird", "BAD", "34.55", longitude, 1.1132, {
+        summary: { common_name: "Malformed Bird", location_name: "Bad coordinates", distance_km: 1.1132 },
+      }),
+      tripEvidence("ev-unavailable", "gbif", "OFF", latitude, longitude, 0, {
+        status: "unavailable",
+        summary: { common_name: "Unavailable Bird", locality: "Not available", distance_km: 0 },
+      }),
+      tripEvidence("ev-weather", "ebird", "WEATHER", latitude, longitude, 0, {
+        evidence_type: "weather_elevation_context",
+        summary: { common_name: "Wrong evidence type", location_name: "Not a core record", distance_km: 0 },
+      }),
+    ],
+    weather: null,
+    media: [],
+    tool_traces: [
+      {
+        tool_trace_id: "trace-ebird",
+        step_order: 2,
+        tool_name: "lookup_recent_observation_evidence",
+        tool_status: "ok",
+        started_at: null,
+        completed_at: null,
+        input: {},
+        output_summary: { enforced_radius_km: radiusKm },
+        caveats: [],
+      },
+      {
+        tool_trace_id: "trace-gbif",
+        step_order: 3,
+        tool_name: "lookup_gbif_occurrence_evidence",
+        tool_status: "ok",
+        started_at: null,
+        completed_at: null,
+        input: {},
+        output_summary: { enforced_radius_km: radiusKm },
+        caveats: [],
+      },
+    ],
+    calendar_invite: {
+      status: "not_created",
+      sequence: null,
+      outbox_id: null,
+      allowed_actions: ["send"],
+      can_retry: false,
+      updated_at: null,
+      acceptance_notice: null,
+    },
+  };
 }
 
 beforeEach(() => {
@@ -340,5 +461,93 @@ describe("Rufous Field Map", () => {
     reject(new Error("The local Field Map is unavailable"));
     expect(await screen.findByRole("alert")).toHaveTextContent("The local Field Map is unavailable");
     expect(mapState.maps).toHaveLength(0);
+  });
+});
+
+describe("Rufous trip evidence map", () => {
+  it("plots only distinct available core records inside the matching enforced radius", async () => {
+    const detail = tripDetail();
+    detail.recommendations = [
+      { recommendation_group: "recently_reported", rank_order: 2, common_name: "Juniper Titmouse" },
+      { recommendation_group: "gbif_context", rank_order: 3, common_name: "Zone-tailed Hawk" },
+      { recommendation_group: "recently_reported", rank_order: 1, common_name: "Mexican Jay" },
+    ] as TripPlanDetail["recommendations"];
+    const { container, unmount } = render(<TripEvidenceMap detail={detail} />);
+
+    expect(screen.getByRole("heading", { name: "Evidence Map" })).toBeVisible();
+    expect(screen.getByText("4 distinct persisted evidence records within the enforced 50 km radius")).toBeVisible();
+    const legend = screen.getByRole("list", { name: "Mapped evidence sources" });
+    expect(within(legend).getByText("2 eBird reports")).toBeVisible();
+    expect(within(legend).getByText("2 GBIF occurrences")).toBeVisible();
+    expect(within(legend).getByText("Trip location")).toBeVisible();
+    expect(container.querySelector(".trip-map-recommendations")).toHaveTextContent(
+      "Evidence-ranked recommendations: Mexican Jay · Juniper Titmouse",
+    );
+    expect(screen.getByText("Distinct recent eBird submissions; not encounter probability.")).toBeVisible();
+    expect(screen.getByRole("region", { name: /4 distinct persisted evidence records inside the enforced 50 kilometer radius/ })).toBeVisible();
+    expect(mapState.maps).toHaveLength(1);
+
+    const map = mapState.maps[0];
+    const style = map.options.style as {
+      sources: Record<string, { data: { features: Array<{ geometry: { coordinates: unknown }; properties: Record<string, unknown> }> } }>;
+    };
+    expect(style.sources["trip-evidence"].data.features).toHaveLength(4);
+    expect(style.sources["trip-evidence"].data.features.map((feature) => feature.properties.source)).toEqual([
+      "gbif", "ebird", "ebird", "gbif",
+    ]);
+    const radiusRing = style.sources["trip-radius"].data.features[0].geometry.coordinates as [number, number][][];
+    expect(radiusRing[0]).toHaveLength(65);
+    expect(radiusRing[0][0]).toEqual(radiusRing[0].at(-1));
+    expect(style.sources["trip-origin"].data.features[0].geometry.coordinates).toEqual([-112.47, 34.54]);
+    expect(map.options.bounds).toEqual([
+      [expect.any(Number), expect.any(Number)],
+      [expect.any(Number), expect.any(Number)],
+    ]);
+    const serializedStyle = JSON.stringify(map.options.style);
+    expect(serializedStyle).not.toMatch(/https?:\/\//);
+    expect(serializedStyle).not.toContain("tiles");
+    expect(serializedStyle).not.toContain("glyphs");
+    expect(serializedStyle).not.toContain("sprite");
+    expect(serializedStyle).toContain("Apache County");
+
+    await userEvent.click(screen.getByText("Mapped evidence locations"));
+    expect(screen.getByText("Mexican Jay")).toBeVisible();
+    expect(screen.getAllByText(/eBird report · Thumb Butte · 1\.1 km from trip location/)).toHaveLength(2);
+    expect(screen.getByText("Juniper Titmouse")).toBeVisible();
+    expect(screen.getByText("Zone-tailed Hawk")).toBeVisible();
+    expect(screen.getByText(/GBIF occurrence · Prescott National Forest · 0\.9 km from trip location/)).toBeVisible();
+    expect(screen.getByText("Pinyon Jay")).toBeVisible();
+    expect(screen.getByText(/GBIF occurrence · Radius boundary · 50\.0 km from trip location/)).toBeVisible();
+    expect(screen.queryByText(/Far Bird|Malformed Bird|Unavailable Bird|Wrong evidence type/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/S1|G1|G2|FAR|BAD|OFF|WEATHER/)).not.toBeInTheDocument();
+    expect(screen.getByText(/not predicted current presence/)).toBeVisible();
+    expect(screen.getByText(/planner's displayed local-distance approximation/)).toBeVisible();
+    expect(styles).toMatch(/\.trip-evidence-map \.map-canvas\s*\{[^}]*min-height:\s*clamp\(260px, 24vw, 320px\)/s);
+    expect(styles).toMatch(/@media \(max-width:\s*540px\)[\s\S]*?\.trip-evidence-map \.map-canvas\s*\{\s*min-height:\s*240px/);
+
+    unmount();
+    expect(map.remove).toHaveBeenCalledOnce();
+  });
+
+  it("explains why it cannot map evidence when successful lookup traces disagree", () => {
+    const detail = tripDetail();
+    detail.tool_traces[1].output_summary.enforced_radius_km = 49;
+    render(<TripEvidenceMap detail={detail} />);
+
+    expect(screen.getByText(/does not contain matching successful eBird and GBIF enforced-radius traces/)).toBeVisible();
+    expect(screen.queryByRole("region", { name: /persisted evidence records/ })).not.toBeInTheDocument();
+    expect(mapState.maps).toHaveLength(0);
+  });
+
+  it("keeps the enforced-radius context when no evidence has qualifying coordinates", async () => {
+    const detail = tripDetail();
+    detail.evidence = detail.evidence.filter((row) => row.evidence_id === "ev-far");
+    render(<TripEvidenceMap detail={detail} />);
+
+    expect(screen.getByText("0 distinct persisted evidence records within the enforced 50 km radius")).toBeVisible();
+    expect(screen.getByRole("region", { name: /0 distinct persisted evidence records inside the enforced 50 kilometer radius/ })).toBeVisible();
+    await userEvent.click(screen.getByText("Mapped evidence locations"));
+    expect(screen.getByText("No qualifying coordinate-bearing evidence was persisted for this plan.")).toBeVisible();
+    expect(mapState.maps).toHaveLength(1);
   });
 });

@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-09
-Updated: 2026-07-09
+Updated: 2026-08-01
 
 # Define watched-bird alert matching and delivery policy
 
@@ -19,7 +19,7 @@ The source and baseline eligibility rules are governed by `.10x/decisions/local-
 5. Eligible observations will be clustered by public location. The best location will be chosen by most independent eligible submissions, then newest observation, shortest distance from the watch center, and a stable source-key tie-break.
 6. Databox will maintain at most one active five-day calendar event per watched taxon. Stronger/newer eligible evidence MAY update that event using the same stable iCalendar UID and an incremented sequence rather than creating another invitation.
 7. The event will represent a deterministic two-hour morning outing within the next five days and explain why its date/time and location were selected.
-8. A fresh report MAY use only Cloudflare Workers AI model `@cf/zai-org/glm-5.2` under the existing strict grounding/no-fallback contract. If fresh model synthesis is unavailable, Databox will still send a deterministic report assembled from persisted species-profile facts, the selected sighting cluster, location, weather, and explicit model-unavailable caveat. This is not an alternate model or parser fallback.
+8. A fresh report MAY use only Cloudflare Workers AI model `@cf/zai-org/glm-4.7-flash` under the existing strict grounding/no-fallback contract. If fresh model synthesis is unavailable, Databox will still send a deterministic report assembled from persisted species-profile facts, the selected sighting cluster, location, weather, and explicit model-unavailable caveat. This is not an alternate model or parser fallback.
 9. Calendar delivery will use a durable outbox and standard iCalendar email invitation over configurable SMTP. Explicit transient failures before server acceptance may be retried at most three times. An ambiguous outcome after possible acceptance MUST become `delivery_unknown` and MUST NOT be automatically resent.
 10. Recipient and SMTP credentials/configuration remain server-side and MUST NOT appear in browser assets, traces, logs, persisted report payloads, or committed files.
 

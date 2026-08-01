@@ -22,7 +22,7 @@
 
 ## BirdObservation
 
-Individual eBird observation records with species, observation date/time, location, count, and region fields.
+Individual eBird checklist-species observation records with observation date/time, location, count, and region fields.
 
 ### Source tables
 
@@ -53,7 +53,7 @@ Individual eBird observation records with species, observation date/time, locati
 | `obs_reviewed` | `bool` | `ebird_api.recent_observations`<br>`ebird_api.notable_observations` |  |
 | `obs_valid` | `bool` | `ebird_api.recent_observations`<br>`ebird_api.notable_observations` |  |
 | `sci_name` | `text` | `ebird_api.recent_observations`<br>`ebird_api.notable_observations` |  |
-| `species_code` | `text` | `ebird_api.recent_observations`<br>`ebird_api.notable_observations` |  |
+| `species_code` | `text` | `ebird_api.recent_observations`<br>`ebird_api.notable_observations` | not null, primary_key |
 | `sub_id` | `text` | `ebird_api.recent_observations`<br>`ebird_api.notable_observations` | not null, primary_key |
 
 ### Relationships
@@ -68,6 +68,7 @@ Individual eBird observation records with species, observation date/time, locati
 ### Assumptions
 
 - No cross-source natural key/stitching strategy required.
+- Within eBird, observation identity is the composite `(sub_id, species_code)` so every species on a checklist remains distinct.
 
 ## Species
 

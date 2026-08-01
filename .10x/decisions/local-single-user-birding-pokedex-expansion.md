@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-09
-Updated: 2026-07-09
+Updated: 2026-08-01
 
 # Expand Databox into a local single-user birding Pokédex
 
@@ -8,7 +8,7 @@ Updated: 2026-07-09
 
 Databox currently presents a local Birding Trip Copilot and its active workflow specifications explicitly exclude stored personal sightings, a life list, and separately user-facing species workflows. The user wants to retain the successful planner while expanding the product into a Pokémon-style Arizona bird catalog with personal collection and watch workflows.
 
-The expansion must preserve the active local-only architecture: one local DuckDB, browser access only through FastAPI, Python/Google ADK, Cloudflare Workers AI model `@cf/zai-org/glm-5.2` only, open-source-first dependencies, and server-side credentials.
+The expansion must preserve the active local-only architecture: one local DuckDB, browser access only through FastAPI, Python/Google ADK, Cloudflare Workers AI model `@cf/zai-org/glm-4.7-flash` only, open-source-first dependencies, and server-side credentials.
 
 ## Decision
 

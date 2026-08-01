@@ -15,8 +15,8 @@ resource:
 
 | Source | Resource | Disposition | Primary Key | Watermark |
 | --- | --- | --- | --- | --- |
-| ebird | `recent_observations` | merge | `subId` | rolling `days_back` window |
-| ebird | `notable_observations` | merge | `subId` | rolling `days_back` window |
+| ebird | `recent_observations` | merge | `(subId, speciesCode)` | rolling `days_back` window |
+| ebird | `notable_observations` | merge | `(subId, speciesCode)` | rolling `days_back` window |
 | ebird | `species_list` | replace | `speciesCode` | none — full snapshot |
 | ebird | `hotspots` | merge | `locId` | none — full snapshot |
 | ebird | `taxonomy` | replace | `sciName` | none — full snapshot |
@@ -57,25 +57,27 @@ post-load dedupe uses the same primary keys for the current source set.
 
 All three sources read their extract window from a per-source env-var
 override (default `30`) in
-`packages/databox/databox/orchestration/definitions.py`:
+`packages/databox/databox/config/settings.py`:
 
 - `DATABOX_EBIRD_DAYS_BACK`
 - `DATABOX_NOAA_DAYS_BACK`
 - `DATABOX_USGS_DAYS_BACK`
 
-To widen the window for one local run, set the env var before launching the
-Dagster ingest job or `task full-refresh`:
+Set a supported window before launching the Dagster ingest job or
+`task full-refresh`:
 
 ```bash
-# Pull eBird data for the last 90 days instead of the default 30
-DATABOX_EBIRD_DAYS_BACK=90 task full-refresh
-
 # Full-year NOAA backfill (hits multiple 365-day chunks; expect 5-10 min)
 DATABOX_NOAA_DAYS_BACK=365 task full-refresh
 
 # USGS daily values for the last year (chunked to 90-day API calls)
 DATABOX_USGS_DAYS_BACK=365 task full-refresh
 ```
+
+The eBird recent-observation endpoints accept only 1–30 days, so
+`DATABOX_EBIRD_DAYS_BACK` is validated to that range and defaults to the maximum
+30. Historical eBird backfill requires a different data product and is not wired
+into this repository.
 
 The merge disposition means a backfill never duplicates rows already present
 at the narrower window — it only fills in older dates. If the API has
@@ -107,7 +109,7 @@ AVONET remains an explicit `avonet_ingest` bootstrap job with no daily schedule.
 ## When to rely on merge vs replace
 
 - **merge**: the source API returns a durable, point-in-time row identified
-  by a stable key (`subId`, `(date, datatype, station)`, `(site_no,
+  by a stable key (`(subId, speciesCode)`, `(date, datatype, station)`, `(site_no,
   parameter_cd, observation_date)`). Revisions are in-place updates.
 - **replace**: the source API returns a catalog or reference list that
   should exactly mirror upstream (taxonomy, dataset manifest, species list

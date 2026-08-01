@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-10
-Updated: 2026-07-10
+Updated: 2026-08-01
 
 # Watched-bird matching and reports
 
@@ -39,7 +39,7 @@ Create candidate two-hour windows centered on local Arizona sunrise for mornings
 
 Persist a deterministic report containing target identity, watch center/radius, confirmed public destination, distance, independent submission count, newest evidence time, other ranked public clusters, selected morning, weather status, evidence/model freshness, and caveats about recency, access, and non-guaranteed presence.
 
-A fresh GLM report MAY enrich organization/wording through strict JSON Schema using only target identity, the confirmed public destination and derived distance/evidence, selected morning, weather, bounded caveats, and fact hash through `@cf/zai-org/glm-5.2`. The remote schema/prompt/hash MUST exclude the personal watch-center name/coordinates and secondary clusters. It MUST NOT add bird facts, locations, access claims, or alternate evidence. If GLM is unavailable or invalid, the deterministic report remains deliverable and explicitly says model enrichment was unavailable. No alternate model is allowed. Traces MUST be sanitized and bounded.
+A fresh GLM report MAY enrich organization/wording through strict JSON Schema using only target identity, the confirmed public destination and derived distance/evidence, selected morning, weather, bounded caveats, and fact hash through `@cf/zai-org/glm-4.7-flash`. The remote schema/prompt/hash MUST exclude the personal watch-center name/coordinates and secondary clusters. It MUST NOT add bird facts, locations, access claims, or alternate evidence. If GLM is unavailable or invalid, the deterministic report remains deliverable and explicitly says model enrichment was unavailable. No alternate model is allowed. Traces MUST be sanitized and bounded.
 
 ## Idempotency and event intent
 

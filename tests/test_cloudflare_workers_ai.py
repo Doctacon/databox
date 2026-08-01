@@ -47,7 +47,7 @@ def _request(**overrides: object) -> GroundedSynthesisRequest:
                 "recommendation_id": "rec-1",
                 "common_name": "Mexican Jay",
                 "scientific_name": "Aphelocoma wollweberi",
-                "recommendation_group": "high_likelihood",
+                "recommendation_group": "recently_reported",
                 "current_rationale": "Recent observations support this target.",
             }
         ],
@@ -226,12 +226,8 @@ def test_watch_report_client_uses_strict_schema_and_exact_fact_hash() -> None:
     assert isinstance(payload, dict)
     assert payload["response_format"]["json_schema"]["name"] == "grounded_watch_report"
     assert payload["response_format"]["json_schema"]["strict"] is True
-    assert (
-        payload["response_format"]["json_schema"]["schema"]["properties"]["emphasis_ids"][
-            "uniqueItems"
-        ]
-        is True
-    )
+    assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+    assert "uniqueItems" not in json.dumps(payload["response_format"]["json_schema"]["schema"])
     prompt = payload["messages"][1]["content"]
     assert "Public Lake" in prompt
     assert request.fact_hash in prompt
@@ -276,6 +272,22 @@ def test_watch_report_client_rejects_changed_fact_hash() -> None:
         _client(post).synthesize_watch_report(request)
 
 
+def test_watch_report_client_rejects_duplicate_emphasis_ids_locally() -> None:
+    request = _watch_request()
+    content = json.dumps(
+        {
+            "emphasis_ids": ["freshness", "freshness"],
+            "grounding": {
+                "species_code": request.species_code,
+                "fact_hash": request.fact_hash,
+            },
+        }
+    )
+
+    with pytest.raises(CloudflareMalformedResponseError):
+        _client(lambda *args, **kwargs: _response(content=content)).synthesize_watch_report(request)
+
+
 def test_target_client_uses_strict_schema_and_exact_grounding() -> None:
     observed: dict[str, object] = {}
 
@@ -291,6 +303,8 @@ def test_target_client_uses_strict_schema_and_exact_grounding() -> None:
     assert schema_config["name"] == "grounded_target_plan"
     assert schema_config["strict"] is True
     assert schema_config["schema"]["additionalProperties"] is False
+    assert payload["chat_template_kwargs"] == {"enable_thinking": False}
+    assert "uniqueItems" not in json.dumps(schema_config["schema"])
     serialized_request = payload["messages"][1]["content"]
     assert "Public Lake" in serialized_request
     assert "temperature_2m_avg" in serialized_request
@@ -314,6 +328,16 @@ def test_target_client_rejects_changed_evidence_hash() -> None:
         _client(post).synthesize_target(_target_request())
 
 
+def test_target_client_rejects_duplicate_action_ids_locally() -> None:
+    content = json.loads(_target_content())
+    content["action_ids"] = ["try_top_location", "try_top_location"]
+
+    with pytest.raises(CloudflareMalformedResponseError):
+        _client(lambda *args, **kwargs: _response(content=json.dumps(content))).synthesize_target(
+            _target_request()
+        )
+
+
 def test_client_uses_fixed_host_model_and_output_bound_without_repr_secrets() -> None:
     observed: dict[str, object] = {}
 
@@ -324,7 +348,7 @@ def test_client_uses_fixed_host_model_and_output_bound_without_repr_secrets() ->
     client = _client(post)
     result = client.synthesize(_request())
 
-    assert CLOUDFLARE_WORKERS_AI_MODEL == "@cf/zai-org/glm-5.2"
+    assert CLOUDFLARE_WORKERS_AI_MODEL == "@cf/zai-org/glm-4.7-flash"
     assert client.model == CLOUDFLARE_WORKERS_AI_MODEL
     assert observed["url"] == (
         "https://api.cloudflare.com/client/v4/accounts/account-123/ai/v1/chat/completions"
@@ -334,6 +358,7 @@ def test_client_uses_fixed_host_model_and_output_bound_without_repr_secrets() ->
     assert payload["model"] == CLOUDFLARE_WORKERS_AI_MODEL
     assert payload["max_completion_tokens"] == MAX_MODEL_OUTPUT_TOKENS
     assert "max_tokens" not in payload
+    assert payload["chat_template_kwargs"] == {"enable_thinking": False}
     response_format = payload["response_format"]
     assert response_format["type"] == "json_schema"
     json_schema = response_format["json_schema"]
@@ -342,7 +367,7 @@ def test_client_uses_fixed_host_model_and_output_bound_without_repr_secrets() ->
     schema = json_schema["schema"]
     assert schema["additionalProperties"] is False
     assert schema["properties"]["grounding"]["additionalProperties"] is False
-    assert schema["properties"]["action_ids"]["uniqueItems"] is True
+    assert "uniqueItems" not in json.dumps(schema)
     assert set(schema["properties"]["action_ids"]["items"]["enum"]) == {
         "listen_first",
         "scan_habitat_edges",
@@ -416,7 +441,7 @@ def test_client_from_typed_settings_and_missing_configuration() -> None:
 
 
 def test_client_rejects_any_other_model() -> None:
-    with pytest.raises(CloudflareConfigurationError, match="Only @cf/zai-org/glm-5.2"):
+    with pytest.raises(CloudflareConfigurationError, match="Only @cf/zai-org/glm-4.7-flash"):
         CloudflareWorkersAIClient(
             api_key="x",
             account_id="a",

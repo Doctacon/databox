@@ -6,7 +6,7 @@ function response(body: unknown, status = 200): Promise<Response> {
 }
 
 const encounter = {
-  source_observation_id: "S1", species_code: "abc123",
+  source_observation_id: "S1|abc123", species_code: "abc123",
   common_name: "Alpha Bird", scientific_name: "Avis alpha",
   family_common_name: "Fixture Birds", family_scientific_name: "Fixtureidae",
   observation_at: "2026-07-09T08:30:00", observation_count: 2, notable: true,

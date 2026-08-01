@@ -38,7 +38,7 @@ Prefer the globally installed CLI. Use the local repository fallback only when n
 ```bash
 command -v turbo-search
 # Fallback repository:
-cd /Users/crlough/Code/personal/turbo-search
+cd /path/to/turbo-search
 uv run turbo-search --help
 ```
 
@@ -52,7 +52,7 @@ test -n "${TURBOPUFFER_API_KEY:-}" \
 
 Never print, log, persist, or ask the user to paste a secret. Do not record password-manager output, private vault or item names, tokens, share IDs, or credential values. If the key is unavailable, stop before the live operation and report the missing environment prerequisite.
 
-Use the global CLI for retrieval. Run crawl/plan/apply workflows from `/Users/crlough/Code/personal/turbo-search` so generated artifacts and applied state stay in that repository's ignored locations. Before writing them, verify the selected `artifacts/` and `.turbo-search/` paths are ignored. If the repository is unavailable, use a verified temporary location or ask for the clone path; do not place generated artifacts in tracked Databox paths.
+Use the global CLI for retrieval. Run crawl/plan/apply workflows from `/path/to/turbo-search` so generated artifacts and applied state stay in that repository's ignored locations. Before writing them, verify the selected `artifacts/` and `.turbo-search/` paths are ignored. If the repository is unavailable, use a verified temporary location or ask for the clone path; do not place generated artifacts in tracked Databox paths.
 
 ## Decide whether turbo-search applies
 
@@ -108,7 +108,7 @@ Only index a public source relevant to named engineering work. Obey robots.txt, 
 From the turbo-search repository, create a local plan in its ignored artifacts directory. Set explicit caps no higher than the authorized limits:
 
 ```bash
-cd /Users/crlough/Code/personal/turbo-search
+cd /path/to/turbo-search
 
 turbo-search plan "<public-source-url>" \
   --out-dir "artifacts/site-crawls/<source-slug>-plan" \

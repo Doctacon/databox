@@ -128,6 +128,9 @@ def fetch_open_meteo_trip_context(
         "start_date": start.date().isoformat(),
         "end_date": end.date().isoformat(),
         "timezone": timezone,
+        "temperature_unit": "celsius",
+        "wind_speed_unit": "kmh",
+        "precipitation_unit": "mm",
     }
     try:
         forecast_response = getter(FORECAST_ENDPOINT, forecast_params)
@@ -143,6 +146,19 @@ def fetch_open_meteo_trip_context(
         forecast_summary = _summarize_hourly(hourly_rows)
         if not hourly_rows:
             caveats.append("Open-Meteo forecast returned no hourly rows for the requested window")
+        wind_speed_max = forecast_summary.get("wind_speed_10m_max")
+        wind_gust_max = forecast_summary.get("wind_gusts_10m_max")
+        if (
+            isinstance(wind_speed_max, int | float)
+            and not isinstance(wind_speed_max, bool)
+            and isinstance(wind_gust_max, int | float)
+            and not isinstance(wind_gust_max, bool)
+            and wind_gust_max < wind_speed_max
+        ):
+            caveats.append(
+                "Open-Meteo reported a lower maximum 10 m gust than maximum 10 m wind "
+                "speed for this window; both source values are shown unchanged"
+            )
     except Exception as exc:  # noqa: BLE001 - source failures become planner caveats.
         caveats.append(f"Open-Meteo forecast unavailable: {exc}")
 

@@ -24,7 +24,7 @@ from pydantic import (
 
 from databox.config.settings import DataboxSettings
 
-CLOUDFLARE_WORKERS_AI_MODEL = "@cf/zai-org/glm-5.2"
+CLOUDFLARE_WORKERS_AI_MODEL = "@cf/zai-org/glm-4.7-flash"
 MAX_MODEL_INPUT_BYTES = 65_536
 MAX_MODEL_OUTPUT_BYTES = 32_768
 MAX_MODEL_OUTPUT_TOKENS = 750
@@ -73,7 +73,6 @@ _GROUNDED_SYNTHESIS_JSON_SCHEMA: dict[str, Any] = {
             "type": "array",
             "minItems": 1,
             "maxItems": 6,
-            "uniqueItems": True,
             "items": {"type": "string", "enum": sorted(_ALLOWED_ACTION_IDS)},
         },
         "grounding": {
@@ -495,10 +494,10 @@ class WatchReportModelClient(Protocol):
     ) -> WatchReportSynthesisResult: ...
 
 
+# GLM 4.7 Flash's response-grammar compiler does not implement JSON Schema's
+# `uniqueItems`. The result models above still reject duplicates fail-closed.
 _TARGET_SYNTHESIS_JSON_SCHEMA: dict[str, Any] = TargetSynthesisResult.model_json_schema()
-_TARGET_SYNTHESIS_JSON_SCHEMA["properties"]["action_ids"]["uniqueItems"] = True
 _WATCH_REPORT_JSON_SCHEMA: dict[str, Any] = WatchReportSynthesisResult.model_json_schema()
-_WATCH_REPORT_JSON_SCHEMA["properties"]["emphasis_ids"]["uniqueItems"] = True
 
 StructuredResult = TypeVar("StructuredResult", bound=BaseModel)
 HttpPost = Callable[..., httpx.Response]
@@ -554,6 +553,7 @@ class CloudflareWorkersAIClient:
             "model": self.model,
             "temperature": 0.0,
             "max_completion_tokens": MAX_MODEL_OUTPUT_TOKENS,
+            "chat_template_kwargs": {"enable_thinking": False},
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
@@ -663,6 +663,7 @@ class CloudflareWorkersAIClient:
             "model": self.model,
             "temperature": 0.0,
             "max_completion_tokens": MAX_MODEL_OUTPUT_TOKENS,
+            "chat_template_kwargs": {"enable_thinking": False},
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {

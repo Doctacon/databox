@@ -41,13 +41,13 @@ const detail: TripPlanDetail = {
     longitude: -112.47, region_code: "US-AZ", timezone: "America/Phoenix", window_start: "2026-07-10T06:00:00",
     window_end: "2026-07-10T07:30:00", duration_minutes: 90, skill_level: "beginner",
     constraints_text: "focus on calls", plan_status: "complete",
-    field_plan_text: "Listen first. High-likelihood species: Mexican Jay. Uncommon but plausible targets: Zone-tailed Hawk.",
+    field_plan_text: "Listen first. Recently reported species: Mexican Jay. GBIF occurrence context: Zone-tailed Hawk.",
     caveats: ["Weather changes quickly"], created_at: "2026-07-09T12:00:00",
     updated_at: "2026-07-09T12:00:00",
   },
   recommendations: [
-    { recommendation_id: "rec-1", species_code: "mexjay", common_name: "Mexican Jay", scientific_name: "Aphelocoma wollweberi", recommendation_group: "high_likelihood", rank_order: 1, confidence_label: "high", rationale_text: "Recent eBird evidence", caveats: [], photo: availablePhoto, call: availableCall },
-    { recommendation_id: "rec-2", species_code: "zthawk", common_name: "Zone-tailed Hawk", scientific_name: "Buteo albonotatus", recommendation_group: "uncommon_plausible", rank_order: 1, confidence_label: "plausible", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
+    { recommendation_id: "rec-1", species_code: "mexjay", common_name: "Mexican Jay", scientific_name: "Aphelocoma wollweberi", recommendation_group: "recently_reported", rank_order: 1, evidence_label: "one recent report", rationale_text: "Recent eBird evidence", caveats: [], photo: availablePhoto, call: availableCall },
+    { recommendation_id: "rec-2", species_code: "zthawk", common_name: "Zone-tailed Hawk", scientific_name: "Buteo albonotatus", recommendation_group: "gbif_context", rank_order: 1, evidence_label: "GBIF context only", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
   ],
   evidence: [{ evidence_id: "ev-1", recommendation_id: "rec-1", source: "ebird", source_table: "recent", source_record_id: "S1", evidence_type: "recent_observation", status: "available", retrieved_at: null, summary: { location_name: "Thumb Butte" }, payload: {}, caveats: [] }],
   weather: { evidence_id: "weather-1", recommendation_id: null, source: "open_meteo", source_table: null, source_record_id: null, evidence_type: "weather_elevation_context", status: "available", retrieved_at: null, summary: {}, payload: { elevation_m: 1642, forecast_summary: { temperature_2m_min: 20, temperature_2m_max: 23, relative_humidity_2m_avg: 55, precipitation_probability_max: 20, precipitation_sum: 0.3, wind_speed_10m_max: 7, wind_gusts_10m_max: 10, weather_codes: [0, 1, 2] } }, caveats: ["Forecast may change"] },
@@ -87,16 +87,16 @@ function planSummaryFixture(plan: TripPlanDetail["plan"]) {
   return { trip_plan_id, requested_location, normalized_location_name, window_start, window_end, duration_minutes, plan_status, caveats, created_at, updated_at };
 }
 
-function recommendation(group: "high_likelihood" | "uncommon_plausible", index: number): Recommendation {
-  const prefix = group === "high_likelihood" ? "High" : "Uncommon";
+function recommendation(group: "recently_reported" | "gbif_context", index: number): Recommendation {
+  const prefix = group === "recently_reported" ? "Recent" : "Context";
   return {
     recommendation_id: `${group}-${index}`,
     species_code: `${prefix.toLowerCase()}-${index}`,
     common_name: `${prefix} Bird ${index}`,
     scientific_name: `Avis ${prefix.toLowerCase()}-${index}`,
     recommendation_group: group,
-    rank_order: group === "high_likelihood" ? index : 100 + index,
-    confidence_label: "evidence-backed",
+    rank_order: group === "recently_reported" ? index : 100 + index,
+    evidence_label: "evidence-backed",
     rationale_text: `${prefix} rationale ${index}`,
     caveats: [],
     photo: unavailablePhoto,
@@ -122,16 +122,16 @@ function evidenceRow(index: number): Evidence {
 
 function paginatedDetail(
   planId: string,
-  highCount: number,
-  uncommonCount: number,
+  recentCount: number,
+  contextCount: number,
   evidenceCount: number,
 ): TripPlanDetail {
   const result = structuredClone(detail);
   result.plan.trip_plan_id = planId;
   result.plan.normalized_location_name = `Plan ${planId}`;
   result.recommendations = [
-    ...Array.from({ length: highCount }, (_, index) => recommendation("high_likelihood", index + 1)),
-    ...Array.from({ length: uncommonCount }, (_, index) => recommendation("uncommon_plausible", index + 1)),
+    ...Array.from({ length: recentCount }, (_, index) => recommendation("recently_reported", index + 1)),
+    ...Array.from({ length: contextCount }, (_, index) => recommendation("gbif_context", index + 1)),
   ];
   result.evidence = Array.from({ length: evidenceCount }, (_, index) => evidenceRow(index + 1));
   result.weather = null;
@@ -165,16 +165,24 @@ describe("Rufous", () => {
     render(<App />);
     expect(screen.getByLabelText("Location")).toBeRequired();
     expect(await screen.findByRole("heading", { name: "Thumb Butte, Prescott, AZ" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "High-likelihood Species" })).toBeVisible();
+    expect(await screen.findByText(/does not contain matching successful eBird and GBIF enforced-radius traces/)).toBeVisible();
+    const evidenceMapHeading = screen.getByRole("heading", { name: "Evidence Map" });
+    expect(evidenceMapHeading).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Recently Reported Species" })).toBeVisible();
     expect(screen.getByText("Mexican Jay", { selector: "h3" })).toBeVisible();
+    const plan = document.querySelector(".plan");
+    expect(plan).toContainElement(evidenceMapHeading);
+    expect((document.querySelector(".hero-card")?.compareDocumentPosition(evidenceMapHeading)
+      ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const panelHeadings = Array.from(document.querySelectorAll(".plan > .panel"))
       .map((panel) => panel.querySelector("h2")?.textContent);
     expect(panelHeadings).toEqual([
-      "Calendar invitation",
-      "Field Plan",
+      "Evidence Map",
       "Weather and Elevation",
-      "High-likelihood Species",
-      "Uncommon but Plausible Targets",
+      "Recently Reported Species",
+      "GBIF Occurrence Context",
+      "Field Plan",
+      "Calendar invitation",
       "Evidence and Provenance",
     ]);
     expect(document.querySelector(".plan")?.lastElementChild).toContainElement(
@@ -239,10 +247,10 @@ describe("Rufous", () => {
   it("shows conformed common names as primary and scientific names as secondary", async () => {
     const conformed = structuredClone(detail);
     conformed.recommendations = [
-      { recommendation_id: "rec-bluebird", species_code: "wesblu", common_name: "Western Bluebird", scientific_name: "Sialia mexicana", recommendation_group: "uncommon_plausible", rank_order: 1, confidence_label: "plausible", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
-      { recommendation_id: "rec-gila", species_code: "gilwoo", common_name: "Gila Woodpecker", scientific_name: "Melanerpes uropygialis", recommendation_group: "uncommon_plausible", rank_order: 2, confidence_label: "plausible", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
-      { recommendation_id: "rec-owl", species_code: "nswowl", common_name: "Northern Saw-whet Owl", scientific_name: "Aegolius acadicus", recommendation_group: "uncommon_plausible", rank_order: 3, confidence_label: "plausible", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
-      { recommendation_id: "rec-unknown", species_code: null, common_name: null, scientific_name: "Mysteria avis", recommendation_group: "uncommon_plausible", rank_order: 4, confidence_label: "plausible", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
+      { recommendation_id: "rec-bluebird", species_code: "wesblu", common_name: "Western Bluebird", scientific_name: "Sialia mexicana", recommendation_group: "gbif_context", rank_order: 1, evidence_label: "GBIF context only", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
+      { recommendation_id: "rec-gila", species_code: "gilwoo", common_name: "Gila Woodpecker", scientific_name: "Melanerpes uropygialis", recommendation_group: "gbif_context", rank_order: 2, evidence_label: "GBIF context only", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
+      { recommendation_id: "rec-owl", species_code: "nswowl", common_name: "Northern Saw-whet Owl", scientific_name: "Aegolius acadicus", recommendation_group: "gbif_context", rank_order: 3, evidence_label: "GBIF context only", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
+      { recommendation_id: "rec-unknown", species_code: null, common_name: null, scientific_name: "Mysteria avis", recommendation_group: "gbif_context", rank_order: 4, evidence_label: "GBIF context only", rationale_text: "GBIF context", caveats: [], photo: unavailablePhoto, call: unavailableCall },
     ];
     conformed.evidence = [];
     conformed.weather = null;
@@ -666,7 +674,7 @@ describe("Rufous", () => {
       String(input) === "/api/trip-plans" ? response({ plans: [planSummaryFixture(compact.plan)] }) : response(compact),
     );
     render(<App />);
-    const heading = await screen.findByRole("heading", { name: "High-likelihood Species" });
+    const heading = await screen.findByRole("heading", { name: "Recently Reported Species" });
     const group = heading.closest("section");
     expect(group).not.toBeNull();
     expect(group!.querySelectorAll(".species-card")).toHaveLength(expected);
@@ -685,38 +693,38 @@ describe("Rufous", () => {
     });
     render(<App />);
     await screen.findByRole("heading", { name: "Plan plan-a" });
-    const high = screen.getByRole("heading", { name: "High-likelihood Species" }).closest("section")!;
-    const uncommon = screen.getByRole("heading", { name: "Uncommon but Plausible Targets" }).closest("section")!;
-    expect(high.querySelectorAll(".species-card")).toHaveLength(4);
-    expect(uncommon.querySelectorAll(".species-card")).toHaveLength(4);
-    expect(within(high).getByText("Showing 1–4 of 6")).toBeVisible();
-    expect(within(uncommon).getByText("Showing 1–4 of 5")).toBeVisible();
-    expect(within(high).getByRole("button", { name: "Previous High-likelihood Species page" })).toBeDisabled();
-    expect(within(high).getByRole("button", { name: "Next High-likelihood Species page" })).toBeEnabled();
-    expect(getComputedStyle(high.querySelector(".species-grid")!).gridTemplateColumns).toContain("repeat(4");
+    const recent = screen.getByRole("heading", { name: "Recently Reported Species" }).closest("section")!;
+    const context = screen.getByRole("heading", { name: "GBIF Occurrence Context" }).closest("section")!;
+    expect(recent.querySelectorAll(".species-card")).toHaveLength(4);
+    expect(context.querySelectorAll(".species-card")).toHaveLength(4);
+    expect(within(recent).getByText("Showing 1–4 of 6")).toBeVisible();
+    expect(within(context).getByText("Showing 1–4 of 5")).toBeVisible();
+    expect(within(recent).getByRole("button", { name: "Previous Recently Reported Species page" })).toBeDisabled();
+    expect(within(recent).getByRole("button", { name: "Next Recently Reported Species page" })).toBeEnabled();
+    expect(getComputedStyle(recent.querySelector(".species-grid")!).gridTemplateColumns).toContain("repeat(4");
 
-    await user.click(within(high).getByRole("button", { name: "Next High-likelihood Species page" }));
-    expect(within(high).getByText("High Bird 5")).toBeVisible();
-    expect(within(high).getByText("#5")).toBeVisible();
-    expect(within(high).getByText("#6")).toBeVisible();
-    expect(within(high).getByText("Showing 5–6 of 6")).toBeVisible();
-    expect(within(high).getByRole("button", { name: "Next High-likelihood Species page" })).toBeDisabled();
-    expect(within(uncommon).getByText("Uncommon Bird 1")).toBeVisible();
+    await user.click(within(recent).getByRole("button", { name: "Next Recently Reported Species page" }));
+    expect(within(recent).getByText("Recent Bird 5")).toBeVisible();
+    expect(within(recent).getByText("#5")).toBeVisible();
+    expect(within(recent).getByText("#6")).toBeVisible();
+    expect(within(recent).getByText("Showing 5–6 of 6")).toBeVisible();
+    expect(within(recent).getByRole("button", { name: "Next Recently Reported Species page" })).toBeDisabled();
+    expect(within(context).getByText("Context Bird 1")).toBeVisible();
 
-    await user.click(within(uncommon).getByRole("button", { name: "Next Uncommon but Plausible Targets page" }));
-    expect(within(uncommon).getByText("Uncommon Bird 5")).toBeVisible();
-    expect(within(uncommon).getByText("#105")).toBeVisible();
-    expect(within(high).getByText("High Bird 5")).toBeVisible();
+    await user.click(within(context).getByRole("button", { name: "Next GBIF Occurrence Context page" }));
+    expect(within(context).getByText("Context Bird 5")).toBeVisible();
+    expect(within(context).getByText("#105")).toBeVisible();
+    expect(within(recent).getByText("Recent Bird 5")).toBeVisible();
 
     await user.selectOptions(screen.getByLabelText("Previous plans"), "plan-b");
     await screen.findByRole("heading", { name: "Plan plan-b" });
-    const resetHigh = screen.getByRole("heading", { name: "High-likelihood Species" }).closest("section")!;
-    const resetUncommon = screen.getByRole("heading", { name: "Uncommon but Plausible Targets" }).closest("section")!;
-    expect(within(resetHigh).getByText("High Bird 1")).toBeVisible();
-    expect(within(resetHigh).queryByText("High Bird 5")).not.toBeInTheDocument();
-    expect(within(resetUncommon).getByText("Uncommon Bird 1")).toBeVisible();
-    expect(within(resetHigh).getByRole("button", { name: "Previous High-likelihood Species page" })).toBeDisabled();
-    expect(within(resetUncommon).getByRole("button", { name: "Previous Uncommon but Plausible Targets page" })).toBeDisabled();
+    const resetRecent = screen.getByRole("heading", { name: "Recently Reported Species" }).closest("section")!;
+    const resetContext = screen.getByRole("heading", { name: "GBIF Occurrence Context" }).closest("section")!;
+    expect(within(resetRecent).getByText("Recent Bird 1")).toBeVisible();
+    expect(within(resetRecent).queryByText("Recent Bird 5")).not.toBeInTheDocument();
+    expect(within(resetContext).getByText("Context Bird 1")).toBeVisible();
+    expect(within(resetRecent).getByRole("button", { name: "Previous Recently Reported Species page" })).toBeDisabled();
+    expect(within(resetContext).getByRole("button", { name: "Previous GBIF Occurrence Context page" })).toBeDisabled();
   });
 
   it.each([

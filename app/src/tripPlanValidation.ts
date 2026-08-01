@@ -200,11 +200,11 @@ function call(value: unknown): RecommendationCall {
 }
 
 function recommendation(value: unknown): Recommendation {
-  const row = exact(value, ["recommendation_id", "species_code", "common_name", "scientific_name", "recommendation_group", "rank_order", "confidence_label", "rationale_text", "caveats", "photo", "call"]);
+  const row = exact(value, ["recommendation_id", "species_code", "common_name", "scientific_name", "recommendation_group", "rank_order", "evidence_label", "rationale_text", "caveats", "photo", "call"]);
   if (!identifier(row.recommendation_id) || !string(row.species_code, 64, true)
     || !string(row.common_name, 300, true) || !string(row.scientific_name, 300, true)
-    || (row.recommendation_group !== "high_likelihood" && row.recommendation_group !== "uncommon_plausible")
-    || !integer(row.rank_order, 1, 10000) || !string(row.confidence_label, 200, true)
+    || (row.recommendation_group !== "recently_reported" && row.recommendation_group !== "gbif_context")
+    || !integer(row.rank_order, 1, 10000) || !string(row.evidence_label, 200, true)
     || !string(row.rationale_text, 4000, true, true)) invalid();
   return { ...(row as unknown as Recommendation), caveats: caveats(row.caveats), photo: photo(row.photo), call: call(row.call) };
 }
@@ -369,7 +369,7 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
       || !equivalent(item.call.caveats, linkedCall.caveats)) invalid();
   }
 
-  for (const group of ["high_likelihood", "uncommon_plausible"]) {
+  for (const group of ["recently_reported", "gbif_context"]) {
     const ranks = recommendations.filter((item) => item.recommendation_group === group).map((item) => item.rank_order);
     if (!unique(ranks.map(String))) invalid();
   }

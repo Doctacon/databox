@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-08
-Updated: 2026-07-11
+Updated: 2026-08-01
 
 # Birding Trip Copilot
 
@@ -15,7 +15,7 @@ This spec governs the user-visible trip-planning behavior and persisted trip-pla
 - The first workflow MUST be trip planning.
 - The trip-planning workflow MUST NOT require user accounts or profiles. The broader local product MAY store manual personal observations and expose a life list under `.10x/decisions/local-single-user-birding-pokedex-expansion.md`, but this planner MUST NOT implicitly use that history without a separate ratified contract.
 - The MVP MUST use Python with Google ADK for the agent runtime.
-- The local product MUST use only Cloudflare Workers AI model `@cf/zai-org/glm-5.2` for model-generated agent behavior; no fallback model is allowed.
+- The local product MUST use only Cloudflare Workers AI model `@cf/zai-org/glm-4.7-flash` for model-generated agent behavior; no fallback model is allowed.
 - The MVP MUST use persisted trip-plan outputs as the contract between the Python agent and the local React/API product surface.
 - The MVP MUST include DeepEval tests in the first implementation slice.
 - The MVP SHOULD use existing Databox eBird/weather/environmental data plus GBIF, Xeno-canto, and Open-Meteo context.
@@ -51,7 +51,7 @@ The planner MUST do more than directly generate prose. It MUST choose and sequen
 3. Retrieve historical/occurrence/taxonomy context from modeled warehouse data, including GBIF-derived context when implemented.
 4. Retrieve weather/elevation context from Open-Meteo for the requested outing window.
 5. Retrieve media/call metadata from Xeno-canto-derived context when implemented.
-6. Rank likely species and uncommon-but-plausible targets.
+6. Rank recently reported species and separate GBIF occurrence context without claiming encounter probability.
 7. Produce final field-ready recommendations with evidence and caveats.
 8. Persist the plan, recommended species, evidence rows, and tool trace needed for the local React/API product.
 
@@ -65,9 +65,9 @@ A completed trip plan MUST contain:
 - outing date/time and duration,
 - weather/elevation context,
 - concise field plan: arrival timing, habitat/focus areas, listening/looking strategy, and practical caveats,
-- high-likelihood species list,
-- uncommon-but-plausible target list,
-- species-level confidence or rationale labels,
+- recently reported species list,
+- GBIF occurrence-context list,
+- species-level evidence and rationale labels,
 - media/call examples where available, including license/provenance metadata,
 - evidence/provenance sufficient to explain why each recommended species was included,
 - caveats for sparse, stale, unavailable, conflicting, or weak evidence.
@@ -93,7 +93,7 @@ A saved plan that contains ineligible eBird source evidence is tainted because i
 
 - A user can generate a trip plan for a supported location/time window without personal-history data.
 - The agent uses bounded tools rather than a single ungrounded prompt response.
-- The output includes a high-likelihood species section and an uncommon-but-plausible target section.
+- The output includes a recently reported species section and a separate GBIF occurrence-context section; neither is labeled as encounter probability.
 - The output includes weather/elevation context from Open-Meteo or an explicit source-unavailable caveat.
 - The output includes GBIF/Xeno-canto-derived context where those source integrations have data, or explicit caveats where they do not.
 - The output includes source/provenance evidence rather than only model prose.

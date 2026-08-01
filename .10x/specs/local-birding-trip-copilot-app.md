@@ -31,7 +31,7 @@ The app MUST let a user:
 4. see clear running/success/failure state,
 5. view the persisted field plan,
 6. inspect weather/elevation context,
-7. inspect high-likelihood and uncommon-plausible species with one persisted photo and call result per recommendation,
+7. inspect recently reported species and separate GBIF occurrence context with one persisted photo and call result per recommendation,
 8. inspect evidence/provenance as the final result section,
 9. inspect agent tool traces inside an accessible disclosure within Evidence and Provenance,
 10. select and revisit previous persisted plans.

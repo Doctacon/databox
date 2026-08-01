@@ -2,7 +2,9 @@
 
 from pathlib import Path
 
+import pytest
 from databox.config.settings import PROJECT_ROOT, DataboxSettings, settings
+from pydantic import ValidationError
 
 
 def test_sqlmesh_uses_only_local_databox_gateway() -> None:
@@ -40,3 +42,9 @@ def test_alert_smtp_settings_are_secret_in_runtime_repr() -> None:
         "synthetic-certificate-path",
     ):
         assert value not in rendered
+
+
+@pytest.mark.parametrize("days_back", [0, 31])
+def test_ebird_window_rejects_values_outside_provider_limit(days_back: int) -> None:
+    with pytest.raises(ValidationError):
+        DataboxSettings(_env_file=None, DATABOX_EBIRD_DAYS_BACK=days_back)

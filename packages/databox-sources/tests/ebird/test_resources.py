@@ -6,6 +6,18 @@ import pytest
 from databox_sources.ebird.source import ebird_source
 
 
+@pytest.mark.parametrize("resource_name", ["recent_observations", "notable_observations"])
+def test_observation_resources_merge_by_checklist_and_species(resource_name: str) -> None:
+    resource = ebird_source().resources[resource_name]
+    schema = resource.compute_table_schema()
+
+    assert schema["write_disposition"] == "merge"
+    assert {name for name, column in schema["columns"].items() if column.get("primary_key")} == {
+        "subId",
+        "speciesCode",
+    }
+
+
 @pytest.mark.vcr
 def test_recent_observations_returns_rows():
     source = ebird_source(region_code="US-DC", max_results=50, days_back=1)

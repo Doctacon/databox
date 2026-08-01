@@ -90,7 +90,56 @@ def test_fetch_open_meteo_trip_context_normalizes_window_and_units() -> None:
     assert calls[0][1]["start_date"] == "2026-07-09"
     assert calls[0][1]["end_date"] == "2026-07-09"
     assert calls[0][1]["timezone"] == "America/Phoenix"
+    assert calls[0][1]["temperature_unit"] == "celsius"
+    assert calls[0][1]["wind_speed_unit"] == "kmh"
+    assert calls[0][1]["precipitation_unit"] == "mm"
     assert calls[1][0] == ELEVATION_ENDPOINT
+
+
+def test_provider_wind_inconsistency_preserves_values_and_persists_caveat() -> None:
+    def fake_get_json(endpoint: str, params: Mapping[str, object]) -> dict[str, Any]:
+        if endpoint == FORECAST_ENDPOINT:
+            response = _forecast_response()
+            hourly = response["hourly"]
+            hourly["wind_speed_10m"] = [3.0, 23.3, 26.0, 25.0, 18.0]
+            hourly["wind_gusts_10m"] = [5.0, 19.1, 21.2, 20.0, 30.0]
+            return response
+        return {"elevation": [1642.0]}
+
+    context = fetch_open_meteo_trip_context(
+        latitude=34.54,
+        longitude=-112.47,
+        start_at="2026-07-09T06:00:00",
+        end_at="2026-07-09T08:00:00",
+        timezone="America/Phoenix",
+        http_get_json=fake_get_json,
+    )
+
+    assert [row["wind_speed_10m"] for row in context.hourly] == [23.3, 26.0]
+    assert [row["wind_gusts_10m"] for row in context.hourly] == [19.1, 21.2]
+    assert context.forecast_summary["wind_speed_10m_max"] == 26.0
+    assert context.forecast_summary["wind_gusts_10m_max"] == 21.2
+    assert context.caveats == [
+        "Open-Meteo reported a lower maximum 10 m gust than maximum 10 m wind speed "
+        "for this window; both source values are shown unchanged"
+    ]
+
+    con = duckdb.connect(":memory:")
+    persist_open_meteo_evidence(
+        con,
+        context,
+        trip_plan_id="trip-inconsistent-wind",
+        evidence_id="evidence-inconsistent-wind",
+    )
+    persisted = con.execute(
+        "SELECT payload_json, caveats_json FROM birding_agent.trip_plan_evidence "
+        "WHERE evidence_id = ?",
+        ["evidence-inconsistent-wind"],
+    ).fetchone()
+    assert persisted is not None
+    assert json.loads(persisted[0])["forecast_summary"]["wind_speed_10m_max"] == 26.0
+    assert json.loads(persisted[0])["forecast_summary"]["wind_gusts_10m_max"] == 21.2
+    assert json.loads(persisted[1]) == context.caveats
 
 
 def test_fetch_open_meteo_trip_context_returns_unavailable_on_api_errors() -> None:

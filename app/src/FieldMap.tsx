@@ -1,11 +1,11 @@
 import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
-import type { FeatureCollection, GeoJsonProperties, Point } from "geojson";
+import type { FeatureCollection, GeoJsonProperties, Point, Polygon } from "geojson";
 import boundariesRaw from "./assets/arizona-boundaries.geojson?raw";
 import { getMapSnapshot } from "./mapApi";
 import rufousImage from "./assets/rufous.png";
-import type { CatalogPhoto, MapEncounter, MapSnapshot } from "./types";
+import type { CatalogPhoto, MapEncounter, MapSnapshot, TripPlanDetail } from "./types";
 import { compareVisibleLabels } from "./visibleLabel";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -14,6 +14,9 @@ type Recency = "all" | "48h" | "7d" | "30d";
 
 const boundaries = JSON.parse(boundariesRaw) as FeatureCollection;
 const ARIZONA_BOUNDS: [[number, number], [number, number]] = [[-114.82, 31.3], [-109, 37.1]];
+const KM_PER_DEGREE = 111.32;
+const DISTANCE_TOLERANCE_KM = 0.01;
+const RADIUS_EPSILON_KM = 1e-9;
 const windows: Record<Exclude<Recency, "all">, number> = {
   "48h": 48 * 60 * 60 * 1000,
   "7d": 7 * 24 * 60 * 60 * 1000,
@@ -102,6 +105,257 @@ function encounterBounds(rows: MapEncounter[]): [[number, number], [number, numb
     [Math.min(...longitudes), Math.min(...latitudes)],
     [Math.max(...longitudes), Math.max(...latitudes)],
   ];
+}
+
+type TripEvidencePoint = {
+  key: string;
+  source: "ebird" | "gbif";
+  sourceLabel: "eBird report" | "GBIF occurrence";
+  name: string;
+  location: string;
+  latitude: number;
+  longitude: number;
+  distanceKm: number;
+};
+
+type TripMapData = {
+  radiusKm: number;
+  rows: TripEvidencePoint[];
+  radius: FeatureCollection<Polygon, GeoJsonProperties>;
+  origin: FeatureCollection<Point, GeoJsonProperties>;
+  evidence: FeatureCollection<Point, GeoJsonProperties>;
+  bounds: [[number, number], [number, number]];
+};
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function visibleText(value: unknown): string | null {
+  return typeof value === "string" && value.trim() && value.length <= 300 ? value.trim() : null;
+}
+
+function plannerDistanceKm(
+  centerLatitude: number,
+  centerLongitude: number,
+  latitude: number,
+  longitude: number,
+): number {
+  const latitudeDelta = latitude - centerLatitude;
+  const longitudeDelta = (longitude - centerLongitude) * Math.cos(centerLatitude * Math.PI / 180);
+  return KM_PER_DEGREE * Math.sqrt(latitudeDelta ** 2 + longitudeDelta ** 2);
+}
+
+function enforcedRadius(detail: TripPlanDetail): number | null {
+  const toolNames = ["lookup_recent_observation_evidence", "lookup_gbif_occurrence_evidence"];
+  const radii = toolNames.map((toolName) => {
+    const trace = detail.tool_traces.find((row) => row.tool_name === toolName && row.tool_status === "ok");
+    return finiteNumber(trace?.output_summary.enforced_radius_km);
+  });
+  if (radii.some((value) => value === null || value <= 0 || value > 500)) return null;
+  const [first, second] = radii as [number, number];
+  return Math.abs(first - second) <= Number.EPSILON * Math.max(first, second, 1) ? first : null;
+}
+
+function radiusGeometry(
+  latitude: number,
+  longitude: number,
+  radiusKm: number,
+): Pick<TripMapData, "radius" | "bounds"> {
+  const latitudeDelta = radiusKm / KM_PER_DEGREE;
+  const longitudeScale = Math.cos(latitude * Math.PI / 180);
+  const longitudeDelta = radiusKm / (KM_PER_DEGREE * longitudeScale);
+  const ring: [number, number][] = Array.from({ length: 65 }, (_, index) => {
+    const angle = index / 64 * Math.PI * 2;
+    return [
+      longitude + longitudeDelta * Math.cos(angle),
+      latitude + latitudeDelta * Math.sin(angle),
+    ];
+  });
+  return {
+    radius: {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [ring] },
+        properties: {},
+      }],
+    },
+    bounds: [
+      [longitude - longitudeDelta, latitude - latitudeDelta],
+      [longitude + longitudeDelta, latitude + latitudeDelta],
+    ],
+  };
+}
+
+function tripMapData(detail: TripPlanDetail): TripMapData | null {
+  const latitude = finiteNumber(detail.plan.latitude);
+  const longitude = finiteNumber(detail.plan.longitude);
+  const radiusKm = enforcedRadius(detail);
+  if (latitude === null || longitude === null || radiusKm === null
+    || detail.plan.region_code !== "US-AZ" || latitude < 31.3 || latitude > 37.1
+    || longitude < -114.9 || longitude > -109) return null;
+
+  const recommendations = new Map(detail.recommendations.map((row) => [row.recommendation_id, row]));
+  const seen = new Set<string>();
+  const rows: TripEvidencePoint[] = [];
+  for (const row of detail.evidence) {
+    const isEbird = row.source === "ebird" && row.evidence_type === "recent_observation";
+    const isGbif = row.source === "gbif" && row.evidence_type === "occurrence_context";
+    const sourceRecordId = visibleText(row.source_record_id);
+    if (row.status !== "available" || (!isEbird && !isGbif) || sourceRecordId === null) continue;
+    const evidenceLatitude = finiteNumber(row.payload.latitude);
+    const evidenceLongitude = finiteNumber(row.payload.longitude);
+    const persistedDistance = finiteNumber(row.summary.distance_km)
+      ?? finiteNumber(row.payload.distance_km);
+    if (evidenceLatitude === null || evidenceLongitude === null || persistedDistance === null
+      || evidenceLatitude < 31.3 || evidenceLatitude > 37.1
+      || evidenceLongitude < -114.9 || evidenceLongitude > -109) continue;
+    const calculatedDistance = plannerDistanceKm(
+      latitude,
+      longitude,
+      evidenceLatitude,
+      evidenceLongitude,
+    );
+    if (persistedDistance < 0 || persistedDistance > radiusKm + RADIUS_EPSILON_KM
+      || calculatedDistance > radiusKm + RADIUS_EPSILON_KM
+      || Math.abs(calculatedDistance - persistedDistance) > DISTANCE_TOLERANCE_KM) continue;
+    const recommendation = row.recommendation_id === null
+      ? undefined
+      : recommendations.get(row.recommendation_id);
+    const name = visibleText(row.summary.common_name)
+      ?? visibleText(row.summary.scientific_name)
+      ?? visibleText(recommendation?.common_name)
+      ?? visibleText(recommendation?.scientific_name);
+    if (name === null) continue;
+    const key = `${row.source}|${sourceRecordId}|${name.toLocaleLowerCase()}`;
+    if (seen.has(key)) continue;
+    const source = isEbird ? "ebird" : "gbif";
+    rows.push({
+      key,
+      source,
+      sourceLabel: isEbird ? "eBird report" : "GBIF occurrence",
+      name,
+      location: visibleText(isEbird ? row.summary.location_name : row.summary.locality)
+        ?? "Locality not supplied",
+      latitude: evidenceLatitude,
+      longitude: evidenceLongitude,
+      distanceKm: calculatedDistance,
+    });
+    seen.add(key);
+  }
+  rows.sort((left, right) => left.distanceKm - right.distanceKm
+    || left.name.localeCompare(right.name) || left.key.localeCompare(right.key));
+  const geometry = radiusGeometry(latitude, longitude, radiusKm);
+  return {
+    radiusKm,
+    rows,
+    ...geometry,
+    origin: {
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [longitude, latitude] },
+        properties: {},
+      }],
+    },
+    evidence: {
+      type: "FeatureCollection",
+      features: rows.map((row) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [row.longitude, row.latitude] },
+        properties: { source: row.source },
+      })),
+    },
+  };
+}
+
+function tripStyle(data: TripMapData): StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      boundaries: { type: "geojson", data: boundaries },
+      "trip-radius": { type: "geojson", data: data.radius },
+      "trip-evidence": { type: "geojson", data: data.evidence },
+      "trip-origin": { type: "geojson", data: data.origin },
+    },
+    layers: [
+      { id: "background", type: "background", paint: { "background-color": "#f3ead7" } },
+      { id: "state-fill", type: "fill", source: "boundaries", filter: ["==", ["get", "kind"], "state"], paint: { "fill-color": "#d8e6dd", "fill-opacity": 0.65 } },
+      { id: "county-lines", type: "line", source: "boundaries", filter: ["==", ["get", "kind"], "county"], paint: { "line-color": "#376a67", "line-width": 1.2, "line-opacity": 0.8 } },
+      { id: "trip-radius-fill", type: "fill", source: "trip-radius", paint: { "fill-color": "#24758a", "fill-opacity": 0.14 } },
+      { id: "trip-radius-line", type: "line", source: "trip-radius", paint: { "line-color": "#0d4d55", "line-width": 2, "line-dasharray": [3, 2] } },
+      { id: "trip-evidence-points", type: "circle", source: "trip-evidence", paint: { "circle-color": ["match", ["get", "source"], "gbif", "#24758a", "#f0b429"], "circle-radius": 7, "circle-stroke-color": "#201d19", "circle-stroke-width": 2 } },
+      { id: "trip-origin-point", type: "circle", source: "trip-origin", paint: { "circle-color": "#8f3524", "circle-radius": 9, "circle-stroke-color": "#fff8df", "circle-stroke-width": 3 } },
+    ],
+  };
+}
+
+function evidenceCountLabel(count: number, singular: string, plural: string): string {
+  return `${count.toLocaleString()} ${count === 1 ? singular : plural}`;
+}
+
+export function TripEvidenceMap({ detail }: { detail: TripPlanDetail }) {
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const hasVerifiedRadius = useMemo(() => enforcedRadius(detail) !== null, [detail]);
+  const data = useMemo(() => tripMapData(detail), [detail]);
+  const topRecentReports = useMemo(() => detail.recommendations
+    .filter((row) => row.recommendation_group === "recently_reported")
+    .sort((left, right) => left.rank_order - right.rank_order)
+    .map((row) => row.common_name || row.scientific_name || row.species_code)
+    .filter((name): name is string => Boolean(name))
+    .slice(0, 3), [detail]);
+
+  useEffect(() => {
+    if (!data || !mapContainer.current || mapRef.current) return;
+    const map = new maplibregl.Map({
+      container: mapContainer.current,
+      style: tripStyle(data),
+      bounds: data.bounds,
+      fitBoundsOptions: { padding: 28, duration: 0 },
+      attributionControl: false,
+      dragRotate: false,
+      pitchWithRotate: false,
+    });
+    mapRef.current = map;
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [data]);
+
+  const radiusLabel = data?.radiusKm.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const ebirdCount = data?.rows.filter((row) => row.source === "ebird").length ?? 0;
+  const gbifCount = data?.rows.filter((row) => row.source === "gbif").length ?? 0;
+  return <section className="panel trip-evidence-map" aria-labelledby="trip-evidence-map-heading">
+    <h2 id="trip-evidence-map-heading">Evidence Map</h2>
+    {!data ? <p className="empty">{hasVerifiedRadius
+      ? "This saved plan does not contain a valid Arizona trip location, so its evidence cannot be plotted."
+      : "This saved plan does not contain matching successful eBird and GBIF enforced-radius traces, so its evidence cannot be plotted as in-radius."}</p> : <>
+      <div className="trip-map-summary">
+        <strong>{evidenceCountLabel(data.rows.length, "distinct persisted evidence record", "distinct persisted evidence records")} within the enforced {radiusLabel} km radius</strong>
+        <ul className="trip-map-legend" aria-label="Mapped evidence sources">
+          <li><span className="trip-map-swatch ebird" aria-hidden="true" />{evidenceCountLabel(ebirdCount, "eBird report", "eBird reports")}</li>
+          <li><span className="trip-map-swatch gbif" aria-hidden="true" />{evidenceCountLabel(gbifCount, "GBIF occurrence", "GBIF occurrences")}</li>
+          <li><span className="trip-map-swatch origin" aria-hidden="true" />Trip location</li>
+        </ul>
+        {topRecentReports.length > 0 && <p className="trip-map-recommendations">
+          <strong>Evidence-ranked recommendations:</strong> {topRecentReports.join(" · ")}
+          <small>Distinct recent eBird submissions; not encounter probability.</small>
+        </p>}
+      </div>
+      <div ref={mapContainer} className="map-canvas" role="region" aria-label={`Map of ${data.rows.length.toLocaleString()} distinct persisted evidence records inside the enforced ${radiusLabel} kilometer radius`} />
+      <details className="trip-map-locations">
+        <summary>Mapped evidence locations</summary>
+        {data.rows.length ? <ol>{data.rows.map((row) => <li key={row.key}>
+          <strong>{row.name}</strong><span>{row.sourceLabel} · {row.location} · {row.distanceKm.toFixed(1)} km from trip location</span>
+        </li>)}</ol> : <p className="empty">No qualifying coordinate-bearing evidence was persisted for this plan.</p>}
+      </details>
+      <p className="source-status">Points are eligible reports and occurrence records used by this plan, not predicted current presence. The radius uses the planner's displayed local-distance approximation.</p>
+    </>}
+  </section>;
 }
 
 export function FieldMapPage({ navigate }: { navigate: Navigate }) {

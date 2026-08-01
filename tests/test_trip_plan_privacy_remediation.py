@@ -27,7 +27,7 @@ def _insert_minimal_plan(connection: duckdb.DuckDBPyConnection, plan_id: str) ->
         """INSERT INTO birding_agent.trip_plan_recommendations (
         recommendation_id, trip_plan_id, recommendation_group, rank_order,
         caveats_json, created_at
-        ) VALUES (?, ?, 'high_likelihood', 1, '[]', '2026-07-10T00:00:00')""",
+        ) VALUES (?, ?, 'recently_reported', 1, '[]', '2026-07-10T00:00:00')""",
         [f"recommendation-{plan_id}", plan_id],
     )
     connection.execute(
@@ -68,20 +68,20 @@ def _database(tmp_path: Path) -> Path:
     connection.executemany(
         "INSERT INTO environmental_observations.fact_bird_observation VALUES (?, ?, ?, ?)",
         [
-            ("eligible", True, True, False),
-            ("private", True, True, True),
-            ("invalid", False, True, False),
-            ("unreviewed", True, False, False),
+            ("eligible|norcar", True, True, False),
+            ("private|norcar", True, True, True),
+            ("invalid|norcar", False, True, False),
+            ("unreviewed|norcar", True, False, False),
         ],
     )
     ensure_birding_agent_persistence_tables(connection)
     for plan_id in ("keep", "tainted-private", "tainted-quality"):
         _insert_minimal_plan(connection, plan_id)
     evidence = [
-        ("e-keep", "keep", "eligible"),
-        ("e-private", "tainted-private", "private"),
-        ("e-invalid", "tainted-quality", "invalid"),
-        ("e-unreviewed", "tainted-quality", "unreviewed"),
+        ("e-keep", "keep", "eligible|norcar"),
+        ("e-private", "tainted-private", "private|norcar"),
+        ("e-invalid", "tainted-quality", "invalid|norcar"),
+        ("e-unreviewed", "tainted-quality", "unreviewed|norcar"),
     ]
     for evidence_id, plan_id, source_id in evidence:
         _insert_ebird_evidence(
@@ -191,13 +191,16 @@ def test_null_blank_missing_and_duplicate_identities_taint_rollback_and_delete(
     connection = duckdb.connect(str(_database(tmp_path)))
     connection.executemany(
         "INSERT INTO environmental_observations.fact_bird_observation VALUES (?, ?, ?, ?)",
-        [("ambiguous", True, True, False), ("ambiguous", True, True, False)],
+        [
+            ("ambiguous|norcar", True, True, False),
+            ("ambiguous|norcar", True, True, False),
+        ],
     )
     malformed = [
         ("null-identity", None),
         ("blank-identity", "   "),
         ("missing-identity", "not-authoritative"),
-        ("duplicate-identity", "ambiguous"),
+        ("duplicate-identity", "ambiguous|norcar"),
     ]
     for plan_id, source_record_id in malformed:
         _insert_minimal_plan(connection, plan_id)

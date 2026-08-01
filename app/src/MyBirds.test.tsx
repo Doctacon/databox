@@ -66,7 +66,7 @@ describe("My Birds and profile collection controls", () => {
     expect(heading).toHaveFocus();
     expect(document.title).toBe("My Birds · Rufous");
     expect(screen.getByRole("link", { name: "My Birds" })).toHaveAttribute("aria-current", "page");
-    expect(screen.getByText(/life list is empty/i)).toBeVisible();
+    expect(await screen.findByText(/life list is empty/i, {}, { timeout: 5_000 })).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Observations" }));
     expect(screen.getByRole("heading", { name: "Observations" })).toBeVisible();
     expect(screen.getByText("No observations recorded yet.")).toBeVisible();

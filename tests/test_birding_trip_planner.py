@@ -12,7 +12,11 @@ from typing import Any, cast
 
 import duckdb
 import pytest
-from databox.agent_tools.open_meteo import ELEVATION_ENDPOINT, FORECAST_ENDPOINT
+from databox.agent_tools.open_meteo import (
+    ELEVATION_ENDPOINT,
+    FORECAST_ENDPOINT,
+    fetch_open_meteo_trip_context,
+)
 from databox.agents.birding_trip_planner import (
     BirdingTripPlanner,
     TripRequest,
@@ -370,6 +374,538 @@ def test_valid_arizona_coordinate_retains_region_and_timezone() -> None:
     assert named.region_code == "US-AZ"
 
 
+@pytest.mark.parametrize("radius_km", [0.0, -1.0, float("nan"), float("inf"), float("-inf")])
+def test_planner_rejects_non_finite_or_non_positive_radius(radius_km: float) -> None:
+    with pytest.raises(ValueError, match="finite and positive"):
+        BirdingTripPlanner(
+            duckdb.connect(":memory:"),
+            model_client=FakeTripPlanModelClient(),
+            radius_km=radius_km,
+        )
+
+
+def test_planner_rejects_non_positive_recent_evidence_window() -> None:
+    with pytest.raises(ValueError, match="recent_evidence_days must be positive"):
+        BirdingTripPlanner(
+            duckdb.connect(":memory:"),
+            model_client=FakeTripPlanModelClient(),
+            recent_evidence_days=0,
+        )
+
+
+def test_ebird_lookup_enforces_recent_window_inclusively() -> None:
+    con = duckdb.connect(":memory:")
+    _seed_planner_views(con)
+    con.execute("DELETE FROM birding_agent.recent_observation_evidence")
+    location = resolve_arizona_location("Thumb Butte")
+    for label, observation_date in (
+        ("oldest-boundary", "2026-07-01"),
+        ("newest-boundary", "2026-07-31"),
+        ("too-old", "2026-06-30"),
+        ("future", "2026-08-01"),
+    ):
+        con.execute(
+            """
+            INSERT INTO birding_agent.recent_observation_evidence
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                f"obs-{label}",
+                "environmental_observations.fact_bird_observation",
+                f"E-{label}",
+                f"bird-{label}",
+                f"Bird {label}",
+                f"Avis {label}",
+                f"{observation_date}T06:30:00",
+                observation_date,
+                1,
+                "1",
+                "Near site",
+                "US-AZ",
+                location.latitude,
+                location.longitude,
+                True,
+                True,
+                False,
+                False,
+                "2026-07-31T12:00:00",
+            ],
+        )
+
+    planner = BirdingTripPlanner(
+        con,
+        model_client=FakeTripPlanModelClient(),
+        now=lambda: datetime.fromisoformat("2026-07-31T12:00:00+00:00"),
+        recent_evidence_days=30,
+    )
+    rows = planner.lookup_recent_observation_evidence(location)
+
+    assert {row["source_record_id"] for row in rows} == {
+        "E-oldest-boundary",
+        "E-newest-boundary",
+    }
+    with pytest.raises(ValueError, match="oldest_observation_date"):
+        planner.lookup_recent_observation_evidence(
+            location,
+            oldest_observation_date=datetime.fromisoformat("2026-07-31").date(),
+            newest_observation_date=datetime.fromisoformat("2026-07-01").date(),
+        )
+
+
+def test_ebird_and_gbif_lookups_enforce_inside_boundary_and_outside_radius() -> None:
+    con = duckdb.connect(":memory:")
+    _seed_planner_views(con)
+    con.execute("DELETE FROM birding_agent.recent_observation_evidence")
+    con.execute("DELETE FROM birding_agent.gbif_occurrence_evidence")
+    location = resolve_arizona_location("Thumb Butte")
+    radius_km = 1.1132
+    cases = [
+        ("inside", location.latitude + 0.009),
+        ("boundary", location.latitude + 0.010),
+        ("outside", location.latitude + 0.011),
+        ("missing", None),
+    ]
+    for label, latitude in cases:
+        con.execute(
+            """
+            INSERT INTO birding_agent.recent_observation_evidence
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                f"obs-{label}",
+                "environmental_observations.fact_bird_observation",
+                f"E-{label}",
+                "acowoo",
+                "Acorn Woodpecker",
+                "Melanerpes formicivorus",
+                "2026-07-08T06:30:00",
+                "2026-07-08",
+                1,
+                "1",
+                f"eBird {label}",
+                "US-AZ",
+                latitude,
+                location.longitude,
+                True,
+                True,
+                False,
+                False,
+                "2026-07-08T12:00:00",
+            ],
+        )
+        con.execute(
+            """
+            INSERT INTO birding_agent.gbif_occurrence_evidence
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                f"gbif-{label}",
+                "raw_gbif.occurrences",
+                f"G-{label}",
+                "zthawk",
+                "Buteo albonotatus",
+                "Buteo albonotatus Kaup, 1847",
+                "Buteo albonotatus",
+                "Zone-tailed Hawk",
+                "Accipitridae",
+                "Buteo",
+                latitude,
+                location.longitude,
+                f"GBIF {label}",
+                "Arizona",
+                "2024-07-01",
+                2024,
+                7,
+                "HUMAN_OBSERVATION",
+                "PRESENT",
+                "CC_BY_4_0",
+                f"https://gbif.example/occurrence/{label}",
+                "2026-07-08T12:00:00",
+                "Arizona",
+            ],
+        )
+
+    planner = BirdingTripPlanner(
+        con,
+        model_client=FakeTripPlanModelClient(),
+        radius_km=radius_km,
+    )
+    ebird = planner.lookup_recent_observation_evidence(location)
+    gbif = planner.lookup_gbif_occurrence_evidence(location)
+
+    assert {row["source_record_id"] for row in ebird} == {"E-inside", "E-boundary"}
+    assert {row["source_record_id"] for row in gbif} == {"G-inside", "G-boundary"}
+    assert max(float(row["distance_km"]) for row in [*ebird, *gbif]) == pytest.approx(radius_km)
+
+
+def test_ranking_considers_all_in_radius_records_beyond_nearest_two_hundred() -> None:
+    con = duckdb.connect(":memory:")
+    _seed_planner_views(con)
+    con.execute("DELETE FROM birding_agent.recent_observation_evidence")
+    con.execute("DELETE FROM birding_agent.gbif_occurrence_evidence")
+    location = resolve_arizona_location("Thumb Butte")
+    recent_rows = [
+        (
+            f"obs-filler-{index}",
+            "environmental_observations.fact_bird_observation",
+            f"E-filler-{index}",
+            f"recent{index}",
+            f"Recent Filler {index:03d}",
+            f"Avis recent{index}",
+            "2026-07-01T06:00:00",
+            "2026-07-01",
+            1,
+            "1",
+            "Near site",
+            "US-AZ",
+            location.latitude + 0.01,
+            location.longitude,
+            True,
+            True,
+            False,
+            False,
+            "2026-07-01T12:00:00",
+        )
+        for index in range(200)
+    ]
+    recent_rows.extend(
+        (
+            f"obs-target-{index}",
+            "environmental_observations.fact_bird_observation",
+            f"E-target-{index}",
+            "recenttarget",
+            "Recent Target",
+            "Avis recenttarget",
+            "2026-07-10T06:00:00",
+            "2026-07-10",
+            1,
+            "1",
+            "Farther site",
+            "US-AZ",
+            location.latitude + 0.02,
+            location.longitude,
+            True,
+            True,
+            False,
+            False,
+            "2026-07-10T12:00:00",
+        )
+        for index in range(2)
+    )
+    con.executemany(
+        "INSERT INTO birding_agent.recent_observation_evidence VALUES "
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        recent_rows,
+    )
+    occurrence_rows = [
+        (
+            f"gbif-filler-{index}",
+            "raw_gbif.occurrences",
+            f"G-filler-{index}",
+            f"gbif{index}",
+            f"Avis gbif{index}",
+            f"Avis gbif{index}",
+            f"Avis gbif{index}",
+            f"GBIF Filler {index:03d}",
+            "Fixtureidae",
+            "Avis",
+            location.latitude + 0.01,
+            location.longitude,
+            "Near site",
+            "Arizona",
+            "2024-07-01",
+            2024,
+            7,
+            "HUMAN_OBSERVATION",
+            "PRESENT",
+            "CC_BY_4_0",
+            f"https://gbif.example/occurrence/filler-{index}",
+            "2026-07-01T12:00:00",
+            "Arizona",
+        )
+        for index in range(200)
+    ]
+    occurrence_rows.extend(
+        (
+            f"gbif-target-{index}",
+            "raw_gbif.occurrences",
+            f"G-target-{index}",
+            "gbiftarget",
+            "Avis gbiftarget",
+            "Avis gbiftarget",
+            "Avis gbiftarget",
+            "GBIF Target",
+            "Fixtureidae",
+            "Avis",
+            location.latitude + 0.02,
+            location.longitude,
+            "Farther site",
+            "Arizona",
+            "2025-07-01",
+            2025,
+            7,
+            "HUMAN_OBSERVATION",
+            "PRESENT",
+            "CC_BY_4_0",
+            f"https://gbif.example/occurrence/target-{index}",
+            "2026-07-10T12:00:00",
+            "Arizona",
+        )
+        for index in range(2)
+    )
+    con.executemany(
+        "INSERT INTO birding_agent.gbif_occurrence_evidence VALUES "
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        occurrence_rows,
+    )
+    planner = BirdingTripPlanner(
+        con,
+        model_client=FakeTripPlanModelClient(),
+        radius_km=50,
+        now=lambda: datetime.fromisoformat("2026-07-31T12:00:00+00:00"),
+    )
+
+    recent = planner.lookup_recent_observation_evidence(location)
+    gbif = planner.lookup_gbif_occurrence_evidence(location)
+    recommendations = planner.rank_reported_species(recent, gbif)
+
+    assert len(recent) == 202
+    assert len(gbif) == 202
+    by_name = {row.common_name: row for row in recommendations}
+    assert by_name["Recent Target"].evidence_label == "2 distinct recent eBird submissions"
+    assert by_name["Recent Target"].recommendation_group == "recently_reported"
+    assert by_name["GBIF Target"].evidence_label == "2 distinct GBIF occurrences"
+    assert by_name["GBIF Target"].recommendation_group == "gbif_context"
+
+
+def test_no_in_radius_observations_reach_ranking_model_or_persistence() -> None:
+    con = duckdb.connect(":memory:")
+    _seed_planner_views(con)
+    con.execute(
+        "UPDATE birding_agent.recent_observation_evidence SET latitude=35.5, longitude=-112.5"
+    )
+    con.execute("UPDATE birding_agent.gbif_occurrence_evidence SET latitude=35.5, longitude=-112.5")
+    model = FakeTripPlanModelClient()
+    planner = BirdingTripPlanner(
+        con,
+        model_client=model,
+        weather_getter=_weather_response,
+        media_curated_photo_getter=_empty_media_response,
+        media_before_inaturalist_request=_no_media_throttle,
+        media_xeno_getter=_empty_media_response,
+        xeno_api_key="test-key",
+        radius_km=1.0,
+    )
+
+    result = planner.plan_trip(
+        TripRequest(
+            location="Thumb Butte",
+            start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
+            duration_minutes=90,
+        ),
+        trip_plan_id="no-in-radius-evidence",
+    )
+
+    assert result.recommendations == []
+    assert model.requests[0].recommendations == []
+    assert model.requests[0].evidence_source_counts == {
+        "ebird": 0,
+        "gbif": 0,
+        "open_meteo": 1,
+    }
+    assert {
+        row.source
+        for row in result.evidence
+        if row.source in {"ebird", "gbif"} and row.status == "unavailable"
+    } == {"ebird", "gbif"}
+    assert all("1 km radius" in caveat for caveat in result.caveats[:2])
+    lookup_traces = [
+        trace
+        for trace in result.tool_traces
+        if trace.tool_name
+        in {"lookup_recent_observation_evidence", "lookup_gbif_occurrence_evidence"}
+    ]
+    assert all(trace.output_summary["enforced_radius_km"] == 1.0 for trace in lookup_traces)
+    assert all(trace.output_summary["max_distance_km"] is None for trace in lookup_traces)
+    persisted_available = con.execute(
+        """
+        SELECT count(*) FROM birding_agent.trip_plan_evidence
+        WHERE trip_plan_id = ? AND source IN ('ebird', 'gbif') AND status = 'available'
+        """,
+        [result.trip_plan_id],
+    ).fetchone()
+    assert persisted_available == (0,)
+
+
+def test_ranking_counts_distinct_source_records_not_duplicates_or_reported_individuals() -> None:
+    planner = BirdingTripPlanner(
+        duckdb.connect(":memory:"),
+        model_client=FakeTripPlanModelClient(),
+        radius_km=50,
+    )
+    recent_rows = [
+        {
+            "source_record_id": "S-alpha",
+            "species_code": "alpha",
+            "common_name": "Alpha Bird",
+            "scientific_name": "Avis alpha",
+            "observation_count": 999,
+            "observation_datetime": "2026-07-10T06:00:00",
+        },
+        {
+            "source_record_id": "S-alpha",
+            "species_code": "alpha",
+            "common_name": "Alpha Bird",
+            "scientific_name": "Avis alpha",
+            "observation_count": 999,
+            "observation_datetime": "2026-07-10T06:00:00",
+        },
+        {
+            "source_record_id": "S-bravo-1",
+            "species_code": "bravo",
+            "common_name": "Bravo Bird",
+            "scientific_name": "Avis bravo",
+            "observation_count": 1,
+            "observation_datetime": "2026-07-08T06:00:00",
+        },
+        {
+            "source_record_id": "S-bravo-2",
+            "species_code": "bravo",
+            "common_name": "Bravo Bird",
+            "scientific_name": "Avis bravo",
+            "observation_count": 1,
+            "observation_datetime": "2026-07-09T06:00:00",
+        },
+    ]
+    occurrence_rows = [
+        {
+            "source_record_id": "G-charlie",
+            "species_code": "charlie",
+            "common_name": "Charlie Bird",
+            "scientific_name": "Avis charlie",
+            "year": 2025,
+        },
+        {
+            "source_record_id": "G-charlie",
+            "species_code": "charlie",
+            "common_name": "Charlie Bird",
+            "scientific_name": "Avis charlie",
+            "year": 2025,
+        },
+        {
+            "source_record_id": "G-delta-1",
+            "species_code": "delta",
+            "common_name": "Delta Bird",
+            "scientific_name": "Avis delta",
+            "year": 2024,
+        },
+        {
+            "source_record_id": "G-delta-2",
+            "species_code": "delta",
+            "common_name": "Delta Bird",
+            "scientific_name": "Avis delta",
+            "year": 2023,
+        },
+    ]
+
+    recommendations = planner.rank_reported_species(recent_rows, occurrence_rows)
+
+    assert [rec.common_name for rec in recommendations] == [
+        "Bravo Bird",
+        "Alpha Bird",
+        "Delta Bird",
+        "Charlie Bird",
+    ]
+    assert recommendations[0].evidence_label == "2 distinct recent eBird submissions"
+    assert recommendations[1].evidence_label == "1 distinct recent eBird submission"
+    assert recommendations[2].evidence_label == "2 distinct GBIF occurrences"
+    assert len({rec.common_name for rec in recommendations}) == len(recommendations)
+
+
+def test_persisted_evidence_supports_recommendations_ranked_beyond_first_fifty_rows() -> None:
+    planner = BirdingTripPlanner(
+        duckdb.connect(":memory:"),
+        model_client=FakeTripPlanModelClient(),
+        radius_km=50,
+    )
+    recent_rows = [
+        {
+            "source_record_id": f"E-filler-{index}",
+            "common_name": f"Recent Filler {index:02d}",
+            "scientific_name": f"Avis recent{index}",
+            "observation_datetime": "2026-07-01T06:00:00",
+            "latitude": 34.54,
+            "longitude": -112.50,
+            "distance_km": 1.0,
+        }
+        for index in range(50)
+    ]
+    recent_rows.extend(
+        {
+            "source_record_id": f"E-target-{index}",
+            "common_name": "Recent Target",
+            "scientific_name": "Avis recenttarget",
+            "observation_datetime": "2026-07-10T06:00:00",
+            "latitude": 34.55,
+            "longitude": -112.50,
+            "distance_km": 2.0,
+        }
+        for index in range(2)
+    )
+    occurrence_rows = [
+        {
+            "source_record_id": f"G-filler-{index}",
+            "common_name": f"GBIF Filler {index:02d}",
+            "scientific_name": f"Avis gbif{index}",
+            "year": 2024,
+            "latitude": 34.54,
+            "longitude": -112.50,
+            "distance_km": 1.0,
+        }
+        for index in range(50)
+    ]
+    occurrence_rows.extend(
+        {
+            "source_record_id": f"G-target-{index}",
+            "common_name": "GBIF Target",
+            "scientific_name": "Avis gbiftarget",
+            "year": 2025,
+            "latitude": 34.55,
+            "longitude": -112.50,
+            "distance_km": 2.0,
+        }
+        for index in range(2)
+    )
+    recommendations = planner.rank_reported_species(recent_rows, occurrence_rows)
+    weather = fetch_open_meteo_trip_context(
+        latitude=34.54,
+        longitude=-112.50,
+        start_at="2026-07-10T06:00:00",
+        end_at="2026-07-10T07:30:00",
+        timezone="America/Phoenix",
+        http_get_json=_weather_response,
+    )
+
+    evidence = planner.build_evidence_records(
+        recent_rows,
+        occurrence_rows,
+        recommendations,
+        weather,
+    )
+
+    recommendation_ids = {row.common_name: row.recommendation_id for row in recommendations}
+    recent_target_id = recommendation_ids["Recent Target"]
+    gbif_target_id = recommendation_ids["GBIF Target"]
+    assert {
+        row.source_record_id for row in evidence if row.recommendation_id == recent_target_id
+    } == {"E-target-0", "E-target-1"}
+    assert {
+        row.source_record_id for row in evidence if row.recommendation_id == gbif_target_id
+    } == {"G-target-0", "G-target-1"}
+    assert {row.recommendation_id for row in evidence} == set(recommendation_ids.values())
+    assert all(row.recommendation_id is not None for row in evidence)
+
+
 def test_ranked_gbif_recommendations_keep_conformed_names_and_do_not_duplicate() -> None:
     planner = BirdingTripPlanner(
         duckdb.connect(":memory:"),
@@ -403,7 +939,7 @@ def test_ranked_gbif_recommendations_keep_conformed_names_and_do_not_duplicate()
         },
     ]
 
-    recommendations = planner.rank_likely_species([], occurrence_rows)
+    recommendations = planner.rank_reported_species([], occurrence_rows)
 
     assert len(recommendations) == 3
     assert {
@@ -419,6 +955,47 @@ def test_ranked_gbif_recommendations_keep_conformed_names_and_do_not_duplicate()
     }
 
 
+def test_gbif_authorship_variant_without_species_code_keeps_linked_evidence() -> None:
+    planner = BirdingTripPlanner(
+        duckdb.connect(":memory:"),
+        model_client=FakeTripPlanModelClient(),
+    )
+    occurrence_rows = [
+        {
+            "occurrence_evidence_id": "gbif-bluebird",
+            "source_table": "raw_gbif.occurrences",
+            "source_record_id": "G-bluebird",
+            "species_code": None,
+            "common_name": "Western Bluebird",
+            "scientific_name": "Sialia mexicana",
+            "accepted_scientific_name": "Sialia mexicana Swainson, 1832",
+            "year": 2026,
+            "latitude": 34.54,
+            "longitude": -112.50,
+            "distance_km": 2.0,
+        }
+    ]
+    recommendations = planner.rank_reported_species([], occurrence_rows)
+    weather = fetch_open_meteo_trip_context(
+        latitude=34.54,
+        longitude=-112.50,
+        start_at="2026-07-10T06:00:00",
+        end_at="2026-07-10T07:30:00",
+        timezone="America/Phoenix",
+        http_get_json=_weather_response,
+    )
+
+    evidence = planner.build_evidence_records([], occurrence_rows, recommendations, weather)
+    gbif_evidence = [row for row in evidence if row.source == "gbif" and row.status == "available"]
+
+    assert len(recommendations) == 1
+    assert recommendations[0].scientific_name == "Sialia mexicana"
+    assert recommendations[0].evidence_label == "1 distinct GBIF occurrence"
+    assert len(gbif_evidence) == 1
+    assert gbif_evidence[0].source_record_id == "G-bluebird"
+    assert gbif_evidence[0].recommendation_id == recommendations[0].recommendation_id
+
+
 def test_build_root_agent_exposes_bounded_tool_contract() -> None:
     agent = build_root_agent()
 
@@ -429,7 +1006,7 @@ def test_build_root_agent_exposes_bounded_tool_contract() -> None:
         "lookup_recent_observation_evidence_tool",
         "lookup_gbif_occurrence_evidence_tool",
         "fetch_open_meteo_trip_context_tool",
-        "rank_likely_species_tool",
+        "rank_reported_species_tool",
         "enrich_recommendation_media_tool",
         "synthesize_grounded_trip_plan_tool",
         "persist_trip_plan_tool",
@@ -449,7 +1026,7 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
             start_at=datetime.fromisoformat("2026-07-09T06:00:00"),
             duration_minutes=90,
             skill_level="beginner",
-            constraints_text="focus on calls",
+            constraints_text="focus on calls.",
         ),
         trip_plan_id="trip-thumb-butte-test",
         weather_getter=_weather_response,
@@ -465,11 +1042,14 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
     assert model_client.requests[0].duration_minutes == 90
     assert model_client.requests[0].window_end == "2026-07-09T07:30:00"
     assert result.location.normalized_location_name == "Thumb Butte, Prescott, AZ"
-    assert "High-likelihood species" in result.field_plan_text
-    assert "Uncommon but plausible targets" in result.field_plan_text
+    assert "Recently reported species" in result.field_plan_text
+    assert "GBIF occurrence context" in result.field_plan_text
+    assert "not encounter probability" in result.field_plan_text
+    assert "Constraints noted: focus on calls." in result.field_plan_text
+    assert "calls.." not in result.field_plan_text
     assert any(rec.common_name == "Mexican Jay" for rec in result.recommendations)
     assert any(
-        rec.common_name == "Zone-tailed Hawk" and rec.recommendation_group == "uncommon_plausible"
+        rec.common_name == "Zone-tailed Hawk" and rec.recommendation_group == "gbif_context"
         for rec in result.recommendations
     )
     assert all("life" not in rec.rationale_text.lower() for rec in result.recommendations)
@@ -502,7 +1082,7 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
         "lookup_recent_observation_evidence",
         "lookup_gbif_occurrence_evidence",
         "fetch_open_meteo_trip_context",
-        "rank_likely_species",
+        "rank_reported_species",
         "enrich_recommendation_media",
         "build_trip_plan_evidence",
         "synthesize_grounded_trip_plan",
@@ -532,6 +1112,23 @@ def test_adk_runtime_persists_trip_plan_recommendations_evidence_and_traces() ->
     assert json.loads(model_trace[0])["model"] == CLOUDFLARE_WORKERS_AI_MODEL
     assert json.loads(model_trace[1])["model"] == CLOUDFLARE_WORKERS_AI_MODEL
     assert "api_key" not in (model_trace[0] + model_trace[1]).lower()
+    lookup_trace_rows = con.execute(
+        """
+        SELECT output_summary_json
+        FROM birding_agent.trip_plan_tool_traces
+        WHERE trip_plan_id = ?
+          AND tool_name IN (
+              'lookup_recent_observation_evidence',
+              'lookup_gbif_occurrence_evidence'
+          )
+        ORDER BY step_order
+        """,
+        [result.trip_plan_id],
+    ).fetchall()
+    lookup_summaries = [json.loads(row[0]) for row in lookup_trace_rows]
+    assert len(lookup_summaries) == 2
+    assert all(summary["enforced_radius_km"] == 50.0 for summary in lookup_summaries)
+    assert all(summary["max_distance_km"] <= 50.0 for summary in lookup_summaries)
 
     weather_evidence = con.execute(
         """
@@ -953,8 +1550,8 @@ def test_adk_runtime_persists_source_unavailable_caveats_when_evidence_views_are
     )
 
     assert not result.recommendations
-    assert "No recent eBird evidence" in " ".join(result.caveats)
-    assert "No GBIF occurrence context" in " ".join(result.caveats)
+    assert "No qualifying eBird submissions" in " ".join(result.caveats)
+    assert "No qualifying GBIF occurrence context" in " ".join(result.caveats)
 
     statuses = con.execute(
         """
@@ -1013,7 +1610,7 @@ def test_cli_generates_sample_plan_against_duckdb_file(
     assert status == 0
     output = json.loads(capsys.readouterr().out)
     assert output["trip_plan_id"] == "trip-cli-test"
-    assert "High-likelihood species" in output["field_plan_text"]
+    assert "Recently reported species" in output["field_plan_text"]
 
     con = duckdb.connect(str(db_path), read_only=True)
     plan_count_row = con.execute("SELECT count(*) FROM birding_agent.trip_plans").fetchone()

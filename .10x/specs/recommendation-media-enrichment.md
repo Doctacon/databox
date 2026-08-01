@@ -13,9 +13,9 @@ It supplements the scheduled GBIF and Xeno-canto pipelines governed by `.10x/spe
 ## Execution boundary
 
 - Media enrichment MUST begin only after the deterministic recommendation set and rank order are fixed.
-- Media results MUST NOT add, remove, reorder, relabel, or change the confidence/rationale of recommendations.
+- Media results MUST NOT add, remove, reorder, relabel, or change the evidence label/rationale of recommendations.
 - The local Python process MUST own discovery requests, validation, selection, and persistence. The browser MUST NOT call GBIF or Xeno-canto discovery APIs.
-- Work MUST be bounded to the recommendations in one plan, currently at most five high-likelihood plus three uncommon-plausible targets.
+- Work MUST be bounded to the recommendations in one plan, currently at most five recently reported species plus three GBIF occurrence-context species.
 - Network concurrency, response bytes, candidate count, and timeout MUST be explicitly bounded and tested.
 - Media lookup failure MUST NOT fail the plan or trigger model retry/fallback. It MUST persist a typed unavailable result for that recommendation/media kind.
 - Media enrichment MUST complete or persist its unavailable state before the plan is returned as completed.

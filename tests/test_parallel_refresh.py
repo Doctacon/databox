@@ -99,6 +99,45 @@ def test_parallel_refresh_uses_one_server_observes_overlap_then_transforms(
     assert all(env["DATABOX_QUACK_SHARED_SERVER"] == "true" for env in seen_environments)
 
 
+def test_parallel_source_imports_use_isolated_sqlmesh_caches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen_cache_dirs: dict[str, Path] = {}
+    barrier = threading.Barrier(2)
+    monkeypatch.setenv("SQLMESH__CACHE_DIR", "/shared/sqlmesh-cache")
+
+    class FakeServer:
+        def __enter__(self) -> None:
+            return None
+
+        def __exit__(self, *args: Any) -> None:
+            return None
+
+    def source_runner(source: str, workdir: Path, env: dict[str, str]) -> SourceRunResult:
+        cache_dir = Path(env["SQLMESH__CACHE_DIR"])
+        seen_cache_dirs[source] = cache_dir
+        assert cache_dir == workdir / "sqlmesh-cache"
+        barrier.wait(timeout=2)
+        return _result(source, 1.0, 2.0)
+
+    execute_parallel_refresh(
+        ["gbif", "usgs_earthquakes"],
+        database_path=str(tmp_path / "databox.duckdb"),
+        source_runner=source_runner,
+        server_factory=lambda _: FakeServer(),
+        dedupe_runner=lambda _: [],
+        cleanup_runner=lambda: None,
+        inspection_runner=lambda *_: WarehouseInspection((), ()),
+        run_transform=False,
+    )
+
+    assert set(seen_cache_dirs) == {"gbif", "usgs_earthquakes"}
+    assert len(set(seen_cache_dirs.values())) == 2
+    assert all(path.is_absolute() for path in seen_cache_dirs.values())
+    assert all(path != Path("/shared/sqlmesh-cache") for path in seen_cache_dirs.values())
+
+
 def test_parallel_refresh_failure_preserves_source_attribution_when_maintenance_fails(
     tmp_path: Path,
 ) -> None:

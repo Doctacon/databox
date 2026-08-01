@@ -29,7 +29,7 @@ class DataboxSettings(BaseSettings):
     )
     log_level: str = "INFO"
 
-    ebird_days_back: int = Field(default=30, alias="DATABOX_EBIRD_DAYS_BACK")
+    ebird_days_back: int = Field(default=30, ge=1, le=30, alias="DATABOX_EBIRD_DAYS_BACK")
     noaa_days_back: int = Field(default=30, alias="DATABOX_NOAA_DAYS_BACK")
     usgs_days_back: int = Field(default=30, alias="DATABOX_USGS_DAYS_BACK")
     smoke: bool = Field(default=False, alias="DATABOX_SMOKE")

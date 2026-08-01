@@ -20,6 +20,7 @@ import { presentWeather } from "./weather";
 import "./styles.css";
 
 const FieldMapPage = lazy(() => import("./FieldMap").then((module) => ({ default: module.FieldMapPage })));
+const TripEvidenceMap = lazy(() => import("./FieldMap").then((module) => ({ default: module.TripEvidenceMap })));
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -300,7 +301,7 @@ function RecommendationGroup({
               <div className="species-rank">#{row.rank_order}</div>
               <h3>{birdName(row)}</h3>
               {row.common_name && row.scientific_name && <p className="scientific">{row.scientific_name}</p>}
-              <span className="badge">{row.confidence_label || "evidence-backed"}</span>
+              <span className="badge">{row.evidence_label || "evidence-backed"}</span>
               {row.rationale_text && <p>{row.rationale_text}</p>}
               {row.caveats.map((caveat) => <p className="caveat" key={caveat}>{caveat}</p>)}
               <CallArea row={row} />
@@ -323,11 +324,11 @@ function RecommendationGroup({
 }
 
 function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCalendarChange: (invite: TripPlanDetail["calendar_invite"]) => void }) {
-  const high = detail.recommendations
-    .filter((row) => row.recommendation_group === "high_likelihood")
+  const recentlyReported = detail.recommendations
+    .filter((row) => row.recommendation_group === "recently_reported")
     .sort((left, right) => left.rank_order - right.rank_order);
-  const uncommon = detail.recommendations
-    .filter((row) => row.recommendation_group === "uncommon_plausible")
+  const gbifContext = detail.recommendations
+    .filter((row) => row.recommendation_group === "gbif_context")
     .sort((left, right) => left.rank_order - right.rank_order);
   const weather = presentWeather(detail.weather?.payload || {}, detail.weather?.summary || {});
   const [evidencePage, setEvidencePage] = useState(0);
@@ -352,8 +353,6 @@ function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCale
         </div>
       </section>
 
-      <TripCalendarControls planId={detail.plan.trip_plan_id} invite={detail.calendar_invite} onChange={onCalendarChange} />
-
       {detail.plan.caveats.length > 0 && (
         <section className="notice" aria-labelledby="plan-caveats">
           <h2 id="plan-caveats">Plan caveats</h2>
@@ -361,12 +360,14 @@ function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCale
         </section>
       )}
 
-      <section className="panel" aria-labelledby="field-plan">
-        <h2 id="field-plan">Field Plan</h2>
-        <p className="field-plan">{detail.plan.field_plan_text || "No field plan was persisted."}</p>
-      </section>
+      <Suspense fallback={<section className="panel trip-evidence-map" aria-labelledby="trip-evidence-map-loading">
+        <h2 id="trip-evidence-map-loading">Evidence Map</h2>
+        <p role="status">Loading the persisted evidence map…</p>
+      </section>}>
+        <TripEvidenceMap detail={detail} />
+      </Suspense>
 
-      <section className="panel" aria-labelledby="weather-context">
+      <section className="panel weather-panel" aria-labelledby="weather-context">
         <h2 id="weather-context">Weather and Elevation</h2>
         {detail.weather ? <>
           <dl className="details-list weather-details">
@@ -383,8 +384,15 @@ function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCale
         </> : <p className="empty">Open-Meteo context was not persisted.</p>}
       </section>
 
-      <RecommendationGroup title="High-likelihood Species" rows={high} planId={detail.plan.trip_plan_id} />
-      <RecommendationGroup title="Uncommon but Plausible Targets" rows={uncommon} planId={detail.plan.trip_plan_id} />
+      <RecommendationGroup title="Recently Reported Species" rows={recentlyReported} planId={detail.plan.trip_plan_id} />
+      <RecommendationGroup title="GBIF Occurrence Context" rows={gbifContext} planId={detail.plan.trip_plan_id} />
+
+      <section className="panel" aria-labelledby="field-plan">
+        <h2 id="field-plan">Field Plan</h2>
+        <p className="field-plan">{detail.plan.field_plan_text || "No field plan was persisted."}</p>
+      </section>
+
+      <TripCalendarControls planId={detail.plan.trip_plan_id} invite={detail.calendar_invite} onChange={onCalendarChange} />
 
       <details className="panel table-panel evidence-disclosure">
         <summary><h2>Evidence and Provenance</h2></summary>

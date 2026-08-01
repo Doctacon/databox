@@ -20,13 +20,13 @@ Inspected project records/source:
 - `dives/birding-trip-plan/`
 - `.dive-preview/`
 - `Taskfile.yaml`
-- `/Users/crlough/.agents/skills/motherduck-create-dive/SKILL.md`
-- `/Users/crlough/.agents/skills/motherduck-create-dive/references/DIVE_DESIGN_GUIDE.md`
-- `/Users/crlough/.agents/skills/motherduck-load-data/SKILL.md`
-- `/Users/crlough/.agents/skills/motherduck-load-data/references/INGESTION_PATTERNS.md`
-- `/Users/crlough/.agents/skills/motherduck-connect/SKILL.md`
-- `/Users/crlough/.agents/skills/motherduck-connect/references/CONNECTION_GUIDE.md`
-- `/Users/crlough/.agents/skills/motherduck-build-cfa-app/SKILL.md`
+- `$HOME/.agents/skills/motherduck-create-dive/SKILL.md`
+- `$HOME/.agents/skills/motherduck-create-dive/references/DIVE_DESIGN_GUIDE.md`
+- `$HOME/.agents/skills/motherduck-load-data/SKILL.md`
+- `$HOME/.agents/skills/motherduck-load-data/references/INGESTION_PATTERNS.md`
+- `$HOME/.agents/skills/motherduck-connect/SKILL.md`
+- `$HOME/.agents/skills/motherduck-connect/references/CONNECTION_GUIDE.md`
+- `$HOME/.agents/skills/motherduck-build-cfa-app/SKILL.md`
 
 Consulted current official sources on 2026-07-09:
 

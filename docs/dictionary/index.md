@@ -37,7 +37,7 @@ Canonical environmental-observations CDM models generated from the .schema workf
 | [`environmental_observations.dim_species`](environmental_observations/dim_species.md) | yes | Conformed CDM species dimension from eBird taxonomy, GBIF occurrence taxonomy, and Xeno-canto recording metadata. |
 | [`environmental_observations.dim_streamgage_site`](environmental_observations/dim_streamgage_site.md) | yes | CDM USGS streamgage site dimension. |
 | [`environmental_observations.dim_weather_station`](environmental_observations/dim_weather_station.md) | yes | CDM NOAA weather station dimension. |
-| [`environmental_observations.fact_bird_observation`](environmental_observations/fact_bird_observation.md) | yes | CDM fact: one row per eBird observation submission id across recent and notable feeds. |
+| [`environmental_observations.fact_bird_observation`](environmental_observations/fact_bird_observation.md) | yes | CDM fact: one row per eBird checklist submission and species across recent and notable feeds. |
 | [`environmental_observations.fact_bird_occurrence`](environmental_observations/fact_bird_occurrence.md) | yes | CDM fact: one row per GBIF bird occurrence key. |
 | [`environmental_observations.fact_bird_sound_recording`](environmental_observations/fact_bird_sound_recording.md) | yes | CDM fact: one row per Xeno-canto bird sound recording id; media remains externally linked. |
 | [`environmental_observations.fact_earthquake_event`](environmental_observations/fact_earthquake_event.md) | yes | CDM fact: one row per USGS earthquake event id. |

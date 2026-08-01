@@ -48,7 +48,9 @@ def _plan(connection: duckdb.DuckDBPyConnection, plan_id: str = "trip_fixture") 
     connection.execute(
         """INSERT INTO birding_agent.trip_plan_recommendations VALUES
         (?, ?, 'lookup_1', 'eletro', 'Elegant Trogon', 'Trogon elegans',
-         'target', 1, 'high', 'Recent public evidence.', '["Access can change."]', ?)""",
+         'recently_reported', 1, '1 distinct recent eBird submission',
+         'Ranked from one qualifying recent submission within the enforced radius.',
+         '["Access can change."]', ?)""",
         [f"rec_{plan_id}", plan_id, NOW.isoformat()],
     )
     connection.execute(

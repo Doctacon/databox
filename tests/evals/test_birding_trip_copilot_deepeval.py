@@ -30,7 +30,7 @@ EXPECTED_TOOL_NAMES = [
     "lookup_recent_observation_evidence",
     "lookup_gbif_occurrence_evidence",
     "fetch_open_meteo_trip_context",
-    "rank_likely_species",
+    "rank_reported_species",
     "enrich_recommendation_media",
     "build_trip_plan_evidence",
     "synthesize_grounded_trip_plan",
@@ -109,7 +109,7 @@ class PersistedEvidenceMetric(BaseMetric):
         has_source_ids = bool(metadata.get("has_source_record_or_payload"))
         has_plan_sections = all(
             phrase in (test_case.actual_output or "")
-            for phrase in ("High-likelihood species", "Uncommon but plausible targets")
+            for phrase in ("Recently reported species", "GBIF occurrence context")
         )
         passed = not missing and evidence_count >= len(self.required_sources) and has_source_ids
         passed = passed and has_plan_sections

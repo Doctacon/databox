@@ -2,7 +2,7 @@
   "_version": "1.0",
   "_name": "environmental_observations",
   "BirdObservation": {
-    "description": "Individual eBird observation records with species, observation date/time, location, count, and region fields.",
+    "description": "Individual eBird checklist-species observation records with observation date/time, location, count, and region fields.",
     "use_cases": [
       "date/location analysis across environmental observations"
     ],
@@ -24,8 +24,10 @@
         "role": "secondary"
       }
     ],
-    "natural_key": null,
-    "assumptions": []
+    "natural_key": "sub_id + species_code",
+    "assumptions": [
+      "Within eBird, observation identity is the composite (sub_id, species_code) so every species on a checklist remains distinct."
+    ]
   },
   "Species": {
     "description": "Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF occurrence taxonomy, and Xeno-canto recording metadata.",

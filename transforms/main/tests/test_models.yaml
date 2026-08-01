@@ -282,7 +282,7 @@ test_birding_agent_recent_observation_evidence:
   inputs:
     environmental_observations.fact_bird_observation:
       rows:
-        - source_observation_id: "S1"
+        - source_observation_id: "S1|norcar"
           source_table: "recent_observations"
           species_sk: "species-sk"
           bird_hotspot_sk: "hotspot-sk"
@@ -383,10 +383,10 @@ test_birding_agent_recent_observation_evidence:
   outputs:
     query:
       rows:
-        - observation_evidence_id: "fe9569a6ca5e18d31136819763816434"
+        - observation_evidence_id: "4249988d6014c501732de09ea4b12834"
           evidence_source: "ebird"
           source_table: "environmental_observations.fact_bird_observation"
-          source_record_id: "S1"
+          source_record_id: "S1|norcar"
           raw_source_table: "recent_observations"
           species_code: "norcar"
           common_name: "Northern Cardinal"
@@ -1160,12 +1160,12 @@ test_fact_bird_observation_uses_natural_key_without_duplicate_fallback_join:
   outputs:
     query:
       rows:
-        - bird_observation_sk: "2132567cb66f4ecc8de12d312fcb4e4d"
+        - bird_observation_sk: "6ab60c8636cd353f22cf2111506f5dbe"
           species_sk: "natural-species-sk"
           bird_hotspot_sk: "hotspot-sk"
           source_pipeline: "ebird_api"
           source_table: "recent_observations"
-          source_observation_id: "S1"
+          source_observation_id: "S1|norcar"
           observation_datetime: "2025-07-20 06:30:00"
           observation_date: "2025-07-20"
           observation_year: 2025

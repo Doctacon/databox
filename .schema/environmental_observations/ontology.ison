@@ -35,7 +35,7 @@ entity	name	type	master_source	also_in	note
 :Entity:BirdObservation	obs_reviewed	bool	ebird_api.recent_observations	ebird_api.notable_observations
 :Entity:BirdObservation	obs_valid	bool	ebird_api.recent_observations	ebird_api.notable_observations
 :Entity:BirdObservation	sci_name	text	ebird_api.recent_observations	ebird_api.notable_observations
-:Entity:BirdObservation	species_code	text	ebird_api.recent_observations	ebird_api.notable_observations
+:Entity:BirdObservation	species_code	text	ebird_api.recent_observations	ebird_api.notable_observations	not null, primary_key
 :Entity:BirdObservation	sub_id	text	ebird_api.recent_observations	ebird_api.notable_observations	not null, primary_key
 :Entity:Species	_dlt_id	text	ebird_api.taxonomy	ebird_api.species_list, ebird_api.taxonomy__com_name_codes, ebird_api.taxonomy__sci_name_codes, ebird_api.taxonomy__banding_codes	dlt metadata, not null, row_key, unique
 :Entity:Species	_dlt_list_idx	bigint	ebird_api.taxonomy__com_name_codes	ebird_api.taxonomy__sci_name_codes, ebird_api.taxonomy__banding_codes	dlt metadata, not null

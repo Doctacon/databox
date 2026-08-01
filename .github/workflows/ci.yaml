@@ -117,6 +117,9 @@ jobs:
       - name: Install frontend dependencies
         working-directory: app
         run: npm ci
+      - name: Audit frontend dependencies
+        working-directory: app
+        run: npm audit --audit-level=high
       - name: TypeScript check
         working-directory: app
         run: npm run typecheck

@@ -1,7 +1,7 @@
 MODEL (
   name environmental_observations.fact_bird_observation,
   kind FULL,
-  description 'CDM fact: one row per eBird observation submission id across recent and notable feeds.',
+  description 'CDM fact: one row per eBird checklist submission and species across recent and notable feeds.',
   grants (select_ = ['staging_reader', 'domain_reader', 'analyst'])
 );
 
@@ -28,7 +28,7 @@ WITH observations AS (
     _dlt_load_id,
     _dlt_id
   FROM raw_ebird.recent_observations
-  WHERE sub_id IS NOT NULL
+  WHERE sub_id IS NOT NULL AND species_code IS NOT NULL
 
   UNION ALL
 
@@ -54,21 +54,26 @@ WITH observations AS (
     _dlt_load_id,
     _dlt_id
   FROM raw_ebird.notable_observations
-  WHERE sub_id IS NOT NULL
+  WHERE sub_id IS NOT NULL AND species_code IS NOT NULL
 ),
 ranked AS (
   SELECT
     *,
-    ROW_NUMBER() OVER (PARTITION BY sub_id ORDER BY is_notable DESC, loaded_at DESC) AS rn
+    ROW_NUMBER() OVER (
+      PARTITION BY sub_id, species_code
+      ORDER BY loaded_at DESC, is_notable DESC, _dlt_load_id DESC, _dlt_id DESC
+    ) AS rn
   FROM observations
 )
 SELECT
-  md5('environmental_observations|bird_observation|ebird_api|' || o.sub_id) AS bird_observation_sk,
+  md5(
+    'environmental_observations|bird_observation|ebird_api|' || o.sub_id || '|' || o.species_code
+  ) AS bird_observation_sk,
   COALESCE(s.species_sk, md5('environmental_observations|species|UNKNOWN')) AS species_sk,
   COALESCE(h.bird_hotspot_sk, md5('environmental_observations|bird_hotspot|UNKNOWN')) AS bird_hotspot_sk,
   'ebird_api' AS source_pipeline,
   o.source_table,
-  o.sub_id AS source_observation_id,
+  o.sub_id || '|' || o.species_code AS source_observation_id,
   o.observation_datetime,
   DATE(o.observation_datetime) AS observation_date,
   EXTRACT(YEAR FROM o.observation_datetime)::BIGINT AS observation_year,

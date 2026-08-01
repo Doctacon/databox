@@ -1,6 +1,6 @@
 # environmental_observations.fact_bird_observation
 
-CDM fact: one row per eBird observation submission id across recent and notable feeds.
+CDM fact: one row per eBird checklist submission and species across recent and notable feeds.
 
 ## Overview
 
@@ -38,7 +38,7 @@ CDM fact: one row per eBird observation submission id across recent and notable 
 | `observation_month` | `BIGINT` | — | — |
 | `observation_year` | `BIGINT` | — | — |
 | `region_code` | `UNKNOWN` | — | — |
-| `source_observation_id` | `UNKNOWN` | — | — |
+| `source_observation_id` | `TEXT` | missing (must_be=0), duplicate (must_be=0) | — |
 | `source_pipeline` | `TEXT` | — | — |
 | `source_table` | `UNKNOWN` | — | — |
 | `species_code` | `UNKNOWN` | — | — |

@@ -12,11 +12,13 @@ This specification governs the Trip Planner result order and the presentation of
 
 After the persisted-plan hero and any plan-level caveat notice, the result MUST appear in this order:
 
-1. Field Plan
+1. Evidence Map
 2. Weather and Elevation
-3. High-likelihood Species
-4. Uncommon but Plausible Targets
-5. Evidence and Provenance
+3. Recently Reported Species
+4. GBIF Occurrence Context
+5. Field Plan
+6. Calendar controls
+7. Evidence and Provenance
 
 - The standalone Call and Media Examples section MUST be removed.
 - Evidence and Provenance MUST be the final result section and MUST use an accessible native disclosure that is collapsed by default.
@@ -32,11 +34,11 @@ Each recommendation group MUST show at most four cards at a time and paginate in
 
 Desktop presentation MUST NOT render a second card row for a group: the current page contains at most four cards. Responsive layouts MAY stack those same four cards at narrower breakpoints without loading additional cards.
 
-Every high-likelihood and uncommon-plausible recommendation card MUST use the same media structure:
+Every recently reported and GBIF occurrence-context recommendation card MUST use the same media structure:
 
 1. representative photo area,
 2. rank, common name, and smaller scientific name,
-3. confidence, rationale, and recommendation caveats,
+3. evidence label, rationale, and recommendation caveats,
 4. one representative call area,
 5. media attribution and safe source/license links.
 
@@ -61,7 +63,7 @@ Every high-likelihood and uncommon-plausible recommendation card MUST use the sa
 - Photo and call objects MUST be attached by persisted `recommendation_id`, not by browser text matching.
 - The UI MUST render no more than one selected photo and one selected call per card.
 - Missing or malformed typed media MUST fail closed independently: a valid photo may remain when call data is invalid, and a valid call may remain when photo data is invalid.
-- Media availability MUST NOT change card order, group, names, rationale, confidence, or caveats.
+- Media availability MUST NOT change card order, group, names, rationale, evidence label, or caveats.
 
 ## Accessibility and responsive behavior
 
@@ -96,7 +98,7 @@ Given a complete plan, when it first renders, then Evidence and Provenance is co
 
 ### Final order
 
-Given a complete plan, when reading top to bottom after the hero/caveats, then sections appear as Field Plan, Weather and Elevation, High-likelihood Species, Uncommon but Plausible Targets, and Evidence and Provenance. No standalone Call and Media Examples section exists, and Agent Workflow is available inside the final collapsed section.
+Given a complete plan, when reading top to bottom after the hero/caveats, then sections appear as Evidence Map, Weather and Elevation, Recently Reported Species, GBIF Occurrence Context, Field Plan, calendar controls, and Evidence and Provenance. No standalone Call and Media Examples section exists, and Agent Workflow is available inside the final collapsed section.
 
 ### Existing plan after backfill
 

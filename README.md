@@ -11,7 +11,7 @@ Dagster—without always-on infrastructure.
 
 ## Rufous
 
-![Rufous trip planner showing a persisted, evidence-grounded Arizona field plan](docs/images/rufous-trip-planner.jpg)
+![Rufous trip planner showing a real Willcox plan, its enforced 50 km evidence map, evidence-ranked recommendations, and coherent weather](docs/images/rufous-trip-planner.jpg)
 
 Rufous is the user-facing birding product built on Databox: a React/TypeScript
 interface for interactive Arizona encounter maps, personal collections,
@@ -23,13 +23,27 @@ planning.
 Rufous is local-first and loopback-only. It is not a deployed multi-tenant SaaS
 product; DuckDB and model credentials stay behind the local typed API.
 
+Rufous does not estimate encounter probability. Its recently reported group
+contains species with distinct eBird submissions in the configured eBird
+lookback (30 days back by default, with both boundary dates included); its GBIF
+occurrence-context group contains species without qualifying eBird submissions
+in that lookback. The first group sorts by eligible submission count, newest
+report, then species name; the
+second sorts by distinct occurrence count, newest occurrence date or year, then
+species name. Each source record counts once. The planner records the exact date
+range in its trace; all eBird and GBIF evidence used for ranking is within the
+enforced 50 km radius.
+
 ```bash
-task verify            # populate the local warehouse
+task full-refresh       # populate routine sources after the one-time bootstrap below
 task app:dev           # FastAPI :8000 + Vite :5173 with hot reload
 task app:check         # typecheck + tests + build + configured bundle audit
 task app:audit-bundle  # audit an existing build
 task app               # build and serve at http://127.0.0.1:8000
 ```
+
+`task verify` is a bounded smoke refresh for pipeline verification; it is not the
+data-population step for Rufous.
 
 See the [Rufous operations guide](docs/rufous-operations.md) for local setup and
 operator-only delivery procedures.
@@ -84,8 +98,11 @@ After the initial dependency install, source tests replay recorded responses, so
 
 ### Build the local warehouse
 
-Configure the source credentials in `.env`. For a new database, bootstrap the
-pinned AVONET snapshot once, then refresh the routine sources:
+After `task install`, configure `EBIRD_API_TOKEN`, `NOAA_API_TOKEN`, and
+`XENO_CANTO_API_KEY` in `.env`. Live trip-plan synthesis also requires
+`CF_WORKERS_AI_API_KEY` and `CF_WORKERS_AI_ACCOUNT_ID`; keep the example's
+allowlisted model selector. For a new database, bootstrap the pinned AVONET
+snapshot once, then refresh the routine sources:
 
 ```bash
 $EDITOR .env
@@ -93,7 +110,7 @@ mkdir -p data .dagster
 DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
   uv run dg launch --target-path packages/databox --job avonet_ingest
 task full-refresh   # ingest and transform into data/databox.duckdb
-task dagster:dev    # inspect assets at http://localhost:3000
+task app            # build and serve Rufous at http://127.0.0.1:8000
 ```
 
 AVONET is intentionally excluded from routine refreshes. See the

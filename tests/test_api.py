@@ -222,7 +222,7 @@ RECOMMENDATION_KEYS = {
     "scientific_name",
     "recommendation_group",
     "rank_order",
-    "confidence_label",
+    "evidence_label",
     "rationale_text",
     "caveats",
     "photo",
@@ -623,6 +623,21 @@ def test_source_scientific_name_survives_lookup_persistence_and_api_reload(
     assert loaded_gbif["summary"] == gbif_evidence["summary"]
     assert loaded_gbif["payload"] == gbif_evidence["payload"]
 
+    connection = duckdb.connect(str(database_path))
+    connection.execute(
+        """ALTER TABLE birding_agent.trip_plan_recommendations
+        RENAME COLUMN evidence_label TO legacy_evidence_metadata"""
+    )
+    connection.execute(
+        """UPDATE birding_agent.trip_plan_recommendations
+        SET legacy_evidence_metadata = 'unsupported legacy label'"""
+    )
+    connection.close()
+    legacy = client.get(f"/api/trip-plans/{created['plan']['trip_plan_id']}")
+    assert legacy.status_code == 200
+    assert legacy.json()["recommendations"][0]["recommendation_group"] == "gbif_context"
+    assert legacy.json()["recommendations"][0]["evidence_label"] == "one GBIF occurrence record"
+
     persisted_photo = next(
         row for row in created["evidence"] if row["evidence_type"] == "recommendation_photo"
     )
@@ -646,6 +661,21 @@ def test_source_scientific_name_survives_lookup_persistence_and_api_reload(
     assert tampered.json()["recommendations"][0]["photo"]["status"] == "unavailable"
     assert tampered.json()["recommendations"][0]["photo"]["display_url"] is None
 
+    connection = duckdb.connect(str(database_path))
+    connection.execute(
+        """UPDATE birding_agent.trip_plan_recommendations
+        SET recommendation_group = 'unsupported_legacy_group'
+        WHERE trip_plan_id = ?""",
+        [created["plan"]["trip_plan_id"]],
+    )
+    connection.close()
+    hidden_legacy = client.get(f"/api/trip-plans/{created['plan']['trip_plan_id']}")
+    assert hidden_legacy.status_code == 404
+    assert all(
+        row["trip_plan_id"] != created["plan"]["trip_plan_id"]
+        for row in client.get("/api/trip-plans").json()["plans"]
+    )
+
 
 def test_create_list_and_reload_persisted_trip_plan(tmp_path: Path) -> None:
     client = _client(tmp_path)
@@ -664,7 +694,7 @@ def test_create_list_and_reload_persisted_trip_plan(tmp_path: Path) -> None:
     _assert_detail_contract(created)
     plan_id = created["plan"]["trip_plan_id"]
     assert created["plan"]["plan_status"] == "complete"
-    assert "High-likelihood species" in created["plan"]["field_plan_text"]
+    assert "Recently reported species" in created["plan"]["field_plan_text"]
     assert created["weather"]["source"] == "open_meteo"
     assert created["weather"]["payload"]["forecast_summary"] == {
         "temperature_2m_min": 18.0,
@@ -708,9 +738,9 @@ def test_create_list_and_reload_persisted_trip_plan(tmp_path: Path) -> None:
             "mexjay",
             "Mexican Jay",
             "Aphelocoma wollweberi",
-            "high_likelihood",
+            "recently_reported",
             1,
-            "high",
+            "one recent report",
             "Recent evidence",
             "[]",
             "2026-07-09T12:00:00",

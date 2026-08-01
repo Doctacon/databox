@@ -20,8 +20,8 @@ Before authoring, the executor MUST verify whether an active skill-writing skill
 - `.10x/decisions/local-single-user-birding-pokedex-expansion.md`
 - `.10x/specs/arizona-bird-catalog-and-profile.md`
 - `.10x/specs/avonet-bird-traits-source.md`
-- Global reference skill: `/Users/crlough/.pi/agent/skills/turbo-search-retrieve/SKILL.md`
-- Global operational reference: `/Users/crlough/.pi/agent/skills/turbopuffer-site-rag/SKILL.md`
+- Global reference skill: `$HOME/.pi/agent/skills/turbo-search-retrieve/SKILL.md`
+- Global operational reference: `$HOME/.pi/agent/skills/turbopuffer-site-rag/SKILL.md`
 
 ## Acceptance criteria
 

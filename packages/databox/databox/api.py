@@ -235,9 +235,9 @@ class RecommendationResponse(BaseModel):
     species_code: str | None
     common_name: str | None
     scientific_name: str | None
-    recommendation_group: str
+    recommendation_group: Literal["recently_reported", "gbif_context"]
     rank_order: int
-    confidence_label: str | None
+    evidence_label: str | None
     rationale_text: str | None
     caveats: list[str]
     photo: RecommendationPhotoResponse
@@ -421,7 +421,7 @@ class MapEncounterResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     source_observation_id: str = Field(
-        strict=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"
+        strict=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_|-]+$"
     )
     species_code: str = Field(strict=True, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9]+$")
     common_name: str | None = Field(default=None, strict=True, max_length=200)
@@ -974,16 +974,41 @@ def _table_exists(connection: duckdb.DuckDBPyConnection, table: str) -> bool:
     return row is not None
 
 
+def _column_exists(connection: duckdb.DuckDBPyConnection, table: str, column: str) -> bool:
+    schema, name = table.split(".", 1)
+    row = connection.execute(
+        """
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = ? AND table_name = ? AND column_name = ?
+        """,
+        [schema, name, column],
+    ).fetchone()
+    return row is not None
+
+
 def _plan_summaries(connection: duckdb.DuckDBPyConnection) -> list[PlanSummaryResponse]:
     if not _table_exists(connection, "birding_agent.trip_plans"):
         return []
+    supported_recommendations = ""
+    if _table_exists(connection, "birding_agent.trip_plan_recommendations"):
+        supported_recommendations = """
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM birding_agent.trip_plan_recommendations AS recommendation
+                WHERE recommendation.trip_plan_id = trip_plans.trip_plan_id
+                  AND recommendation.recommendation_group NOT IN (
+                      'recently_reported', 'gbif_context'
+                  )
+            )
+        """
     rows = _rows(
         connection.execute(
-            """
+            f"""
             SELECT trip_plan_id, requested_location, normalized_location_name,
                    window_start, window_end, duration_minutes, plan_status,
                    caveats_json, created_at, updated_at
             FROM birding_agent.trip_plans
+            {supported_recommendations}
             ORDER BY updated_at DESC, created_at DESC
             LIMIT 100
             """
@@ -999,6 +1024,19 @@ def _plan_detail(
 ) -> TripPlanDetailResponse | None:
     if not _table_exists(connection, "birding_agent.trip_plans"):
         return None
+    if _table_exists(connection, "birding_agent.trip_plan_recommendations"):
+        unsupported = connection.execute(
+            """
+            SELECT 1
+            FROM birding_agent.trip_plan_recommendations
+            WHERE trip_plan_id = ?
+              AND recommendation_group NOT IN ('recently_reported', 'gbif_context')
+            LIMIT 1
+            """,
+            [plan_id],
+        ).fetchone()
+        if unsupported is not None:
+            return None
     plans = _rows(
         connection.execute(
             """
@@ -1019,11 +1057,20 @@ def _plan_detail(
     plan_row["timezone"] = None
     plan = TripPlanResponse.model_validate(plan_row)
 
+    evidence_label_column = (
+        "evidence_label"
+        if _column_exists(
+            connection,
+            "birding_agent.trip_plan_recommendations",
+            "evidence_label",
+        )
+        else "NULL AS evidence_label"
+    )
     recommendation_rows = _rows(
         connection.execute(
-            """
+            f"""
             SELECT recommendation_id, species_code, common_name, scientific_name,
-                   recommendation_group, rank_order, confidence_label,
+                   recommendation_group, rank_order, {evidence_label_column},
                    rationale_text, caveats_json
             FROM birding_agent.trip_plan_recommendations
             WHERE trip_plan_id = ?
@@ -1053,6 +1100,47 @@ def _plan_detail(
         row["payload"] = _json_object(row.pop("payload_json", None))
         row["caveats"] = _json_strings(row.pop("caveats_json", None))
     evidence = [EvidenceResponse.model_validate(row) for row in evidence_rows]
+    for row in recommendation_rows:
+        recommendation_id = cast(str, row["recommendation_id"])
+        recent_report_ids = {
+            item.source_record_id
+            for item in evidence
+            if item.recommendation_id == recommendation_id
+            and item.source == "ebird"
+            and item.evidence_type == "recent_observation"
+            and item.status == "available"
+            and item.source_record_id is not None
+        }
+        gbif_occurrence_ids = {
+            item.source_record_id
+            for item in evidence
+            if item.recommendation_id == recommendation_id
+            and item.source == "gbif"
+            and item.evidence_type == "occurrence_context"
+            and item.status == "available"
+            and item.source_record_id is not None
+        }
+        if recent_report_ids:
+            row["recommendation_group"] = "recently_reported"
+        elif gbif_occurrence_ids:
+            row["recommendation_group"] = "gbif_context"
+        if row.get("evidence_label") is None:
+            if recent_report_ids:
+                count = len(recent_report_ids)
+                row["evidence_label"] = (
+                    "one recent eBird report"
+                    if count == 1
+                    else f"{count} distinct recent eBird reports"
+                )
+            elif gbif_occurrence_ids:
+                count = len(gbif_occurrence_ids)
+                row["evidence_label"] = (
+                    "one GBIF occurrence record"
+                    if count == 1
+                    else f"{count} distinct GBIF occurrence records"
+                )
+            else:
+                row["evidence_label"] = "evidence-backed"
     media_by_recommendation = {
         (row.recommendation_id, row.evidence_type): row
         for row in evidence

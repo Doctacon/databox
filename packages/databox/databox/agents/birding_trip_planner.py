@@ -16,7 +16,8 @@ import uuid
 from collections import Counter
 from collections.abc import AsyncGenerator, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from math import isfinite
 from typing import Any, cast
 
 import duckdb
@@ -129,7 +130,7 @@ class SpeciesRecommendation:
     scientific_name: str | None
     recommendation_group: str
     rank_order: int
-    confidence_label: str
+    evidence_label: str
     rationale_text: str
     caveats: list[str]
 
@@ -196,9 +197,14 @@ class BirdingTripPlanner:
         xeno_api_key: str | None = None,
         now: Callable[[], datetime] | None = None,
         radius_km: float = DEFAULT_RADIUS_KM,
+        recent_evidence_days: int = settings.ebird_days_back,
     ) -> None:
         if model_client.model != CLOUDFLARE_WORKERS_AI_MODEL:
             raise ValueError(f"Only {CLOUDFLARE_WORKERS_AI_MODEL} may synthesize trip plans")
+        if not isfinite(radius_km) or radius_km <= 0:
+            raise ValueError("radius_km must be finite and positive")
+        if recent_evidence_days <= 0:
+            raise ValueError("recent_evidence_days must be positive")
         self.connection = connection
         self.model_client = model_client
         self.weather_getter = weather_getter
@@ -208,6 +214,7 @@ class BirdingTripPlanner:
         self.xeno_api_key = xeno_api_key
         self.now = now or (lambda: datetime.now(UTC))
         self.radius_km = radius_km
+        self.recent_evidence_days = recent_evidence_days
 
     def plan_trip(self, request: TripRequest, *, trip_plan_id: str | None = None) -> TripPlanResult:
         """Run the bounded planner tools and persist a queryable trip-plan artifact."""
@@ -236,6 +243,9 @@ class BirdingTripPlanner:
         )
         traces.append(trace)
 
+        oldest_recent_observation_date, newest_recent_observation_date = (
+            self._recent_observation_window(reference_date=request.start_at.date())
+        )
         recent_rows, trace = self._record_tool(
             step_order=2,
             tool_name="lookup_recent_observation_evidence",
@@ -244,9 +254,21 @@ class BirdingTripPlanner:
                 "longitude": location.longitude,
                 "region_code": location.region_code,
                 "radius_km": self.radius_km,
+                "oldest_observation_date": oldest_recent_observation_date.isoformat(),
+                "newest_observation_date": newest_recent_observation_date.isoformat(),
+                "recent_evidence_days": self.recent_evidence_days,
             },
-            call=lambda: self.lookup_recent_observation_evidence(location),
-            summary=lambda rows: {"row_count": len(rows)},
+            call=lambda: self.lookup_recent_observation_evidence(
+                location,
+                oldest_observation_date=oldest_recent_observation_date,
+                newest_observation_date=newest_recent_observation_date,
+            ),
+            summary=lambda rows: {
+                **_distance_lookup_summary(rows, self.radius_km),
+                "oldest_observation_date": oldest_recent_observation_date.isoformat(),
+                "newest_observation_date": newest_recent_observation_date.isoformat(),
+                "recent_evidence_days": self.recent_evidence_days,
+            },
         )
         traces.append(trace)
 
@@ -260,7 +282,7 @@ class BirdingTripPlanner:
                 "radius_km": self.radius_km,
             },
             call=lambda: self.lookup_gbif_occurrence_evidence(location),
-            summary=lambda rows: {"row_count": len(rows)},
+            summary=lambda rows: _distance_lookup_summary(rows, self.radius_km),
         )
         traces.append(trace)
 
@@ -292,19 +314,20 @@ class BirdingTripPlanner:
 
         ranked, trace = self._record_tool(
             step_order=5,
-            tool_name="rank_likely_species",
+            tool_name="rank_reported_species",
             tool_input={
                 "recent_observation_rows": len(recent_rows),
                 "gbif_occurrence_rows": len(occurrence_rows),
+                "enforced_radius_km": self.radius_km,
             },
-            call=lambda: self.rank_likely_species(recent_rows, occurrence_rows),
+            call=lambda: self.rank_reported_species(recent_rows, occurrence_rows),
             summary=lambda recs: {
                 "recommendation_count": len(recs),
-                "high_likelihood_count": sum(
-                    rec.recommendation_group == "high_likelihood" for rec in recs
+                "recently_reported_count": sum(
+                    rec.recommendation_group == "recently_reported" for rec in recs
                 ),
-                "uncommon_plausible_count": sum(
-                    rec.recommendation_group == "uncommon_plausible" for rec in recs
+                "gbif_context_count": sum(
+                    rec.recommendation_group == "gbif_context" for rec in recs
                 ),
             },
         )
@@ -453,163 +476,237 @@ class BirdingTripPlanner:
 
         return resolve_arizona_location(location, resolved_location)
 
+    def _recent_observation_window(
+        self, *, reference_date: date | None = None
+    ) -> tuple[date, date]:
+        today = self.now().date()
+        newest = min(today, reference_date) if reference_date is not None else today
+        return newest - timedelta(days=self.recent_evidence_days), newest
+
     def lookup_recent_observation_evidence(
-        self, location: NormalizedLocation, *, limit: int = 200
+        self,
+        location: NormalizedLocation,
+        *,
+        oldest_observation_date: date | None = None,
+        newest_observation_date: date | None = None,
     ) -> list[dict[str, Any]]:
+        default_oldest, default_newest = self._recent_observation_window()
+        cutoff = oldest_observation_date or default_oldest
+        ceiling = newest_observation_date or default_newest
+        if cutoff > ceiling:
+            raise ValueError("oldest_observation_date cannot be after newest_observation_date")
         query = """
-            SELECT
-                observation_evidence_id,
-                source_table,
-                source_record_id,
-                species_code,
-                common_name,
-                scientific_name,
-                observation_datetime,
-                observation_date,
-                observation_count,
-                count_display,
-                location_name,
-                region_code,
-                latitude,
-                longitude,
-                is_notable,
-                loaded_at,
-                (
+            WITH measured AS (
+                SELECT
+                    observation_evidence_id,
+                    source_table,
+                    source_record_id,
+                    species_code,
+                    common_name,
+                    scientific_name,
+                    observation_datetime,
+                    observation_date,
+                    observation_count,
+                    count_display,
+                    location_name,
+                    region_code,
+                    latitude,
+                    longitude,
+                    is_notable,
+                    loaded_at,
                     111.32 * sqrt(
-                        power(COALESCE(latitude, ?) - ?, 2)
-                        + power((COALESCE(longitude, ?) - ?) * cos(radians(?)), 2)
-                    )
-                ) AS distance_km
-            FROM birding_agent.recent_observation_evidence
-            WHERE is_valid IS TRUE
-              AND is_reviewed IS TRUE
-              AND is_location_private IS FALSE
-              AND (? IS NULL OR region_code = ?)
-            ORDER BY distance_km ASC, observation_datetime DESC NULLS LAST
-            LIMIT ?
-        """
-        return _fetch_dicts(
-            self.connection,
-            query,
-            [
-                location.latitude,
-                location.latitude,
-                location.longitude,
-                location.longitude,
-                location.latitude,
-                location.region_code,
-                location.region_code,
-                limit,
-            ],
-        )
-
-    def lookup_gbif_occurrence_evidence(
-        self, location: NormalizedLocation, *, limit: int = 200
-    ) -> list[dict[str, Any]]:
-        query = """
-            SELECT
-                occurrence_evidence_id,
-                source_table,
-                source_record_id,
-                species_code,
-                scientific_name,
-                source_scientific_name,
-                accepted_scientific_name,
-                common_name,
-                family,
-                genus,
-                latitude,
-                longitude,
-                locality,
-                state_province,
-                event_date_text,
-                year,
-                month,
-                basis_of_record,
-                occurrence_status,
-                license,
-                source_reference_url,
-                loaded_at,
-                (
-                    111.32 * sqrt(
-                        power(COALESCE(latitude, ?) - ?, 2)
-                        + power((COALESCE(longitude, ?) - ?) * cos(radians(?)), 2)
-                    )
-                ) AS distance_km
-            FROM birding_agent.gbif_occurrence_evidence
-            WHERE (
-                ? IS NULL
-                OR state_province ILIKE '%Arizona%'
-                OR _query_state_province = 'Arizona'
+                        power(latitude - ?, 2)
+                        + power((longitude - ?) * cos(radians(?)), 2)
+                    ) AS distance_km
+                FROM birding_agent.recent_observation_evidence
+                WHERE is_valid IS TRUE
+                  AND is_reviewed IS TRUE
+                  AND is_location_private IS FALSE
+                  AND TRY_CAST(observation_date AS DATE) BETWEEN ? AND ?
+                  AND latitude IS NOT NULL
+                  AND longitude IS NOT NULL
+                  AND (? IS NULL OR region_code = ?)
+            ),
+            in_radius AS (
+                SELECT *, row_number() OVER (
+                    PARTITION BY
+                        COALESCE(NULLIF(source_record_id, ''), observation_evidence_id),
+                        COALESCE(
+                            NULLIF(species_code, ''), LOWER(common_name), LOWER(scientific_name)
+                        )
+                    ORDER BY observation_datetime DESC NULLS LAST, loaded_at DESC NULLS LAST
+                ) AS source_rank
+                FROM measured
+                WHERE distance_km <= ?
             )
-            ORDER BY distance_km ASC, year DESC NULLS LAST, loaded_at DESC NULLS LAST
-            LIMIT ?
+            SELECT * EXCLUDE (source_rank)
+            FROM in_radius
+            WHERE source_rank = 1
+            ORDER BY distance_km ASC, observation_datetime DESC NULLS LAST
         """
         return _fetch_dicts(
             self.connection,
             query,
             [
                 location.latitude,
-                location.latitude,
-                location.longitude,
                 location.longitude,
                 location.latitude,
+                cutoff,
+                ceiling,
                 location.region_code,
-                limit,
+                location.region_code,
+                self.radius_km,
             ],
         )
 
-    def rank_likely_species(
+    def lookup_gbif_occurrence_evidence(self, location: NormalizedLocation) -> list[dict[str, Any]]:
+        query = """
+            WITH measured AS (
+                SELECT
+                    occurrence_evidence_id,
+                    source_table,
+                    source_record_id,
+                    species_code,
+                    scientific_name,
+                    source_scientific_name,
+                    accepted_scientific_name,
+                    common_name,
+                    family,
+                    genus,
+                    latitude,
+                    longitude,
+                    locality,
+                    state_province,
+                    event_date_text,
+                    year,
+                    month,
+                    basis_of_record,
+                    occurrence_status,
+                    license,
+                    source_reference_url,
+                    loaded_at,
+                    111.32 * sqrt(
+                        power(latitude - ?, 2)
+                        + power((longitude - ?) * cos(radians(?)), 2)
+                    ) AS distance_km
+                FROM birding_agent.gbif_occurrence_evidence
+                WHERE latitude IS NOT NULL
+                  AND longitude IS NOT NULL
+                  AND (
+                      ? IS NULL
+                      OR state_province ILIKE '%Arizona%'
+                      OR _query_state_province = 'Arizona'
+                  )
+            ),
+            in_radius AS (
+                SELECT *, row_number() OVER (
+                    PARTITION BY
+                        COALESCE(NULLIF(source_record_id, ''), occurrence_evidence_id),
+                        COALESCE(
+                            NULLIF(species_code, ''), LOWER(common_name), LOWER(scientific_name)
+                        )
+                    ORDER BY year DESC NULLS LAST, loaded_at DESC NULLS LAST
+                ) AS source_rank
+                FROM measured
+                WHERE distance_km <= ?
+            )
+            SELECT * EXCLUDE (source_rank)
+            FROM in_radius
+            WHERE source_rank = 1
+            ORDER BY distance_km ASC, year DESC NULLS LAST, loaded_at DESC NULLS LAST
+        """
+        return _fetch_dicts(
+            self.connection,
+            query,
+            [
+                location.latitude,
+                location.longitude,
+                location.latitude,
+                location.region_code,
+                self.radius_km,
+            ],
+        )
+
+    def rank_reported_species(
         self,
         recent_rows: Sequence[Mapping[str, Any]],
         occurrence_rows: Sequence[Mapping[str, Any]],
     ) -> list[SpeciesRecommendation]:
         species: dict[str, dict[str, Any]] = {}
-        for row in recent_rows:
+        for row in _dedupe_source_rows(recent_rows, source="ebird"):
             key = _species_key(row)
             if key is None:
                 continue
             item = species.setdefault(key, _species_seed(row))
             item["recent_count"] += 1
-            item["recent_observation_total"] += _count_value(row.get("observation_count"))
-            if row.get("is_notable"):
-                item["notable"] = True
+            item["recent_latest"] = max(
+                item["recent_latest"],
+                _sortable_date(
+                    row.get("observation_datetime")
+                    or row.get("observation_date")
+                    or row.get("loaded_at")
+                ),
+            )
 
-        for row in occurrence_rows:
+        for row in _dedupe_source_rows(occurrence_rows, source="gbif"):
             key = _species_key(row)
             if key is None:
                 continue
             item = species.setdefault(key, _species_seed(row))
             item["gbif_count"] += 1
+            item["gbif_latest"] = max(
+                item["gbif_latest"],
+                _sortable_date(
+                    row.get("event_date_text") or row.get("year") or row.get("loaded_at")
+                ),
+            )
 
-        scored = sorted(
-            species.values(),
-            key=lambda item: (
-                item["recent_count"] * 10 + item["recent_observation_total"] + item["gbif_count"],
-                item.get("common_name") or item.get("scientific_name") or "",
-            ),
-            reverse=True,
-        )
+        recently_reported = [item for item in species.values() if item["recent_count"] > 0]
+        recently_reported.sort(key=_species_sort_name)
+        recently_reported.sort(key=lambda item: item["recent_latest"], reverse=True)
+        recently_reported.sort(key=lambda item: item["recent_count"], reverse=True)
+        recently_reported = recently_reported[:5]
 
-        high = [item for item in scored if item["recent_count"] > 0][:5]
-        plausible = [
-            item for item in scored if item["recent_count"] == 0 and item["gbif_count"] > 0
-        ][:3]
-        if not plausible:
-            plausible = [item for item in scored if item.get("notable")][:2]
+        gbif_context = [
+            item
+            for item in species.values()
+            if item["recent_count"] == 0 and item["gbif_count"] > 0
+        ]
+        gbif_context.sort(key=_species_sort_name)
+        gbif_context.sort(key=lambda item: item["gbif_latest"], reverse=True)
+        gbif_context.sort(key=lambda item: item["gbif_count"], reverse=True)
+        gbif_context = gbif_context[:3]
 
         recommendations: list[SpeciesRecommendation] = []
         rank_order = 1
-        for group_name, items in (("high_likelihood", high), ("uncommon_plausible", plausible)):
+        for group_name, items in (
+            ("recently_reported", recently_reported),
+            ("gbif_context", gbif_context),
+        ):
             for item in items:
                 recent_count = item["recent_count"]
                 gbif_count = item["gbif_count"]
-                confidence = (
-                    "high" if recent_count >= 2 else "medium" if recent_count else "plausible"
+                evidence_label = (
+                    _count_label(recent_count, "distinct recent eBird submission")
+                    if recent_count
+                    else _count_label(gbif_count, "distinct GBIF occurrence")
                 )
-                rationale = _rationale(group_name, recent_count, gbif_count)
+                rationale = _rationale(
+                    group_name,
+                    recent_count,
+                    gbif_count,
+                    radius_km=self.radius_km,
+                    recent_evidence_days=self.recent_evidence_days,
+                )
                 caveats = (
-                    [] if recent_count else ["No recent eBird evidence in the modeled local slice"]
+                    []
+                    if recent_count
+                    else [
+                        "No qualifying eBird submission in the configured "
+                        f"eBird lookback ({self.recent_evidence_days} days back) within the "
+                        "enforced "
+                        f"{_format_radius(self.radius_km)} km radius"
+                    ]
                 )
                 recommendations.append(
                     SpeciesRecommendation(
@@ -620,7 +717,7 @@ class BirdingTripPlanner:
                         scientific_name=cast(str | None, item.get("scientific_name")),
                         recommendation_group=group_name,
                         rank_order=rank_order,
-                        confidence_label=confidence,
+                        evidence_label=evidence_label,
                         rationale_text=rationale,
                         caveats=caveats,
                     )
@@ -635,10 +732,18 @@ class BirdingTripPlanner:
         recommendations: Sequence[SpeciesRecommendation],
         weather_context: OpenMeteoTripContext,
     ) -> list[EvidenceRecord]:
-        rec_by_species = {_rec_key(rec): rec.recommendation_id for rec in recommendations}
+        rec_by_species = {
+            key: rec.recommendation_id
+            for rec in recommendations
+            if (key := _rec_key(rec)) is not None
+        }
         evidence: list[EvidenceRecord] = []
 
-        for row in recent_rows[:50]:
+        for row in _dedupe_source_rows(recent_rows, source="ebird"):
+            species_key = _row_key(row)
+            recommendation_id = rec_by_species.get(species_key) if species_key is not None else None
+            if recommendation_id is None:
+                continue
             evidence.append(
                 EvidenceRecord(
                     source="ebird",
@@ -648,23 +753,34 @@ class BirdingTripPlanner:
                     status="available",
                     latitude=_float_or_none(row.get("latitude")),
                     longitude=_float_or_none(row.get("longitude")),
-                    recommendation_id=rec_by_species.get(_row_key(row)),
+                    recommendation_id=recommendation_id,
                     summary={
                         "common_name": row.get("common_name"),
                         "scientific_name": row.get("scientific_name"),
                         "observation_date": row.get("observation_date"),
                         "location_name": row.get("location_name"),
                         "count_display": row.get("count_display"),
+                        "distance_km": row.get("distance_km"),
                     },
                     payload=dict(row),
                 )
             )
         if not recent_rows:
             evidence.append(
-                _missing_evidence("ebird", "recent_observation", "No recent eBird rows found")
+                _missing_evidence(
+                    "ebird",
+                    "recent_observation",
+                    "No qualifying eBird submissions were found in the configured "
+                    f"eBird lookback ({self.recent_evidence_days} days back) within the enforced "
+                    f"{_format_radius(self.radius_km)} km radius",
+                )
             )
 
-        for row in occurrence_rows[:50]:
+        for row in _dedupe_source_rows(occurrence_rows, source="gbif"):
+            species_key = _row_key(row)
+            recommendation_id = rec_by_species.get(species_key) if species_key is not None else None
+            if recommendation_id is None:
+                continue
             evidence.append(
                 EvidenceRecord(
                     source="gbif",
@@ -674,7 +790,7 @@ class BirdingTripPlanner:
                     status="available",
                     latitude=_float_or_none(row.get("latitude")),
                     longitude=_float_or_none(row.get("longitude")),
-                    recommendation_id=rec_by_species.get(_row_key(row)),
+                    recommendation_id=recommendation_id,
                     summary={
                         "common_name": row.get("common_name"),
                         "scientific_name": row.get("scientific_name"),
@@ -683,12 +799,20 @@ class BirdingTripPlanner:
                         "event_date_text": row.get("event_date_text"),
                         "locality": row.get("locality"),
                         "license": row.get("license"),
+                        "distance_km": row.get("distance_km"),
                     },
                     payload=dict(row),
                 )
             )
         if not occurrence_rows:
-            evidence.append(_missing_evidence("gbif", "occurrence_context", "No GBIF rows found"))
+            evidence.append(
+                _missing_evidence(
+                    "gbif",
+                    "occurrence_context",
+                    "No qualifying GBIF occurrences were found within the enforced "
+                    f"{_format_radius(self.radius_km)} km radius",
+                )
+            )
 
         return evidence
 
@@ -701,28 +825,36 @@ class BirdingTripPlanner:
         caveats: Sequence[str],
         action_ids: Sequence[PlanActionId],
     ) -> str:
-        high = [rec for rec in recommendations if rec.recommendation_group == "high_likelihood"]
-        plausible = [
-            rec for rec in recommendations if rec.recommendation_group == "uncommon_plausible"
+        recently_reported = [
+            rec for rec in recommendations if rec.recommendation_group == "recently_reported"
+        ]
+        gbif_context = [
+            rec for rec in recommendations if rec.recommendation_group == "gbif_context"
         ]
         weather_bits = _weather_sentence(weather_context)
-        high_text = (
-            ", ".join(self._species_label(rec) for rec in high) or "no high-likelihood species"
+        recently_reported_text = (
+            ", ".join(self._species_label(rec) for rec in recently_reported)
+            or "no qualifying recent reports"
         )
-        plausible_text = (
-            ", ".join(self._species_label(rec) for rec in plausible) or "no uncommon targets"
+        gbif_context_text = (
+            ", ".join(self._species_label(rec) for rec in gbif_context)
+            or "no GBIF-only occurrence context"
         )
-        constraint_text = (
-            f" Constraints noted: {request.constraints_text}." if request.constraints_text else ""
-        )
+        constraint_text = ""
+        if request.constraints_text:
+            constraint_value = request.constraints_text.strip()
+            if constraint_value:
+                punctuation = "" if constraint_value.endswith((".", "!", "?")) else "."
+                constraint_text = f" Constraints noted: {constraint_value}{punctuation}"
         caveat_text = " Caveats: " + "; ".join(caveats) if caveats else ""
         action_text = " ".join(_PLAN_ACTION_TEXT[action_id] for action_id in action_ids)
         return (
             f"Plan {request.duration_minutes} minutes at {location.normalized_location_name} "
             f"starting {request.start_at.isoformat()} and ending {request.end_at.isoformat()}. "
             f"{weather_bits} {action_text} "
-            f"High-likelihood species: {high_text}. "
-            f"Uncommon but plausible targets: {plausible_text}."
+            "Recently reported species (evidence ranking, not encounter probability): "
+            f"{recently_reported_text}. "
+            f"GBIF occurrence context: {gbif_context_text}."
             f"{constraint_text}{caveat_text}"
         )
 
@@ -830,7 +962,7 @@ class BirdingTripPlanner:
                     scientific_name,
                     recommendation_group,
                     rank_order,
-                    confidence_label,
+                    evidence_label,
                     rationale_text,
                     caveats_json,
                     created_at
@@ -845,7 +977,7 @@ class BirdingTripPlanner:
                     rec.scientific_name,
                     rec.recommendation_group,
                     rec.rank_order,
-                    rec.confidence_label,
+                    rec.evidence_label,
                     rec.rationale_text,
                     json.dumps(rec.caveats, sort_keys=True),
                     now,
@@ -958,9 +1090,16 @@ class BirdingTripPlanner:
     ) -> list[str]:
         caveats = list(location.caveats)
         if not recent_rows:
-            caveats.append("No recent eBird evidence was available for the requested location")
+            caveats.append(
+                "No qualifying eBird submissions were available in the configured "
+                f"eBird lookback ({self.recent_evidence_days} days back) within the enforced "
+                f"{_format_radius(self.radius_km)} km radius"
+            )
         if not occurrence_rows:
-            caveats.append("No GBIF occurrence context was available for the requested location")
+            caveats.append(
+                "No qualifying GBIF occurrence context was available within the enforced "
+                f"{_format_radius(self.radius_km)} km radius"
+            )
         caveats.extend(weather_context.caveats)
         return caveats
 
@@ -976,8 +1115,12 @@ class BirdingTripPlanner:
         caveats: Sequence[str],
     ) -> tuple[Any, ToolTrace]:
         started = self.now().isoformat()
-        evidence_counts = Counter(row.source for row in evidence)
-        evidence_counts["open_meteo"] += 1
+        evidence_counts = Counter(row.source for row in evidence if row.status == "available")
+        evidence_source_counts = {
+            "ebird": evidence_counts.get("ebird", 0),
+            "gbif": evidence_counts.get("gbif", 0),
+            "open_meteo": int(weather_context.status != "unavailable"),
+        }
         model_request = GroundedSynthesisRequest(
             requested_location=request.location,
             normalized_location_name=location.normalized_location_name,
@@ -1003,7 +1146,7 @@ class BirdingTripPlanner:
                 for rec in recommendations
             ],
             caveats=list(caveats),
-            evidence_source_counts=dict(sorted(evidence_counts.items())),
+            evidence_source_counts=evidence_source_counts,
         )
         tool_input = {
             "model": CLOUDFLARE_WORKERS_AI_MODEL,
@@ -1144,7 +1287,7 @@ def build_root_agent() -> Agent:
             lookup_recent_observation_evidence_tool,
             lookup_gbif_occurrence_evidence_tool,
             fetch_open_meteo_trip_context_tool,
-            rank_likely_species_tool,
+            rank_reported_species_tool,
             enrich_recommendation_media_tool,
             synthesize_grounded_trip_plan_tool,
             persist_trip_plan_tool,
@@ -1191,10 +1334,10 @@ def fetch_open_meteo_trip_context_tool(
     }
 
 
-def rank_likely_species_tool() -> dict[str, Any]:
+def rank_reported_species_tool() -> dict[str, Any]:
     """Describe the species-ranking tool contract."""
 
-    return {"tool": "rank_likely_species"}
+    return {"tool": "rank_reported_species"}
 
 
 def enrich_recommendation_media_tool(recommendation_ids: list[str]) -> dict[str, Any]:
@@ -1482,19 +1625,24 @@ def _species_key(row: Mapping[str, Any]) -> str | None:
 
 
 def _row_key(row: Mapping[str, Any]) -> str | None:
+    species_code = _lower_or_none(row.get("species_code"))
     common = _lower_or_none(row.get("common_name")) or _lower_or_none(row.get("english_name"))
     scientific = _lower_or_none(row.get("scientific_name")) or _lower_or_none(
         row.get("accepted_scientific_name")
     )
-    return common or scientific
+    if species_code:
+        return f"code:{species_code}"
+    if scientific:
+        return f"scientific:{scientific}"
+    return f"common:{common}" if common else None
 
 
 def _rec_key(rec: SpeciesRecommendation) -> str | None:
-    if rec.common_name:
-        return rec.common_name.lower()
+    if rec.species_code:
+        return f"code:{rec.species_code.casefold()}"
     if rec.scientific_name:
-        return rec.scientific_name.lower()
-    return None
+        return f"scientific:{rec.scientific_name.casefold()}"
+    return f"common:{rec.common_name.casefold()}" if rec.common_name else None
 
 
 def _species_seed(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -1503,30 +1651,95 @@ def _species_seed(row: Mapping[str, Any]) -> dict[str, Any]:
         "common_name": row.get("common_name"),
         "scientific_name": row.get("scientific_name") or row.get("accepted_scientific_name"),
         "recent_count": 0,
-        "recent_observation_total": 0,
+        "recent_latest": "",
         "gbif_count": 0,
-        "notable": False,
+        "gbif_latest": "",
     }
 
 
-def _count_value(value: object) -> int:
-    if isinstance(value, bool):
-        return 0
-    if isinstance(value, int | float):
-        return max(int(value), 0)
-    return 1 if value is None else 0
+def _dedupe_source_rows(
+    rows: Sequence[Mapping[str, Any]], *, source: str
+) -> list[Mapping[str, Any]]:
+    """Count each provider record at most once for a species."""
+
+    unique: list[Mapping[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for row in rows:
+        species_key = _species_key(row)
+        if species_key is None:
+            continue
+        source_record_id = _string_or_none(row.get("source_record_id"))
+        if source_record_id:
+            record_key = source_record_id
+        else:
+            fallback_fields = (
+                row.get("observation_evidence_id"),
+                row.get("occurrence_evidence_id"),
+                row.get("observation_datetime"),
+                row.get("event_date_text"),
+                row.get("latitude"),
+                row.get("longitude"),
+            )
+            record_key = json.dumps(fallback_fields, default=str, separators=(",", ":"))
+        identity = (f"{source}:{species_key}", record_key)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        unique.append(row)
+    return unique
 
 
-def _rationale(group_name: str, recent_count: int, gbif_count: int) -> str:
-    if group_name == "high_likelihood":
+def _sortable_date(value: object) -> str:
+    return "" if value is None else str(value)
+
+
+def _species_sort_name(item: Mapping[str, Any]) -> str:
+    return str(item.get("common_name") or item.get("scientific_name") or "").casefold()
+
+
+def _count_label(count: int, singular: str) -> str:
+    suffix = "" if count == 1 else "s"
+    return f"{count} {singular}{suffix}"
+
+
+def _format_radius(radius_km: float) -> str:
+    return f"{radius_km:g}"
+
+
+def _rationale(
+    group_name: str,
+    recent_count: int,
+    gbif_count: int,
+    *,
+    radius_km: float,
+    recent_evidence_days: int,
+) -> str:
+    radius = _format_radius(radius_km)
+    if group_name == "recently_reported":
+        recent_label = _count_label(recent_count, "distinct qualifying recent eBird submission")
+        gbif_label = _count_label(gbif_count, "distinct GBIF occurrence")
         return (
-            f"Included because modeled local evidence has {recent_count} recent eBird "
-            f"record(s) and {gbif_count} GBIF occurrence context row(s)."
+            f"Ranked from {recent_label} in the configured eBird lookback "
+            f"({recent_evidence_days} days back) and within {radius} km; "
+            f"GBIF supporting context contains "
+            f"{gbif_label}."
         )
     return (
-        "Included as uncommon-but-plausible because GBIF occurrence context exists "
-        f"without recent modeled eBird evidence ({gbif_count} GBIF row(s))."
+        f"Listed as GBIF occurrence context from {_count_label(gbif_count, 'distinct record')} "
+        f"within {radius} km, with no qualifying eBird submission in the configured "
+        f"eBird lookback ({recent_evidence_days} days back) and that radius."
     )
+
+
+def _distance_lookup_summary(rows: Sequence[Mapping[str, Any]], radius_km: float) -> dict[str, Any]:
+    distances = [
+        distance for row in rows if (distance := _float_or_none(row.get("distance_km"))) is not None
+    ]
+    return {
+        "row_count": len(rows),
+        "enforced_radius_km": radius_km,
+        "max_distance_km": max(distances) if distances else None,
+    }
 
 
 def _validate_recommendation_media_cardinality(

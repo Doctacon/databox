@@ -111,7 +111,7 @@ export function presentWeather(payload: JsonObject, evidenceSummary: JsonObject)
       { label: "Average humidity", value: percent(forecast.relative_humidity_2m_avg) },
       { label: "Precipitation chance", value: percent(forecast.precipitation_probability_max) },
       { label: "Precipitation total", value: precipitation(forecast.precipitation_sum) },
-      { label: "Maximum sustained wind", value: speed(forecast.wind_speed_10m_max) },
+      { label: "Maximum 10 m wind speed", value: speed(forecast.wind_speed_10m_max) },
       { label: "Maximum gust", value: speed(forecast.wind_gusts_10m_max) },
       { label: "Elevation", value: elevationText },
     ],

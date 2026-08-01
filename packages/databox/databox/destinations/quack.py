@@ -50,8 +50,8 @@ def dlt_pipeline(*args: Any, **kwargs: Any) -> Any:
 _DLT_METADATA_TABLES = ("_dlt_loads", "_dlt_version", "_dlt_pipeline_state")
 
 _RAW_DEDUPE_KEYS: dict[tuple[str, str], tuple[str, ...]] = {
-    ("raw_ebird", "recent_observations"): ("sub_id",),
-    ("raw_ebird", "notable_observations"): ("sub_id",),
+    ("raw_ebird", "recent_observations"): ("sub_id", "species_code"),
+    ("raw_ebird", "notable_observations"): ("sub_id", "species_code"),
     ("raw_ebird", "hotspots"): ("loc_id",),
     ("raw_ebird", "species_list"): ("species_code",),
     ("raw_ebird", "taxonomy"): ("sci_name",),

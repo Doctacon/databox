@@ -71,9 +71,9 @@ export interface Recommendation {
   species_code: string | null;
   common_name: string | null;
   scientific_name: string | null;
-  recommendation_group: "high_likelihood" | "uncommon_plausible" | string;
+  recommendation_group: "recently_reported" | "gbif_context";
   rank_order: number;
-  confidence_label: string | null;
+  evidence_label: string | null;
   rationale_text: string | null;
   caveats: string[];
   photo: RecommendationPhoto;

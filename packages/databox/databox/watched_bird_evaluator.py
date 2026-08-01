@@ -1107,13 +1107,14 @@ def evaluate_watched_birds(
                 except (CloudflareWorkersAIError, ValidationError, ValueError):
                     caveats = [
                         *caveats,
-                        "Cloudflare GLM 5.2 enrichment was unavailable; "
+                        "Cloudflare GLM 4.7 Flash enrichment was unavailable; "
                         "deterministic facts are shown.",
                     ][:20]
             else:
                 caveats = [
                     *caveats,
-                    "Cloudflare GLM 5.2 enrichment was unavailable; deterministic facts are shown.",
+                    "Cloudflare GLM 4.7 Flash enrichment was unavailable; "
+                    "deterministic facts are shown.",
                 ][:20]
             connection.execute("BEGIN TRANSACTION")
             try:

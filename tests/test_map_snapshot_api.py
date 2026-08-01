@@ -144,6 +144,36 @@ def test_snapshot_returns_only_bounded_safe_exact_fields(tmp_path: Path) -> None
         assert forbidden not in serialized
 
 
+def test_snapshot_retains_two_species_from_one_checklist_as_unique_encounters(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "map.duckdb"
+    _database(path)
+    connection = duckdb.connect(path)
+    connection.execute(
+        "INSERT INTO birding_agent.arizona_species_catalog VALUES (?, ?, ?, ?, ?)",
+        ["def456", "Delta Bird", "Avis delta", "Fixture Birds", "Fixtureidae"],
+    )
+    connection.close()
+    _insert(path, source_observation_id="S123|abc123")
+    _insert(
+        path,
+        source_observation_id="S123|def456",
+        species_code="def456",
+        observation_datetime="2026-07-09 08:31:00",
+    )
+
+    response = _client(path).get("/api/map-snapshot")
+
+    assert response.status_code == 200
+    encounters = response.json()["encounters"]
+    assert {row["source_observation_id"] for row in encounters} == {
+        "S123|abc123",
+        "S123|def456",
+    }
+    assert {row["species_code"] for row in encounters} == {"abc123", "def456"}
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

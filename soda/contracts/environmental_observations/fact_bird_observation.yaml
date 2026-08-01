@@ -18,6 +18,11 @@ columns:
   - name: source_pipeline
   - name: source_table
   - name: source_observation_id
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
   - name: observation_datetime
   - name: observation_date
   - name: species_code

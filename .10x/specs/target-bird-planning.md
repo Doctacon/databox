@@ -1,12 +1,12 @@
 Status: active
 Created: 2026-07-10
-Updated: 2026-07-10
+Updated: 2026-08-01
 
 # Target-bird planning
 
 ## Purpose and scope
 
-This specification governs “Find this bird” from an Arizona catalog profile. It creates a target-specific local plan from modeled public eBird evidence, request-time weather, and the sole Cloudflare model `@cf/zai-org/glm-5.2`. It does not change the existing multi-bird Trip Planner or use personal observation history.
+This specification governs “Find this bird” from an Arizona catalog profile. It creates a target-specific local plan from modeled public eBird evidence, request-time weather, and the sole Cloudflare model `@cf/zai-org/glm-4.7-flash`. It does not change the existing multi-bird Trip Planner or use personal observation history.
 
 ## Request contract
 
@@ -31,7 +31,7 @@ If no candidate exists, persist and show an honest empty-evidence plan; do not b
 
 Open-Meteo MAY be called only after candidate ranking and only for the requested origin/window using the existing bounded tool. Weather status is available, partial, or unavailable with caveats.
 
-The GLM report MUST use strict bounded JSON Schema and only the exact target identity, request, ranked candidate facts, distances, source freshness, and normalized weather evidence. It MUST NOT add sightings, field marks, habitat claims, access permission, seasonality, or safety claims absent from inputs. Only `@cf/zai-org/glm-5.2` is permitted; no fallback model, parser repair, retry weakening, or timeout weakening.
+The GLM report MUST use strict bounded JSON Schema and only the exact target identity, request, ranked candidate facts, distances, source freshness, and normalized weather evidence. It MUST NOT add sightings, field marks, habitat claims, access permission, seasonality, or safety claims absent from inputs. Only `@cf/zai-org/glm-4.7-flash` is permitted; no fallback model, parser repair, retry weakening, or timeout weakening.
 
 Model failure MUST fail plan creation atomically and expose a safe retryable error, matching the existing planner contract. An evidence-empty request may still produce a bounded report that says no qualifying modeled location exists; the model may not invent alternatives.
 

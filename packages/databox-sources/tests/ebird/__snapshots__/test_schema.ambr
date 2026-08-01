@@ -209,7 +209,8 @@
           nullable: true
         species_code:
           data_type: text
-          nullable: true
+          nullable: false
+          primary_key: true
         sub_id:
           data_type: text
           nullable: false

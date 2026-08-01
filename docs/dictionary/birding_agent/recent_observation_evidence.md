@@ -39,7 +39,7 @@ Planner-ready recent eBird observation evidence from the environmental observati
 | `raw_source_table` | `UNKNOWN` | — | — |
 | `region_code` | `UNKNOWN` | — | — |
 | `scientific_name` | `UNKNOWN` | — | — |
-| `source_record_id` | `UNKNOWN` | missing (must_be=0) | — |
+| `source_record_id` | `TEXT` | missing (must_be=0), duplicate (must_be=0) | — |
 | `source_table` | `TEXT` | — | — |
 | `species_code` | `UNKNOWN` | — | — |
 

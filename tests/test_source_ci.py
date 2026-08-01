@@ -225,6 +225,7 @@ def test_frontend_job_runs_complete_node_22_gate_without_python_install() -> Non
     commands = [step.get("run") for step in steps if step.get("run")]
     assert commands == [
         "npm ci",
+        "npm audit --audit-level=high",
         "npm run typecheck",
         "npm test",
         "npm run build",

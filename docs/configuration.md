@@ -13,7 +13,7 @@ code imports it rather than redeclaring values.
 | Quack token | `DATABOX_QUACK_TOKEN` | `settings.quack_token` | Local client/server token |
 | Log level | `LOG_LEVEL` | `settings.log_level` | Default `INFO` |
 | Smoke mode | `DATABOX_SMOKE` | `settings.smoke` | Limits source rows for verification |
-| eBird window | `DATABOX_EBIRD_DAYS_BACK` | `settings.ebird_days_back` | Default 30 |
+| eBird window | `DATABOX_EBIRD_DAYS_BACK` | `settings.ebird_days_back` | Default 30; provider range 1–30 |
 | NOAA window | `DATABOX_NOAA_DAYS_BACK` | `settings.noaa_days_back` | Default 30 |
 | USGS window | `DATABOX_USGS_DAYS_BACK` | `settings.usgs_days_back` | Default 30 |
 | OpenLineage URL | `OPENLINEAGE_URL` | `settings.openlineage_url` | Optional; disabled when unset |
@@ -51,7 +51,7 @@ remain in `pyproject.toml`.
 ## Cloudflare Workers AI
 
 The local Python/Google ADK planner uses Cloudflare only for remote model
-inference. The runtime hard-allows exactly `@cf/zai-org/glm-5.2`; it has
+inference. The runtime hard-allows exactly `@cf/zai-org/glm-4.7-flash`; it has
 no fallback model and does not deploy a Worker. `CF_WORKERS_AI_MODEL_BASE_URL`
 accepts either that exact identifier, which derives Cloudflare's official
 account-specific `/ai/v1/chat/completions` endpoint from

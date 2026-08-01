@@ -26,10 +26,23 @@ describe("weather presentation", () => {
       "Average humidity": "55%",
       "Precipitation chance": "20%",
       "Precipitation total": "0.01 in / 0.3 mm",
-      "Maximum sustained wind": "4.3 mph / 7 km/h",
+      "Maximum 10 m wind speed": "4.3 mph / 7 km/h",
       "Maximum gust": "6.2 mph / 10 km/h",
       Elevation: weather.elevation,
     });
+  });
+
+  it("shows inconsistent provider wind maxima unchanged", () => {
+    const weather = presentWeather({
+      forecast_summary: {
+        wind_speed_10m_max: 26,
+        wind_gusts_10m_max: 21.2,
+      },
+    }, {});
+    const metrics = Object.fromEntries(weather.metrics.map((metric) => [metric.label, metric.value]));
+
+    expect(metrics["Maximum 10 m wind speed"]).toBe("16.2 mph / 26 km/h");
+    expect(metrics["Maximum gust"]).toBe("13.2 mph / 21.2 km/h");
   });
 
   it("keeps partial values visible and labels each missing field", () => {

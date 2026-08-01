@@ -16,6 +16,8 @@ columns:
     checks:
       - missing:
           must_be: 0
+      - duplicate:
+          must_be: 0
   - name: raw_source_table
   - name: species_code
   - name: common_name
