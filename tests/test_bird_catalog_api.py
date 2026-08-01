@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import socket
@@ -612,6 +613,49 @@ def test_static_frontend_fallback_serves_direct_bird_routes(tmp_path: Path) -> N
     assert client.get("/birds/bird000").text == "<main>local app shell</main>"
     assert client.get("/map").text == "<main>local app shell</main>"
     assert client.get("/my-birds").text == "<main>local app shell</main>"
+
+
+def test_static_javascript_is_transferred_with_gzip_when_supported(tmp_path: Path) -> None:
+    static_dir = tmp_path / "dist"
+    assets_dir = static_dir / "assets"
+    assets_dir.mkdir(parents=True)
+    (static_dir / "index.html").write_text("<main>local app shell</main>")
+    javascript = (
+        "const localMapRuntime={renderer:'maplibre',remoteTiles:false};\n" * 20_000
+    ).encode()
+    (assets_dir / "maplibre-gl-Ab12_cd3.js").write_bytes(javascript)
+    (assets_dir / "unhashed-runtime.js").write_bytes(javascript)
+    client = TestClient(
+        create_app(database_path=str(tmp_path / "missing.duckdb"), static_dir=static_dir)
+    )
+
+    with client.stream(
+        "GET", "/assets/maplibre-gl-Ab12_cd3.js", headers={"Accept-Encoding": "gzip"}
+    ) as compressed:
+        assert compressed.status_code == 200
+        assert compressed.headers["content-encoding"] == "gzip"
+        assert "Accept-Encoding" in compressed.headers["vary"]
+        assert compressed.headers["cache-control"] == ("public, max-age=31536000, immutable")
+        transferred = b"".join(compressed.iter_raw())
+    assert len(transferred) < len(javascript)
+    assert gzip.decompress(transferred) == javascript
+
+    identity = client.get(
+        "/assets/maplibre-gl-Ab12_cd3.js", headers={"Accept-Encoding": "identity"}
+    )
+    assert "content-encoding" not in identity.headers
+    assert int(identity.headers["content-length"]) == len(javascript)
+    assert identity.content == javascript
+
+    not_modified = client.get(
+        "/assets/maplibre-gl-Ab12_cd3.js",
+        headers={"Accept-Encoding": "identity", "If-None-Match": identity.headers["etag"]},
+    )
+    assert not_modified.status_code == 304
+    assert not_modified.headers["cache-control"] == "public, max-age=31536000, immutable"
+
+    unhashed = client.get("/assets/unhashed-runtime.js", headers={"Accept-Encoding": "identity"})
+    assert "cache-control" not in unhashed.headers
 
 
 def test_invalid_not_found_busy_and_malformed_location_states_are_safe(

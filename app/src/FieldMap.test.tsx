@@ -18,9 +18,9 @@ const mapState = vi.hoisted(() => ({ maps: [] as Array<{
   remove: ReturnType<typeof vi.fn>;
   clusterZoom: ReturnType<typeof vi.fn>;
   features: unknown[];
-}>, markers: [] as HTMLElement[] }));
+}>, markers: [] as HTMLElement[], runtimeFailure: false }));
 
-vi.mock("maplibre-gl", () => {
+vi.mock("./maplibreRuntime", () => {
   class FakeMap {
     options: Record<string, unknown>;
     handlers = new Map<string, (event: FakeMapEvent) => void>();
@@ -48,7 +48,12 @@ vi.mock("maplibre-gl", () => {
     addTo() { document.body.append(this.element); return this; }
     remove() { this.element.remove(); return this; }
   }
-  return { default: { Map: FakeMap, Marker: FakeMarker, NavigationControl: class {} }, Map: FakeMap, Marker: FakeMarker, NavigationControl: class {} };
+  const runtime = { Map: FakeMap, Marker: FakeMarker, NavigationControl: class {} };
+  return {
+    loadMapLibre: () => mapState.runtimeFailure
+      ? Promise.reject(new Error("runtime unavailable"))
+      : Promise.resolve(runtime),
+  };
 });
 
 function response(body: unknown, status = 200) {
@@ -217,7 +222,7 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/map");
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date("2026-07-11T12:00:00Z"));
-  mapState.maps.length = 0; mapState.markers.length = 0;
+  mapState.maps.length = 0; mapState.markers.length = 0; mapState.runtimeFailure = false;
   Object.defineProperty(window, "matchMedia", { configurable: true, value: vi.fn().mockReturnValue({ matches: false }) });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); window.history.replaceState(null, "", "/"); });
@@ -462,6 +467,19 @@ describe("Rufous Field Map", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("The local Field Map is unavailable");
     expect(mapState.maps).toHaveLength(0);
   });
+
+  it("keeps filters and the accessible list available when the local renderer fails", async () => {
+    mapState.runtimeFailure = true;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response(snapshot()));
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The interactive map could not start. Filters and the accessible encounter list remain available.",
+    );
+    expect(screen.getByRole("heading", { name: "Accessible encounter list" })).toBeVisible();
+    expect(screen.getByLabelText("Species")).toBeVisible();
+    expect(mapState.maps).toHaveLength(0);
+  });
 });
 
 describe("Rufous trip evidence map", () => {
@@ -485,7 +503,7 @@ describe("Rufous trip evidence map", () => {
     );
     expect(screen.getByText("Distinct recent eBird submissions; not encounter probability.")).toBeVisible();
     expect(screen.getByRole("region", { name: /4 distinct persisted evidence records inside the enforced 50 kilometer radius/ })).toBeVisible();
-    expect(mapState.maps).toHaveLength(1);
+    await waitFor(() => expect(mapState.maps).toHaveLength(1));
 
     const map = mapState.maps[0];
     const style = map.options.style as {

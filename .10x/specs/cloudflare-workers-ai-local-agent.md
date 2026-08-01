@@ -74,7 +74,7 @@ The model MUST NOT return user-facing factual prose or replace evidence-derived 
 
 Unit and DeepEval coverage MUST use a deterministic fake model client by default. CI MUST NOT require live Cloudflare calls or consume inference spend.
 
-A separate opt-in smoke command MAY call live Cloudflare Workers AI and MUST assert that the configured model is exactly `@cf/zai-org/glm-4.7-flash`.
+A separate opt-in smoke command MAY call live Cloudflare Workers AI and MUST assert that the configured model is exactly `@cf/zai-org/glm-4.7-flash`. It MUST exercise the distinct trip-plan, target-bird, and watched-report schemas with bounded synthetic inputs and MUST NOT print credential values.
 
 ## Acceptance criteria
 
@@ -82,4 +82,4 @@ A separate opt-in smoke command MAY call live Cloudflare Workers AI and MUST ass
 - Secrets stay server-side and are absent from browser assets/logs/records.
 - Bounded structured selection, deterministic rendering, async-safe ADK execution, atomic persistence, and explicit failure handling are tested.
 - Existing deterministic test/eval workflows remain offline and green.
-- An opt-in live smoke proves the configured Cloudflare account can invoke the required model.
+- An opt-in live smoke proves the configured Cloudflare account can invoke the required model with all three production structured-output schemas.

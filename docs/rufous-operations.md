@@ -16,14 +16,15 @@ browser opening, and sets `PYTEST_ADDOPTS=--no-cov` so the focused eval run is
 not affected by the repository-wide coverage gate. It uses a fake model client
 and makes no live Cloudflare request.
 
-Opt in to one live credential/model check with:
+Opt in to the three live credential/model schema checks with:
 
 ```bash
 task smoke:cloudflare-ai
 ```
 
-The smoke command uses only `@cf/zai-org/glm-4.7-flash` and never prints
-Cloudflare credentials.
+The smoke command makes one bounded request for each trip-plan, target-bird,
+and watched-report structured-output contract. It uses only
+`@cf/zai-org/glm-4.7-flash` and never prints Cloudflare credentials.
 
 ## Rufous local birding app
 
@@ -151,6 +152,11 @@ The browser calls `/api/*`; only the Python process can access
 DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable
 `task app:audit-bundle` command checks the compiled files for all configured
 Cloudflare variable names and non-empty local values without printing secrets.
+The version-locked MapLibre renderer is emitted as a same-origin, content-hashed
+asset and loaded only when a valid map can be shown. Production static responses
+of at least 1 KiB are gzip-compressed when the client supports it, and only
+content-hashed assets receive a one-year immutable cache policy; no map runtime
+is fetched from a CDN.
 
 Location autocomplete calls Open-Meteo geocoding through the local Python API;
 the browser never calls the upstream service directly. Search results and manual

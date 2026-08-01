@@ -15,7 +15,8 @@ from urllib.parse import urlsplit
 import duckdb
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import (
     BaseModel,
@@ -25,6 +26,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from starlette.types import Scope
 
 from databox.agent_tools.arizona_boundary import is_in_arizona
 from databox.agent_tools.open_meteo_geocoding import (
@@ -73,6 +75,15 @@ from databox.watched_bird_evaluator_api import register_watched_bird_routes
 
 JsonGetter = Callable[[str, Mapping[str, object]], dict[str, Any]]
 JsonObject = dict[str, Any]
+_CONTENT_HASHED_ASSET = re.compile(r"-[A-Za-z0-9_-]{8}\.[A-Za-z0-9]+$")
+
+
+class _ImmutableHashedStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        if response.status_code in {200, 304} and _CONTENT_HASHED_ASSET.search(Path(path).name):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return response
 
 
 class LocationSelectionRequest(BaseModel):
@@ -1663,6 +1674,7 @@ def create_app(
     db_path = database_path or settings.database_path
     frontend_dir = static_dir if static_dir is not None else PROJECT_ROOT / "app" / "dist"
     app = FastAPI(title="Rufous", docs_url="/api/docs", redoc_url=None)
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
     app.state.plan_lock = asyncio.Lock()
     app.state.target_plan_lock = asyncio.Lock()
     app.state.collection_lock = asyncio.Lock()
@@ -1980,7 +1992,7 @@ def create_app(
     if frontend_dir.is_dir():
         assets_dir = frontend_dir / "assets"
         if assets_dir.is_dir():
-            app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+            app.mount("/assets", _ImmutableHashedStaticFiles(directory=assets_dir), name="assets")
 
         @app.get("/{path:path}", include_in_schema=False)
         async def frontend(path: str) -> FileResponse:

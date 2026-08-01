@@ -1,8 +1,8 @@
 import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import maplibregl, { GeoJSONSource, Map as MapLibreMap, Marker } from "maplibre-gl";
-import type { StyleSpecification } from "maplibre-gl";
+import type { GeoJSONSource, Map as MapLibreMap, Marker, StyleSpecification } from "maplibre-gl";
 import type { FeatureCollection, GeoJsonProperties, Point, Polygon } from "geojson";
 import boundariesRaw from "./assets/arizona-boundaries.geojson?raw";
+import { loadMapLibre, type MapLibreRuntime } from "./maplibreRuntime";
 import { getMapSnapshot } from "./mapApi";
 import rufousImage from "./assets/rufous.png";
 import type { CatalogPhoto, MapEncounter, MapSnapshot, TripPlanDetail } from "./types";
@@ -22,6 +22,23 @@ const windows: Record<Exclude<Recency, "all">, number> = {
   "7d": 7 * 24 * 60 * 60 * 1000,
   "30d": 30 * 24 * 60 * 60 * 1000,
 };
+
+function useMapLibreRuntime(enabled: boolean): {
+  runtime: MapLibreRuntime | null;
+  failed: boolean;
+} {
+  const [runtime, setRuntime] = useState<MapLibreRuntime | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!enabled || runtime) return;
+    let current = true;
+    void loadMapLibre()
+      .then((value) => { if (current) setRuntime(value); })
+      .catch(() => { if (current) setFailed(true); });
+    return () => { current = false; };
+  }, [enabled, runtime]);
+  return { runtime, failed };
+}
 
 const localStyle: StyleSpecification = {
   version: 8 as const,
@@ -300,6 +317,7 @@ export function TripEvidenceMap({ detail }: { detail: TripPlanDetail }) {
   const mapRef = useRef<MapLibreMap | null>(null);
   const hasVerifiedRadius = useMemo(() => enforcedRadius(detail) !== null, [detail]);
   const data = useMemo(() => tripMapData(detail), [detail]);
+  const mapRuntime = useMapLibreRuntime(Boolean(data));
   const topRecentReports = useMemo(() => detail.recommendations
     .filter((row) => row.recommendation_group === "recently_reported")
     .sort((left, right) => left.rank_order - right.rank_order)
@@ -308,8 +326,9 @@ export function TripEvidenceMap({ detail }: { detail: TripPlanDetail }) {
     .slice(0, 3), [detail]);
 
   useEffect(() => {
-    if (!data || !mapContainer.current || mapRef.current) return;
-    const map = new maplibregl.Map({
+    const runtime = mapRuntime.runtime;
+    if (!data || !runtime || !mapContainer.current || mapRef.current) return;
+    const map = new runtime.Map({
       container: mapContainer.current,
       style: tripStyle(data),
       bounds: data.bounds,
@@ -319,12 +338,12 @@ export function TripEvidenceMap({ detail }: { detail: TripPlanDetail }) {
       pitchWithRotate: false,
     });
     mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new runtime.NavigationControl({ showCompass: false }), "top-right");
     return () => {
       map.remove();
       mapRef.current = null;
     };
-  }, [data]);
+  }, [data, mapRuntime.runtime]);
 
   const radiusLabel = data?.radiusKm.toLocaleString(undefined, { maximumFractionDigits: 1 });
   const ebirdCount = data?.rows.filter((row) => row.source === "ebird").length ?? 0;
@@ -347,6 +366,7 @@ export function TripEvidenceMap({ detail }: { detail: TripPlanDetail }) {
         </p>}
       </div>
       <div ref={mapContainer} className="map-canvas" role="region" aria-label={`Map of ${data.rows.length.toLocaleString()} distinct persisted evidence records inside the enforced ${radiusLabel} kilometer radius`} />
+      {mapRuntime.failed && <p className="caveat" role="alert">The interactive map could not start. The evidence summary and mapped-location list remain available.</p>}
       <details className="trip-map-locations">
         <summary>Mapped evidence locations</summary>
         {data.rows.length ? <ol>{data.rows.map((row) => <li key={row.key}>
@@ -372,6 +392,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   const sourceGenerationRef = useRef(0);
   const markerReadyGenerationRef = useRef(-1);
   const [snapshot, setSnapshot] = useState<MapSnapshot | null>(null);
+  const mapRuntime = useMapLibreRuntime(Boolean(snapshot));
   const [error, setError] = useState<string | null>(null);
   const [species, setSpecies] = useState("all");
   const [selectedFamily, setSelectedFamily] = useState("all");
@@ -458,8 +479,9 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   }, []);
 
   useEffect(() => {
-    if (!snapshot || !mapContainer.current || mapRef.current) return;
-    const map = new maplibregl.Map({
+    const runtime = mapRuntime.runtime;
+    if (!snapshot || !runtime || !mapContainer.current || mapRef.current) return;
+    const map = new runtime.Map({
       container: mapContainer.current,
       style: localStyle,
       bounds: ARIZONA_BOUNDS,
@@ -467,7 +489,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
       attributionControl: false,
     });
     mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.addControl(new runtime.NavigationControl({ showCompass: false }), "top-right");
 
     const expandCluster = (feature: { properties: GeoJsonProperties; geometry: { type: string; coordinates?: unknown } }) => {
       const clusterId = feature.properties?.cluster_id;
@@ -494,7 +516,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
         button.textContent = count.toLocaleString();
         button.setAttribute("aria-label", `Zoom to cluster containing ${count.toLocaleString()} eligible encounter${count === 1 ? "" : "s"}`);
         button.addEventListener("click", () => expandCluster(feature));
-        markerRef.current.push(new maplibregl.Marker({ element: button })
+        markerRef.current.push(new runtime.Marker({ element: button })
           .setLngLat(feature.geometry.coordinates as [number, number]).addTo(map));
       }
     };
@@ -530,7 +552,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
       map.remove();
       mapRef.current = null;
     };
-  }, [applyFilteredToMap, choose, snapshot]);
+  }, [applyFilteredToMap, choose, mapRuntime.runtime, snapshot]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -565,7 +587,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
       <p className="map-result-count" aria-live="polite">{filtered.length.toLocaleString()} eligible encounter{filtered.length === 1 ? "" : "s"}</p>
       {filtered.length === 0 && <p className="empty">{recency === "all" ? "No persisted encounters match these species and family filters." : "No persisted encounters fall inside this current-clock window. The local snapshot may be stale; choose All snapshot to inspect available evidence."}</p>}
       <div className="field-map-layout">
-        <section className="panel map-panel" aria-labelledby="map-canvas-heading"><h2 id="map-canvas-heading">Arizona encounter map</h2><div ref={mapContainer} className="map-canvas" aria-label="Interactive map of eligible Arizona encounters" /></section>
+        <section className="panel map-panel" aria-labelledby="map-canvas-heading"><h2 id="map-canvas-heading">Arizona encounter map</h2><div ref={mapContainer} className="map-canvas" aria-label="Interactive map of eligible Arizona encounters" />{mapRuntime.failed && <p className="caveat" role="alert">The interactive map could not start. Filters and the accessible encounter list remain available.</p>}</section>
         <aside className="field-map-rail" aria-label="Selected encounter and accessible encounter list">
           <section className="panel selected-encounter" aria-labelledby="selected-encounter-heading" aria-live="polite"><h2 id="selected-encounter-heading">Selected encounter</h2>{selected ? <><h3>{label(selected)}</h3><p>{selected.location_name}</p><p>{dateTime(selected.observation_at)} · {selected.observation_count.toLocaleString()} observed{selected.notable ? " · notable" : ""}</p>{selected.access_warning && <p className="caveat">Access may be restricted. Verify access before visiting.</p>}<a href={`/birds/${selected.species_code}`} onClick={(event) => profileLink(event, `/birds/${selected.species_code}`)}>View bird profile</a></> : <p>Select a map point or encounter-list row for details.</p>}</section>
           <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible encounter list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onMouseEnter={() => setHoverPreviewId(row.source_observation_id)} onMouseLeave={() => setHoverPreviewId(null)} onFocus={() => setFocusPreviewId(row.source_observation_id)} onBlur={() => setFocusPreviewId(null)} onClick={() => choose(row)}><EncounterThumbnail photo={photoBySpecies.get(row.species_code)} name={label(row)} /><span className="encounter-copy"><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {row.observation_count.toLocaleString()} observed{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</span></button><EncounterPhotoLinks photo={photoBySpecies.get(row.species_code)} /></li>)}</ol> : <p className="empty">No encounters to list.</p>}</section>

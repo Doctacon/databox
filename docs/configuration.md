@@ -59,7 +59,9 @@ account-specific `/ai/v1/chat/completions` endpoint from
 base/endpoint URL. Every other host, plain HTTP URL, and non-URL value is
 rejected. Requests use Cloudflare's OpenAI-compatible strict JSON Schema
 response format and retain local Pydantic plus exact-grounding validation.
-Validate configured credentials explicitly with `task smoke:cloudflare-ai`.
+Validate configured credentials and the distinct trip-plan, target-bird, and
+watched-report schemas explicitly with `task smoke:cloudflare-ai`. This opt-in
+check makes three bounded live requests and prints no credential values.
 Default unit tests and `task eval:agent` use deterministic fake model clients
 and make no paid/live calls.
 
