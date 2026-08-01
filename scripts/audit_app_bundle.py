@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -21,13 +22,33 @@ CONFIG_NAMES = (
     "BIRD_ALERT_SMTP_CA_FILE",
 )
 VALUE_NAMES = set(CONFIG_NAMES) - {"BIRD_ALERT_SMTP_ENABLED", "BIRD_ALERT_SMTP_PORT"}
-FORBIDDEN_MAP_RUNTIME_HOSTS = (
+ALLOWED_REMOTE_MAP_RESOURCE_ORIGIN = "https://tiles.openfreemap.org"
+FORBIDDEN_MAP_RESOURCE_HOSTS = (
     "api.mapbox.com",
     "tiles.mapbox.com",
     "tile.openstreetmap.org",
     "demotiles.maplibre.org",
     "fonts.googleapis.com",
 )
+
+
+def _invalid_openfreemap_origin(bundle: bytes) -> bool:
+    """Reject insecure, credentialed, port-qualified, or lookalike tile origins."""
+    allowed = ALLOWED_REMOTE_MAP_RESOURCE_ORIGIN.encode()
+    candidates = re.findall(
+        rb"(?i)(?:[a-z][a-z\d+.-]*:)?//[^\s\"'`<>]*tiles\.openfreemap\.org[^\s\"'`<>]*",
+        bundle,
+    )
+    for candidate in candidates:
+        if candidate == allowed:
+            continue
+        if not candidate.startswith(allowed) or candidate[len(allowed) : len(allowed) + 1] not in {
+            b"/",
+            b"?",
+            b"#",
+        }:
+            return True
+    return False
 
 
 def _parse_dotenv_value(raw_value: str) -> str:
@@ -91,9 +112,11 @@ def audit_bundle(bundle_dir: Path, configured: dict[str, str]) -> list[str]:
         value = configured.get(name, "")
         if name in VALUE_NAMES and value and value.encode() in bundle:
             findings.append(f"{name} configured value")
-    for host in FORBIDDEN_MAP_RUNTIME_HOSTS:
+    for host in FORBIDDEN_MAP_RESOURCE_HOSTS:
         if host.encode() in bundle:
-            findings.append(f"{host} remote map runtime")
+            findings.append(f"{host} forbidden remote map resource")
+    if _invalid_openfreemap_origin(bundle):
+        findings.append("tiles.openfreemap.org invalid map resource origin")
     return findings
 
 

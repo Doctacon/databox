@@ -15,10 +15,24 @@ const mapState = vi.hoisted(() => ({ maps: [] as Array<{
   fitBounds: ReturnType<typeof vi.fn>;
   setFilter: ReturnType<typeof vi.fn>;
   easeTo: ReturnType<typeof vi.fn>;
+  resize: ReturnType<typeof vi.fn>;
   remove: ReturnType<typeof vi.fn>;
   clusterZoom: ReturnType<typeof vi.fn>;
+  projectScale: number;
   features: unknown[];
-}>, markers: [] as HTMLElement[], runtimeFailure: false }));
+}>, markers: [] as HTMLElement[], runtimeFailure: false, remoteBasemap: false }));
+
+vi.mock("./openFreeMapStyle", () => ({
+  loadOpenFreeMapStyle: () => Promise.resolve(mapState.remoteBasemap ? {
+    status: "ready",
+    style: {
+      version: 8,
+      sources: { openmaptiles: { type: "vector", url: "https://tiles.openfreemap.org/planet" } },
+      glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+      layers: [{ id: "basemap-background", type: "background" }],
+    },
+  } : { status: "fallback" }),
+}));
 
 vi.mock("./maplibreRuntime", () => {
   class FakeMap {
@@ -28,14 +42,20 @@ vi.mock("./maplibreRuntime", () => {
     fitBounds = vi.fn();
     setFilter = vi.fn();
     easeTo = vi.fn();
+    resize = vi.fn();
     remove = vi.fn();
     clusterZoom = vi.fn().mockResolvedValue(8);
+    projectScale = 200;
     features: unknown[] = [];
     constructor(options: Record<string, unknown>) { this.options = options; mapState.maps.push(this); }
     addControl() { return this; }
     getSource() { return { setData: this.setData, getClusterExpansionZoom: this.clusterZoom }; }
     getZoom() { return 5; }
+    project(coordinates: [number, number]) {
+      return { x: (coordinates[0] + 113) * this.projectScale, y: (coordinates[1] - 34) * this.projectScale };
+    }
     querySourceFeatures() { return this.features; }
+    queryRenderedFeatures() { return this.features; }
     on(event: string, layerOrHandler: string | ((event: FakeMapEvent) => void), handler?: (event: FakeMapEvent) => void) {
       this.handlers.set(handler ? `${event}:${layerOrHandler}` : event, handler ?? layerOrHandler as (event: FakeMapEvent) => void);
       return this;
@@ -222,7 +242,7 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/map");
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(new Date("2026-07-11T12:00:00Z"));
-  mapState.maps.length = 0; mapState.markers.length = 0; mapState.runtimeFailure = false;
+  mapState.maps.length = 0; mapState.markers.length = 0; mapState.runtimeFailure = false; mapState.remoteBasemap = false;
   Object.defineProperty(window, "matchMedia", { configurable: true, value: vi.fn().mockReturnValue({ matches: false }) });
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); window.history.replaceState(null, "", "/"); });
@@ -493,26 +513,29 @@ describe("Rufous trip evidence map", () => {
     const { container, unmount } = render(<TripEvidenceMap detail={detail} />);
 
     expect(screen.getByRole("heading", { name: "Evidence Map" })).toBeVisible();
-    expect(screen.getByText("4 distinct persisted evidence records within the enforced 50 km radius")).toBeVisible();
+    expect(screen.getByText(
+      "4 distinct persisted evidence records across 3 approximate mapped locations · 4 species · within the enforced 50 km radius",
+    )).toBeVisible();
     const legend = screen.getByRole("list", { name: "Mapped evidence sources" });
-    expect(within(legend).getByText("2 eBird reports")).toBeVisible();
-    expect(within(legend).getByText("2 GBIF occurrences")).toBeVisible();
+    expect(within(legend).getByText("2 eBird reports · 1 location · 2 species")).toBeVisible();
+    expect(within(legend).getByText("2 GBIF occurrences · 2 locations · 2 species")).toBeVisible();
     expect(within(legend).getByText("Trip location")).toBeVisible();
     expect(container.querySelector(".trip-map-recommendations")).toHaveTextContent(
       "Evidence-ranked recommendations: Mexican Jay · Juniper Titmouse",
     );
     expect(screen.getByText("Distinct recent eBird submissions; not encounter probability.")).toBeVisible();
-    expect(screen.getByRole("region", { name: /4 distinct persisted evidence records inside the enforced 50 kilometer radius/ })).toBeVisible();
+    expect(screen.getByRole("region", { name: /4 distinct persisted evidence records across 3 approximate locations inside the enforced 50 kilometer radius/ })).toBeVisible();
     await waitFor(() => expect(mapState.maps).toHaveLength(1));
 
     const map = mapState.maps[0];
     const style = map.options.style as {
       sources: Record<string, { data: { features: Array<{ geometry: { coordinates: unknown }; properties: Record<string, unknown> }> } }>;
     };
-    expect(style.sources["trip-evidence"].data.features).toHaveLength(4);
-    expect(style.sources["trip-evidence"].data.features.map((feature) => feature.properties.source)).toEqual([
-      "gbif", "ebird", "ebird", "gbif",
+    expect(style.sources["trip-evidence"].data.features).toHaveLength(3);
+    expect(style.sources["trip-evidence"].data.features.map((feature) => feature.properties.source_mix)).toEqual([
+      "gbif", "ebird", "gbif",
     ]);
+    expect(style.sources["trip-evidence"].data.features.map((feature) => feature.properties.record_count)).toEqual([1, 2, 1]);
     const radiusRing = style.sources["trip-radius"].data.features[0].geometry.coordinates as [number, number][][];
     expect(radiusRing[0]).toHaveLength(65);
     expect(radiusRing[0][0]).toEqual(radiusRing[0].at(-1));
@@ -527,24 +550,89 @@ describe("Rufous trip evidence map", () => {
     expect(serializedStyle).not.toContain("glyphs");
     expect(serializedStyle).not.toContain("sprite");
     expect(serializedStyle).toContain("Apache County");
+    expect(await screen.findByText(/using the bundled Arizona boundary fallback/)).toBeVisible();
 
-    await userEvent.click(screen.getByText("Mapped evidence locations"));
-    expect(screen.getByText("Mexican Jay")).toBeVisible();
-    expect(screen.getAllByText(/eBird report · Thumb Butte · 1\.1 km from trip location/)).toHaveLength(2);
-    expect(screen.getByText("Juniper Titmouse")).toBeVisible();
-    expect(screen.getByText("Zone-tailed Hawk")).toBeVisible();
-    expect(screen.getByText(/GBIF occurrence · Prescott National Forest · 0\.9 km from trip location/)).toBeVisible();
-    expect(screen.getByText("Pinyon Jay")).toBeVisible();
-    expect(screen.getByText(/GBIF occurrence · Radius boundary · 50\.0 km from trip location/)).toBeVisible();
+    act(() => map.handlers.get("load")?.({}));
+    expect(map.resize).toHaveBeenCalledOnce();
+    expect(map.fitBounds).toHaveBeenCalledWith(map.options.bounds, {
+      padding: 32, maxZoom: 10, duration: 0,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Show full 50 km radius" }));
+    expect(map.resize).toHaveBeenCalledTimes(2);
+    expect(map.fitBounds).toHaveBeenCalledTimes(2);
+
+    await userEvent.click(screen.getByText("Mapped evidence locations (3)"));
+    const mappedLocations = screen.getByText("Mapped evidence locations (3)").closest("details")!;
+    const thumbButte = within(mappedLocations).getByRole("button", { name: /Thumb Butte/ });
+    expect(thumbButte).toHaveTextContent("2 eBird reports · 2 species · 1.1 km from the trip location");
+    expect(thumbButte).toHaveTextContent("Juniper Titmouse (1) · Mexican Jay (1)");
+    expect(within(mappedLocations).getByRole("button", { name: /Prescott National Forest/ })).toHaveTextContent(
+      "1 GBIF occurrence · 1 species · 0.9 km from the trip location",
+    );
+    expect(within(mappedLocations).getByRole("button", { name: /Radius boundary/ })).toHaveTextContent(
+      "1 GBIF occurrence · 1 species · 50.0 km from the trip location",
+    );
     expect(screen.queryByText(/Far Bird|Malformed Bird|Unavailable Bird|Wrong evidence type/)).not.toBeInTheDocument();
     expect(screen.queryByText(/S1|G1|G2|FAR|BAD|OFF|WEATHER/)).not.toBeInTheDocument();
     expect(screen.getByText(/not predicted current presence/)).toBeVisible();
     expect(screen.getByText(/planner's displayed local-distance approximation/)).toBeVisible();
-    expect(styles).toMatch(/\.trip-evidence-map \.map-canvas\s*\{[^}]*min-height:\s*clamp\(260px, 24vw, 320px\)/s);
-    expect(styles).toMatch(/@media \(max-width:\s*540px\)[\s\S]*?\.trip-evidence-map \.map-canvas\s*\{\s*min-height:\s*240px/);
+    expect(styles).toMatch(/\.trip-evidence-map \.map-canvas\s*\{[^}]*min-height:\s*clamp\(300px, 28vw, 360px\)/s);
+    expect(styles).toMatch(/@media \(max-width:\s*540px\)[\s\S]*?\.trip-evidence-map \.map-canvas\s*\{\s*min-height:\s*260px/);
+
+    const clusterMarker = screen.getByRole("button", {
+      name: "Zoom to 2 approximate evidence locations containing 3 records",
+    });
+    expect(clusterMarker).toHaveTextContent("2 loc");
+    await userEvent.click(clusterMarker);
+    expect(map.fitBounds).toHaveBeenLastCalledWith([
+      [-112.47, 34.54],
+      [-112.46, 34.55],
+    ], { padding: 72, maxZoom: 17, duration: 350 });
+
+    map.projectScale = 10_000;
+    act(() => map.handlers.get("moveend")?.({}));
+    expect(clusterMarker).not.toBeInTheDocument();
+    const locationMarker = await screen.findByRole("button", {
+      name: /2 records across 2 species at Thumb Butte, 2 eBird reports, 1\.1 km from the trip location/,
+    });
+    expect(document.activeElement).toHaveClass("trip-map-marker");
+    expect(document.activeElement).toHaveAccessibleName(/Prescott National Forest|Thumb Butte/);
+    expect(locationMarker).toHaveTextContent("2");
+    await userEvent.click(locationMarker);
+    expect(locationMarker).toHaveAttribute("aria-pressed", "true");
+    expect(thumbButte).toHaveAttribute("aria-pressed", "true");
+    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({
+      center: [-112.47, 34.55], zoom: 12, duration: 350,
+    }));
+    expect(screen.getAllByText("2 eBird reports · 2 species · 1.1 km from the trip location")).toHaveLength(2);
+    act(() => map.handlers.get("moveend")?.({}));
+    const refreshedLocationMarker = await screen.findByRole("button", {
+      name: /2 records across 2 species at Thumb Butte, 2 eBird reports, 1\.1 km from the trip location/,
+    });
+    expect(refreshedLocationMarker).not.toBe(locationMarker);
+    expect(refreshedLocationMarker).toHaveFocus();
+    expect(refreshedLocationMarker).toHaveAttribute("aria-pressed", "true");
 
     unmount();
     expect(map.remove).toHaveBeenCalledOnce();
+    expect(locationMarker).not.toBeInTheDocument();
+    expect(clusterMarker).not.toBeInTheDocument();
+  });
+
+  it("uses the validated labeled basemap while retaining local evidence and Census overlays", async () => {
+    mapState.remoteBasemap = true;
+    render(<TripEvidenceMap detail={tripDetail()} />);
+
+    await waitFor(() => expect(mapState.maps).toHaveLength(1));
+    const serializedStyle = JSON.stringify(mapState.maps[0].options.style);
+    expect(serializedStyle).toContain("https://tiles.openfreemap.org/planet");
+    expect(serializedStyle).toContain("https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf");
+    expect(serializedStyle).toContain("Apache County");
+    expect(serializedStyle).toContain("trip-evidence");
+    expect(screen.getByRole("link", { name: "OpenFreeMap" })).toHaveAttribute("href", "https://openfreemap.org/");
+    expect(screen.getByRole("link", { name: "OpenMapTiles" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "OpenStreetMap contributors" })).toBeVisible();
+    expect(screen.queryByText(/bundled Arizona boundary fallback/)).not.toBeInTheDocument();
   });
 
   it("explains why it cannot map evidence when successful lookup traces disagree", () => {
@@ -562,9 +650,11 @@ describe("Rufous trip evidence map", () => {
     detail.evidence = detail.evidence.filter((row) => row.evidence_id === "ev-far");
     render(<TripEvidenceMap detail={detail} />);
 
-    expect(screen.getByText("0 distinct persisted evidence records within the enforced 50 km radius")).toBeVisible();
-    expect(screen.getByRole("region", { name: /0 distinct persisted evidence records inside the enforced 50 kilometer radius/ })).toBeVisible();
-    await userEvent.click(screen.getByText("Mapped evidence locations"));
+    expect(screen.getByText(
+      "0 distinct persisted evidence records across 0 approximate mapped locations · 0 species · within the enforced 50 km radius",
+    )).toBeVisible();
+    expect(screen.getByRole("region", { name: /0 distinct persisted evidence records across 0 approximate locations inside the enforced 50 kilometer radius/ })).toBeVisible();
+    await userEvent.click(screen.getByText("Mapped evidence locations (0)"));
     expect(screen.getByText("No qualifying coordinate-bearing evidence was persisted for this plan.")).toBeVisible();
     expect(mapState.maps).toHaveLength(1);
   });

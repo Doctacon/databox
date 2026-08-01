@@ -153,10 +153,22 @@ DuckDB or Cloudflare credentials. After any standalone build, the copy-pasteable
 `task app:audit-bundle` command checks the compiled files for all configured
 Cloudflare variable names and non-empty local values without printing secrets.
 The version-locked MapLibre renderer is emitted as a same-origin, content-hashed
-asset and loaded only when a valid map can be shown. Production static responses
-of at least 1 KiB are gzip-compressed when the client supports it, and only
-content-hashed assets receive a one-year immutable cache policy; no map runtime
-is fetched from a CDN.
+asset and loaded only when a valid map can be shown; no map runtime is fetched
+from a CDN. Maps optionally request their labeled base style and its resources
+from the exact HTTPS origin `https://tiles.openfreemap.org`. That public
+OpenFreeMap service needs no API key and has no availability guarantee. If it is
+unavailable during the bounded style request, or the style fails validation, the
+maps retain their local Census-derived Arizona boundary style, overlays,
+summaries, and location lists. After a validated style is active, a later tile,
+glyph, or sprite failure does not trigger a style swap: the local evidence
+overlays and location lists remain available, but geographic detail may be
+incomplete until a reload. The online basemap displays the required
+`OpenFreeMap © OpenMapTiles Data from OpenStreetMap` attribution; the local
+fallback retains the Census attribution. A response-level `connect-src` policy
+also limits browser data requests to the same origin and that exact basemap
+origin, including resource URLs returned by its TileJSON. Production static
+responses of at least 1 KiB are gzip-compressed when the client supports it, and
+only content-hashed assets receive a one-year immutable cache policy.
 
 Location autocomplete calls Open-Meteo geocoding through the local Python API;
 the browser never calls the upstream service directly. Search results and manual

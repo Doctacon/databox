@@ -609,10 +609,36 @@ def test_static_frontend_fallback_serves_direct_bird_routes(tmp_path: Path) -> N
         create_app(database_path=str(tmp_path / "missing.duckdb"), static_dir=static_dir)
     )
 
-    assert client.get("/birds").text == "<main>local app shell</main>"
-    assert client.get("/birds/bird000").text == "<main>local app shell</main>"
-    assert client.get("/map").text == "<main>local app shell</main>"
-    assert client.get("/my-birds").text == "<main>local app shell</main>"
+    responses = [
+        client.get("/birds"),
+        client.get("/birds/bird000"),
+        client.get("/map"),
+        client.get("/my-birds"),
+    ]
+
+    assert all(response.text == "<main>local app shell</main>" for response in responses)
+    assert {response.headers["content-security-policy"] for response in responses} == {
+        "connect-src 'self' https://tiles.openfreemap.org"
+    }
+
+
+def test_connect_policy_restricts_dynamic_requests_without_blocking_media(tmp_path: Path) -> None:
+    static_dir = tmp_path / "dist"
+    static_dir.mkdir()
+    (static_dir / "index.html").write_text("<main>local app shell</main>")
+    client = TestClient(
+        create_app(database_path=str(tmp_path / "missing.duckdb"), static_dir=static_dir)
+    )
+
+    policy = client.get("/").headers["content-security-policy"]
+
+    assert policy == "connect-src 'self' https://tiles.openfreemap.org"
+    assert "*" not in policy
+    assert "http:" not in policy.split()
+    assert "https:" not in policy.split()
+    assert "default-src" not in policy
+    assert "img-src" not in policy
+    assert "media-src" not in policy
 
 
 def test_static_javascript_is_transferred_with_gzip_when_supported(tmp_path: Path) -> None:

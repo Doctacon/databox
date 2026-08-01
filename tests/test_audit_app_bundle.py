@@ -56,13 +56,44 @@ def test_bundle_audit_rejects_alert_smtp_names_and_values(tmp_path: Path) -> Non
     ]
 
 
-def test_bundle_audit_rejects_remote_map_runtime_hosts(tmp_path: Path) -> None:
+def test_bundle_audit_rejects_forbidden_remote_map_resource_hosts(tmp_path: Path) -> None:
     bundle = tmp_path / "dist"
     assets = bundle / "assets"
     assets.mkdir(parents=True)
     (assets / "maplibre-gl-hash.js").write_text("https://tile.openstreetmap.org/{z}/{x}/{y}.png")
 
-    assert audit_bundle(bundle, {}) == ["tile.openstreetmap.org remote map runtime"]
+    assert audit_bundle(bundle, {}) == ["tile.openstreetmap.org forbidden remote map resource"]
+
+
+def test_bundle_audit_accepts_exact_https_openfreemap_origin(tmp_path: Path) -> None:
+    bundle = tmp_path / "dist"
+    bundle.mkdir()
+    (bundle / "app.js").write_text(
+        '"https://tiles.openfreemap.org/styles/positron" '
+        'candidate.hostname === "tiles.openfreemap.org" '
+        'candidate.origin === "https://tiles.openfreemap.org"',
+        encoding="utf-8",
+    )
+
+    assert audit_bundle(bundle, {}) == []
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://tiles.openfreemap.org/styles/positron",
+        "//tiles.openfreemap.org/styles/positron",
+        "https://user@tiles.openfreemap.org/styles/positron",
+        "https://tiles.openfreemap.org:443/styles/positron",
+        "https://tiles.openfreemap.org.evil.example/styles/positron",
+    ],
+)
+def test_bundle_audit_rejects_non_exact_openfreemap_origins(tmp_path: Path, url: str) -> None:
+    bundle = tmp_path / "dist"
+    bundle.mkdir()
+    (bundle / "app.js").write_text(url, encoding="utf-8")
+
+    assert audit_bundle(bundle, {}) == ["tiles.openfreemap.org invalid map resource origin"]
 
 
 def test_bundle_audit_accepts_bundle_without_configuration(tmp_path: Path) -> None:

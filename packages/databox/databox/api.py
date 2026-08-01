@@ -6,7 +6,7 @@ import asyncio
 import json
 import re
 import smtplib
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -76,6 +76,7 @@ from databox.watched_bird_evaluator_api import register_watched_bird_routes
 JsonGetter = Callable[[str, Mapping[str, object]], dict[str, Any]]
 JsonObject = dict[str, Any]
 _CONTENT_HASHED_ASSET = re.compile(r"-[A-Za-z0-9_-]{8}\.[A-Za-z0-9]+$")
+_CONTENT_SECURITY_POLICY = "connect-src 'self' https://tiles.openfreemap.org"
 
 
 class _ImmutableHashedStaticFiles(StaticFiles):
@@ -1675,6 +1676,15 @@ def create_app(
     frontend_dir = static_dir if static_dir is not None else PROJECT_ROOT / "app" / "dist"
     app = FastAPI(title="Rufous", docs_url="/api/docs", redoc_url=None)
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
+
+    @app.middleware("http")
+    async def browser_connect_policy(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = _CONTENT_SECURITY_POLICY
+        return response
+
     app.state.plan_lock = asyncio.Lock()
     app.state.target_plan_lock = asyncio.Lock()
     app.state.collection_lock = asyncio.Lock()
