@@ -257,7 +257,7 @@ def _owner_process_matches(value: dict[str, object]) -> bool | None:
         return False
     try:
         completed = subprocess.run(
-            ["ps", "-p", str(pid), "-o", "command="],
+            ["ps", "-ww", "-p", str(pid), "-o", "command="],
             capture_output=True,
             text=True,
             timeout=1,
@@ -280,7 +280,7 @@ def _child_process_matches(value: dict[str, object]) -> bool | None:
         return False
     try:
         completed = subprocess.run(
-            ["ps", "-p", str(child_pid), "-o", "command="],
+            ["ps", "-ww", "-p", str(child_pid), "-o", "command="],
             capture_output=True,
             text=True,
             timeout=1,

@@ -289,6 +289,30 @@ def test_terminal_write_wins_interleaving_with_recovery_cas(tmp_path: Path, monk
     assert source_refresh_api.read_status(path)["state"] == "succeeded"
 
 
+def test_process_identity_checks_request_unbounded_command_width(monkeypatch) -> None:
+    run_id = "refresh_" + "9" * 32
+    owner = source_refresh_api.owner_value(run_id, pid=111, child_pid=222)
+    outputs = iter(
+        (
+            f"/venv/bin/python -m databox.source_refresh_runner --run-id {run_id}",
+            f"/venv/bin/python -m databox.source_refresh_gate --run-id {run_id}",
+        )
+    )
+    commands: list[list[str]] = []
+
+    def inspect(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout=next(outputs), stderr="")
+
+    monkeypatch.setattr(source_refresh_api.subprocess, "run", inspect)
+    assert source_refresh_api._owner_process_matches(owner) is True
+    assert source_refresh_api._child_process_matches(owner) is True
+    assert commands == [
+        ["ps", "-ww", "-p", "111", "-o", "command="],
+        ["ps", "-ww", "-p", "222", "-o", "command="],
+    ]
+
+
 @pytest.mark.parametrize(
     ("snapshot", "expected"),
     [
