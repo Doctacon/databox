@@ -5,6 +5,7 @@ import { ProfileCollectionControls } from "./MyBirds";
 import type { BirdCatalogSummary, BirdProfile, CatalogCall, CatalogPhoto } from "./types";
 import { compareVisibleLabels } from "./visibleLabel";
 
+const PUBLIC_RUNTIME = import.meta.env.MODE === "public";
 type Navigate = (path: string) => void;
 
 type CategoryFilter = "all" | "species" | "hybrid";
@@ -326,9 +327,11 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
 
   return <main className="birds-main">
     <section className="catalog-heading" aria-labelledby="birds-heading">
-      <p className="eyebrow">Read-only modeled catalog</p>
+      <p className="eyebrow">{PUBLIC_RUNTIME ? "Published licensed catalog" : "Read-only modeled catalog"}</p>
       <PageHeading id="birds-heading">Arizona Birds</PageHeading>
-      <p>Current Arizona regional taxa from eBird, with exact modeled AVONET and public evidence where available.</p>
+      <p>{PUBLIC_RUNTIME
+        ? "Arizona birds from the sanitized public release, with licensed traits and generalized occurrence context where available."
+        : "Current Arizona regional taxa from eBird, with exact modeled AVONET and public evidence where available."}</p>
     </section>
     <section className="panel catalog-panel" aria-busy={loading}>
       <form className="catalog-controls" onSubmit={reset}>
@@ -341,7 +344,7 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
         <button type="submit">Reset catalog</button>
       </form>
       {error && <div className="error" role="alert"><strong>Could not load Arizona birds.</strong><span>{error}</span></div>}
-      {loading && <p role="status">Loading the local Arizona catalog…</p>}
+      {loading && <p role="status">Loading the {PUBLIC_RUNTIME ? "published" : "local"} Arizona catalog…</p>}
       {!loading && !error && <>
         <p className="catalog-count" aria-live="polite">{filtered.length.toLocaleString()} matching taxa · {birds.length.toLocaleString()} total</p>
         {!activeBird ? <p className="empty">No Arizona taxa match the current search and filters.</p> : <div className="bird-wheel-layout">
@@ -356,7 +359,7 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
             <h2>{displayName(activeBird)}</h2>{activeBird.common_name && activeBird.scientific_name && <p className="scientific">{activeBird.scientific_name}</p>}
             <p>{familyName(activeBird) || "Family unavailable"}</p>
             <CatalogCallPlayer call={activeBird.call} label={displayName(activeBird)} compact />
-            <ul className="card-status"><li>AVONET traits: {activeBird.traits_status}</li><li>Recent public observations: {activeBird.recent_public_observation_count.toLocaleString()}</li></ul>
+            <ul className="card-status"><li>{PUBLIC_RUNTIME ? "Published traits" : "AVONET traits"}: {activeBird.traits_status}</li><li>{PUBLIC_RUNTIME ? "Licensed public occurrences" : "Recent public observations"}: {activeBird.recent_public_observation_count.toLocaleString()}</li></ul>
             <a className="button-link" href={`/birds/${activeBird.species_code}`} onClick={(event) => link(event, `/birds/${activeBird.species_code}`, navigate)}>Open bird profile</a>
           </article>
         </div>}
@@ -399,13 +402,15 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
       </div>
     </section>
 
-    <section className="panel target-profile-action"><h2>Plan for this bird</h2><p>Search current modeled public observations within a per-request Arizona travel radius.</p><a className="button-link" href={`/birds/${bird.species_code}/find`} onClick={(event) => link(event, `/birds/${bird.species_code}/find`, navigate)}>Find this bird</a></section>
+    <section className="panel target-profile-action"><h2>Plan for this bird</h2><p>{PUBLIC_RUNTIME
+      ? "Search licensed generalized occurrence evidence within a per-request Arizona travel radius."
+      : "Search current modeled public observations within a per-request Arizona travel radius."}</p><a className="button-link" href={`/birds/${bird.species_code}/find`} onClick={(event) => link(event, `/birds/${bird.species_code}/find`, navigate)}>Find this bird</a></section>
 
     <ProfileCollectionControls key={bird.species_code} bird={bird} />
 
     <section className="panel"><h2>Identity and taxonomy</h2><DefinitionList rows={[
       ["Common name", fact(bird.common_name)], ["Scientific name", fact(bird.scientific_name)],
-      ["eBird species code", bird.species_code], ["Category", categoryLabel(bird.taxonomic_category)],
+      [PUBLIC_RUNTIME ? "Public species code" : "eBird species code", bird.species_code], ["Category", categoryLabel(bird.taxonomic_category)],
       ["Order", fact(bird.order_name)], ["Family", fact(bird.family_common_name || bird.family_scientific_name)],
       ["Family scientific name", fact(bird.family_scientific_name)], ["Report as", fact(bird.taxonomy.report_as)],
     ]} />{bird.taxonomy.extinct && <p className="caveat">eBird taxonomy marks this taxon extinct{bird.taxonomy.extinct_year ? ` (${bird.taxonomy.extinct_year})` : ""}.</p>}</section>
@@ -431,17 +436,19 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
         : bird.traits.inference === false
           ? <p>AVONET does not mark these modeled traits as inferred.</p>
           : <p className="empty">AVONET inference status is unavailable.</p>}
-    </> : <p className="empty">AVONET v7 has no exact scientific-name match for this current eBird taxon. Taxonomy and current Arizona evidence remain available.</p>}</section>
+    </> : <p className="empty">{PUBLIC_RUNTIME
+      ? "No licensed morphology is included for this published taxon. Identity and Arizona occurrence context remain available."
+      : "AVONET v7 has no exact scientific-name match for this current eBird taxon. Taxonomy and current Arizona evidence remain available."}</p>}</section>
 
     <section className="panel"><h2>Arizona activity</h2><DefinitionList rows={[
-      ["Recent public observations", bird.arizona_activity.recent_public_observation_count.toLocaleString()],
-      ["Latest public observation", formatDate(bird.arizona_activity.latest_public_observation_at)],
+      [PUBLIC_RUNTIME ? "Licensed public occurrences" : "Recent public observations", bird.arizona_activity.recent_public_observation_count.toLocaleString()],
+      [PUBLIC_RUNTIME ? "Latest licensed occurrence" : "Latest public observation", formatDate(bird.arizona_activity.latest_public_observation_at)],
       ["Public locations", bird.arizona_activity.public_location_count.toLocaleString()],
       ["Recent notable observations", bird.arizona_activity.recent_public_notable_count.toLocaleString()],
     ]} />{bird.arizona_activity.top_public_locations.length ? <><h3>Top public locations</h3><ol className="location-list">{bird.arizona_activity.top_public_locations.map((location) => {
       const accessMayBeRestricted = /\(private\)/i.test(location.location_name || "");
       return <li key={location.location_id}><strong>{location.location_name || "Unnamed public location"}</strong><span>{location.observation_count.toLocaleString()} observations · latest {formatDate(location.latest_observation_at)}{location.notable_count ? ` · ${location.notable_count.toLocaleString()} notable` : ""}</span><span>{location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}</span>{accessMayBeRestricted && <span className="caveat">This modeled observation location is public, but site access may be restricted. Verify access before visiting.</span>}</li>;
-    })}</ol></> : <p className="empty">No recent valid, reviewed, non-private Arizona locations are available.</p>}</section>
+    })}</ol></> : <p className="empty">{PUBLIC_RUNTIME ? "No generalized licensed Arizona locations are available." : "No recent valid, reviewed, non-private Arizona locations are available."}</p>}</section>
 
     <section className="panel"><h2>Occurrence and sound context</h2><p className="source-status">These are modeled global source aggregates and are not Arizona occurrence or seasonality claims.</p><DefinitionList rows={[
       ["GBIF occurrences", bird.gbif.occurrence_count.toLocaleString()], ["Latest GBIF event date", formatDate(bird.gbif.latest_event_date)],
@@ -452,12 +459,12 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
     ]} />{bird.gbif.occurrence_count === 0 && <p className="empty">No modeled GBIF occurrences are available.</p>}{bird.xeno_canto.recording_count === 0 && <p className="empty">No modeled Xeno-canto recordings are available.</p>}</section>
 
     <section className="panel"><h2>Evidence and provenance</h2><DefinitionList rows={[
-      ["eBird status", bird.freshness.species_list_loaded_at && bird.freshness.taxonomy_loaded_at ? (bird.freshness.ebird_observations_loaded_at ? "Catalog and public observation snapshot loaded" : "Catalog loaded; no modeled public observation evidence") : "Catalog load status unavailable"],
+      [PUBLIC_RUNTIME ? "Published snapshot status" : "eBird status", bird.freshness.species_list_loaded_at && bird.freshness.taxonomy_loaded_at ? (PUBLIC_RUNTIME ? "Sanitized catalog and licensed occurrence snapshot loaded" : bird.freshness.ebird_observations_loaded_at ? "Catalog and public observation snapshot loaded" : "Catalog loaded; no modeled public observation evidence") : "Catalog load status unavailable"],
       ["AVONET status", traitsAvailable ? "Exact trait match available" : "No exact trait match"],
       ["GBIF status", bird.gbif.occurrence_count > 0 ? "Modeled occurrence evidence available" : "No modeled occurrence evidence"],
       ["Xeno-canto status", bird.xeno_canto.recording_count > 0 ? "Modeled recording evidence available" : "No modeled recording evidence"],
-      ["eBird regional list loaded", formatDate(bird.freshness.species_list_loaded_at)], ["eBird taxonomy loaded", formatDate(bird.freshness.taxonomy_loaded_at)],
-      ["eBird observations loaded", formatDate(bird.freshness.ebird_observations_loaded_at)], ["GBIF loaded", formatDate(bird.freshness.gbif_loaded_at)],
+      [PUBLIC_RUNTIME ? "Public species catalog loaded" : "eBird regional list loaded", formatDate(bird.freshness.species_list_loaded_at)], [PUBLIC_RUNTIME ? "Public taxonomy loaded" : "eBird taxonomy loaded", formatDate(bird.freshness.taxonomy_loaded_at)],
+      [PUBLIC_RUNTIME ? "Direct eBird observations" : "eBird observations loaded", PUBLIC_RUNTIME ? "Excluded" : formatDate(bird.freshness.ebird_observations_loaded_at)], ["GBIF loaded", formatDate(bird.freshness.gbif_loaded_at)],
       ["Xeno-canto loaded", formatDate(bird.freshness.xeno_canto_loaded_at)], ["Catalog freshness", formatDate(bird.freshness.catalog_freshness_at)],
       ["AVONET source name", fact(bird.traits.source_scientific_name)], ["AVONET / Avibase ID", fact(bird.traits.avibase_id)],
       ["AVONET family", fact(bird.traits.avonet_family)], ["AVONET order", fact(bird.traits.avonet_order_name)],
@@ -466,7 +473,9 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
     ]} />
       <p>{doiLink ? <a href="https://doi.org/10.6084/m9.figshare.16586228.v7" target="_blank" rel="noreferrer">AVONET dataset DOI: {bird.traits.provenance.dataset_doi}</a> : <>AVONET dataset DOI: {fact(bird.traits.provenance.dataset_doi)}</>}</p>
       <p>AVONET license: {avonetLicense ? <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a> : fact(bird.traits.provenance.dataset_license)}</p>
-      <p className="source-status">Only persisted modeled facts are shown. Missing source evidence remains unavailable rather than inferred. Arizona activity excludes private, invalid, and unreviewed observations.</p>
+      <p className="source-status">{PUBLIC_RUNTIME
+        ? "Only sanitized published facts are shown. Missing source evidence remains unavailable rather than inferred; private records and direct eBird observations are excluded."
+        : "Only persisted modeled facts are shown. Missing source evidence remains unavailable rather than inferred. Arizona activity excludes private, invalid, and unreviewed observations."}</p>
     </section>
   </main>;
 }

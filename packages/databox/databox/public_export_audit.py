@@ -1,4 +1,4 @@
-"""Hard-zero-cost, privacy, source-boundary, and licensing audit for public Rufous."""
+"""Cost, privacy, source-boundary, and licensing audit for public Rufous."""
 
 from __future__ import annotations
 
@@ -108,6 +108,23 @@ _FORBIDDEN_SERVICE_HOSTS = (
     "region1.google-analytics.com",
     "app.posthog.com",
 )
+_APPROVED_PUBLIC_DATA_ORIGIN = "https://rufous-data.loughondata.com"
+_APPROVED_CONNECT_SOURCES = frozenset(
+    {
+        "'self'",
+        "https://tiles.openfreemap.org",
+        _APPROVED_PUBLIC_DATA_ORIGIN,
+    }
+)
+_FORBIDDEN_OBJECT_STORE_MARKERS = (
+    ".r2.dev",
+    ".r2.cloudflarestorage.com",
+    "x-amz-algorithm",
+    "x-amz-credential",
+    "x-amz-signature",
+    "aws_access_key_id",
+    "aws_secret_access_key",
+)
 _FORBIDDEN_PUBLIC_APP_MARKERS = (
     '"/api/',
     "'/api/",
@@ -186,6 +203,7 @@ def audit_public_site(
             findings.append(f"{relative} is a Worker source entrypoint")
     findings.extend(_audit_deployed_text(site_dir, files))
     findings.extend(_audit_cache_coherence(site_dir))
+    findings.extend(_audit_browser_security_policy(site_dir))
     findings.extend(_audit_all_json_privacy(site_dir, files))
     findings.extend(_audit_static_contract(site_dir))
     if workflow_root is not None:
@@ -238,6 +256,12 @@ def _audit_deployed_text(site_dir: Path, files: list[Path]) -> list[str]:
         for host in _FORBIDDEN_SERVICE_HOSTS:
             if host in lower:
                 findings.append(f"{relative} depends on forbidden metered service {host}")
+        for marker in _FORBIDDEN_OBJECT_STORE_MARKERS:
+            if marker in lower:
+                findings.append(
+                    f"{relative} exposes a forbidden object-store endpoint or credential marker "
+                    f"{marker!r}"
+                )
         if "open_meteo" in lower or "open-meteo" in lower:
             findings.append(f"{relative} contains forbidden Open-Meteo provenance")
         for marker in _FORBIDDEN_PUBLIC_APP_MARKERS:
@@ -284,6 +308,49 @@ def _audit_cache_coherence(site_dir: Path) -> list[str]:
     ):
         return ["all /data/* assets must revalidate so manifest and shards cannot mix releases"]
     return []
+
+
+def _audit_browser_security_policy(site_dir: Path) -> list[str]:
+    """Require the public browser to contact only the reviewed data and map origins."""
+    if not (site_dir / "index.html").is_file():
+        return []
+    headers_path = site_dir / "_headers"
+    if not headers_path.is_file():
+        return []
+    try:
+        text = headers_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    csp_lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip().casefold().startswith("content-security-policy:")
+    ]
+    if len(csp_lines) != 1:
+        return ["static application must declare exactly one Content-Security-Policy"]
+    _, policy = csp_lines[0].split(":", 1)
+    directives: dict[str, list[str]] = {}
+    for raw_directive in policy.split(";"):
+        tokens = raw_directive.strip().split()
+        if tokens:
+            directives[tokens[0].casefold()] = tokens[1:]
+    connect_sources = frozenset(directives.get("connect-src", []))
+    findings: list[str] = []
+    if connect_sources != _APPROVED_CONNECT_SOURCES:
+        findings.append(
+            "Content-Security-Policy connect-src must contain only self, OpenFreeMap, "
+            "and the reviewed Rufous R2 custom domain"
+        )
+    frame_ancestors = frozenset(directives.get("frame-ancestors", []))
+    if frame_ancestors != {
+        "https://loughondata.com",
+        "https://www.loughondata.com",
+    }:
+        findings.append(
+            "Content-Security-Policy frame-ancestors must allow only the two loughondata.com "
+            "site origins"
+        )
+    return findings
 
 
 def audit_workflow_runners(workflow_root: Path) -> list[str]:
@@ -762,11 +829,11 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     findings = audit_public_site(args.site, args.workflows, args.repository_root)
     if findings:
-        print("Rufous public cost/privacy audit failed:")
+        print("Rufous public release safety audit failed:")
         for finding in findings:
             print(f"- {finding}")
         return 1
-    print("Rufous public cost/privacy audit passed")
+    print("Rufous public release safety audit passed")
     return 0
 
 

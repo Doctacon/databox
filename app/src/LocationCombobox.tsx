@@ -13,6 +13,7 @@ interface LocationComboboxProps {
 }
 
 const COORDINATE_PAIR = /^\s*[+-]?\d+(?:\.\d+)?\s*,\s*[+-]?\d+(?:\.\d+)?\s*$/;
+const PUBLIC_RUNTIME = import.meta.env.MODE === "public";
 
 export default function LocationCombobox({
   inputId = "location",
@@ -37,7 +38,7 @@ export default function LocationCombobox({
     if (
       disabled ||
       query.length < 3 ||
-      COORDINATE_PAIR.test(query) ||
+      (!PUBLIC_RUNTIME && COORDINATE_PAIR.test(query)) ||
       selected?.display_name === query
     ) {
       setOptions([]);

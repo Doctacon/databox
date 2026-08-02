@@ -1,0 +1,23 @@
+[
+  {
+    "AllowedOrigins": [
+      "https://rufous.loughondata.com"
+    ],
+    "AllowedMethods": [
+      "GET",
+      "HEAD"
+    ],
+    "AllowedHeaders": [
+      "Range"
+    ],
+    "ExposeHeaders": [
+      "Accept-Ranges",
+      "Content-Length",
+      "Content-Range",
+      "ETag",
+      "Last-Modified",
+      "CF-Cache-Status"
+    ],
+    "MaxAgeSeconds": 86400
+  }
+]

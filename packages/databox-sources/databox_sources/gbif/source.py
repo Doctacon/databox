@@ -325,7 +325,7 @@ def gbif_source(
         query_budgets: list[tuple[dict[str, Any], int, int]] = [
             (base_params, max_records - reserve, taxon_key)
         ]
-        if reserve:
+        if reserve and required_taxon_key is not None:
             query_budgets.append(
                 ({**base_params, "taxonKey": required_taxon_key}, reserve, required_taxon_key)
             )

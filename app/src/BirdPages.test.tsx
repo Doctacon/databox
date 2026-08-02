@@ -418,7 +418,7 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(styles).toMatch(/\.catalog-profile-media-grid\s*>\s*\*\s*\{[^}]*min-width:\s*0/s);
     expect(styles).toMatch(/\.catalog-profile-media-grid \.media-metadata[^}]*overflow-wrap:\s*break-word;\s*word-break:\s*normal/s);
     expect(styles).not.toContain("minmax(240px");
-    expect(styles).toMatch(/@media \(max-width:\s*540px\)[^{]*\{[\s\S]*?\.content, \.birds-main, \.bird-profile-main, \.my-birds-main, \.field-map-main\s*\{\s*padding:\s*15px 12px 22px;/);
+    expect(styles).toMatch(/@media \(max-width:\s*540px\)[^{]*\{[\s\S]*?\.content, \.birds-main, \.bird-profile-main, \.my-birds-main, \.field-map-main, \.credits-main\s*\{\s*padding:\s*15px 12px 22px;/);
   });
 
   it("supports native navigation, direct detail routes, and popstate without a router dependency", async () => {

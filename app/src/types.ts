@@ -147,12 +147,12 @@ export interface LocationSelection {
   display_name: string;
   latitude: number;
   longitude: number;
-  timezone: "America/Phoenix";
+  timezone: "America/Phoenix" | "America/Denver";
   region_code: "US-AZ";
 }
 
 export interface LocationSuggestion extends LocationSelection {
-  source: "ebird_hotspot" | "open_meteo";
+  source: "ebird_hotspot" | "open_meteo" | "usgs_gnis" | "manual_coordinates";
   source_id: string;
   place_type: "Birding hotspot" | "Arizona place";
 }
@@ -336,11 +336,11 @@ export interface PersonalObservation {
   species_code: string;
   observation_date: string;
   location: string | null;
-  location_source: "ebird_hotspot" | "open_meteo" | null;
+  location_source: "ebird_hotspot" | "open_meteo" | "usgs_gnis" | "manual_coordinates" | null;
   location_source_id: string | null;
   location_latitude: number | null;
   location_longitude: number | null;
-  location_timezone: "America/Phoenix" | null;
+  location_timezone: "America/Phoenix" | "America/Denver" | null;
   location_region_code: "US-AZ" | null;
   notes: string | null;
   created_at: string;

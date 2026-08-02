@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import PublicApp from "./PublicApp";
+import App from "./App";
 
 const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
 if (description) {
@@ -8,5 +8,5 @@ if (description) {
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode><PublicApp /></React.StrictMode>,
+  <React.StrictMode><App /></React.StrictMode>,
 );

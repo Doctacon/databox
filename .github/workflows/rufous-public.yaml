@@ -1,4 +1,4 @@
-name: Rufous public static release
+name: Rufous public R2-backed release
 
 on:
   push:
@@ -12,6 +12,7 @@ on:
       - "packages/databox/databox/config/settings.py"
       - "packages/databox/databox/orchestration/domains/gbif.py"
       - "packages/databox/databox/public_export*.py"
+      - "packages/databox/databox/public_release.py"
       - "scripts/load_dlt_quack.py"
       - "scripts/*rufous_public.py"
       - "scripts/sqlmesh_plan_rufous_public.sh"
@@ -19,6 +20,7 @@ on:
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
       - "tests/test_public_export*.py"
+      - "tests/test_public_release.py"
       - "tests/test_settings.py"
       - "transforms/main/models/birding_agent/**"
       - "transforms/main/models/environmental_observations/**"
@@ -46,6 +48,7 @@ on:
       - "packages/databox/databox/config/settings.py"
       - "packages/databox/databox/orchestration/domains/gbif.py"
       - "packages/databox/databox/public_export*.py"
+      - "packages/databox/databox/public_release.py"
       - "scripts/load_dlt_quack.py"
       - "scripts/*rufous_public.py"
       - "scripts/sqlmesh_plan_rufous_public.sh"
@@ -53,6 +56,7 @@ on:
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
       - "tests/test_public_export*.py"
+      - "tests/test_public_release.py"
       - "tests/test_settings.py"
       - "transforms/main/models/birding_agent/**"
       - "transforms/main/models/environmental_observations/**"
@@ -78,7 +82,10 @@ permissions:
 
 concurrency:
   group: rufous-public-${{ ((github.event_name == 'schedule') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && 'production' || (github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number)) || format('nonproduction-{0}', github.run_id) }}
-  cancel-in-progress: true
+  # Never cancel an activation after immutable objects may have been written.
+  # The publisher also uses a conditional pointer write, but serial execution
+  # keeps release ordering and the Pages fallback easy to reason about.
+  cancel-in-progress: false
 
 jobs:
   readiness:
@@ -93,9 +100,13 @@ jobs:
     env:
       RELEASE_ENABLED: ${{ vars.RUF_PUBLIC_RELEASE_ENABLED }}
       PUBLIC_URL: ${{ vars.RUF_PUBLIC_URL }}
+      PUBLIC_DATA_URL: ${{ vars.RUF_PUBLIC_DATA_URL }}
       PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+      R2_BUCKET: ${{ vars.RUF_R2_BUCKET }}
       CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
     steps:
       - id: ready
         name: Evaluate without printing configuration
@@ -105,12 +116,12 @@ jobs:
           if [[ "$RELEASE_ENABLED" != "true" ]]; then
             ready=false
           fi
-          for name in PUBLIC_URL PAGES_PROJECT CF_ACCOUNT CF_TOKEN; do
+          for name in PUBLIC_URL PUBLIC_DATA_URL PAGES_PROJECT R2_BUCKET CF_ACCOUNT CF_TOKEN R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
             if [[ -z "${!name}" ]]; then
               ready=false
             fi
           done
-          if [[ ! "$PUBLIC_URL" =~ ^https:// ]]; then
+          if [[ ! "$PUBLIC_URL" =~ ^https:// ]] || [[ "$PUBLIC_DATA_URL" != "https://rufous-data.loughondata.com/rufous-public" ]]; then
             ready=false
           fi
           echo "production_ready=$ready" >> "$GITHUB_OUTPUT"
@@ -134,9 +145,10 @@ jobs:
         run: uv sync --all-extras --dev
       - name: Install browser dependencies
         run: npm --prefix app ci
-      - name: Test public exporter and cost invariant
+      - name: Test public exporter and release invariant
         run: >-
           uv run pytest tests/test_public_export.py tests/test_public_export_audit.py
+          tests/test_public_release.py
           -o "addopts=-v --tb=short"
       - name: Test public SQLMesh publication model
         working-directory: transforms/main
@@ -149,20 +161,26 @@ jobs:
         run: >-
           uv run python scripts/export_rufous_public.py
           --mode synthetic --output build/rufous-public-data
+      - name: Exercise the atomic object-store release locally
+        run: >-
+          uv run python scripts/publish_rufous_public.py
+          --source build/rufous-public-data
+          --local-root build/rufous-r2-preview
+          --prefix rufous-public
       - name: Build static public app
         run: npm --prefix app run build:public
       - name: Replace checked-in fixtures with audited exporter output
         run: |
           rm -rf app/dist/data
           cp -R build/rufous-public-data/data app/dist/data
-      - name: Enforce static cost boundary
+      - name: Enforce public release boundary
         run: >-
           uv run python scripts/audit_rufous_public.py app/dist
           --workflows .github/workflows
           --repository-root .
 
   production:
-    name: Build and deploy production static release
+    name: Build and deploy production R2-backed release
     needs: readiness
     if: >-
       needs.readiness.outputs.production_ready == 'true' &&
@@ -194,9 +212,10 @@ jobs:
           mkdir -p "$DAGSTER_HOME"
           uv sync --all-extras --dev
           npm --prefix app ci
-      - name: Test public exporter and cost invariant
+      - name: Test public exporter and release invariant
         run: >-
           uv run pytest tests/test_public_export.py tests/test_public_export_audit.py
+          tests/test_public_release.py
           -o "addopts=-v --tb=short"
       - name: Test public SQLMesh publication model
         working-directory: transforms/main
@@ -240,16 +259,42 @@ jobs:
           --gnis-sha256 "$RUF_GNIS_SHA256"
           --output build/rufous-public-data
       - name: Build static public app
+        env:
+          VITE_RUFOUS_DATA_BASE_URL: ${{ vars.RUF_PUBLIC_DATA_URL }}
         run: npm --prefix app run build:public
       - name: Install production data contract
         run: |
           rm -rf app/dist/data
           cp -R build/rufous-public-data/data app/dist/data
-      - name: Enforce static cost boundary
+      - name: Enforce public release boundary
         run: >-
           uv run python scripts/audit_rufous_public.py app/dist
           --workflows .github/workflows
           --repository-root .
+      - name: Verify this revision is still the main branch head
+        shell: bash
+        run: |
+          read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
+          if [[ ! "$main_sha" =~ ^[0-9a-f]{40}$ || "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "Refusing to deploy a revision that is no longer the main branch head." >&2
+            exit 1
+          fi
+      - name: Preflight monotonic R2 activation before Pages deployment
+        env:
+          RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RUFOUS_R2_BUCKET: ${{ vars.RUF_R2_BUCKET }}
+          RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
+          RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
+        run: >-
+          uv run --package databox --extra r2 --locked
+          python scripts/publish_rufous_public.py
+          --source build/rufous-public-data
+          --r2
+          --prefix rufous-public
+          --publication-sequence "$GITHUB_RUN_ID"
+          --publication-attempt "$GITHUB_RUN_ATTEMPT"
+          --source-revision "$GITHUB_SHA"
+          --dry-run
       - id: changed
         name: Skip only an unchanged scheduled data refresh
         shell: bash
@@ -283,3 +328,26 @@ jobs:
           --project-name "$CLOUDFLARE_PAGES_PROJECT"
           --branch main
           --commit-hash "${{ github.sha }}"
+      - name: Recheck the main branch head before R2 activation
+        shell: bash
+        run: |
+          read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
+          if [[ ! "$main_sha" =~ ^[0-9a-f]{40}$ || "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "Refusing to activate R2 data for a superseded main revision." >&2
+            exit 1
+          fi
+      - name: Publish and activate audited immutable R2 release
+        env:
+          RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RUFOUS_R2_BUCKET: ${{ vars.RUF_R2_BUCKET }}
+          RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
+          RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
+        run: >-
+          uv run --package databox --extra r2 --locked
+          python scripts/publish_rufous_public.py
+          --source build/rufous-public-data
+          --r2
+          --prefix rufous-public
+          --publication-sequence "$GITHUB_RUN_ID"
+          --publication-attempt "$GITHUB_RUN_ATTEMPT"
+          --source-revision "$GITHUB_SHA"
