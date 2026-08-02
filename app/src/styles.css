@@ -155,10 +155,10 @@ summary { min-height: 44px; cursor: pointer; color: var(--teal-950); font-weight
 .birds-main, .bird-profile-main, .my-birds-main, .field-map-main, .credits-main { display: block; min-height: calc(100vh - 76px); max-width: 1240px; margin: 0 auto; padding: clamp(18px, 3vw, 32px); }
 .catalog-heading { max-width: 780px; margin-bottom: 20px; }
 .catalog-heading h1 { margin-bottom: 10px; }
-.credits-main { display: grid; gap: 20px; align-content: start; }
+.credits-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-content: start; }
 .credits-main > * { margin: 0; }
-.credit-release { max-width: 860px; }
-.credits-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.credit-release { max-width: none; }
+.credits-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .credit-source { display: grid; align-content: start; gap: 12px; }
 .credit-source > * { margin: 0; }
 .credit-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }

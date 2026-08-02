@@ -6,6 +6,7 @@ import {
   safeDoiHref,
 } from "./PublicCredits";
 import type { PublicAttribution, PublicManifest } from "./publicTypes";
+import styles from "./styles.css?raw";
 
 const manifest: PublicManifest = {
   schema_version: 1,
@@ -77,6 +78,13 @@ const attribution: PublicAttribution = {
 afterEach(cleanup);
 
 describe("public credits", () => {
+  it("stacks every credits section in one content column", () => {
+    expect(styles).toMatch(/\.credits-main\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
+    expect(styles).toMatch(/\.credit-release\s*\{[^}]*max-width:\s*none/s);
+    expect(styles).toMatch(/\.credits-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
+    expect(styles).not.toMatch(/\.credits-grid\s*\{[^}]*repeat\(2,/s);
+  });
+
   it("renders the production provider, license, modifications, disclaimer, citation, and GNIS credit", async () => {
     const loadManifest = vi.fn().mockResolvedValue(manifest);
     const loadAttribution = vi.fn().mockResolvedValue(attribution);
