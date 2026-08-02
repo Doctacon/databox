@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "dev:public": "vite --mode public --host 127.0.0.1",
     "build": "tsc -b && vite build",
+    "build:public": "tsc -b && vite build --mode public",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run"
   },
@@ -24,6 +26,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "jsdom": "^26.0.0",
-    "vitest": "^3.0.7"
+    "vitest": "^3.0.7",
+    "wrangler": "4.118.0"
   }
 }

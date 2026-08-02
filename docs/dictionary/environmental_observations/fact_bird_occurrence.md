@@ -27,7 +27,13 @@ CDM fact: one row per GBIF bird occurrence key.
 | `coordinate_uncertainty_in_meters` | `DOUBLE` | — | — |
 | `country` | `UNKNOWN` | — | — |
 | `country_code` | `UNKNOWN` | — | — |
+| `dataset_citation` | `UNKNOWN` | — | — |
+| `dataset_doi` | `UNKNOWN` | — | — |
 | `dataset_key` | `UNKNOWN` | — | — |
+| `dataset_license` | `UNKNOWN` | — | — |
+| `dataset_publisher` | `UNKNOWN` | — | — |
+| `dataset_source_url` | `UNKNOWN` | — | — |
+| `dataset_title` | `UNKNOWN` | — | — |
 | `day` | `BIGINT` | — | — |
 | `dlt_id` | `UNKNOWN` | — | — |
 | `dlt_load_id` | `UNKNOWN` | — | — |
@@ -66,6 +72,7 @@ CDM fact: one row per GBIF bird occurrence key.
 | `publishing_country` | `UNKNOWN` | — | — |
 | `publishing_org_key` | `UNKNOWN` | — | — |
 | `query_country_code` | `UNKNOWN` | — | — |
+| `query_dataset_key` | `UNKNOWN` | — | — |
 | `query_state_province` | `UNKNOWN` | — | — |
 | `query_taxon_key` | `UNKNOWN` | — | — |
 | `record_number` | `UNKNOWN` | — | — |

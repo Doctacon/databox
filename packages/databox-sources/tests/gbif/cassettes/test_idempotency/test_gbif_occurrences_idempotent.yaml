@@ -11,7 +11,7 @@ interactions:
       User-Agent:
       - dlt/1.14.1
     method: GET
-    uri: https://api.gbif.org/v1/occurrence/search?classKey=212&country=US&hasCoordinate=true&limit=2&offset=0&stateProvince=Arizona
+    uri: https://api.gbif.org/v1/occurrence/search?classKey=212&country=US&datasetKey=4fa7b334-ce0d-4e88-aaae-2e0c138d049e&hasCoordinate=true&license=CC_BY_4_0&limit=2&occurrenceStatus=PRESENT&offset=0&stateProvince=Arizona
   response:
     body:
       string: '{"offset": 0, "limit": 2, "endOfRecords": false, "count": 37041938,
@@ -24,7 +24,7 @@ interactions:
         "basisOfRecord": "HUMAN_OBSERVATION", "occurrenceStatus": "PRESENT", "scientificName":
         "Corthylio calendula (Linnaeus, 1766)", "acceptedScientificName": "Regulus
         calendula (Linnaeus, 1766)", "stateProvince": "Arizona", "eventDate": "2026-01-03T08:41",
-        "references": "https://example.invalid/gbif-occurrence", "license": "http://creativecommons.org/licenses/by-nc/4.0/legalcode",
+        "references": "https://example.invalid/gbif-occurrence", "license": "http://creativecommons.org/licenses/by/4.0/legalcode",
         "class": "Aves", "countryCode": "US", "gbifID": "5938028359"}], "facets":
         []}'
     headers:
@@ -77,7 +77,7 @@ interactions:
       User-Agent:
       - dlt/1.14.1
     method: GET
-    uri: https://api.gbif.org/v1/occurrence/search?classKey=212&country=US&hasCoordinate=true&limit=2&offset=0&stateProvince=Arizona
+    uri: https://api.gbif.org/v1/occurrence/search?classKey=212&country=US&datasetKey=4fa7b334-ce0d-4e88-aaae-2e0c138d049e&hasCoordinate=true&license=CC_BY_4_0&limit=2&occurrenceStatus=PRESENT&offset=0&stateProvince=Arizona
   response:
     body:
       string: '{"offset": 0, "limit": 2, "endOfRecords": false, "count": 37041938,
@@ -90,7 +90,7 @@ interactions:
         "basisOfRecord": "HUMAN_OBSERVATION", "occurrenceStatus": "PRESENT", "scientificName":
         "Corthylio calendula (Linnaeus, 1766)", "acceptedScientificName": "Regulus
         calendula (Linnaeus, 1766)", "stateProvince": "Arizona", "eventDate": "2026-01-03T08:41",
-        "references": "https://example.invalid/gbif-occurrence", "license": "http://creativecommons.org/licenses/by-nc/4.0/legalcode",
+        "references": "https://example.invalid/gbif-occurrence", "license": "http://creativecommons.org/licenses/by/4.0/legalcode",
         "class": "Aves", "countryCode": "US", "gbifID": "5938028359"}], "facets":
         []}'
     headers:

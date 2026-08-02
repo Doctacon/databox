@@ -27,6 +27,8 @@ node_modules/
 # Data
 data/
 !data/.gitkeep
+!app/public/data/
+!app/public/data/**
 *.db
 *.duckdb
 *.parquet

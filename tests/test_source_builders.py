@@ -40,28 +40,43 @@ def test_ebird_builder_owns_production_defaults(monkeypatch: pytest.MonkeyPatch)
     factory.assert_called_once_with(region_code="US-AZ", max_results=10000, days_back=17)
 
 
-def test_gbif_builder_owns_production_defaults_and_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_gbif_builder_separates_local_and_public_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     from databox.orchestration.domains import gbif
 
     sentinel = object()
     factory = Mock(return_value=sentinel)
     monkeypatch.setattr(gbif, "gbif_source", factory)
+    monkeypatch.setattr(
+        gbif,
+        "settings",
+        SimpleNamespace(gbif_max_records=1000, gbif_public_release=False),
+    )
     assert gbif._build_source() is sentinel
     factory.assert_called_once_with(
         country_code="US",
         state_province="Arizona",
         taxon_key=212,
+        dataset_key=None,
         max_records=1000,
         has_coordinate=True,
+        required_taxon_key=None,
+        license_code=None,
+        occurrence_status=None,
     )
+    with pytest.raises(ValueError, match="between 1 and 10,000"):
+        gbif._build_source(max_records=10_001)
     factory.reset_mock()
-    assert gbif._build_source(max_records=2) is sentinel
+    assert gbif._build_source(max_records=2, public_release=True) is sentinel
     factory.assert_called_once_with(
         country_code="US",
         state_province="Arizona",
         taxon_key=212,
+        dataset_key=gbif.GBIF_EBIRD_EOD_DATASET_KEY,
         max_records=2,
         has_coordinate=True,
+        required_taxon_key=gbif.GBIF_RUFOUS_TAXON_KEY,
+        license_code="CC_BY_4_0",
+        occurrence_status="PRESENT",
     )
 
 

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "species_code": "rufhum",
+  "common_name": "Rufous Hummingbird",
+  "scientific_name": "Selasphorus rufus",
+  "taxonomic_category": "species",
+  "family": { "common_name": "Hummingbirds", "scientific_name": "Trochilidae" },
+  "order_name": "Caprimulgiformes",
+  "traits": { "habitat": "Woodland edges and flowering gardens", "migration": "Long-distance migrant" },
+  "evidence": { "licensed_occurrence_count": 2, "latest_licensed_occurrence_at": "2026-07-31T12:05:00Z" },
+  "media": []
+}

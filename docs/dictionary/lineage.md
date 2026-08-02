@@ -22,6 +22,7 @@ graph LR
     n15["environmental_observations.fact_region_daily_stats"]
     n16["environmental_observations.fact_streamflow_observation"]
     n17["environmental_observations.fact_weather_observation"]
+    n18["rufous_public.gbif_eod_occurrence"]
     n7 --> n1
     n8 --> n1
     n11 --> n1
@@ -58,4 +59,5 @@ graph LR
     click n15 "environmental_observations/fact_region_daily_stats.md"
     click n16 "environmental_observations/fact_streamflow_observation.md"
     click n17 "environmental_observations/fact_weather_observation.md"
+    click n18 "rufous_public/gbif_eod_occurrence.md"
 ```

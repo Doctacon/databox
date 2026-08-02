@@ -5,7 +5,12 @@ import typing as t
 import dagster as dg
 from dagster import AssetExecutionContext
 from dagster_dlt import DagsterDltResource, dlt_assets
-from databox_sources.gbif.source import gbif_source
+from databox_sources.gbif.source import (
+    GBIF_EBIRD_EOD_DATASET_KEY,
+    GBIF_RUFOUS_TAXON_KEY,
+    GBIF_SEARCH_RECORD_CAP,
+    gbif_source,
+)
 
 from databox.config.settings import settings
 from databox.destinations import (
@@ -17,13 +22,25 @@ from databox.destinations import (
 from databox.orchestration._factories import dlt_translator
 
 
-def _build_source(*, max_records: int = 1000) -> t.Any:
+def _build_source(
+    *,
+    max_records: int | None = None,
+    public_release: bool | None = None,
+) -> t.Any:
+    effective_max_records = settings.gbif_max_records if max_records is None else max_records
+    if not 1 <= effective_max_records <= GBIF_SEARCH_RECORD_CAP:
+        raise ValueError(f"GBIF max_records must be between 1 and {GBIF_SEARCH_RECORD_CAP:,}")
+    is_public_release = settings.gbif_public_release if public_release is None else public_release
     return gbif_source(
         country_code="US",
         state_province="Arizona",
         taxon_key=212,
-        max_records=max_records,
+        dataset_key=GBIF_EBIRD_EOD_DATASET_KEY if is_public_release else None,
+        max_records=effective_max_records,
         has_coordinate=True,
+        required_taxon_key=GBIF_RUFOUS_TAXON_KEY if is_public_release else None,
+        license_code="CC_BY_4_0" if is_public_release else None,
+        occurrence_status="PRESENT" if is_public_release else None,
     )
 
 

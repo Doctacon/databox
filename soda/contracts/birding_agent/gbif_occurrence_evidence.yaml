@@ -20,6 +20,12 @@ columns:
   - name: gbif_id
   - name: occurrence_id
   - name: dataset_key
+  - name: dataset_title
+  - name: dataset_publisher
+  - name: dataset_citation
+  - name: dataset_doi
+  - name: dataset_source_url
+  - name: dataset_license
   - name: publishing_org_key
   - name: species_natural_key
   - name: species_code
@@ -56,6 +62,7 @@ columns:
   - name: _query_country_code
   - name: _query_state_province
   - name: _query_taxon_key
+  - name: _query_dataset_key
   - name: loaded_at
   - name: dlt_load_id
   - name: dlt_id

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-01T12:00:00Z",
+  "sources": [
+    {
+      "provider": "rufous_fixture",
+      "title": "Rufous synthetic public preview",
+      "url": "https://loughondata.com/projects/rufous/",
+      "license": "Synthetic demonstration data",
+      "license_url": null,
+      "credit": "Invented bird occurrences and public-site names used only to exercise the static public interface."
+    },
+    {
+      "provider": "usgs_gnis",
+      "title": "Geographic Names Information System",
+      "url": "https://www.usgs.gov/us-board-on-geographic-names/download-gnis-data",
+      "license": "U.S. government public domain",
+      "license_url": null,
+      "credit": "Production place-name releases are derived from a pinned Arizona GNIS snapshot; preview coordinates are synthetic fixtures."
+    },
+    {
+      "provider": "us_census_tigerweb",
+      "title": "U.S. Census Bureau TIGERweb States boundary",
+      "url": "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/0",
+      "license": "U.S. Government public domain",
+      "license_url": null,
+      "credit": "Arizona boundary generalized from January 1, 2025 TIGERweb data. This product is not endorsed or certified by the Census Bureau."
+    }
+  ],
+  "items": []
+}

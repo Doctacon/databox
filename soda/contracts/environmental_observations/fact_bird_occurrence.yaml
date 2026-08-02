@@ -19,6 +19,13 @@ columns:
   - name: gbif_key
   - name: gbif_id
   - name: occurrence_id
+  - name: dataset_key
+  - name: dataset_title
+  - name: dataset_publisher
+  - name: dataset_citation
+  - name: dataset_doi
+  - name: dataset_source_url
+  - name: dataset_license
   - name: scientific_name
   - name: accepted_scientific_name
   - name: common_name
@@ -35,6 +42,7 @@ columns:
   - name: license
   - name: source_reference_url
   - name: source_url
+  - name: query_dataset_key
   - name: loaded_at
   - name: dlt_load_id
   - name: dlt_id

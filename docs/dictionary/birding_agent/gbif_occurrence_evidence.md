@@ -16,6 +16,7 @@ Planner-ready GBIF bird occurrence evidence conformed to eBird-first species nam
 | Column | Type | Checks | Notes |
 | --- | --- | --- | --- |
 | `_query_country_code` | `UNKNOWN` | — | — |
+| `_query_dataset_key` | `UNKNOWN` | — | — |
 | `_query_state_province` | `UNKNOWN` | — | — |
 | `_query_taxon_key` | `UNKNOWN` | — | — |
 | `_source_url` | `UNKNOWN` | — | — |
@@ -26,7 +27,13 @@ Planner-ready GBIF bird occurrence evidence conformed to eBird-first species nam
 | `coordinate_uncertainty_in_meters` | `UNKNOWN` | — | — |
 | `country` | `UNKNOWN` | — | — |
 | `country_code` | `UNKNOWN` | — | — |
+| `dataset_citation` | `UNKNOWN` | — | — |
+| `dataset_doi` | `UNKNOWN` | — | — |
 | `dataset_key` | `UNKNOWN` | — | — |
+| `dataset_license` | `UNKNOWN` | — | — |
+| `dataset_publisher` | `UNKNOWN` | — | — |
+| `dataset_source_url` | `UNKNOWN` | — | — |
+| `dataset_title` | `UNKNOWN` | — | — |
 | `day` | `UNKNOWN` | — | — |
 | `dlt_id` | `UNKNOWN` | — | — |
 | `dlt_load_id` | `UNKNOWN` | — | — |
