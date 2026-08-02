@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors https://loughondata.com https://www.loughondata.com; script-src 'self'; style-src 'self'; img-src 'self' data: https:; media-src https:; connect-src 'self'; frame-src 'none'
+  Content-Security-Policy: default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; frame-ancestors https://loughondata.com https://www.loughondata.com; script-src 'self'; worker-src 'self' blob:; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob: https:; media-src https:; connect-src 'self' https://tiles.openfreemap.org https://rufous-data.loughondata.com; frame-src 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()

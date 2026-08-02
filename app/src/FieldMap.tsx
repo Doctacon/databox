@@ -17,6 +17,7 @@ type Navigate = (path: string) => void;
 type Recency = "all" | "48h" | "7d" | "30d";
 
 const boundaries = JSON.parse(boundariesRaw) as FeatureCollection;
+const PUBLIC_RUNTIME = import.meta.env.MODE === "public";
 const ARIZONA_BOUNDS: [[number, number], [number, number]] = [[-114.82, 31.3], [-109, 37.1]];
 const KM_PER_DEGREE = 111.32;
 const DISTANCE_TOLERANCE_KM = 0.01;
@@ -693,17 +694,19 @@ export function TripEvidenceMap({ detail }: { detail: TripPlanDetail }) {
     <h2 id="trip-evidence-map-heading">Evidence Map</h2>
     {!data ? <p className="empty">{hasVerifiedRadius
       ? "This saved plan does not contain a valid Arizona trip location, so its evidence cannot be plotted."
-      : "This saved plan does not contain matching successful eBird and GBIF enforced-radius traces, so its evidence cannot be plotted as in-radius."}</p> : <>
+      : PUBLIC_RUNTIME
+        ? "This browser plan does not contain matching successful published-data radius traces, so its evidence cannot be plotted as in-radius."
+        : "This saved plan does not contain matching successful eBird and GBIF enforced-radius traces, so its evidence cannot be plotted as in-radius."}</p> : <>
       <div className="trip-map-summary">
         <strong>{evidenceCountLabel(data.rows.length, "distinct persisted evidence record", "distinct persisted evidence records")} across {evidenceCountLabel(data.locations.length, "approximate mapped location", "approximate mapped locations")} · {evidenceCountLabel(data.speciesCount, "species", "species")} · within the enforced {radiusLabel} km radius</strong>
         <ul className="trip-map-legend" aria-label="Mapped evidence sources">
-          <li><span className="trip-map-swatch ebird" aria-hidden="true" />{evidenceCountLabel(ebirdCount, "eBird report", "eBird reports")} · {evidenceCountLabel(ebirdLocationCount, "location", "locations")} · {evidenceCountLabel(ebirdSpeciesCount, "species", "species")}</li>
+          <li><span className="trip-map-swatch ebird" aria-hidden="true" />{PUBLIC_RUNTIME ? "Direct recent reports excluded" : `${evidenceCountLabel(ebirdCount, "eBird report", "eBird reports")} · ${evidenceCountLabel(ebirdLocationCount, "location", "locations")} · ${evidenceCountLabel(ebirdSpeciesCount, "species", "species")}`}</li>
           <li><span className="trip-map-swatch gbif" aria-hidden="true" />{evidenceCountLabel(gbifCount, "GBIF occurrence", "GBIF occurrences")} · {evidenceCountLabel(gbifLocationCount, "location", "locations")} · {evidenceCountLabel(gbifSpeciesCount, "species", "species")}</li>
           <li><span className="trip-map-swatch origin" aria-hidden="true" />Trip location</li>
         </ul>
         {topRecentReports.length > 0 && <p className="trip-map-recommendations">
           <strong>Evidence-ranked recommendations:</strong> {topRecentReports.join(" · ")}
-          <small>Distinct recent eBird submissions; not encounter probability.</small>
+          <small>{PUBLIC_RUNTIME ? "Licensed historical occurrences; not a range or abundance estimate." : "Distinct recent eBird submissions; not encounter probability."}</small>
         </p>}
       </div>
       <div ref={mapContainer} className="map-canvas" role="region" aria-label={`Map of ${data.rows.length.toLocaleString()} distinct persisted evidence records across ${data.locations.length.toLocaleString()} approximate locations inside the enforced ${radiusLabel} kilometer radius`} />
@@ -723,7 +726,9 @@ export function TripEvidenceMap({ detail }: { detail: TripPlanDetail }) {
           </button>
         </li>)}</ol> : <p className="empty">No qualifying coordinate-bearing evidence was persisted for this plan.</p>}
       </details>
-      <p className="source-status">Points are eligible reports and occurrence records used by this plan, not predicted current presence. The radius uses the planner's displayed local-distance approximation.</p>
+      <p className="source-status">{PUBLIC_RUNTIME
+        ? "Points are generalized licensed historical occurrence records, not a range or abundance estimate. The radius uses the planner's displayed local-distance approximation."
+        : "Points are eligible reports and occurrence records used by this plan, not predicted current presence. The radius uses the planner's displayed local-distance approximation."}</p>
       {mapStyle && <BasemapAttribution hasBasemap={mapStyle.hasBasemap} />}
     </>}
   </section>;
@@ -776,7 +781,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   }, [snapshot]);
   const filtered = useMemo(() => {
     if (!snapshot) return [];
-    const cutoff = recency === "all" ? null : Date.now() - windows[recency];
+    const cutoff = PUBLIC_RUNTIME || recency === "all" ? null : Date.now() - windows[recency];
     return snapshot.encounters.filter((row) => species === "all" || row.species_code === species)
       .filter((row) => selectedFamily === "all" || family(row) === selectedFamily)
       .filter((row) => cutoff === null || new Date(row.observation_at).getTime() >= cutoff);
@@ -870,7 +875,9 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
         button.type = "button";
         button.className = "map-cluster-count";
         button.textContent = count.toLocaleString();
-        button.setAttribute("aria-label", `Zoom to cluster containing ${count.toLocaleString()} eligible encounter${count === 1 ? "" : "s"}`);
+        button.setAttribute("aria-label", PUBLIC_RUNTIME
+          ? `Zoom to cluster containing ${count.toLocaleString()} historical occurrence${count === 1 ? "" : "s"}`
+          : `Zoom to cluster containing ${count.toLocaleString()} eligible encounter${count === 1 ? "" : "s"}`);
         button.addEventListener("click", () => expandCluster(feature));
         markerRef.current.push(new runtime.Marker({ element: button })
           .setLngLat(feature.geometry.coordinates as [number, number]).addTo(map));
@@ -929,24 +936,26 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   }
 
   return <main className="field-map-main">
-    <header className="catalog-heading"><p className="eyebrow">Persisted public evidence</p><h1 ref={headingRef} tabIndex={-1}>Field Map</h1><p>Explore exact eligible Arizona encounters. This is evidence, not a species range or current-presence claim.</p></header>
+    <header className="catalog-heading"><p className="eyebrow">{PUBLIC_RUNTIME ? "Published historical evidence" : "Persisted public evidence"}</p><h1 ref={headingRef} tabIndex={-1}>Field Map</h1><p>{PUBLIC_RUNTIME
+      ? "Explore generalized licensed Arizona occurrence evidence. This is historical context, not a species range or current-presence claim."
+      : "Explore exact eligible Arizona encounters. This is evidence, not a species range or current-presence claim."}</p></header>
     {error && <div className="error" role="alert"><strong>Could not load Field Map.</strong><span>{error}</span></div>}
-    {!snapshot && !error && <p role="status">Loading the local Field Map snapshot…</p>}
+    {!snapshot && !error && <p role="status">Loading the {PUBLIC_RUNTIME ? "published" : "local"} Field Map snapshot…</p>}
     {snapshot && <>
       <section className="panel map-controls" aria-labelledby="map-filter-heading">
-        <h2 id="map-filter-heading">Filter encounters</h2>
+        <h2 id="map-filter-heading">{PUBLIC_RUNTIME ? "Filter historical occurrences" : "Filter encounters"}</h2>
         <div><label htmlFor="map-species">Species</label><select id="map-species" value={species} onChange={(event) => setSpecies(event.target.value)}><option value="all">All species</option>{speciesOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
         <div><label htmlFor="map-family">Family</label><select id="map-family" value={selectedFamily} onChange={(event) => setSelectedFamily(event.target.value)}><option value="all">All families</option>{familyOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
-        <div><label htmlFor="map-recency">Recency</label><select id="map-recency" value={recency} onChange={(event) => setRecency(event.target.value as Recency)}><option value="all">All snapshot</option><option value="48h">Last 48 hours</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select></div>
-        <p className="map-freshness">Latest encounter: {dateTime(snapshot.snapshot_latest_observation_at)} · Source freshness: {dateTime(snapshot.source_freshness_at)}</p>
+        {!PUBLIC_RUNTIME && <div><label htmlFor="map-recency">Recency</label><select id="map-recency" value={recency} onChange={(event) => setRecency(event.target.value as Recency)}><option value="all">All snapshot</option><option value="48h">Last 48 hours</option><option value="7d">Last 7 days</option><option value="30d">Last 30 days</option></select></div>}
+        <p className="map-freshness">{PUBLIC_RUNTIME ? "Most recent occurrence date" : "Latest encounter"}: {dateTime(snapshot.snapshot_latest_observation_at)} · {PUBLIC_RUNTIME ? "Snapshot generated" : "Source freshness"}: {dateTime(snapshot.source_freshness_at)}</p>
       </section>
-      <p className="map-result-count" aria-live="polite">{filtered.length.toLocaleString()} eligible encounter{filtered.length === 1 ? "" : "s"}</p>
-      {filtered.length === 0 && <p className="empty">{recency === "all" ? "No persisted encounters match these species and family filters." : "No persisted encounters fall inside this current-clock window. The local snapshot may be stale; choose All snapshot to inspect available evidence."}</p>}
+      <p className="map-result-count" aria-live="polite">{filtered.length.toLocaleString()} {PUBLIC_RUNTIME ? `licensed historical occurrence${filtered.length === 1 ? "" : "s"}` : `eligible encounter${filtered.length === 1 ? "" : "s"}`}</p>
+      {filtered.length === 0 && <p className="empty">{PUBLIC_RUNTIME ? "No licensed historical occurrences match these species and family filters." : recency === "all" ? "No persisted encounters match these species and family filters." : "No persisted encounters fall inside this current-clock window. The local snapshot may be stale; choose All snapshot to inspect available evidence."}</p>}
       <div className="field-map-layout">
-        <section className="panel map-panel" aria-labelledby="map-canvas-heading"><h2 id="map-canvas-heading">Arizona encounter map</h2><div ref={mapContainer} className="map-canvas" aria-label="Interactive map of eligible Arizona encounters" />{!basemapResult && !mapRuntime.failed && <p role="status">Loading labeled geographic context…</p>}{mapRuntime.failed && <p className="caveat" role="alert">The interactive map could not start. Filters and the accessible encounter list remain available.</p>}</section>
-        <aside className="field-map-rail" aria-label="Selected encounter and accessible encounter list">
-          <section className="panel selected-encounter" aria-labelledby="selected-encounter-heading" aria-live="polite"><h2 id="selected-encounter-heading">Selected encounter</h2>{selected ? <><h3>{label(selected)}</h3><p>{selected.location_name}</p><p>{dateTime(selected.observation_at)} · {selected.observation_count.toLocaleString()} observed{selected.notable ? " · notable" : ""}</p>{selected.access_warning && <p className="caveat">Access may be restricted. Verify access before visiting.</p>}<a href={`/birds/${selected.species_code}`} onClick={(event) => profileLink(event, `/birds/${selected.species_code}`)}>View bird profile</a></> : <p>Select a map point or encounter-list row for details.</p>}</section>
-          <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible encounter list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onMouseEnter={() => setHoverPreviewId(row.source_observation_id)} onMouseLeave={() => setHoverPreviewId(null)} onFocus={() => setFocusPreviewId(row.source_observation_id)} onBlur={() => setFocusPreviewId(null)} onClick={() => choose(row)}><EncounterThumbnail photo={photoBySpecies.get(row.species_code)} name={label(row)} /><span className="encounter-copy"><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {row.observation_count.toLocaleString()} observed{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</span></button><EncounterPhotoLinks photo={photoBySpecies.get(row.species_code)} /></li>)}</ol> : <p className="empty">No encounters to list.</p>}</section>
+        <section className="panel map-panel" aria-labelledby="map-canvas-heading"><h2 id="map-canvas-heading">{PUBLIC_RUNTIME ? "Arizona historical occurrence map" : "Arizona encounter map"}</h2><div ref={mapContainer} className="map-canvas" aria-label={PUBLIC_RUNTIME ? "Interactive map of licensed historical Arizona occurrences" : "Interactive map of eligible Arizona encounters"} />{!basemapResult && !mapRuntime.failed && <p role="status">Loading labeled geographic context…</p>}{mapRuntime.failed && <p className="caveat" role="alert">The interactive map could not start. Filters and the accessible {PUBLIC_RUNTIME ? "historical occurrence" : "encounter"} list remain available.</p>}</section>
+        <aside className="field-map-rail" aria-label={PUBLIC_RUNTIME ? "Selected historical occurrence and accessible occurrence list" : "Selected encounter and accessible encounter list"}>
+          <section className="panel selected-encounter" aria-labelledby="selected-encounter-heading" aria-live="polite"><h2 id="selected-encounter-heading">{PUBLIC_RUNTIME ? "Selected historical occurrence" : "Selected encounter"}</h2>{selected ? <><h3>{label(selected)}</h3><p>{selected.location_name}</p><p>{dateTime(selected.observation_at)} · {PUBLIC_RUNTIME ? "Published count" : ""}{PUBLIC_RUNTIME && ": "}{selected.observation_count.toLocaleString()}{PUBLIC_RUNTIME ? "" : " observed"}{selected.notable ? " · notable" : ""}</p>{selected.access_warning && <p className="caveat">Access may be restricted. Verify access before visiting.</p>}<a href={`/birds/${selected.species_code}`} onClick={(event) => profileLink(event, `/birds/${selected.species_code}`)}>View bird profile</a></> : <p>Select a map point or {PUBLIC_RUNTIME ? "historical occurrence" : "encounter"}-list row for details.</p>}</section>
+          <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible {PUBLIC_RUNTIME ? "historical occurrence" : "encounter"} list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onMouseEnter={() => setHoverPreviewId(row.source_observation_id)} onMouseLeave={() => setHoverPreviewId(null)} onFocus={() => setFocusPreviewId(row.source_observation_id)} onBlur={() => setFocusPreviewId(null)} onClick={() => choose(row)}><EncounterThumbnail photo={photoBySpecies.get(row.species_code)} name={label(row)} /><span className="encounter-copy"><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {PUBLIC_RUNTIME ? "Published count: " : ""}{row.observation_count.toLocaleString()}{PUBLIC_RUNTIME ? "" : " observed"}{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</span></button><EncounterPhotoLinks photo={photoBySpecies.get(row.species_code)} /></li>)}</ol> : <p className="empty">No {PUBLIC_RUNTIME ? "historical occurrences" : "encounters"} to list.</p>}</section>
         </aside>
       </div>
       {mapStyle && <BasemapAttribution hasBasemap={mapStyle.hasBasemap} />}

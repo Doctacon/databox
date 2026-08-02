@@ -60,6 +60,23 @@ export interface PublicManifest {
   };
 }
 
+/** Small mutable pointer published last after an immutable R2 release is complete. */
+export interface PublicReleasePointer {
+  schema_version: 1;
+  mode: "public-release-pointer";
+  release_id: string;
+  data_version: string;
+  published_at: string;
+  manifest_path: string;
+  manifest_sha256: string;
+  release_manifest_sha256: string;
+  release_manifest_key: string;
+  asset_base_key: string;
+  file_count: number;
+  total_bytes: number;
+  previous_releases: unknown[];
+}
+
 export interface PublicMedia {
   kind: "photo" | "audio";
   provider: "inaturalist" | "xeno_canto";

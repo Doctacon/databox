@@ -1,4 +1,4 @@
-"""Hard-zero-cost static-site invariant tests."""
+"""Public-release safety invariant tests."""
 
 from __future__ import annotations
 
@@ -11,6 +11,14 @@ from databox.public_export_audit import (
     audit_deploy_context,
     audit_public_site,
     audit_workflow_runners,
+)
+
+_REVIEWED_CSP = (
+    "/*\n"
+    "  Content-Security-Policy: default-src 'self'; "
+    "connect-src 'self' https://tiles.openfreemap.org "
+    "https://rufous-data.loughondata.com; "
+    "frame-ancestors https://loughondata.com https://www.loughondata.com\n"
 )
 
 
@@ -28,6 +36,33 @@ def test_synthetic_contract_passes_cost_privacy_audit(tmp_path: Path) -> None:
         "jobs:\n  build:\n    runs-on: ubuntu-latest\n", encoding="utf-8"
     )
     assert audit_public_site(site, workflows) == []
+
+
+def test_audit_rejects_unreviewed_r2_endpoints_and_broad_connect_policy(
+    tmp_path: Path,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    (site / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    (site / "assets").mkdir()
+    (site / "assets/client.js").write_text(
+        "fetch('https://rufous.example.r2.dev/manifest.json?X-Amz-Signature=secret')",
+        encoding="utf-8",
+    )
+    (site / "_headers").write_text(
+        "/*\n"
+        "  Content-Security-Policy: default-src 'self'; "
+        "connect-src 'self' https:; frame-ancestors *\n"
+        "/data/*\n"
+        "  Cache-Control: no-cache, max-age=0, must-revalidate\n",
+        encoding="utf-8",
+    )
+
+    findings = audit_public_site(site)
+
+    assert any(".r2.dev" in item for item in findings)
+    assert any("x-amz-signature" in item.casefold() for item in findings)
+    assert any("connect-src" in item for item in findings)
+    assert any("frame-ancestors" in item for item in findings)
 
 
 def test_audit_rejects_functions_bindings_metered_services_and_oversized_files(
@@ -77,7 +112,8 @@ def test_audit_requires_one_coherent_revalidation_policy_for_all_data(tmp_path: 
     (site / "index.html").write_text("<!doctype html>", encoding="utf-8")
     headers = site / "_headers"
     headers.write_text(
-        "/data/*\n  Cache-Control: public, max-age=3600, stale-while-revalidate=86400\n"
+        _REVIEWED_CSP
+        + "/data/*\n  Cache-Control: public, max-age=3600, stale-while-revalidate=86400\n"
         "/data/manifest.json\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
         encoding="utf-8",
     )
@@ -87,7 +123,7 @@ def test_audit_requires_one_coherent_revalidation_policy_for_all_data(tmp_path: 
     assert any("manifest and shards cannot mix releases" in item for item in findings)
 
     headers.write_text(
-        "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n"
+        _REVIEWED_CSP + "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n"
         "/data/cells/*\n  Cache-Control: public, max-age=3600\n",
         encoding="utf-8",
     )
@@ -96,7 +132,7 @@ def test_audit_requires_one_coherent_revalidation_policy_for_all_data(tmp_path: 
     )
 
     headers.write_text(
-        "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n"
+        _REVIEWED_CSP + "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n"
         "/data/cells/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
         encoding="utf-8",
     )

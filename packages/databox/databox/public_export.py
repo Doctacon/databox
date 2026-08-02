@@ -17,6 +17,7 @@ import shutil
 import tempfile
 import unicodedata
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -831,18 +832,16 @@ def build_public_assets(
         "items": attribution_items,
     }
     assets["data/attribution.json"] = attribution
-    data_version = _asset_version(assets)
     license_policy = {
         "version": 1,
         "allowed": {provider: sorted(values) for provider, values in ALLOWED_LICENSES.items()},
         "rejected_counts": dict(sorted(records.rejected.items())),
     }
-    assets["data/manifest.json"] = {
+    manifest: JsonObject = {
         "schema_version": SCHEMA_VERSION,
         "mode": "public",
         "release_mode": mode,
         "generated_at": generated,
-        "data_version": data_version,
         "region": REGION,
         "species": species_summaries,
         "cells": cell_summaries,
@@ -863,6 +862,8 @@ def build_public_assets(
             "attribution_items": len(attribution_items),
         },
     }
+    assets["data/manifest.json"] = manifest
+    manifest["data_version"] = semantic_data_version(assets)
     return assets
 
 
@@ -952,12 +953,23 @@ def _attribution_sources(
     return sources
 
 
-def _asset_version(assets: dict[str, JsonObject]) -> str:
-    semantic = {
-        path: _without_volatile_fields(payload)
-        for path, payload in sorted(assets.items())
-        if path != "data/manifest.json"
-    }
+def semantic_data_version(assets: Mapping[str, object]) -> str:
+    """Hash the complete public contract while ignoring generation timestamps.
+
+    The application manifest participates in the identity.  Its ``data_version``
+    field is the one deliberate self-reference, so only that field is removed
+    from the canonical manifest before hashing.  ``generated_at`` is removed
+    recursively from every JSON document so rebuilding identical source data at
+    a later time remains a semantic no-op.
+    """
+    semantic: dict[str, object] = {}
+    for path, payload in sorted(assets.items()):
+        canonical = _without_volatile_fields(payload)
+        if path == "data/manifest.json":
+            if not isinstance(canonical, dict):
+                raise PublicExportError("data/manifest.json must be a JSON object")
+            canonical = {key: value for key, value in canonical.items() if key != "data_version"}
+        semantic[path] = canonical
     encoded = json.dumps(semantic, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(encoded.encode()).hexdigest()
 

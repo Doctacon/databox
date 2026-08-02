@@ -152,9 +152,24 @@ summary { min-height: 44px; cursor: pointer; color: var(--teal-950); font-weight
 .success { color: var(--success); background: #e4f5e9; }
 .success::before { content: "✓ SUCCESS"; font-weight: 900; }
 
-.birds-main, .bird-profile-main, .my-birds-main, .field-map-main { display: block; min-height: calc(100vh - 76px); max-width: 1240px; margin: 0 auto; padding: clamp(18px, 3vw, 32px); }
+.birds-main, .bird-profile-main, .my-birds-main, .field-map-main, .credits-main { display: block; min-height: calc(100vh - 76px); max-width: 1240px; margin: 0 auto; padding: clamp(18px, 3vw, 32px); }
 .catalog-heading { max-width: 780px; margin-bottom: 20px; }
 .catalog-heading h1 { margin-bottom: 10px; }
+.credits-main { display: grid; gap: 20px; align-content: start; }
+.credits-main > * { margin: 0; }
+.credit-release { max-width: 860px; }
+.credits-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.credit-source { display: grid; align-content: start; gap: 12px; }
+.credit-source > * { margin: 0; }
+.credit-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.credit-details div { min-width: 0; padding: 10px; background: var(--cream-100); border-left: 4px solid var(--teal-700); }
+.credit-items ul { list-style: none; display: grid; gap: 12px; margin: 0; padding: 0; }
+.credit-items li { display: grid; gap: 5px; padding-bottom: 12px; border-bottom: 2px dashed var(--teal-800); }
+.credit-items li:last-child { padding-bottom: 0; border-bottom: 0; }
+.credit-items li > span { color: var(--muted); }
+.credit-policy { padding-top: 12px; border-top: 2px dashed var(--teal-800); }
+.site-footer { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 18px clamp(14px, 3vw, 32px); color: var(--cream-100); background: var(--teal-950); border-top: 4px solid var(--ink); font-size: .8rem; }
+.site-footer a { color: var(--gold-400); }
 .catalog-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 12px; align-items: end; margin-bottom: 20px; }
 .catalog-controls > div { display: grid; gap: 6px; min-width: 0; }
 .catalog-controls .catalog-search { grid-column: span 2; }
@@ -307,6 +322,7 @@ button.danger:hover { background: #651b17; }
   .catalog-controls { grid-template-columns: 1fr 1fr; }
   .catalog-controls button { grid-column: 1 / -1; }
   .field-map-layout, .bird-wheel-layout { grid-template-columns: minmax(0, 1fr); }
+  .credits-grid { grid-template-columns: minmax(0, 1fr); }
   .bird-wheel { height: 380px; }
 }
 @media (max-width: 540px) {
@@ -317,7 +333,9 @@ button.danger:hover { background: #651b17; }
   .site-header nav { order: 3; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .site-header nav a { padding-inline: 4px; font-size: .76rem; text-align: center; }
   .planner-sidebar { padding: 18px 14px; }
-  .content, .birds-main, .bird-profile-main, .my-birds-main, .field-map-main { padding: 15px 12px 22px; }
+  .content, .birds-main, .bird-profile-main, .my-birds-main, .field-map-main, .credits-main { padding: 15px 12px 22px; }
+  .credit-details { grid-template-columns: minmax(0, 1fr); }
+  .site-footer { align-items: flex-start; flex-direction: column; }
   .map-canvas { min-height: 360px; }
   .trip-evidence-map .map-canvas { min-height: 260px; }
   .panel, .notice, .hero-card { box-shadow: 3px 3px 0 var(--ink); }

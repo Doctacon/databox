@@ -1,6 +1,10 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+function publicAlias(source: string) {
+  return `/src/publicAdapters/${source}`;
+}
+
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
@@ -22,6 +26,18 @@ export default defineConfig(({ mode }) => ({
       },
     },
   ],
+  resolve: {
+    alias: mode === "public" ? [
+      { find: "./api", replacement: publicAlias("tripApi.ts") },
+      { find: "./birdApi", replacement: publicAlias("birdApi.ts") },
+      { find: "./mapApi", replacement: publicAlias("mapApi.ts") },
+      { find: "./collectionApi", replacement: publicAlias("collectionApi.ts") },
+      { find: "./targetApi", replacement: publicAlias("targetApi.ts") },
+      { find: "./alertDeliveryApi", replacement: publicAlias("alertDeliveryApi.ts") },
+      { find: "./SourceRefreshControl", replacement: publicAlias("SourceRefreshControl.tsx") },
+      { find: "./TripCalendarControls", replacement: publicAlias("TripCalendarControls.tsx") },
+    ] : [],
+  },
   server: {
     host: "127.0.0.1",
     port: 5173,

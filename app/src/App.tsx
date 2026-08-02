@@ -19,8 +19,10 @@ import type {
 import { presentWeather } from "./weather";
 import "./styles.css";
 
+const PUBLIC_RUNTIME = import.meta.env.MODE === "public";
 const FieldMapPage = lazy(() => import("./FieldMap").then((module) => ({ default: module.FieldMapPage })));
 const TripEvidenceMap = lazy(() => import("./FieldMap").then((module) => ({ default: module.TripEvidenceMap })));
+const PublicCreditsPage = lazy(() => import("./PublicCredits").then((module) => ({ default: module.PublicCreditsPage })));
 
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -343,7 +345,7 @@ function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCale
   return (
     <div className="plan" aria-live="polite">
       <section className="hero-card">
-        <p className="eyebrow">Persisted trip plan</p>
+        <p className="eyebrow">{PUBLIC_RUNTIME ? "Saved on this device" : "Persisted trip plan"}</p>
         <h1>{detail.plan.normalized_location_name || detail.plan.requested_location}</h1>
         <div className="summary-grid">
           <div><strong>{new Date(detail.plan.window_start).toLocaleString()}</strong><span>Start</span></div>
@@ -380,12 +382,12 @@ function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCale
               {detail.weather.caveats.map((item) => <li key={item}>{item}</li>)}
             </ul>
           )}
-          <p className="source-status">Open-Meteo source status: {detail.weather.status}</p>
-        </> : <p className="empty">Open-Meteo context was not persisted.</p>}
+          <p className="source-status">{PUBLIC_RUNTIME ? `Optional live weather status: ${detail.weather.status}` : `Open-Meteo source status: ${detail.weather.status}`}</p>
+        </> : <p className="empty">{PUBLIC_RUNTIME ? "Live weather is optional and unavailable for this browser-generated plan." : "Open-Meteo context was not persisted."}</p>}
       </section>
 
-      <RecommendationGroup title="Recently Reported Species" rows={recentlyReported} planId={detail.plan.trip_plan_id} />
-      <RecommendationGroup title="GBIF Occurrence Context" rows={gbifContext} planId={detail.plan.trip_plan_id} />
+      <RecommendationGroup title={PUBLIC_RUNTIME ? "Direct recent reports (not published)" : "Recently Reported Species"} rows={recentlyReported} planId={detail.plan.trip_plan_id} />
+      <RecommendationGroup title={PUBLIC_RUNTIME ? "Licensed Public Occurrence Context" : "GBIF Occurrence Context"} rows={gbifContext} planId={detail.plan.trip_plan_id} />
 
       <section className="panel" aria-labelledby="field-plan">
         <h2 id="field-plan">Field Plan</h2>
@@ -430,7 +432,7 @@ function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCale
             onNext={() => setEvidencePage((value) => Math.min(lastEvidencePage, value + 1))}
           />
           <details className="workflow-disclosure">
-            <summary>Agent Workflow</summary>
+            <summary>{PUBLIC_RUNTIME ? "Deterministic Browser Workflow" : "Agent Workflow"}</summary>
             <ol className="timeline">{detail.tool_traces.map((trace) => <li key={trace.tool_trace_id}>
               <span className={`status-dot ${trace.tool_status}`} aria-hidden="true" />
               <div><strong>{trace.step_order}. {trace.tool_name.replaceAll("_", " ")}</strong>
@@ -542,16 +544,17 @@ function PlannerPage() {
       </aside>
       <section className="content" aria-busy={loadingPlan}>
         {error && <div className="error" role="alert"><strong>Could not complete that request.</strong><span>{error}</span></div>}
-        {loadingPlan && <div className="loading" role="status">Gathering local evidence and building your field plan…</div>}
+        {loadingPlan && <div className="loading" role="status">{PUBLIC_RUNTIME ? "Reading the published snapshot and building your field plan…" : "Gathering local evidence and building your field plan…"}</div>}
         {!loadingPlan && detail && <PlanView key={detail.plan.trip_plan_id} detail={detail} onCalendarChange={(calendar_invite) => setDetail((current) => current && current.plan.trip_plan_id === detail.plan.trip_plan_id ? { ...current, calendar_invite } : current)} />}
-        {!loadingPlan && !detail && !error && <div className="welcome"><span aria-hidden="true">⌁</span><h2>No trip selected</h2><p>Create a plan or choose a saved plan to see recommendations, evidence, and the agent workflow.</p></div>}
+        {!loadingPlan && !detail && !error && <div className="welcome"><span aria-hidden="true">⌁</span><h2>No trip selected</h2><p>Create a plan or choose a saved plan to see recommendations, evidence, and the {PUBLIC_RUNTIME ? "deterministic browser workflow" : "agent workflow"}.</p></div>}
       </section>
     </main>;
 }
 
-type Route = { page: "planner" } | { page: "birds" } | { page: "map" } | { page: "bird"; speciesCode: string } | { page: "target-find"; speciesCode: string } | { page: "target-plan"; planId: string } | { page: "my-birds" };
+type Route = { page: "planner" } | { page: "birds" } | { page: "map" } | { page: "credits" } | { page: "bird"; speciesCode: string } | { page: "target-find"; speciesCode: string } | { page: "target-plan"; planId: string } | { page: "my-birds" };
 
 function currentRoute(): Route {
+  if (PUBLIC_RUNTIME && window.location.pathname === "/credits") return { page: "credits" };
   if (window.location.pathname === "/my-birds") return { page: "my-birds" };
   if (window.location.pathname === "/map") return { page: "map" };
   if (window.location.pathname === "/birds") return { page: "birds" };
@@ -586,6 +589,8 @@ export default function App() {
         ? "Arizona Birds · Rufous"
         : route.page === "map"
           ? "Field Map · Rufous"
+          : route.page === "credits"
+            ? "Credits and Data Sources · Rufous"
           : route.page === "my-birds"
             ? "My Birds · Rufous"
             : route.page === "target-find" || route.page === "target-plan"
@@ -617,15 +622,18 @@ export default function App() {
         <a href="/birds" aria-current={birdsActive ? "page" : undefined} onClick={(event) => navClick(event, "/birds")}>Arizona Birds</a>
         <a href="/map" aria-current={route.page === "map" ? "page" : undefined} onClick={(event) => navClick(event, "/map")}>Field Map</a>
         <a href="/my-birds" aria-current={route.page === "my-birds" ? "page" : undefined} onClick={(event) => navClick(event, "/my-birds")}>My Birds</a>
+        {PUBLIC_RUNTIME && <a href="/credits" aria-current={route.page === "credits" ? "page" : undefined} onClick={(event) => navClick(event, "/credits")}>Credits</a>}
       </nav>
       <SourceRefreshControl />
     </header>
     {route.page === "planner" && <PlannerPage />}
     {route.page === "birds" && <BirdCatalogPage navigate={navigate} />}
-    {route.page === "map" && <Suspense fallback={<main className="field-map-main"><p role="status">Loading the local Field Map interface…</p></main>}><FieldMapPage navigate={navigate} /></Suspense>}
+    {route.page === "map" && <Suspense fallback={<main className="field-map-main"><p role="status">Loading the {PUBLIC_RUNTIME ? "published" : "local"} Field Map interface…</p></main>}><FieldMapPage navigate={navigate} /></Suspense>}
+    {route.page === "credits" && <Suspense fallback={<main className="credits-main"><p role="status">Loading release credits…</p></main>}><PublicCreditsPage /></Suspense>}
     {route.page === "bird" && <BirdProfilePage speciesCode={route.speciesCode} navigate={navigate} />}
     {route.page === "target-find" && <TargetBirdPage speciesCode={route.speciesCode} navigate={navigate} />}
     {route.page === "target-plan" && <TargetBirdPage planId={route.planId} navigate={navigate} />}
     {route.page === "my-birds" && <MyBirdsPage navigate={navigate} />}
+    {PUBLIC_RUNTIME && <footer className="site-footer"><span>Rufous public data is published with its provenance.</span><a href="/credits" onClick={(event) => navClick(event, "/credits")}>Credits, licenses, and data sources</a></footer>}
   </>;
 }

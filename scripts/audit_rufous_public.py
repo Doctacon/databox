@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI shim for the Rufous hard-zero-cost public release audit."""
+"""CLI shim for the Rufous public release safety audit."""
 
 from databox.public_export_audit import main
 
