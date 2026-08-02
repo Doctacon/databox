@@ -260,7 +260,7 @@ Before enabling the R2-backed release:
 3. Attach `rufous-data.loughondata.com` as its production custom domain and keep
    the `r2.dev` development URL disabled. See Cloudflare's [public bucket
    guidance](https://developers.cloudflare.com/r2/buckets/public-buckets/).
-4. Apply [`infra/cloudflare/rufous-r2-cors.json`](../infra/cloudflare/rufous-r2-cors.json).
+4. Apply [`infra/cloudflare/rufous-r2-cors.json`](https://github.com/Doctacon/databox/blob/main/infra/cloudflare/rufous-r2-cors.json).
    Only the iframe origin `https://rufous.loughondata.com` receives GET/HEAD
    access. Pull-request previews continue using same-origin fictional fixtures.
 5. Add a hostname-scoped Cache Everything rule for immutable
