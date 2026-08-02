@@ -225,10 +225,17 @@ Production is protected by `RUF_PUBLIC_RELEASE_ENABLED=true`. Repository
 variables are:
 
 - `RUF_PUBLIC_URL`
-- `RUF_PUBLIC_DATA_URL` — exactly
-  `https://rufous-data.loughondata.com/rufous-public`
-- `RUF_R2_BUCKET`
 - `CLOUDFLARE_PAGES_PROJECT`
+
+The non-secret public release coordinates are reviewed directly in
+`.github/workflows/rufous-public.yaml`:
+
+- `RUFOUS_PUBLIC_DATA_URL` — exactly
+  `https://rufous-data.loughondata.com/rufous-public`
+- `RUFOUS_R2_BUCKET` — exactly `rufous-public-data`
+
+Changing either coordinate therefore requires the same pull-request review and
+checks as changing the publisher instead of an unreviewed settings-page edit.
 
 Production secrets are:
 
