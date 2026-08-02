@@ -1,0 +1,285 @@
+name: Rufous public static release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "packages/databox-sources/databox_sources/gbif/**"
+      - "packages/databox-sources/tests/gbif/**"
+      - "packages/databox-sources/tests/conftest.py"
+      - "packages/databox-sources/tests/test_vcr_sanitization.py"
+      - "packages/databox/databox/config/settings.py"
+      - "packages/databox/databox/orchestration/domains/gbif.py"
+      - "packages/databox/databox/public_export*.py"
+      - "scripts/load_dlt_quack.py"
+      - "scripts/*rufous_public.py"
+      - "scripts/sqlmesh_plan_rufous_public.sh"
+      - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
+      - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
+      - "soda/contracts/rufous_public/**"
+      - "tests/test_public_export*.py"
+      - "tests/test_settings.py"
+      - "transforms/main/models/birding_agent/**"
+      - "transforms/main/models/environmental_observations/**"
+      - "transforms/main/models/rufous_public/**"
+      - "transforms/main/tests/**"
+      - "uv.lock"
+      - "functions/**"
+      - "worker.js"
+      - "worker.mjs"
+      - "worker.ts"
+      - "_worker.js"
+      - "wrangler.toml"
+      - "wrangler.json"
+      - "wrangler.jsonc"
+      - ".wrangler/deploy/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "packages/databox-sources/databox_sources/gbif/**"
+      - "packages/databox-sources/tests/gbif/**"
+      - "packages/databox-sources/tests/conftest.py"
+      - "packages/databox-sources/tests/test_vcr_sanitization.py"
+      - "packages/databox/databox/config/settings.py"
+      - "packages/databox/databox/orchestration/domains/gbif.py"
+      - "packages/databox/databox/public_export*.py"
+      - "scripts/load_dlt_quack.py"
+      - "scripts/*rufous_public.py"
+      - "scripts/sqlmesh_plan_rufous_public.sh"
+      - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
+      - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
+      - "soda/contracts/rufous_public/**"
+      - "tests/test_public_export*.py"
+      - "tests/test_settings.py"
+      - "transforms/main/models/birding_agent/**"
+      - "transforms/main/models/environmental_observations/**"
+      - "transforms/main/models/rufous_public/**"
+      - "transforms/main/tests/**"
+      - "uv.lock"
+      - "functions/**"
+      - "worker.js"
+      - "worker.mjs"
+      - "worker.ts"
+      - "_worker.js"
+      - "wrangler.toml"
+      - "wrangler.json"
+      - "wrangler.jsonc"
+      - ".wrangler/deploy/**"
+      - ".github/workflows/**"
+  schedule:
+    - cron: "17 7 2 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rufous-public-${{ ((github.event_name == 'schedule') || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) && 'production' || (github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number)) || format('nonproduction-{0}', github.run_id) }}
+  cancel-in-progress: true
+
+jobs:
+  readiness:
+    name: Check production release configuration
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    outputs:
+      production_ready: ${{ steps.ready.outputs.production_ready }}
+    env:
+      RELEASE_ENABLED: ${{ vars.RUF_PUBLIC_RELEASE_ENABLED }}
+      PUBLIC_URL: ${{ vars.RUF_PUBLIC_URL }}
+      PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - id: ready
+        name: Evaluate without printing configuration
+        shell: bash
+        run: |
+          ready=true
+          if [[ "$RELEASE_ENABLED" != "true" ]]; then
+            ready=false
+          fi
+          for name in PUBLIC_URL PAGES_PROJECT CF_ACCOUNT CF_TOKEN; do
+            if [[ -z "${!name}" ]]; then
+              ready=false
+            fi
+          done
+          if [[ ! "$PUBLIC_URL" =~ ^https:// ]]; then
+            ready=false
+          fi
+          echo "production_ready=$ready" >> "$GITHUB_OUTPUT"
+
+  synthetic:
+    name: Build synthetic static preview
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install Python dependencies
+        run: uv sync --all-extras --dev
+      - name: Install browser dependencies
+        run: npm --prefix app ci
+      - name: Test public exporter and cost invariant
+        run: >-
+          uv run pytest tests/test_public_export.py tests/test_public_export_audit.py
+          -o "addopts=-v --tb=short"
+      - name: Test public SQLMesh publication model
+        working-directory: transforms/main
+        run: ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
+      - name: Test public browser application
+        run: |
+          npm --prefix app run typecheck
+          npm --prefix app test -- --reporter=dot
+      - name: Export fictional public data
+        run: >-
+          uv run python scripts/export_rufous_public.py
+          --mode synthetic --output build/rufous-public-data
+      - name: Build static public app
+        run: npm --prefix app run build:public
+      - name: Replace checked-in fixtures with audited exporter output
+        run: |
+          rm -rf app/dist/data
+          cp -R build/rufous-public-data/data app/dist/data
+      - name: Enforce static cost boundary
+        run: >-
+          uv run python scripts/audit_rufous_public.py app/dist
+          --workflows .github/workflows
+          --repository-root .
+
+  production:
+    name: Build and deploy production static release
+    needs: readiness
+    if: >-
+      needs.readiness.outputs.production_ready == 'true' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       github.event_name == 'schedule' ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RUNTIME__DLTHUB_TELEMETRY: "false"
+      SQLMESH__DISABLE_ANONYMIZED_ANALYTICS: "true"
+      DAGSTER_HOME: ${{ github.workspace }}/.dagster
+      RUF_GNIS_URL: https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_AZ_Text.zip
+      RUF_GNIS_ARCHIVE_SHA256: dae54077f01dbef8b7d387fe724b9d46b3689f15c0551e183ebc55b8f9def264
+      RUF_GNIS_SHA256: 09c27e2d929947ec47301b41ffeb68bc051b3fa149fe2c49effdb954aaee0b2e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install dependencies
+        run: |
+          mkdir -p "$DAGSTER_HOME"
+          uv sync --all-extras --dev
+          npm --prefix app ci
+      - name: Test public exporter and cost invariant
+        run: >-
+          uv run pytest tests/test_public_export.py tests/test_public_export_audit.py
+          -o "addopts=-v --tb=short"
+      - name: Test public SQLMesh publication model
+        working-directory: transforms/main
+        run: ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
+      - name: Test public browser application
+        run: |
+          npm --prefix app run typecheck
+          npm --prefix app test -- --reporter=dot
+      - name: Refresh and model the licensed GBIF publication warehouse
+        env:
+          DATABOX_GBIF_MAX_RECORDS: "3000"
+          DATABOX_GBIF_PUBLIC_RELEASE: "true"
+        run: |
+          uv run python scripts/load_dlt_quack.py \
+            --source gbif \
+            --database data/databox.duckdb \
+            --skip-sqlmesh
+          bash scripts/sqlmesh_plan_rufous_public.sh
+      - name: Download official Arizona GNIS archive
+        run: >-
+          curl --fail --silent --show-error --location
+          --proto '=https' --proto-redir '=https' --max-filesize 10000000
+          --max-time 120 --output data/gnis-arizona.zip "$RUF_GNIS_URL"
+      - name: Verify the pinned GNIS archive
+        run: >-
+          python -c 'import hashlib, os, pathlib;
+          path = pathlib.Path("data/gnis-arizona.zip");
+          actual = hashlib.sha256(path.read_bytes()).hexdigest();
+          expected = os.environ["RUF_GNIS_ARCHIVE_SHA256"];
+          assert actual == expected, f"GNIS archive SHA-256 mismatch: {actual}"'
+      - name: Extract the pinned GNIS text snapshot
+        run: >-
+          unzip -j -o data/gnis-arizona.zip
+          Text/DomesticNames_AZ.txt -d data
+      - name: Export licensed static public projection
+        run: >-
+          uv run python scripts/export_rufous_public.py
+          --mode production
+          --database data/databox.duckdb
+          --gnis data/DomesticNames_AZ.txt
+          --gnis-sha256 "$RUF_GNIS_SHA256"
+          --output build/rufous-public-data
+      - name: Build static public app
+        run: npm --prefix app run build:public
+      - name: Install production data contract
+        run: |
+          rm -rf app/dist/data
+          cp -R build/rufous-public-data/data app/dist/data
+      - name: Enforce static cost boundary
+        run: >-
+          uv run python scripts/audit_rufous_public.py app/dist
+          --workflows .github/workflows
+          --repository-root .
+      - id: changed
+        name: Skip only an unchanged scheduled data refresh
+        shell: bash
+        env:
+          RUF_PUBLIC_URL: ${{ vars.RUF_PUBLIC_URL }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          new_version=$(python -c 'import json; print(json.load(open("app/dist/data/manifest.json"))["data_version"])')
+          current_version=$(curl --fail --silent --show-error --max-time 15 \
+            "$RUF_PUBLIC_URL/data/manifest.json" 2>/dev/null \
+            | python -c 'import json,sys; print(json.load(sys.stdin).get("data_version", ""))' \
+            || true)
+          if [[ -n "$current_version" && "$current_version" == "$new_version" ]]; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy immutable static Pages release
+        if: steps.changed.outputs.deploy == 'true'
+        working-directory: ${{ runner.temp }}
+        env:
+          CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: >-
+          "${{ github.workspace }}/app/node_modules/.bin/wrangler" pages deploy
+          "${{ github.workspace }}/app/dist"
+          --project-name "$CLOUDFLARE_PAGES_PROJECT"
+          --branch main
+          --commit-hash "${{ github.sha }}"

@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "prefix": "pr",
+  "places": [
+    { "public_id": "gnis-synthetic-prescott", "name": "Prescott, Arizona", "kind": "Populated place", "source": "usgs_gnis", "latitude": 34.5400, "longitude": -112.4685, "timezone": "America/Phoenix", "timezone_source": "fixture" }
+  ]
+}

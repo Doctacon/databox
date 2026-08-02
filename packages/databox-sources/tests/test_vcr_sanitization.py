@@ -75,6 +75,9 @@ def test_response_scrub_removes_session_cookie_and_minimizes_gbif_reference(
                         {
                             "key": 1,
                             "gbifID": "1",
+                            "datasetKey": "dataset-1",
+                            "datasetTitle": "Example occurrence dataset",
+                            "publishingOrganizationTitle": "Example publisher",
                             "scientificName": "Corvus corax",
                             "references": "https://provider.example/resolvable/1",
                             "recordedBy": "Public Observer",
@@ -93,6 +96,9 @@ def test_response_scrub_removes_session_cookie_and_minimizes_gbif_reference(
         {
             "key": 1,
             "gbifID": "1",
+            "datasetKey": "dataset-1",
+            "datasetTitle": "Example occurrence dataset",
+            "publishingOrganizationTitle": "Example publisher",
             "scientificName": "Corvus corax",
             "references": _GBIF_REFERENCE_PLACEHOLDER,
         }

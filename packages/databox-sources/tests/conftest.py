@@ -93,6 +93,9 @@ def _bounded_provider_payload(payload: Any) -> Any:
         allowed = {
             "key",
             "gbifID",
+            "datasetKey",
+            "datasetTitle",
+            "publishingOrganizationTitle",
             "scientificName",
             "acceptedScientificName",
             "class",

@@ -2,8 +2,8 @@
 
 Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/generate_docs.py`.
 
-- **Models:** 18
-- **Soda contracts:** 25
+- **Models:** 19
+- **Soda contracts:** 26
 - **Lineage:** [browse the dependency graph](lineage.md)
 
 ## `analytics`
@@ -44,3 +44,9 @@ Canonical environmental-observations CDM models generated from the .schema workf
 | [`environmental_observations.fact_region_daily_stats`](environmental_observations/fact_region_daily_stats.md) | yes | CDM fact: one row per eBird region per calendar date. |
 | [`environmental_observations.fact_streamflow_observation`](environmental_observations/fact_streamflow_observation.md) | yes | CDM fact: one row per USGS streamgage site per observation date per parameter code. |
 | [`environmental_observations.fact_weather_observation`](environmental_observations/fact_weather_observation.md) | yes | CDM fact: one row per NOAA station per observation date per datatype. |
+
+## `rufous_public`
+
+| Model | Contract | Description |
+| --- | --- | --- |
+| [`rufous_public.gbif_eod_occurrence`](rufous_public/gbif_eod_occurrence.md) | yes | Sanitized Arizona occurrence projection from the CC BY GBIF EOD dataset; no observer, locality, checklist, or direct-eBird fields. |

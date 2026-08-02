@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "cell_id": "n33w113",
+  "bounds": { "west": -113, "south": 33, "east": -112, "north": 34 },
+  "observations": [
+    {
+      "public_id": "synthetic-n33-001",
+      "species_code": "gilwoo",
+      "observed_at": "2026-07-30T13:10:00Z",
+      "count": 2,
+      "count_display": "2 birds",
+      "is_notable": false,
+      "source": "synthetic",
+      "attribution_id": "rufous-fixture",
+      "location": { "name": "Synthetic Salt River Grove", "latitude": 33.4482, "longitude": -112.0712, "kind": "Synthetic public site", "timezone": "America/Phoenix", "timezone_source": "fixture" }
+    },
+    {
+      "public_id": "synthetic-n33-002",
+      "species_code": "rufhum",
+      "observed_at": "2026-07-27T12:40:00Z",
+      "count": 1,
+      "count_display": "1 bird",
+      "is_notable": true,
+      "source": "synthetic",
+      "attribution_id": "rufous-fixture",
+      "location": { "name": "Synthetic Agua Fria Garden", "latitude": 33.731, "longitude": -112.255, "kind": "Synthetic public site", "timezone": "America/Phoenix", "timezone_source": "fixture" }
+    }
+  ]
+}

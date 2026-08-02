@@ -118,6 +118,8 @@
           data_type: timestamp
         _query_country_code:
           data_type: text
+        _query_dataset_key:
+          data_type: text
         _query_state_province:
           data_type: text
         _query_taxon_key:
@@ -144,7 +146,19 @@
           data_type: text
         country_code:
           data_type: text
+        dataset_citation:
+          data_type: text
+        dataset_doi:
+          data_type: text
         dataset_key:
+          data_type: text
+        dataset_license:
+          data_type: text
+        dataset_publisher:
+          data_type: text
+        dataset_source_url:
+          data_type: text
+        dataset_title:
           data_type: text
         day:
           data_type: bigint

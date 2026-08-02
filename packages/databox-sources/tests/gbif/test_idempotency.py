@@ -7,7 +7,7 @@ from databox.orchestration.domains.gbif import _build_source
 
 
 def _source():
-    return _build_source(max_records=2)
+    return _build_source(max_records=2, public_release=True)
 
 
 @pytest.mark.vcr

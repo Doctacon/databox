@@ -429,7 +429,13 @@ test_birding_agent_gbif_occurrence_evidence:
         - key: 9001
           gbif_id: "9001"
           occurrence_id: "occ-9001"
-          dataset_key: "dataset-1"
+          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_title: "EOD – eBird Observation Dataset"
+          dataset_publisher: "Cornell Lab of Ornithology"
+          dataset_citation: "EOD citation"
+          dataset_doi: "10.15468/aomfnb"
+          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
           publishing_org_key: "org-1"
           scientific_name: "Cardinalis cardinalis"
           accepted_scientific_name: "Cardinalis cardinalis"
@@ -463,6 +469,7 @@ test_birding_agent_gbif_occurrence_evidence:
           _query_country_code: "US"
           _query_state_province: "Arizona"
           _query_taxon_key: 212
+          _query_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
           _loaded_at: "2025-07-21T10:00:00+00:00"
           _dlt_load_id: "load-gbif"
           _dlt_id: "row-gbif"
@@ -476,7 +483,13 @@ test_birding_agent_gbif_occurrence_evidence:
           gbif_key: 9001
           gbif_id: "9001"
           occurrence_id: "occ-9001"
-          dataset_key: "dataset-1"
+          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_title: "EOD – eBird Observation Dataset"
+          dataset_publisher: "Cornell Lab of Ornithology"
+          dataset_citation: "EOD citation"
+          dataset_doi: "10.15468/aomfnb"
+          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
           publishing_org_key: "org-1"
           species_natural_key: "cardinalis cardinalis"
           species_code: null
@@ -513,6 +526,7 @@ test_birding_agent_gbif_occurrence_evidence:
           _query_country_code: "US"
           _query_state_province: "Arizona"
           _query_taxon_key: 212
+          _query_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
           loaded_at: "2025-07-21 10:00:00"
           dlt_load_id: "load-gbif"
           dlt_id: "row-gbif"
@@ -555,6 +569,12 @@ test_birding_agent_gbif_authority_free_conformance:
         gbif_id: text
         occurrence_id: text
         dataset_key: text
+        dataset_title: text
+        dataset_publisher: text
+        dataset_citation: text
+        dataset_doi: text
+        dataset_source_url: text
+        dataset_license: text
         publishing_org_key: text
         scientific_name: text
         accepted_scientific_name: text
@@ -588,6 +608,7 @@ test_birding_agent_gbif_authority_free_conformance:
         _query_country_code: text
         _query_state_province: text
         _query_taxon_key: bigint
+        _query_dataset_key: text
         _loaded_at: timestamp
         _dlt_load_id: text
         _dlt_id: text
@@ -749,7 +770,13 @@ test_fact_bird_occurrence:
         - key: 9001
           gbif_id: "9001"
           occurrence_id: "occ-9001"
-          dataset_key: "dataset-1"
+          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_title: "EOD – eBird Observation Dataset"
+          dataset_publisher: "Cornell Lab of Ornithology"
+          dataset_citation: "EOD citation"
+          dataset_doi: "10.15468/aomfnb"
+          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
           publishing_org_key: "org-1"
           installation_key: "install-1"
           hosting_organization_key: "host-1"
@@ -806,6 +833,7 @@ test_fact_bird_occurrence:
           _query_country_code: "US"
           _query_state_province: "Arizona"
           _query_taxon_key: 212
+          _query_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
           _loaded_at: "2025-07-21T10:00:00+00:00"
           _dlt_load_id: "load-gbif"
           _dlt_id: "row-gbif"
@@ -819,7 +847,13 @@ test_fact_bird_occurrence:
           gbif_key: 9001
           gbif_id: "9001"
           occurrence_id: "occ-9001"
-          dataset_key: "dataset-1"
+          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_title: "EOD – eBird Observation Dataset"
+          dataset_publisher: "Cornell Lab of Ornithology"
+          dataset_citation: "EOD citation"
+          dataset_doi: "10.15468/aomfnb"
+          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
           publishing_org_key: "org-1"
           installation_key: "install-1"
           hosting_organization_key: "host-1"
@@ -877,6 +911,7 @@ test_fact_bird_occurrence:
           query_country_code: "US"
           query_state_province: "Arizona"
           query_taxon_key: 212
+          query_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
           loaded_at: "2025-07-21 10:00:00"
           dlt_load_id: "load-gbif"
           dlt_id: "row-gbif"
@@ -987,6 +1022,98 @@ test_fact_bird_sound_recording:
           dlt_load_id: "load-xc"
           dlt_id: "row-xc"
 
+test_rufous_public_gbif_eod_occurrence:
+  model: rufous_public.gbif_eod_occurrence
+  inputs:
+    raw_gbif.occurrences:
+      rows:
+        - key: 9201
+          gbif_id: "9201"
+          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_title: ""
+          dataset_publisher: ""
+          dataset_citation: ""
+          dataset_doi: ""
+          dataset_source_url: ""
+          dataset_license: ""
+          scientific_name: "Cardinalis cardinalis (Linnaeus, 1758)"
+          accepted_scientific_name: "Cardinalis cardinalis (Linnaeus, 1758)"
+          vernacular_name: "Northern Cardinal"
+          family: "Cardinalidae"
+          order_name: "Passeriformes"
+          species: "Cardinalis cardinalis"
+          taxon_rank: "SPECIES"
+          taxon_key: 2491322
+          accepted_taxon_key: 2491322
+          species_key: 2491322
+          decimal_latitude: 34.541
+          decimal_longitude: -112.476
+          coordinate_uncertainty_in_meters: 25
+          country_code: "US"
+          state_province: "Arizona"
+          event_date: "2024-07-20T06:30:00"
+          basis_of_record: "HUMAN_OBSERVATION"
+          occurrence_status: "PRESENT"
+          license: "http://creativecommons.org/licenses/by/4.0/legalcode"
+          _loaded_at: "2026-08-02T10:00:00+00:00"
+          _dlt_id: "newer"
+        - key: 9202
+          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          scientific_name: "Corvus corax"
+          decimal_latitude: 34.5
+          decimal_longitude: -112.5
+          country_code: "US"
+          state_province: "Arizona"
+          event_date: "2024-07-20"
+          occurrence_status: "PRESENT"
+          license: "http://creativecommons.org/licenses/by-nc/4.0/legalcode"
+          _loaded_at: "2026-08-02T10:00:00+00:00"
+          _dlt_id: "noncommercial"
+        - key: 9203
+          dataset_key: "another-dataset"
+          scientific_name: "Sialia mexicana"
+          decimal_latitude: 34.5
+          decimal_longitude: -112.5
+          country_code: "US"
+          state_province: "Arizona"
+          event_date: "2024-07-20"
+          occurrence_status: "PRESENT"
+          license: "http://creativecommons.org/licenses/by/4.0/legalcode"
+          _loaded_at: "2026-08-02T10:00:00+00:00"
+          _dlt_id: "wrong-dataset"
+  outputs:
+    partial: true
+    query:
+      rows:
+        - source_id: "9201"
+          gbif_key: 9201
+          gbif_id: "9201"
+          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_title: "EOD – eBird Observation Dataset"
+          dataset_publisher: "Cornell Lab of Ornithology"
+          dataset_doi: "10.15468/aomfnb"
+          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
+          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
+          scientific_name: "Cardinalis cardinalis (Linnaeus, 1758)"
+          accepted_scientific_name: "Cardinalis cardinalis (Linnaeus, 1758)"
+          common_name: "Northern Cardinal"
+          taxon_rank: "SPECIES"
+          family: "Cardinalidae"
+          order_name: "Passeriformes"
+          accepted_taxon_key: 2491322
+          taxon_key: 2491322
+          species_key: 2491322
+          event_date: "2024-07-20"
+          event_date_text: "2024-07-20"
+          latitude: 34.54
+          longitude: -112.48
+          coordinate_uncertainty_in_meters: 1000.0
+          basis_of_record: "HUMAN_OBSERVATION"
+          occurrence_status: "PRESENT"
+          license: "http://creativecommons.org/licenses/by/4.0/legalcode"
+          source_reference_url: "https://www.gbif.org/occurrence/9201"
+          loaded_at: "2026-08-02 10:00:00"
+
 test_fact_bird_occurrence_blank_name_fallbacks:
   model: environmental_observations.fact_bird_occurrence
   inputs:
@@ -1006,6 +1133,12 @@ test_fact_bird_occurrence_blank_name_fallbacks:
         gbif_id: text
         occurrence_id: text
         dataset_key: text
+        dataset_title: text
+        dataset_publisher: text
+        dataset_citation: text
+        dataset_doi: text
+        dataset_source_url: text
+        dataset_license: text
         publishing_org_key: text
         installation_key: text
         hosting_organization_key: text
@@ -1062,6 +1195,7 @@ test_fact_bird_occurrence_blank_name_fallbacks:
         _query_country_code: text
         _query_state_province: text
         _query_taxon_key: bigint
+        _query_dataset_key: text
         _loaded_at: timestamp
         _dlt_load_id: text
         _dlt_id: text

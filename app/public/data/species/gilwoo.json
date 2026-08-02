@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "species_code": "gilwoo",
+  "common_name": "Gila Woodpecker",
+  "scientific_name": "Melanerpes uropygialis",
+  "taxonomic_category": "species",
+  "family": { "common_name": "Woodpeckers", "scientific_name": "Picidae" },
+  "order_name": "Piciformes",
+  "traits": { "habitat": "Desert and riparian woodland", "migration": "Resident" },
+  "evidence": { "licensed_occurrence_count": 2, "latest_licensed_occurrence_at": "2026-07-30T13:10:00Z" },
+  "media": []
+}

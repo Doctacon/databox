@@ -48,3 +48,17 @@ def test_alert_smtp_settings_are_secret_in_runtime_repr() -> None:
 def test_ebird_window_rejects_values_outside_provider_limit(days_back: int) -> None:
     with pytest.raises(ValidationError):
         DataboxSettings(_env_file=None, DATABOX_EBIRD_DAYS_BACK=days_back)
+
+
+@pytest.mark.parametrize("max_records", [0, 10_001])
+def test_gbif_record_cap_rejects_unbounded_values(max_records: int) -> None:
+    with pytest.raises(ValidationError):
+        DataboxSettings(_env_file=None, DATABOX_GBIF_MAX_RECORDS=max_records)
+
+
+def test_gbif_public_release_is_explicit_and_disabled_by_default() -> None:
+    assert DataboxSettings(_env_file=None).gbif_public_release is False
+    assert (
+        DataboxSettings(_env_file=None, DATABOX_GBIF_PUBLIC_RELEASE="true").gbif_public_release
+        is True
+    )
