@@ -22,6 +22,7 @@ EXPECTED_MATRIX = {
         {"source": "ebird", "profile": "http"},
         {"source": "gbif", "profile": "http"},
         {"source": "noaa", "profile": "http"},
+        {"source": "usfws", "profile": "http"},
         {"source": "usgs", "profile": "http"},
         {"source": "usgs_earthquakes", "profile": "http"},
         {"source": "xeno_canto", "profile": "http"},

@@ -6,7 +6,12 @@ import type {
   BirdPublicLocation,
   BirdTraits,
 } from "../types";
-import { unavailableCall, unavailablePhoto } from "./media";
+import {
+  publicCatalogPhoto,
+  publicCatalogPhotos,
+  unavailableCall,
+  unavailablePhoto,
+} from "./media";
 import { publicManifest, publicObservations, publicProfile } from "./runtime";
 
 function timestamp(value: string | null): string | null {
@@ -39,6 +44,8 @@ function summary(
 ): BirdCatalogSummary {
   const scientificName = profile?.scientific_name ?? species.scientific_name;
   const hasTraits = Boolean(profile && Object.values(profile.traits).some((value) => value !== null));
+  const profileHero = publicCatalogPhotos(profile?.media, scientificName, generatedAt)[0] ?? null;
+  const manifestHero = publicCatalogPhoto(species.hero_photo, scientificName, generatedAt);
   return {
     species_code: species.species_code,
     common_name: profile?.common_name ?? species.common_name,
@@ -53,7 +60,7 @@ function summary(
     habitat: profile ? traitText(profile, "habitat") : null,
     recent_public_observation_count: profile?.evidence.licensed_occurrence_count ?? 0,
     latest_public_observation_at: timestamp(profile?.evidence.latest_licensed_occurrence_at ?? null),
-    photo: unavailablePhoto(scientificName, generatedAt),
+    photo: profileHero ?? manifestHero ?? unavailablePhoto(scientificName, generatedAt),
     call: unavailableCall(scientificName, generatedAt),
   };
 }
@@ -135,6 +142,10 @@ export async function getBird(speciesCode: string): Promise<BirdProfile> {
   ]);
   const species = manifest.species.find((item) => item.species_code === speciesCode)!;
   const catalog = summary(species, profile, manifest.species.indexOf(species) + 1, manifest.generated_at);
+  const profilePhotos = publicCatalogPhotos(profile.media, profile.scientific_name, manifest.generated_at);
+  const photos = profilePhotos.length
+    ? profilePhotos
+    : catalog.photo.status === "available" ? [catalog.photo] : [];
   const locations = new Map<string, BirdPublicLocation>();
   for (const observation of observations) {
     const key = `${observation.location.latitude.toFixed(4)}:${observation.location.longitude.toFixed(4)}:${observation.location.name}`;
@@ -164,6 +175,8 @@ export async function getBird(speciesCode: string): Promise<BirdProfile> {
     ?? catalog.latest_public_observation_at;
   return {
     ...catalog,
+    photo: photos[0] ?? catalog.photo,
+    photos,
     recent_public_observation_count: observations.length || catalog.recent_public_observation_count,
     latest_public_observation_at: latest,
     region_code: "US-AZ",

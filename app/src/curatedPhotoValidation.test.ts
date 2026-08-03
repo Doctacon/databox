@@ -12,6 +12,17 @@ const photo = {
   original_height: 1200, caveats: [],
 };
 
+const usfwsHash = `ab${"c".repeat(62)}`;
+const usfwsPhoto = {
+  status: "available", source_record_id: "usfws-rufous-1", species_name: "Selasphorus rufus",
+  display_url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/ab/${usfwsHash}.webp`,
+  source_url: "https://www.fws.gov/media/rufous--hummingbird", creator: "USFWS Photographer",
+  rights_holder: null, publisher: "U.S. Fish and Wildlife Service", format: "image/webp",
+  license_text: "Public Domain", license_url: "https://www.fws.gov/notices",
+  selection_reason: "Validated USFWS public-release photo", provider: "usfws",
+  license_code: "Public Domain", original_width: 650, original_height: 488, caveats: [],
+};
+
 describe("curated iNaturalist photo validation", () => {
   it("accepts an exact safe provider result", () => {
     expect(validateAvailableCuratedPhoto(photo, "Trogon elegans")).toMatchObject({
@@ -34,5 +45,27 @@ describe("curated iNaturalist photo validation", () => {
     ["undersized", { original_width: 900, original_height: 900 }],
   ])("rejects %s", (_name, change) => {
     expect(validateAvailableCuratedPhoto({ ...photo, ...change }, "Trogon elegans")).toBeNull();
+  });
+});
+
+describe("published USFWS recommendation photo validation", () => {
+  it("accepts a content-addressed public photo and consecutive-hyphen source slug", () => {
+    expect(validateAvailableCuratedPhoto(usfwsPhoto, "Selasphorus rufus")).toMatchObject({
+      providerLabel: "USFWS",
+      sourceUrl: usfwsPhoto.source_url,
+      displayUrl: usfwsPhoto.display_url,
+      licenseCode: "Public Domain",
+    });
+  });
+
+  it.each([
+    ["wrong media host", { display_url: usfwsPhoto.display_url.replace("rufous-data.loughondata.com", "example.com") }],
+    ["wrong hash shard", { display_url: usfwsPhoto.display_url.replace("/objects/ab/", "/objects/cd/") }],
+    ["unsafe source slug", { source_url: "https://www.fws.gov/media/rufous-" }],
+    ["wrong publisher", { publisher: "Unknown" }],
+    ["oversized derivative", { original_width: 651 }],
+    ["noncommercial license", { license_text: "CC BY-NC 4.0", license_code: "CC BY-NC 4.0", license_url: "https://creativecommons.org/licenses/by-nc/4.0/" }],
+  ])("rejects %s", (_name, change) => {
+    expect(validateAvailableCuratedPhoto({ ...usfwsPhoto, ...change }, "Selasphorus rufus")).toBeNull();
   });
 });

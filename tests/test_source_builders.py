@@ -96,6 +96,23 @@ def test_noaa_builder_owns_production_defaults(monkeypatch: pytest.MonkeyPatch) 
     )
 
 
+def test_usfws_builder_requires_caller_owned_targets(monkeypatch: pytest.MonkeyPatch) -> None:
+    from databox.orchestration.domains import usfws
+
+    sentinel = object()
+    factory = Mock(return_value=sentinel)
+    targets = [
+        {
+            "species_code": "rufhum",
+            "common_name": "Rufous Hummingbird",
+            "scientific_name": "Selasphorus rufus",
+        }
+    ]
+    monkeypatch.setattr(usfws, "usfws_source", factory)
+    assert usfws._build_source(target_species=targets, max_images_per_target=25) is sentinel
+    factory.assert_called_once_with(target_species=targets, max_images_per_target=25)
+
+
 def test_usgs_builder_owns_production_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     from databox.orchestration.domains import usgs
 

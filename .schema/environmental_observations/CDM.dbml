@@ -452,3 +452,22 @@ Table fact_earthquake_event [note: 'table_type:fact; grain:one row per USGS eart
   dlt_load_id varchar
   dlt_id varchar
 }
+
+Table usfws_commercial_image [note: 'schema:rufous_public; table_type:interface; grain:one row per target species_code and safe FWS media page in the latest complete snapshot; source_entity:BirdMediaImage; license_policy:Public Domain or CC0 or CC BY or CC BY-SA only'] {
+  species_code varchar [pk, not null]
+  common_name varchar [not null]
+  scientific_name varchar [not null]
+  source_page_url varchar [pk, not null]
+  source_image_url varchar [not null]
+  creator varchar [not null]
+  license varchar [not null]
+  title varchar [not null]
+  caption varchar
+  alt_text varchar [not null]
+  source_published_at date
+  source_width bigint [not null]
+  source_height bigint [not null]
+  mime_type varchar [not null]
+  discovery_method varchar [not null]
+  loaded_at timestamp [not null]
+}

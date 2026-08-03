@@ -907,6 +907,26 @@ class FakeR2Client:
         stored = self.objects[(kwargs["Bucket"], kwargs["Key"])]
         return {**stored, "Body": io.BytesIO(stored["Body"])}
 
+    def list_objects_v2(self, **kwargs: Any) -> dict[str, Any]:
+        bucket = kwargs["Bucket"]
+        prefix = kwargs["Prefix"]
+        start = int(kwargs.get("ContinuationToken", "0"))
+        maximum = kwargs["MaxKeys"]
+        matches = sorted(
+            (key, value)
+            for (object_bucket, key), value in self.objects.items()
+            if object_bucket == bucket and key.startswith(prefix)
+        )
+        page = matches[start : start + maximum]
+        next_offset = start + len(page)
+        result: dict[str, Any] = {
+            "Contents": [{"Key": key, "Size": value["ContentLength"]} for key, value in page],
+            "IsTruncated": next_offset < len(matches),
+        }
+        if result["IsTruncated"]:
+            result["NextContinuationToken"] = str(next_offset)
+        return result
+
 
 def test_r2_store_sets_integrity_and_condition_headers_without_credentials(
     tmp_path: Path,
@@ -962,6 +982,42 @@ def test_r2_store_sets_integrity_and_condition_headers_without_credentials(
     assert value.payload == b"{}\n"
     assert value.head.content_type == "application/json; charset=utf-8"
     assert value.head.cache_control == POINTER_CACHE_CONTROL
+
+    usage = store.prefix_usage("safe", maximum_objects=10, maximum_bytes=1_000)
+    assert usage.object_count == 2
+    assert usage.total_bytes == len(first["Body"]) + len(second["Body"])
+    with pytest.raises(PublicReleaseError, match="safe byte limit"):
+        store.prefix_usage("safe", maximum_objects=10, maximum_bytes=1)
+
+
+def test_local_prefix_usage_is_exact_bounded_and_rejects_links(tmp_path: Path) -> None:
+    store = LocalReleaseStore(tmp_path / "store")
+    store.put_bytes(
+        "media/one.bin",
+        b"one",
+        content_type="application/octet-stream",
+        cache_control=IMMUTABLE_CACHE_CONTROL,
+        metadata={"role": "test"},
+        if_none_match=True,
+    )
+    store.put_bytes(
+        "media-sibling/two.bin",
+        b"two",
+        content_type="application/octet-stream",
+        cache_control=IMMUTABLE_CACHE_CONTROL,
+        metadata={"role": "test"},
+        if_none_match=True,
+    )
+
+    usage = store.prefix_usage("media", maximum_objects=2, maximum_bytes=10)
+    assert usage.object_count == 1
+    assert usage.total_bytes == 3
+    with pytest.raises(PublicReleaseError, match="positive integers"):
+        store.prefix_usage("media", maximum_objects=0, maximum_bytes=10)
+
+    (store.root / "media" / "linked.bin").symlink_to(store.root / "media" / "one.bin")
+    with pytest.raises(PublicReleaseError, match="contains a symlink"):
+        store.prefix_usage("media", maximum_objects=2, maximum_bytes=10)
 
 
 def test_invalid_remote_pointer_is_not_overwritten(tmp_path: Path) -> None:

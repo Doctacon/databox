@@ -22,6 +22,7 @@ source contracts are deliberately explicit:
 | Input | Current refresh contract | R2 behavior |
 | --- | --- | --- |
 | GBIF eBird EOD bounded sample | Re-fetch the reviewed snapshot and deduplicate/model in DuckDB | Publish only the sanitized modeled result when its semantic hash changes |
+| USFWS bird media | Rebuild one complete bounded metadata snapshot for the public catalog; validate in SQLMesh; reuse verified derivatives | Create each content-addressed WebP once under the shared immutable media prefix |
 | Arizona GNIS | Full pinned snapshot; a changed upstream file requires reviewed URL/hash updates | Publish only the derived prefix shards when their semantic hash changes |
 | Browser observations and watches | Device-local, user-controlled records | Never upload |
 
@@ -40,6 +41,72 @@ projection contains only:
 - `cells/{grid-cell}.json`
 - `places/{two-character-prefix}.json`
 - `attribution.json`
+
+Approved bird images use a separate shared namespace instead of being copied
+inside every JSON release. DuckDB and SQLMesh select eligible records; the
+offline builder downloads the reviewed USFWS image, verifies that its
+model and HTTP media types are allowlisted hints, independently identifies the
+bytes as a still JPEG, PNG, or WebP with reviewed dimensions, strips metadata,
+creates a WebP no larger than 650×650 and 1 MiB, and hashes the final bytes. The
+internal preparation manifest records the decoded source media type so a
+metadata-versus-bytes normalization remains auditable. A public profile
+references only:
+
+```text
+https://rufous-data.loughondata.com/rufous-media/v1/objects/<2hex>/<sha256>.webp
+```
+
+There is no media pointer, listing, overwrite, or browser write path. Existing
+objects are verified and reused. A failed metadata snapshot, integrity check,
+systemic download, decode, license check, or upload leaves the prior public JSON
+release active.
+
+Preparation is not publication selection. The committed
+`config/rufous-media-visual-approvals.json` ledger must select exactly one final
+WebP for every eligible species represented by the prepared manifest. Each selection
+records the reviewer, review date, exact scientific name, final SHA-256, and
+canonical USFWS source-page set, plus an explicit attestation that the pixels
+show a live bird without a human or migration map. A changed derivative gets a
+new hash and a new review; a known hash used with new provenance also blocks
+until that provenance is reviewed. Other prepared candidates are implicit
+exclusions: they need no approval, cannot block merely by remaining unreviewed,
+and never enter public JSON or R2. Explicit rejections persist with a fixed
+reason (`dead_bird`, `human_present`, `migration_map`, or `other`) as an audit
+trail. If every current candidate for a species violates the user content
+policy, the ledger instead records one human-confirmed `no_safe_image`
+exclusion containing the complete species/hash/source-page candidate snapshot.
+Any new or changed candidate invalidates that exclusion and forces a fresh
+review. Excluded species publish no image and use the app's silhouette fallback.
+
+The image path is deliberately bounded without silently dropping a tail of
+results. A refresh fails before detail downloads if the complete USFWS snapshot
+would exceed 10,000 candidate records or 10,000 unique media pages. Preparation
+writes each verified derivative directly into an atomic staging tree instead of
+retaining the set in memory, and permits at most 1 GiB of prepared WebP data.
+Publication permits at most 5,000 new objects or 1 GiB of new bytes in one run,
+and refuses any write that would take the immutable media prefix above 20,000
+objects or 5 GiB. Exceeding any limit keeps the existing release active for a
+reviewed cap or scope decision.
+
+An individual source image that remains unavailable after six bounded retries
+is quarantined rather than silently accepted or allowed to suppress every other
+verified image. The internal preparation manifest records the complete semantic
+row, public source page, image URL, and fixed rejection reason. At most 10
+unique source objects may be quarantined; an eleventh is treated as a systemic
+outage and aborts the atomic build. Exhausted retryable transport failures,
+including an empty or prematurely truncated response body, may enter this
+quarantine. Unsafe redirects, decoded formats outside JPEG, PNG, and WebP,
+ambiguous or corrupt bytes, decoder failures, invalid dimensions, animation,
+pixel or prepared-byte limit failures, and restricted-mark failures always
+abort instead.
+
+The reusable preparation cache is an optimization, not release authority. Each
+entry is keyed by the complete semantic source row plus a fingerprint of the
+preparer code and Pillow/WebP runtime. The cache manifest has its own stable
+identity that excludes refresh timestamps. Invalid entries are cache misses;
+unchanged valid rows remain reusable when other rows are added or removed.
+Quarantined rows participate in that identity but never become cache hits, so
+every later refresh retries them and automatically restores a repaired source.
 
 Production publishes that complete projection twice:
 
@@ -80,6 +147,9 @@ rufous-public/
   manifest.json                                  mutable, no-cache pointer
   releases/<release-id>/release.json             immutable control manifest
   releases/<release-id>/objects/data/...         immutable audited projection
+
+rufous-media/v1/objects/
+  <first-two-sha>/<sha256>.webp                   shared immutable display copy
 ```
 
 The pointer records both the exporter `data_version` and byte-level release
@@ -129,9 +199,156 @@ That boundary follows GBIF's guidance that occurrence-search pages are capped at
 larger snapshot must replace only the transport with a citable GBIF bulk download;
 it must continue feeding the same dlt → DuckDB → SQLMesh publication path.
 
-SQLMesh builds only `rufous_public.gbif_eod_occurrence`, a publication model
-whose sole warehouse dependency is `raw_gbif.occurrences`; it does not need the
-private eBird, Xeno-canto, NOAA, or application models to exist.
+SQLMesh first builds `rufous_public.gbif_eod_occurrence`, whose sole warehouse
+dependency is `raw_gbif.occurrences`; it does not need the private eBird,
+Xeno-canto, NOAA, or application models to exist.
+
+The media refresh then derives exact target species from that public model and
+runs the normal dlt → Quack/DuckDB path. The USFWS source calls the official
+image search used by <https://www.fws.gov/search/images>, fetches canonical
+`/media/<slug>` pages with bounded concurrency and retries, and records raw
+metadata without deciding whether it may be published. It is an offline
+snapshot input, not a browser API dependency:
+
+USFWS's species and media-type controls are multi-select filters. Rufous sends
+their values as compact JSON arrays and, for every nonempty response, requires
+the returned facet count to equal the declared result total. This prevents a
+silently ignored filter from turning a targeted refresh into a crawl of the
+full USFWS catalog. Because the target list is derived from the reviewed public
+model, this source is invoked only by the explicit release script; it is not
+exposed as an unconfigured Dagster job.
+
+```bash
+uv run python scripts/load_rufous_usfws_media.py \
+  --database data/databox.duckdb \
+  --max-images-per-target 500
+bash scripts/sqlmesh_plan_rufous_media.sh
+uv run python scripts/prepare_rufous_media.py \
+  --database-path data/databox.duckdb \
+  --output-dir build/rufous-media
+```
+
+That preparation remains usable for a local refresh even when nothing is
+selected. To produce a deterministic list without granting a selection:
+
+```bash
+uv run python scripts/verify_rufous_media_approvals.py \
+  --manifest build/rufous-media/manifest.json \
+  --approvals config/rufous-media-visual-approvals.json \
+  --write-review-candidates build/rufous-media/review-candidates.json
+```
+
+The command intentionally exits nonzero until every represented species has
+one selection. A human chooses one suitable image per species at full useful
+resolution. A selection attests that it depicts a live bird, contains no human,
+and is not a migration map. Wrong birds, dead birds, people, maps, restricted
+marks, logos, seals, stamp imagery, and other unsuitable candidates can be
+recorded as explicit rejections. No refresh or script bulk-selects pixels.
+
+The committed ledger uses canonical, key-sorted JSON. One human selection
+has this shape (the hash and provenance must come from the reviewed candidate):
+
+```json
+{
+  "mode": "rufous-media-human-species-selections",
+  "rejections": [],
+  "review_policy": "one-live-bird-image-per-species-v1",
+  "schema_version": 2,
+  "selections": [
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Human reviewer name",
+      "scientific_name": "Selasphorus rufus",
+      "sha256": "<64 lowercase hexadecimal characters>",
+      "source_page_urls": ["https://www.fws.gov/media/reviewed-page-slug"]
+    }
+  ],
+  "species_exclusions": []
+}
+```
+
+For the browser-based review app, build a separate marked bundle and serve it
+only on loopback:
+
+```bash
+uv run python scripts/build_rufous_media_review.py \
+  --source build/rufous-media \
+  --approvals config/rufous-media-visual-approvals.json \
+  --recommendations /path/to/curated-local-recommendations.json \
+  --output /tmp/rufous-media-LOCAL-REVIEW-ONLY \
+  --local-review-only
+python -m http.server 4174 --bind 127.0.0.1 \
+  --directory /tmp/rufous-media-LOCAL-REVIEW-ONLY
+```
+
+When `--recommendations` is omitted, the gallery opens on one deterministic
+recommendation per species, ranked by the prepared hero score and then stable
+source/media identifiers, without selecting or approving it. A visually
+curated recommendation file may replace that starting set. The file is
+canonical JSON, is bound to the exact prepared-manifest SHA-256, contains the
+exact scientific name, final WebP SHA-256, and complete current source-page set,
+and covers every represented species with either exactly one current
+recommendation or an explicit `no_safe_image` entry containing every current
+candidate. Duplicate, missing, stale, or provenance-mismatched coverage fails closed.
+This local input only changes which cards appear first; it cannot create a
+production selection. Every alternate remains available through the
+`All alternatives` view, and searching automatically searches alternatives as
+well. Rejecting a recommendation opens that species' alternatives. Choosing an
+image automatically replaces any prior local selection for that species.
+Rejections require a reason. The progress line counts species with exactly one
+selection rather than requiring a decision on every candidate. Exporting
+browser-local decisions still does not select anything for production. The
+builder never edits the ledger, requires the explicit `--local-review-only`
+acknowledgement, and stamps every bundle with
+`RUF_LOCAL_MEDIA_REVIEW_ONLY_DO_NOT_DEPLOY`.
+
+```json
+{
+  "excluded_species": [],
+  "mode": "rufous-media-local-review-recommendations",
+  "recommendations": [
+    {
+      "scientific_name": "Selasphorus rufus",
+      "sha256": "<64 lowercase hexadecimal characters>",
+      "source_page_urls": ["https://www.fws.gov/media/reviewed-page-slug"]
+    }
+  ],
+  "schema_version": 1,
+  "source_manifest_sha256": "<prepared manifest SHA-256>"
+}
+```
+
+Convert an exported browser file into a separate canonical ledger, with the
+human reviewer's identity added explicitly:
+
+```bash
+uv run python scripts/verify_rufous_media_approvals.py \
+  --manifest build/rufous-media/manifest.json \
+  --approvals config/rufous-media-visual-approvals.json \
+  --import-local-decisions /path/to/rufous-local-review-decisions-NOT-YET-COMMITTED.json \
+  --write-updated-ledger /tmp/rufous-media-visual-decisions.json \
+  --reviewed-by "Human reviewer name"
+```
+
+The import is bound to the exact prepared-manifest SHA-256 and exact candidate
+provenance. It writes a separate file and then runs the production gate; a
+partial review remains safely non-publishable. Review the diff before replacing
+the committed ledger. The production release audit rejects the local marker if
+any review bundle is copied into a deployable site.
+
+Run the same command without `--write-review-candidates` to verify the finished
+ledger. Production export and media publication both require that verification.
+The scheduled workflow places it immediately after local preparation and before
+any R2 or Pages mutation, so a newly discovered or changed image can stop a
+release but cannot publish itself.
+
+`rufous_public.usfws_commercial_image` selects only the latest complete
+snapshot. It requires an exact scientific-name tag, canonical USFWS media page,
+safe USFWS image URL, credible creator, usable dimensions and MIME type, and an
+explicitly commercial-use-compatible license. The preparation step independently
+repeats those gates before downloading bytes.
 
 Production also requires the official Arizona GNIS text extract and its independently
 pinned SHA-256. The workflow's reviewed, committed source metadata points to USGS's
@@ -144,6 +361,8 @@ uv run python scripts/export_rufous_public.py \
   --database data/databox.duckdb \
   --gnis data/DomesticNames_AZ.txt \
   --gnis-sha256 "$RUF_GNIS_SHA256" \
+  --media-manifest build/rufous-media/manifest.json \
+  --media-approvals config/rufous-media-visual-approvals.json \
   --output build/rufous-public-data
 ```
 
@@ -179,6 +398,25 @@ The monthly schedule never follows an unreviewed mutable GNIS URL.
   browser asks the visitor to choose Arizona or Mountain time.
 - Direct eBird records and hotspots are excluded even if they happen to exist in
   a developer's local DuckDB file.
+- USFWS media accepts only exact Public Domain, CC0, CC BY, or CC BY-SA terms.
+  NC, ND, all-rights-reserved, missing, malformed, or ambiguous terms are
+  rejected. Public Domain links to the USFWS notices page; Creative Commons
+  terms link to their canonical license page.
+- USFWS logos and seals, Federal and Junior Duck Stamp imagery, Wildlife and
+  Sport Fish Restoration symbols, and Blue Goose refuge marks are excluded
+  under the [USFWS notices](https://www.fws.gov/notices) and
+  [Duck Stamp licensing guidance](https://www.fws.gov/service/license-duck-stamps-or-junior-duck-stamp-imagery),
+  even when the surrounding record otherwise has an accepted license. This
+  fail-closed metadata gate cannot identify an unlabeled restricted mark
+  embedded only in image pixels. Production therefore requires a full-pixel
+  human review of the one selected hash for each represented species, recorded
+  in the committed selection ledger. Every other prepared candidate is excluded.
+- Every photo requires exact scientific identity, credible creator credit, a
+  canonical USFWS source page, alt text, dimensions, MIME type, derivative hash,
+  and immutable public URL. The upstream image URL and internal ranking score
+  never enter browser JSON.
+- Production must contain a selected Rufous Hummingbird photo. Species without
+  an eligible image retain the built-in silhouette and all non-media behavior.
 - Missing creator/provider credit, source URL, license, attribution, Arizona
   scope, or privacy status rejects an item.
 
@@ -188,9 +426,10 @@ Cloudflare bindings, known metered browser services, repository-level Wrangler
 or Functions discovery paths, and workflow runners. It permits only the standard
 `ubuntu-latest` GitHub-hosted runner.
 
-Both synthetic pull-request builds and production builds run the focused
-SQLMesh unit test for `rufous_public.gbif_eod_occurrence` before any release
-artifact can be built or deployed.
+Both synthetic pull-request builds and production builds run focused SQLMesh
+unit tests for `rufous_public.gbif_eod_occurrence` and
+`rufous_public.usfws_commercial_image` before any release artifact can be built
+or deployed.
 
 ## Deployment controls
 
@@ -202,16 +441,25 @@ would add provider load without making this snapshot fresher.
 
 The production sequence is fail-closed:
 
-1. Run dlt into a temporary DuckDB and build the public SQLMesh model.
-2. Export the sanitized projection and audit every referenced field and license.
-3. Build the full browser application and its independent Pages fallback; audit
+1. Run GBIF and USFWS dlt snapshots into a temporary DuckDB and build both
+   public SQLMesh models.
+2. Prepare immutable display images and require exactly one current, provenance-
+   bound human selection for every eligible represented species, or an exact
+   human-confirmed no-safe-image exclusion. Unselected and excluded candidates
+   do not block and are absent from both JSON and media publication.
+3. Export the sanitized JSON projection with complete per-image attribution.
+4. Build the full browser application and its independent Pages fallback; audit
    the resulting bundle before any object-store mutation.
-4. Require the checked-out commit to remain the current `main` head, then dry-run
-   the R2 publisher against the active pointer. This rejects an older workflow
-   sequence before Pages can change.
-5. Deploy the already-audited Pages directory atomically so the compatible app
+5. Require the checked-out commit to remain the current `main` head, then
+   preflight both the immutable media namespace and atomic JSON publisher.
+6. Recheck `main`, measure the existing media prefix, enforce the new-upload and
+   cumulative storage budgets, then create and byte-verify missing
+   content-addressed media. Orphaned media is harmless if a later step fails
+   because no active JSON release references it, and its bytes still count
+   against the cumulative gate.
+7. Deploy the already-audited Pages directory atomically so the compatible app
    and complete same-release fallback exist first.
-6. Recheck the `main` head, conditionally upload and fully read, hash, and verify
+8. Recheck the `main` head, conditionally upload and fully read, hash, and verify
    every immutable R2 object plus its actual cache/content metadata, then
    CAS-write and verify the no-cache pointer last.
 
@@ -255,6 +503,12 @@ Durable Object, Email, Analytics Engine, Worker entrypoint, or runtime API. R2 i
 accessed only through its public custom domain for GET/HEAD and through its S3
 endpoint by the production publisher.
 
+The static Pages Content Security Policy permits images only from the Pages
+origin, `data:`/`blob:` browser-local sources, and the exact
+`https://rufous-data.loughondata.com` media origin. `media-src` permits only the
+Pages origin and that same Rufous origin; broad `https:` sources are rejected by
+the release audit.
+
 ## Cloudflare setup
 
 Repository code intentionally does not provision account-wide Cloudflare state.
@@ -271,11 +525,13 @@ Before enabling the R2-backed release:
    Only the iframe origin `https://rufous.loughondata.com` receives GET/HEAD
    access. Pull-request previews continue using same-origin fictional fixtures.
 5. Add a hostname-scoped Cache Everything rule for immutable
-   `/rufous-public/releases/*` objects and a separate cache-bypass rule for the
+   `/rufous-public/releases/*` and `/rufous-media/v1/objects/*` objects and a
+   separate cache-bypass rule for the
    mutable `/rufous-public/manifest.json` pointer. Reject query-string variants
    with WAF. Do not enable Cache Reserve.
 6. Use one hostname-scoped WAF rule to allow only GET, HEAD, and OPTIONS and to
-   block paths outside the pointer and immutable-release namespaces. Keep the
+   block paths outside the pointer, immutable-release, and immutable-media
+   namespaces. Keep the
    default DDoS protection enabled. Do not enable free Bot Fight Mode solely for
    Rufous: it applies to the entire shared zone and cannot be scoped or skipped.
    Free rate limiting cannot match the hostname, so a broader path-scoped rate
@@ -289,6 +545,8 @@ Before enabling the R2-backed release:
    accidental or compromised overwrite/delete remains blocked during the
    rollback window. The mutable `rufous-public/manifest.json` pointer stays
    outside the lock.
+   Apply the same or a longer retention lock to `rufous-media/v1/objects/`;
+   content-addressed media is never intentionally overwritten.
 9. Protect Cloudflare and GitHub with passkeys or two-factor authentication and
    set a low account budget alert.
 
@@ -308,6 +566,11 @@ block or disable the R2 custom domain; Rufous then automatically uses the
 complete Pages snapshot. Recheck Cloudflare pricing, plan status, token scope,
 usage, provider terms, and published attribution at least quarterly.
 
+The repository-enforced 5 GiB immutable-media ceiling and 1 GiB per-run upload
+ceiling leave storage headroom and stop unbounded scheduled accumulation. They
+do not cap cached or uncached public read operations, so they do not restore a
+hard-zero-cost guarantee.
+
 ## Required launch tests
 
 - Build without any Worker, AI, email, Turnstile, eBird, or Cornell credential.
@@ -316,7 +579,8 @@ usage, provider terms, and published attribution at least quarterly.
 - Reject a staged release containing personal fields, raw identifiers, direct
   eBird material, forbidden licenses, a database signature, an unreferenced
   file, or a path not listed by the application manifest.
-- Verify R2 primary loading, pointer and manifest hashes, immutable shard paths,
+- Verify R2 primary loading, pointer and manifest hashes, immutable shard and
+  media paths, catalog heroes, gallery pagination/credits/failure states,
   catalog/profile/map/planner behavior, local watches and observations, and
   `.ics` download.
 - Simulate R2 timeout, CORS failure, 404, malformed pointer, bad hash, and an

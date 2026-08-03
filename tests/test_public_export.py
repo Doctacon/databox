@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from unittest.mock import ANY
 
+import databox.public_export as public_export
 import duckdb
 import pytest
 from databox.public_export import (
@@ -17,10 +19,12 @@ from databox.public_export import (
     canonical_license,
     export_public_data,
     load_gnis_places,
+    load_public_media_manifest,
     records_from_database,
     write_public_assets,
 )
 from databox.public_export_audit import audit_public_site
+from databox.public_media_approval import SELECTION_REASON, canonical_approval_json
 
 
 @pytest.mark.parametrize(
@@ -31,6 +35,8 @@ from databox.public_export_audit import audit_public_site
         ("xeno_canto", "CC BY-SA 2.5", "CC BY-SA 2.5"),
         ("gbif", "http://creativecommons.org/publicdomain/zero/1.0/legalcode", "CC0 1.0"),
         ("gbif", "http://creativecommons.org/licenses/by/4.0/legalcode", "CC BY 4.0"),
+        ("usfws", "Public Domain", "Public Domain"),
+        ("usfws", "CC BY-SA 4.0", "CC BY-SA 4.0"),
     ],
 )
 def test_license_allowlist_accepts_only_normalized_public_families(
@@ -39,7 +45,12 @@ def test_license_allowlist_accepts_only_normalized_public_families(
     result = canonical_license(provider, value)
     assert result is not None
     assert result[0] == expected
-    assert result[1].startswith("https://creativecommons.org/")
+    expected_origin = (
+        "https://www.fws.gov/notices"
+        if expected == "Public Domain"
+        else "https://creativecommons.org/"
+    )
+    assert result[1].startswith(expected_origin)
 
 
 @pytest.mark.parametrize(
@@ -55,6 +66,9 @@ def test_license_allowlist_accepts_only_normalized_public_families(
         ("gbif", "https://evil.example/creativecommons.org/licenses/by/4.0/"),
         ("gbif", "license: https://creativecommons.org/licenses/by/4.0/"),
         ("gbif", "https://creativecommons.org/licenses/by/4.0/?unexpected=true"),
+        ("usfws", "CC BY-NC 4.0"),
+        ("usfws", "CC BY-ND 4.0"),
+        ("usfws", "public domain"),
         ("unknown", "CC0 1.0"),
     ],
 )
@@ -74,12 +88,16 @@ def test_synthetic_export_is_offline_deterministic_and_complete(tmp_path: Path) 
         "gbif_dataset_key": None,
         "coverage": "fictional_fixture",
         "required_taxon_key": None,
+        "media_source": "none",
+        "media_delivery": "none",
     }
     assert manifest["counts"] == {
         "species": 2,
         "observations": 2,
         "places": 2,
         "attribution_items": 0,
+        "media_items": 0,
+        "species_with_media": 0,
     }
     assert (output / "data/manifest.json").is_file()
     assert (output / "data/attribution.json").is_file()
@@ -171,8 +189,8 @@ def _database(path: Path) -> None:
             "10.15468/aomfnb",
             GBIF_EBIRD_EOD_DATASET_URL,
             "CC BY 4.0",
-            "Selasphorus rufus (J.F.Gmelin, 1788)",
             "Selasphorus rufus",
+            "Selasphorus rufus (J.F.Gmelin, 1788)",
             "Rufous Hummingbird",
             "SPECIES",
             "Trochilidae",
@@ -233,6 +251,37 @@ def _database(path: Path) -> None:
         "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         rows,
     )
+    connection.execute(
+        """INSERT INTO rufous_public.gbif_eod_occurrence (
+          source_id, gbif_key, gbif_id, occurrence_id, dataset_key, dataset_title,
+          dataset_publisher, dataset_citation, dataset_doi, dataset_source_url,
+          dataset_license, scientific_name, accepted_scientific_name, common_name,
+          taxon_rank, family, order_name, accepted_taxon_key, taxon_key, event_date,
+          event_date_text, latitude, longitude, occurrence_status, license, loaded_at
+        ) VALUES
+          ('GENUS-COOPERS', 3, 'gbif-id-3', 'occurrence-id-3',
+           ?, 'EOD – eBird Observation Dataset', 'Cornell Lab of Ornithology',
+           'Cornell Lab of Ornithology. EOD – eBird Observation Dataset.',
+           '10.15468/aomfnb', ?, 'CC BY 4.0',
+           'Astur Lacepède, 1799', 'Astur Lacepède, 1799', 'Cooper''s Hawk',
+           'GENUS', 'Accipitridae', 'Accipitriformes', 3242735, 3242735,
+           '2026-01-12', '2026-01-12', 33.4, -112.1, 'PRESENT', 'CC BY 4.0',
+           '2026-01-15 14:12:00+00'),
+          ('GENUS-MOUNTAIN-PLOVER', 4, 'gbif-id-4', 'occurrence-id-4',
+           ?, 'EOD – eBird Observation Dataset', 'Cornell Lab of Ornithology',
+           'Cornell Lab of Ornithology. EOD – eBird Observation Dataset.',
+           '10.15468/aomfnb', ?, 'CC BY 4.0',
+           'Anarhynchus Quoy & Gaimard, 1832', 'Anarhynchus Quoy & Gaimard, 1832',
+           'Mountain Plover', 'GENUS', 'Charadriidae', 'Charadriiformes',
+           2480251, 2480251, '2026-01-11', '2026-01-11', 33.4, -112.1,
+           'PRESENT', 'CC BY 4.0', '2026-01-15 14:12:00+00')""",
+        [
+            GBIF_EBIRD_EOD_DATASET_KEY,
+            GBIF_EBIRD_EOD_DATASET_URL,
+            GBIF_EBIRD_EOD_DATASET_KEY,
+            GBIF_EBIRD_EOD_DATASET_URL,
+        ],
+    )
 
     # These direct eBird relations and their sensitive values must be irrelevant
     # to the public projection even if the private warehouse contains them.
@@ -266,6 +315,183 @@ def _gnis_places() -> list[dict[str, object]]:
     ]
 
 
+def _media_manifest(tmp_path: Path) -> Path:
+    digest = "d" * 64
+    path = tmp_path / "media-manifest.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "mode": "rufous-media-preparation",
+                "generated_at": "2026-08-03T00:00:00Z",
+                "items": [
+                    {
+                        "species_code": "rufhum",
+                        "common_name": "Rufous Hummingbird",
+                        "scientific_name": "Selasphorus rufus",
+                        "media_id": "usfws-" + "a" * 24,
+                        "source_page_url": "https://www.fws.gov/media/rufous-hummingbird-5",
+                        "source_image_url": ("https://www.fws.gov/sites/default/files/rufous.jpg"),
+                        "creator": "Tom Koerner/USFWS",
+                        "license": "Public Domain",
+                        "license_url": "https://www.fws.gov/notices",
+                        "title": "Rufous Hummingbird in flight",
+                        "caption": "An adult Rufous Hummingbird.",
+                        "alt_text": "A Rufous Hummingbird hovering beside flowers.",
+                        "width": 650,
+                        "height": 433,
+                        "mime_type": "image/webp",
+                        "sha256": digest,
+                        "url": (
+                            "https://rufous-data.loughondata.com/rufous-media/v1/objects/"
+                            f"{digest[:2]}/{digest}.webp"
+                        ),
+                        "attribution_id": "usfws-attribution-" + "b" * 24,
+                        "hero_score": 42.0,
+                    }
+                ],
+                "counts": {"items": 1, "objects": 1, "species": 1},
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def _media_approvals(tmp_path: Path, manifest_path: Path) -> Path:
+    item = json.loads(manifest_path.read_text(encoding="utf-8"))["items"][0]
+    path = tmp_path / "media-approvals.json"
+    path.write_bytes(
+        canonical_approval_json(
+            {
+                "schema_version": 2,
+                "mode": "rufous-media-human-species-selections",
+                "review_policy": "one-live-bird-image-per-species-v1",
+                "rejections": [],
+                "species_exclusions": [],
+                "selections": [
+                    {
+                        "sha256": item["sha256"],
+                        "decision": "selected",
+                        "reason": SELECTION_REASON,
+                        "reviewed_at": "2026-08-03",
+                        "reviewed_by": "Test Human",
+                        "scientific_name": item["scientific_name"],
+                        "source_page_urls": [item["source_page_url"]],
+                    }
+                ],
+            }
+        )
+    )
+    return path
+
+
+def test_media_manifest_exports_only_audited_public_fields(tmp_path: Path) -> None:
+    path = _media_manifest(tmp_path)
+
+    items = load_public_media_manifest(path)["selasphorus rufus"]
+
+    assert len(items) == 1
+    assert items[0]["provider"] == "usfws"
+    assert items[0]["license"] == "Public Domain"
+    assert items[0]["license_url"] == "https://www.fws.gov/notices"
+    assert items[0]["url"].endswith(".webp")
+    assert "source_image_url" not in items[0]
+    assert "hero_score" not in items[0]
+
+
+def test_selected_public_projection_contains_only_one_image_per_species(
+    tmp_path: Path,
+) -> None:
+    path = _media_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    selected = payload["items"][0]
+    unselected = {
+        **selected,
+        "media_id": "usfws-" + "c" * 24,
+        "attribution_id": "usfws-attribution-" + "d" * 24,
+        "source_page_url": "https://www.fws.gov/media/rufous-hummingbird-higher-score",
+        "sha256": "e" * 64,
+        "url": (f"https://rufous-data.loughondata.com/rufous-media/v1/objects/ee/{'e' * 64}.webp"),
+        "hero_score": 999.0,
+    }
+    payload["items"].append(unselected)
+    payload["counts"].update(items=2, objects=2)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    projected = load_public_media_manifest(
+        path,
+        selected_sha256_by_species={"selasphorus rufus": selected["sha256"]},
+    )
+
+    assert [item["sha256"] for item in projected["selasphorus rufus"]] == [selected["sha256"]]
+
+
+def test_explicit_no_safe_image_species_projects_to_silhouette_fallback(
+    tmp_path: Path,
+) -> None:
+    path = _media_manifest(tmp_path)
+
+    projected = load_public_media_manifest(
+        path,
+        selected_sha256_by_species={},
+        excluded_species=frozenset({"selasphorus rufus"}),
+    )
+
+    assert projected == {}
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("license", "CC BY-NC 4.0"),
+        ("creator", "Rufous Hummingbird"),
+        ("scientific_name", "Not the same bird"),
+        ("source_page_url", "https://evil.example/media/rufous-hummingbird"),
+        ("source_page_url", "https://www.fws.gov/media/rufous-hummingbird-"),
+        ("url", "https://example.r2.dev/photo.webp"),
+        ("mime_type", "image/jpeg"),
+        ("width", 651),
+    ],
+)
+def test_media_manifest_fails_closed_on_unsafe_metadata(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    path = _media_manifest(tmp_path)
+    payload = json.loads(path.read_text())
+    payload["items"][0][field] = value
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(PublicExportError, match="fails the public contract"):
+        load_public_media_manifest(path)
+
+
+def test_database_projection_prefers_clean_species_over_accepted_name_authority(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "source.duckdb"
+    _database(database)
+
+    records = records_from_database(database, _gnis_places())
+
+    assert records.species[0]["scientific_name"] == "Selasphorus rufus"
+
+
+def test_database_projection_rejects_live_shaped_genus_rank_species_labels(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "source.duckdb"
+    _database(database)
+
+    records = records_from_database(database, _gnis_places())
+
+    assert records.rejected["gbif_non_species_taxon"] == 2
+    encoded = json.dumps(records.species)
+    assert "Astur Lacepède" not in encoded
+    assert "Anarhynchus Quoy & Gaimard" not in encoded
+    assert "Selasphorus rufus" in encoded
+
+
 def test_database_projection_is_gbif_eod_only_and_strips_personal_values(
     tmp_path: Path,
 ) -> None:
@@ -274,7 +500,10 @@ def test_database_projection_is_gbif_eod_only_and_strips_personal_values(
 
     records = records_from_database(database, _gnis_places())
 
-    assert records.rejected == {"gbif_non_eod_dataset": 1}
+    assert records.rejected == {
+        "gbif_non_eod_dataset": 1,
+        "gbif_non_species_taxon": 2,
+    }
     assert len(records.observations) == 1
     assert records.places == _gnis_places()
     observation = records.observations[0]
@@ -331,6 +560,8 @@ def test_database_projection_is_gbif_eod_only_and_strips_personal_values(
         "gbif_dataset_key": GBIF_EBIRD_EOD_DATASET_KEY,
         "coverage": "bounded_sample",
         "required_taxon_key": 2476855,
+        "media_source": "none",
+        "media_delivery": "none",
     }
     eod_source = next(
         source
@@ -383,6 +614,7 @@ def test_production_export_needs_no_cornell_approval_environment(
     database = tmp_path / "source.duckdb"
     _database(database)
     gnis, checksum = _gnis_file(tmp_path)
+    media_manifest = _media_manifest(tmp_path)
 
     manifest = export_public_data(
         mode="production",
@@ -390,6 +622,8 @@ def test_production_export_needs_no_cornell_approval_environment(
         database_path=database,
         gnis_path=gnis,
         gnis_sha256=checksum,
+        media_manifest_path=media_manifest,
+        media_approvals_path=_media_approvals(tmp_path, media_manifest),
     )
 
     assert manifest["release_mode"] == "production"
@@ -398,17 +632,61 @@ def test_production_export_needs_no_cornell_approval_environment(
     assert audit_public_site(tmp_path / "public") == []
 
 
+def test_production_export_requires_committed_human_media_approval(tmp_path: Path) -> None:
+    database = tmp_path / "source.duckdb"
+    _database(database)
+    gnis, checksum = _gnis_file(tmp_path)
+    media_manifest = _media_manifest(tmp_path)
+
+    with pytest.raises(PublicExportError, match="--media-approvals"):
+        export_public_data(
+            mode="production",
+            output_dir=tmp_path / "missing-approval",
+            database_path=database,
+            gnis_path=gnis,
+            gnis_sha256=checksum,
+            media_manifest_path=media_manifest,
+        )
+
+    empty_approvals = tmp_path / "empty-approvals.json"
+    empty_approvals.write_bytes(
+        canonical_approval_json(
+            {
+                "schema_version": 2,
+                "mode": "rufous-media-human-species-selections",
+                "review_policy": "one-live-bird-image-per-species-v1",
+                "rejections": [],
+                "species_exclusions": [],
+                "selections": [],
+            }
+        )
+    )
+    with pytest.raises(PublicExportError, match="lack a committed human image selection"):
+        export_public_data(
+            mode="production",
+            output_dir=tmp_path / "unapproved",
+            database_path=database,
+            gnis_path=gnis,
+            gnis_sha256=checksum,
+            media_manifest_path=media_manifest,
+            media_approvals_path=empty_approvals,
+        )
+
+
 def test_production_audit_rejects_more_specific_occurrence_details(tmp_path: Path) -> None:
     database = tmp_path / "source.duckdb"
     _database(database)
     gnis, checksum = _gnis_file(tmp_path)
     output = tmp_path / "public"
+    media_manifest = _media_manifest(tmp_path)
     manifest = export_public_data(
         mode="production",
         output_dir=output,
         database_path=database,
         gnis_path=gnis,
         gnis_sha256=checksum,
+        media_manifest_path=media_manifest,
+        media_approvals_path=_media_approvals(tmp_path, media_manifest),
     )
     cell_path = output / str(manifest["cells"][0]["path"]).removeprefix("/")
     cell = json.loads(cell_path.read_text(encoding="utf-8"))
@@ -450,7 +728,11 @@ def test_gbif_projection_fails_closed_on_license_and_attribution(tmp_path: Path)
 
     assert records.observations == []
     assert records.species == []
-    assert records.rejected == {"gbif_license": 1, "gbif_non_eod_dataset": 1}
+    assert records.rejected == {
+        "gbif_license": 1,
+        "gbif_non_eod_dataset": 1,
+        "gbif_non_species_taxon": 2,
+    }
 
 
 def test_database_projection_rejects_non_gnis_place_input(tmp_path: Path) -> None:
@@ -468,3 +750,83 @@ def test_write_refuses_broad_output_directory(
     monkeypatch.chdir(tmp_path)
     with pytest.raises(PublicExportError, match="unsafe"):
         write_public_assets(tmp_path, {"data/manifest.json": {}})
+
+
+def test_public_export_never_replaces_an_arbitrary_nonempty_directory(tmp_path: Path) -> None:
+    output = tmp_path / "public"
+    output.mkdir()
+    sentinel = output / "personal-notes.txt"
+    sentinel.write_text("keep me", encoding="utf-8")
+
+    with pytest.raises(PublicExportError, match="valid Rufous public manifest"):
+        export_public_data(mode="synthetic", output_dir=output)
+
+    assert sentinel.read_text(encoding="utf-8") == "keep me"
+    assert list(output.iterdir()) == [sentinel]
+
+
+def test_public_export_rejects_a_symbolic_link_output(tmp_path: Path) -> None:
+    target = tmp_path / "site"
+    target.mkdir()
+    sentinel = target / "index.html"
+    sentinel.write_text("keep me", encoding="utf-8")
+    output = tmp_path / "public"
+    output.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(PublicExportError, match="symbolic link"):
+        export_public_data(mode="synthetic", output_dir=output)
+
+    assert output.is_symlink()
+    assert sentinel.read_text(encoding="utf-8") == "keep me"
+
+
+def test_public_export_allows_an_empty_existing_directory(tmp_path: Path) -> None:
+    output = tmp_path / "public"
+    output.mkdir()
+
+    manifest = export_public_data(mode="synthetic", output_dir=output)
+
+    assert manifest["mode"] == "public"
+    assert (output / "data" / "manifest.json").is_file()
+
+
+def test_public_export_never_replaces_a_tree_with_unmanifested_content(tmp_path: Path) -> None:
+    output = tmp_path / "public"
+    export_public_data(mode="synthetic", output_dir=output)
+    extra = output / "unrelated.txt"
+    extra.write_text("do not delete", encoding="utf-8")
+
+    with pytest.raises(PublicExportError, match="exact manifest"):
+        export_public_data(mode="synthetic", output_dir=output)
+
+    assert extra.read_text(encoding="utf-8") == "do not delete"
+
+
+def test_failed_public_tree_install_restores_last_good_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    output = tmp_path / "public"
+    export_public_data(mode="synthetic", output_dir=output)
+    before = {
+        path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()
+    }
+    stage = tmp_path / "replacement-stage"
+    shutil.copytree(output, stage)
+    expected = public_export._validate_public_output_target(output)
+    real_replace = public_export.os.replace
+
+    def fail_install(source: object, destination: object) -> None:
+        if Path(source) == stage and Path(destination) == output:
+            raise OSError("simulated interrupted install")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(public_export.os, "replace", fail_install)
+
+    with pytest.raises(PublicExportError, match="atomically publish"):
+        public_export._publish_public_tree(stage, output, expected=expected)
+
+    assert {
+        path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()
+    } == before
+    assert stage.is_dir()
+    assert not list(tmp_path.glob(".public.backup-*"))

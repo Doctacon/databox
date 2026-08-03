@@ -10,9 +10,9 @@
     "bounds": { "west": -114.82, "south": 31.33, "east": -109.04, "north": 37.01 }
   },
   "species": [
-    { "species_code": "gilwoo", "common_name": "Gila Woodpecker", "scientific_name": "Melanerpes uropygialis", "profile_path": "/data/species/gilwoo.json" },
-    { "species_code": "mexjay", "common_name": "Mexican Jay", "scientific_name": "Aphelocoma wollweberi", "profile_path": "/data/species/mexjay.json" },
-    { "species_code": "rufhum", "common_name": "Rufous Hummingbird", "scientific_name": "Selasphorus rufus", "profile_path": "/data/species/rufhum.json" }
+    { "species_code": "gilwoo", "common_name": "Gila Woodpecker", "scientific_name": "Melanerpes uropygialis", "profile_path": "/data/species/gilwoo.json", "hero_photo": null, "photo_count": 0 },
+    { "species_code": "mexjay", "common_name": "Mexican Jay", "scientific_name": "Aphelocoma wollweberi", "profile_path": "/data/species/mexjay.json", "hero_photo": null, "photo_count": 0 },
+    { "species_code": "rufhum", "common_name": "Rufous Hummingbird", "scientific_name": "Selasphorus rufus", "profile_path": "/data/species/rufhum.json", "hero_photo": null, "photo_count": 0 }
   ],
   "cells": [
     { "cell_id": "n32w111", "path": "/data/cells/n32w111.json", "observation_count": 2, "bounds": { "west": -111, "south": 32, "east": -110, "north": 33 } },
@@ -32,16 +32,19 @@
     "occurrence_source": "synthetic",
     "gbif_dataset_key": null,
     "coverage": "fictional_fixture",
-    "required_taxon_key": null
+    "required_taxon_key": null,
+    "media_source": "none",
+    "media_delivery": "none"
   },
   "license_policy": {
     "version": 1,
     "allowed": {
       "gbif": ["CC BY 1.0", "CC BY 2.0", "CC BY 2.5", "CC BY 3.0", "CC BY 4.0", "CC0 1.0"],
       "inaturalist": ["CC BY 4.0", "CC BY-SA 4.0", "CC0 1.0"],
+      "usfws": ["CC BY 1.0", "CC BY 2.0", "CC BY 2.5", "CC BY 3.0", "CC BY 4.0", "CC BY-SA 1.0", "CC BY-SA 2.0", "CC BY-SA 2.5", "CC BY-SA 3.0", "CC BY-SA 4.0", "CC0 1.0", "Public Domain"],
       "xeno_canto": ["CC BY 1.0", "CC BY 2.0", "CC BY 2.5", "CC BY 3.0", "CC BY 4.0", "CC BY-SA 1.0", "CC BY-SA 2.0", "CC BY-SA 2.5", "CC BY-SA 3.0", "CC BY-SA 4.0", "CC0 1.0"]
     },
     "rejected_counts": {}
   },
-  "counts": { "species": 3, "observations": 6, "places": 5, "attribution_items": 0 }
+  "counts": { "species": 3, "observations": 6, "places": 5, "attribution_items": 0, "media_items": 0, "species_with_media": 0 }
 }

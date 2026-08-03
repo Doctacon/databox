@@ -102,7 +102,7 @@ function RufousSilhouette({ label }: { label: string }) {
 }
 
 function photoProviderLabel(photo: CatalogPhoto): string {
-  return "iNaturalist";
+  return photo.provider === "usfws" ? "USFWS" : "iNaturalist";
 }
 
 function CatalogPhotoMedia({ photo, label, compact = false }: {
@@ -115,21 +115,101 @@ function CatalogPhotoMedia({ photo, label, compact = false }: {
   return <figure className={`catalog-photo ${compact ? "catalog-photo-compact" : "catalog-photo-profile"}`}>
     <div className="catalog-photo-frame">
       {available && !failed
-        ? <img src={photo.display_url!} alt={label} loading="lazy" onError={() => setFailed(true)} />
+        ? <img src={photo.display_url!} alt={photo.alt_text || label} loading="lazy" decoding="async" onError={() => setFailed(true)} />
         : <RufousSilhouette label={label} />}
     </div>
     <figcaption className="catalog-media-attribution">
       {failed && <span className="caveat" role="status">Photo could not be loaded.</span>}
       {available ? <>
+        {!compact && photo.media_title && <strong>{photo.media_title}</strong>}
         <span>Photo: {attribution}</span>
         {!compact && photo.publisher && <span>Publisher: {photo.publisher}</span>}
         {photo.source_url && <a href={photo.source_url} target="_blank" rel="noreferrer">{photoProviderLabel(photo)} source</a>}
         {photo.license_url && <a href={photo.license_url} target="_blank" rel="noreferrer">{photo.license_text}</a>}
         {!compact && photo.selection_reason && <span>{photo.selection_reason}</span>}
+        {!compact && photo.caption && <span>{photo.caption}</span>}
         {!compact && <span>Looked up: {formatDate(photo.lookup_at)}</span>}
       </> : <span>No validated catalog photo is available.</span>}
     </figcaption>
   </figure>;
+}
+
+const INITIAL_GALLERY_PHOTOS = 12;
+
+function photoKey(photo: CatalogPhoto): string {
+  return `${photo.source_record_id || "photo"}|${photo.display_url || "unavailable"}`;
+}
+
+function GalleryThumbnail({
+  photo, label, index, selected, onSelect,
+}: {
+  photo: CatalogPhoto;
+  label: string;
+  index: number;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const [failed, setFailed] = useState(false);
+  const title = photo.media_title || `${label} photo ${index + 1}`;
+  return <li>
+    <button type="button" aria-label={`View ${title}`} aria-pressed={selected} onClick={onSelect}>
+      {failed
+        ? <span className="catalog-gallery-thumbnail-unavailable" role="status">Unavailable</span>
+        : <img src={photo.display_url!} alt="" aria-hidden="true" loading="lazy" decoding="async" onError={() => setFailed(true)} />}
+    </button>
+  </li>;
+}
+
+export function SpeciesPhotoGallery({
+  photo, photos, label,
+}: {
+  photo: CatalogPhoto;
+  photos: CatalogPhoto[];
+  label: string;
+}) {
+  const availablePhotos = useMemo(() => {
+    const candidates = photos.length ? photos : photo.status === "available" ? [photo] : [];
+    const seen = new Set<string>();
+    return candidates.filter((candidate) => {
+      if (candidate.status !== "available" || !candidate.display_url) return false;
+      const key = photoKey(candidate);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [photo, photos]);
+  const [selectedKey, setSelectedKey] = useState(() => photoKey(availablePhotos[0] ?? photo));
+  const [visibleCount, setVisibleCount] = useState(INITIAL_GALLERY_PHOTOS);
+  useEffect(() => {
+    setSelectedKey(photoKey(availablePhotos[0] ?? photo));
+    setVisibleCount(INITIAL_GALLERY_PHOTOS);
+  }, [availablePhotos, photo]);
+  const selected = availablePhotos.find((candidate) => photoKey(candidate) === selectedKey)
+    ?? availablePhotos[0] ?? photo;
+  return <div className="catalog-photo-gallery">
+    <CatalogPhotoMedia photo={selected} label={label} />
+    {availablePhotos.length > 1 && <section className="catalog-gallery-browser" aria-labelledby="catalog-gallery-heading">
+      <div className="catalog-gallery-heading-row">
+        <h3 id="catalog-gallery-heading">More photos</h3>
+        <span>{availablePhotos.length.toLocaleString()} validated USFWS photos</span>
+      </div>
+      <ul className="catalog-gallery-thumbnails">
+        {availablePhotos.slice(0, visibleCount).map((candidate, index) => <GalleryThumbnail
+          key={photoKey(candidate)}
+          photo={candidate}
+          label={label}
+          index={index}
+          selected={photoKey(candidate) === photoKey(selected)}
+          onSelect={() => setSelectedKey(photoKey(candidate))}
+        />)}
+      </ul>
+      {visibleCount < availablePhotos.length && <button
+        className="catalog-gallery-more"
+        type="button"
+        onClick={() => setVisibleCount((current) => Math.min(current + INITIAL_GALLERY_PHOTOS, availablePhotos.length))}
+      >Show more photos</button>}
+    </section>}
+  </div>;
 }
 
 function CatalogCallPlayer({ call, label, compact = false }: {
@@ -397,7 +477,11 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
     <section className="panel catalog-profile-media" aria-labelledby="catalog-media-heading">
       <h2 id="catalog-media-heading">Photo and call</h2>
       <div className="catalog-profile-media-grid">
-        <CatalogPhotoMedia photo={bird.photo} label={bird.common_name && bird.scientific_name ? `${bird.common_name} (${bird.scientific_name})` : bird.common_name || bird.scientific_name || bird.species_code} />
+        <SpeciesPhotoGallery
+          photo={bird.photo}
+          photos={bird.photos ?? []}
+          label={bird.common_name && bird.scientific_name ? `${bird.common_name} (${bird.scientific_name})` : bird.common_name || bird.scientific_name || bird.species_code}
+        />
         <CatalogCallPlayer call={bird.call} label={bird.common_name || bird.scientific_name || bird.species_code} />
       </div>
     </section>

@@ -30,9 +30,9 @@ const manifest: PublicManifest = {
     { cell_id: "far", path: "/data/cells/far.json", observation_count: 1, bounds: { west: -111, south: 32, east: -110, north: 33 } },
   ],
   place_prefixes: [], attribution_path: "/data/attribution.json",
-  source_policy: { direct_ebird: "excluded", occurrence_source: "synthetic", gbif_dataset_key: null, coverage: "fictional_fixture", required_taxon_key: null },
+  source_policy: { direct_ebird: "excluded", occurrence_source: "synthetic", gbif_dataset_key: null, coverage: "fictional_fixture", required_taxon_key: null, media_source: "none", media_delivery: "none" },
   license_policy: { version: 1, allowed: {}, rejected_counts: {} },
-  counts: { species: 0, observations: 3, places: 0, attribution_items: 0 },
+  counts: { species: 0, observations: 3, places: 0, attribution_items: 0, media_items: 0, species_with_media: 0 },
 };
 
 afterEach(() => vi.restoreAllMocks());

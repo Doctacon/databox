@@ -9,7 +9,7 @@ type PhotoRecord = Record<string, unknown>;
 export interface ValidatedCuratedPhoto {
   displayUrl: string;
   sourceUrl: string;
-  providerLabel: "iNaturalist";
+  providerLabel: "iNaturalist" | "USFWS";
   licenseUrl: string;
   licenseCode: string;
 }
@@ -24,10 +24,26 @@ const LICENSES = new Map([
   ),
 ]);
 
+const USFWS_LICENSES = new Map([
+  ["Public Domain", "https://www.fws.gov/notices"],
+  ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+  ...["by", "by-sa"].flatMap((slug) =>
+    ["1.0", "2.0", "2.5", "3.0", "4.0"].map((version) => [
+      `CC ${slug.toUpperCase()} ${version}`,
+      `https://creativecommons.org/licenses/${slug}/${version}/`,
+    ] as const),
+  ),
+]);
+
 function boundedPlainText(value: unknown, maximum: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maximum
     && value.trim() === value && value.replace(/\s+/g, " ") === value
     && !/[<>\u0000-\u001f\u007f]/.test(value);
+}
+
+function boundedPublicText(value: unknown, maximum: number): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= maximum
+    && value.trim() === value && !/[<>\u0000-\u001f\u007f]/.test(value);
 }
 
 function strictProviderUrl(value: unknown, host: string): URL | null {
@@ -54,12 +70,40 @@ function validInaturalist(row: PhotoRecord): ValidatedCuratedPhoto | null {
   };
 }
 
+function validUsfws(row: PhotoRecord): ValidatedCuratedPhoto | null {
+  const display = strictProviderUrl(row.display_url, "rufous-data.loughondata.com");
+  const source = strictProviderUrl(row.source_url, "www.fws.gov");
+  if (!display || !source) return null;
+  const image = /^\/rufous-media\/v1\/objects\/([0-9a-f]{2})\/([0-9a-f]{64})\.webp$/.exec(display.pathname);
+  if (!image || image[1] !== image[2].slice(0, 2)
+    || !/^\/media\/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$/.test(source.pathname)) return null;
+  return {
+    displayUrl: display.href,
+    sourceUrl: source.href,
+    providerLabel: "USFWS",
+    licenseUrl: row.license_url as string,
+    licenseCode: row.license_code as string,
+  };
+}
+
 export function validateAvailableCuratedPhoto(
   row: PhotoRecord,
   scientificName: string | null,
 ): ValidatedCuratedPhoto | null {
-  if (row.status !== "available" || scientificName === null || row.species_name !== scientificName
-    || !boundedPlainText(row.creator, 500) || !boundedPlainText(row.selection_reason, 500)
+  if (row.status !== "available" || scientificName === null || row.species_name !== scientificName) return null;
+  if (row.provider === "usfws") {
+    if (!boundedPublicText(row.source_record_id, 256) || !boundedPublicText(row.creator, 500)
+      || row.selection_reason !== "Validated USFWS public-release photo"
+      || row.rights_holder !== null || row.publisher !== "U.S. Fish and Wildlife Service"
+      || row.format !== "image/webp"
+      || typeof row.license_code !== "string" || row.license_text !== row.license_code
+      || USFWS_LICENSES.get(row.license_code) !== row.license_url
+      || !Number.isSafeInteger(row.original_width) || !Number.isSafeInteger(row.original_height)
+      || Number(row.original_width) < 1 || Number(row.original_width) > 650
+      || Number(row.original_height) < 1 || Number(row.original_height) > 650) return null;
+    return validUsfws(row);
+  }
+  if (!boundedPlainText(row.creator, 500) || !boundedPlainText(row.selection_reason, 500)
     || row.rights_holder !== null || row.publisher !== null || row.format !== null
     || typeof row.license_code !== "string" || row.license_text !== row.license_code
     || LICENSES.get(row.license_code) !== row.license_url

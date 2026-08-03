@@ -40,11 +40,16 @@ export interface RecommendationPhoto {
   license_text: string | null;
   license_url: string | null;
   selection_reason: string | null;
-  provider: "inaturalist" | null;
+  provider: "inaturalist" | "usfws" | null;
   license_code: string | null;
   original_width: number | null;
   original_height: number | null;
   caveats: string[];
+  /** Public-release presentation metadata; absent from the local API contract. */
+  alt_text?: string;
+  media_title?: string;
+  caption?: string | null;
+  attribution_id?: string;
 }
 
 export interface RecommendationCall {
@@ -158,7 +163,7 @@ export interface LocationSuggestion extends LocationSelection {
 }
 
 export interface CatalogPhoto extends RecommendationPhoto {
-  provider: "inaturalist" | null;
+  provider: "inaturalist" | "usfws" | null;
   license_code: string | null;
   original_width: number | null;
   original_height: number | null;
@@ -294,6 +299,8 @@ export interface BirdPublicLocation {
 }
 
 export interface BirdProfile extends BirdCatalogSummary {
+  /** All validated public photos, with the hero first. Local profiles contain at most one. */
+  photos?: CatalogPhoto[];
   region_code: "US-AZ";
   taxonomy: BirdTaxonomy;
   traits: BirdTraits;

@@ -10,7 +10,7 @@ import type {
   TripCalendarInviteStatus,
   TripPlanDetail,
 } from "../types";
-import { recommendationCall, recommendationPhoto } from "./media";
+import { publicCatalogPhoto, recommendationCall, recommendationPhoto } from "./media";
 import { queryPublicObservations } from "./observationStore";
 import {
   localDateTimeIso,
@@ -161,22 +161,24 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
   const speciesByCode = new Map(manifest.species.map((species) => [species.species_code, species]));
   const recommendations: Recommendation[] = ranked.map(([speciesCode, rows], index) => {
     const species = speciesByCode.get(speciesCode);
+    const scientificName = species?.scientific_name ?? null;
+    const catalogPhoto = publicCatalogPhoto(species?.hero_photo, scientificName, manifest.generated_at);
     return {
       recommendation_id: `recommendation_${index + 1}_${speciesCode}`,
       species_code: speciesCode,
       common_name: species?.common_name ?? null,
-      scientific_name: species?.scientific_name ?? null,
+      scientific_name: scientificName,
       recommendation_group: "gbif_context",
       rank_order: index + 1,
       evidence_label: `${rows.length.toLocaleString()} licensed historical occurrence${rows.length === 1 ? "" : "s"}`,
       rationale_text: `${rows.length.toLocaleString()} licensed generalized occurrence${rows.length === 1 ? " is" : "s are"} available inside ${PLAN_RADIUS_MILES} miles; the nearest is ${rows[0].distanceMiles.toFixed(1)} miles away.`,
       caveats: ["Historical occurrence evidence does not guarantee current presence."],
-      photo: recommendationPhoto(species?.scientific_name ?? null),
-      call: recommendationCall(species?.scientific_name ?? null),
+      photo: recommendationPhoto(scientificName, catalogPhoto),
+      call: recommendationCall(scientificName),
     };
   });
   const recommendationByCode = new Map(recommendations.map((row) => [row.species_code, row]));
-  const evidence: Evidence[] = eligible.flatMap(({ observation, distanceKm }, index) => {
+  const occurrenceEvidence: Evidence[] = eligible.flatMap(({ observation, distanceKm }, index) => {
     const recommendation = recommendationByCode.get(observation.species_code);
     if (!recommendation) return [];
     return [{
@@ -203,6 +205,27 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
       caveats: observation.source === "synthetic" ? ["Synthetic preview fixture."] : [],
     } satisfies Evidence];
   });
+  const photoEvidence: Evidence[] = recommendations.flatMap((recommendation, index) => {
+    const photo = recommendation.photo;
+    if (photo.status !== "available") return [];
+    if (photo.provider !== "usfws" || photo.source_record_id === null) {
+      throw new Error("Published recommendation photo provenance is unavailable.");
+    }
+    return [{
+      evidence_id: `photo_${index + 1}_${recommendation.species_code}`,
+      recommendation_id: recommendation.recommendation_id,
+      source: "usfws",
+      source_table: "published_usfws_media",
+      source_record_id: photo.source_record_id,
+      evidence_type: "recommendation_photo",
+      status: "available",
+      retrieved_at: manifest.generated_at,
+      summary: {},
+      payload: {},
+      caveats: [...photo.caveats],
+    } satisfies Evidence];
+  });
+  const evidence = [...occurrenceEvidence, ...photoEvidence];
   const now = new Date().toISOString();
   const toolTraces: ToolTrace[] = [
     {
@@ -224,7 +247,7 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
       started_at: now,
       completed_at: now,
       input: { region_code: "US-AZ" },
-      output_summary: { enforced_radius_km: PLAN_RADIUS_KM, row_count: evidence.length },
+      output_summary: { enforced_radius_km: PLAN_RADIUS_KM, row_count: occurrenceEvidence.length },
       caveats: [],
     },
     {

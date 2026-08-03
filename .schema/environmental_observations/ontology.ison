@@ -13,6 +13,7 @@ EarthquakeEvent	EarthquakeEvent	false	No cross-source natural key/stitching stra
 BirdOccurrence	BirdOccurrence	false	No cross-source natural key/stitching strategy required.
 BirdSoundRecording	BirdSoundRecording	false	No cross-source natural key/stitching strategy required. Audio remains an external linked artifact; CDM stores metadata and URLs only.
 BirdSpeciesTraits	BirdSpeciesTraits	false	Natural key: normalized_scientific_name after exact modeled conformance; source avibase_id retained. Global AVONET species-average traits; no taxonomy guess or Arizona-specific claim.
+BirdMediaImage	BirdMediaImage	false	Natural key: species_code plus source_page_url in the latest complete snapshot. Raw rights metadata is retained; public eligibility is fail-closed downstream.
 ArizonaBirdCatalog	ArizonaBirdCatalog	false	Natural key: eBird species_code. Membership and taxonomy come from their single latest complete snapshots; older-only codes are absent, duplicate selected-snapshot codes fail, and missing evidence never removes a current row.
 
 nodes.Attribute
@@ -319,6 +320,25 @@ entity	name	type	master_source	also_in	note
 :Entity:BirdSpeciesTraits	species_natural_key	text	environmental_observations.dim_bird_species_traits		governed exact normalized name, not null, unique
 :Entity:BirdSpeciesTraits	habitat_density_label	text	environmental_observations.dim_bird_species_traits		Dense, Semi-open, or Open
 :Entity:BirdSpeciesTraits	migration_label	text	environmental_observations.dim_bird_species_traits		Sedentary, Partial migrant, or Migratory
+:Entity:BirdMediaImage	run_id	text	usfws_media.image_records		complete snapshot identity, not null
+:Entity:BirdMediaImage	species_code	text	usfws_media.image_records	rufous_public.usfws_commercial_image	not null, composite key
+:Entity:BirdMediaImage	target_common_name	text	usfws_media.image_records		caller-owned identity
+:Entity:BirdMediaImage	target_scientific_name	text	usfws_media.image_records		exact tag required for publication
+:Entity:BirdMediaImage	media_id	text	usfws_media.image_records		FWS media slug
+:Entity:BirdMediaImage	discovery_method	text	usfws_media.image_records	rufous_public.usfws_commercial_image	facet and/or exact global search
+:Entity:BirdMediaImage	source_page_url	text	usfws_media.image_records	rufous_public.usfws_commercial_image	not null, composite key
+:Entity:BirdMediaImage	source_image_medium_url	text	usfws_media.image_records	rufous_public.usfws_commercial_image	FWS web-sized image URL
+:Entity:BirdMediaImage	source_creator	text	usfws_media.image_records	rufous_public.usfws_commercial_image	raw creator/credit
+:Entity:BirdMediaImage	source_license	text	usfws_media.image_records	rufous_public.usfws_commercial_image	raw rights text
+:Entity:BirdMediaImage	scientific_name_tags_json	text	usfws_media.image_records		exact FWS species tags
+:Entity:BirdMediaImage	_loaded_at	timestamp	usfws_media.image_records	rufous_public.usfws_commercial_image	UTC snapshot load time
+:Entity:BirdMediaImage	common_name	text	rufous_public.usfws_commercial_image		published target common name
+:Entity:BirdMediaImage	scientific_name	text	rufous_public.usfws_commercial_image		published target scientific name
+:Entity:BirdMediaImage	source_image_url	text	rufous_public.usfws_commercial_image		validated FWS web-sized image
+:Entity:BirdMediaImage	creator	text	rufous_public.usfws_commercial_image		validated non-placeholder credit
+:Entity:BirdMediaImage	license	text	rufous_public.usfws_commercial_image		allowed commercial-use rights text
+:Entity:BirdMediaImage	alt_text	text	rufous_public.usfws_commercial_image		accessible description fallback
+
 :Entity:ArizonaBirdCatalog	arizona_species_catalog_id	text	birding_agent.arizona_species_catalog		modeled key, not null, unique
 :Entity:ArizonaBirdCatalog	species_code	text	birding_agent.arizona_species_catalog		eBird identity, not null, unique
 :Entity:ArizonaBirdCatalog	region_code	text	birding_agent.arizona_species_catalog		US-AZ

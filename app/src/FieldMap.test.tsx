@@ -2,9 +2,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
-import { TripEvidenceMap } from "./FieldMap";
+import { EncounterPhotoLinks, EncounterThumbnail, TripEvidenceMap } from "./FieldMap";
 import styles from "./styles.css?raw";
-import type { Evidence, MapSnapshot, TripPlanDetail } from "./types";
+import type { CatalogPhoto, Evidence, MapSnapshot, TripPlanDetail } from "./types";
 
 type FakeMapEvent = { features?: unknown[]; sourceId?: string; isSourceLoaded?: boolean };
 
@@ -116,6 +116,26 @@ function snapshotWithPhoto(): MapSnapshot {
     selection_reason: "Fixture", caveats: [], lookup_at: "2026-07-11T08:00:00Z",
   };
   return value;
+}
+
+function usfwsPhoto(): CatalogPhoto {
+  const value = snapshotWithPhoto();
+  return {
+    ...value.photos[0].photo,
+    source_record_id: "usfws-rufous-1",
+    display_url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/ab/${"ab" + "c".repeat(62)}.webp`,
+    source_url: "https://www.fws.gov/media/rufous--hummingbird",
+    creator: "USFWS Photographer",
+    publisher: "U.S. Fish and Wildlife Service",
+    format: "image/webp",
+    provider: "usfws",
+    license_text: "Public Domain",
+    license_code: "Public Domain",
+    license_url: "https://www.fws.gov/notices",
+    original_width: 650,
+    original_height: 488,
+    selection_reason: "Validated USFWS public-release photo",
+  };
 }
 
 function tripEvidence(
@@ -342,6 +362,19 @@ describe("Rufous Field Map", () => {
     );
     expect(screen.getByRole("link", { name: "iNaturalist photo source" })).toBeVisible();
     expect(screen.getByRole("link", { name: "CC BY 4.0 license" })).toBeVisible();
+  });
+
+  it("labels published USFWS encounter thumbnails and source links from the photo provider", async () => {
+    const photo = usfwsPhoto();
+    render(<><EncounterThumbnail photo={photo} name="Alpha 2" /><EncounterPhotoLinks photo={photo} /></>);
+    expect(screen.getByRole("img", { name: "Alpha 2" })).toBeVisible();
+    expect(screen.getByText("Photo: USFWS Photographer · Public Domain · USFWS")).toBeVisible();
+    expect(screen.getByRole("link", { name: "USFWS photo source" })).toHaveAttribute(
+      "href", "https://www.fws.gov/media/rufous--hummingbird",
+    );
+    expect(screen.getByRole("link", { name: "Public Domain license" })).toHaveAttribute(
+      "href", "https://www.fws.gov/notices",
+    );
   });
 
   it("applies the latest filtered source only after load and keeps data, markers, count, and extent aligned", async () => {

@@ -18,6 +18,7 @@ from databox.public_export import (
     SCHEMA_VERSION,
     canonical_license,
 )
+from databox.public_restricted_marks import restricted_usfws_mark_reason
 
 MAX_FILES = 20_000
 MAX_FILE_BYTES = 25 * 1024 * 1024
@@ -116,6 +117,15 @@ _APPROVED_CONNECT_SOURCES = frozenset(
         _APPROVED_PUBLIC_DATA_ORIGIN,
     }
 )
+_APPROVED_IMAGE_SOURCES = frozenset(
+    {
+        "'self'",
+        "data:",
+        "blob:",
+        _APPROVED_PUBLIC_DATA_ORIGIN,
+    }
+)
+_APPROVED_MEDIA_SOURCES = frozenset({"'self'", _APPROVED_PUBLIC_DATA_ORIGIN})
 _FORBIDDEN_OBJECT_STORE_MARKERS = (
     ".r2.dev",
     ".r2.cloudflarestorage.com",
@@ -132,6 +142,7 @@ _FORBIDDEN_PUBLIC_APP_MARKERS = (
     "http://127.0.0.1:8000",
     "http://localhost:8000",
     "Local evidence-backed birding trip planner",
+    "RUF_LOCAL_MEDIA_REVIEW_ONLY_DO_NOT_DEPLOY",
 )
 _FORBIDDEN_PUBLIC_KEYS = frozenset(
     {
@@ -162,6 +173,65 @@ _FORBIDDEN_PUBLIC_KEYS = frozenset(
     }
 )
 _WORKFLOW_RUNNER = re.compile(r"^\s*runs-on\s*:\s*([^#\n]+)", re.MULTILINE)
+_SHA256 = re.compile(r"^[a-f0-9]{64}$")
+_MEDIA_ID = re.compile(r"^usfws-[a-f0-9]{24}$")
+_MEDIA_ATTRIBUTION_ID = re.compile(r"^usfws-attribution-[a-f0-9]{24}$")
+_USFWS_MEDIA_PAGE = re.compile(
+    r"^https://www\.fws\.gov/media/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$"
+)
+_PUBLIC_MEDIA_URL = re.compile(
+    r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
+    r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.webp$"
+)
+_PUBLIC_MEDIA_EMAIL = re.compile(
+    r"(?<![A-Za-z0-9.!#$%&'*+/=?^_`{|}~-])"
+    r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@"
+    r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}\b"
+)
+_PUBLIC_MEDIA_PHONE = re.compile(
+    r"(?<!\d)(?:\+?1[ .-]?)?(?:\(\d{3}\)|\d{3})[ .-]\d{3}[ .-]\d{4}(?!\d)"
+)
+_PUBLIC_MEDIA_PO_BOX = re.compile(
+    r"\bP(?:ost)?\.?\s*O(?:ffice)?\.?\s+Box\s+\d{1,10}\b",
+    re.IGNORECASE,
+)
+_PUBLIC_MEDIA_STREET_ADDRESS = re.compile(
+    r"\b\d{2,6}\s+(?:[A-Za-z0-9][A-Za-z0-9.'-]*\s+){0,4}"
+    r"(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Court|Ct|"
+    r"Boulevard|Blvd|Terrace|Way)\b",
+    re.IGNORECASE,
+)
+_PUBLIC_MEDIA_LABELED_COORDINATE = re.compile(
+    r"\b(?:GPS|coordinates?|lat(?:itude)?|lon(?:gitude)?)\b\s*[:=]?\s*"
+    r"[-+]?\d{1,3}(?:\.\d+)?",
+    re.IGNORECASE,
+)
+_PUBLIC_MEDIA_COORDINATE_PAIR = re.compile(
+    r"(?<![\d.])(?P<latitude>[-+]?\d{1,2}\.\d{3,})\s*[,;]\s*"
+    r"(?P<longitude>[-+]?\d{1,3}\.\d{3,})(?![\d.])"
+)
+_PUBLIC_MEDIA_DMS_COORDINATE = re.compile(
+    r"\b\d{1,3}\s*[°º]\s*\d{1,2}(?:\.\d+)?\s*['′]",
+    re.IGNORECASE,
+)
+
+
+def _public_media_privacy_reason(value: str) -> str | None:
+    """Identify only high-confidence contact or precise-location disclosures."""
+    if _PUBLIC_MEDIA_EMAIL.search(value):
+        return "email_address"
+    if _PUBLIC_MEDIA_PHONE.search(value):
+        return "phone_number"
+    if _PUBLIC_MEDIA_PO_BOX.search(value) or _PUBLIC_MEDIA_STREET_ADDRESS.search(value):
+        return "postal_address"
+    if _PUBLIC_MEDIA_LABELED_COORDINATE.search(value) or _PUBLIC_MEDIA_DMS_COORDINATE.search(value):
+        return "precise_coordinates"
+    for match in _PUBLIC_MEDIA_COORDINATE_PAIR.finditer(value):
+        latitude = float(match.group("latitude"))
+        longitude = float(match.group("longitude"))
+        if -90 <= latitude <= 90 and -180 <= longitude <= 180:
+            return "precise_coordinates"
+    return None
 
 
 def audit_public_site(
@@ -330,16 +400,34 @@ def _audit_browser_security_policy(site_dir: Path) -> list[str]:
         return ["static application must declare exactly one Content-Security-Policy"]
     _, policy = csp_lines[0].split(":", 1)
     directives: dict[str, list[str]] = {}
+    duplicate_directives: set[str] = set()
     for raw_directive in policy.split(";"):
         tokens = raw_directive.strip().split()
         if tokens:
-            directives[tokens[0].casefold()] = tokens[1:]
+            name = tokens[0].casefold()
+            if name in directives:
+                duplicate_directives.add(name)
+            directives[name] = tokens[1:]
     connect_sources = frozenset(directives.get("connect-src", []))
     findings: list[str] = []
+    if duplicate_directives:
+        findings.append("Content-Security-Policy must not repeat directives")
     if connect_sources != _APPROVED_CONNECT_SOURCES:
         findings.append(
             "Content-Security-Policy connect-src must contain only self, OpenFreeMap, "
             "and the reviewed Rufous R2 custom domain"
+        )
+    image_sources = frozenset(directives.get("img-src", []))
+    if image_sources != _APPROVED_IMAGE_SOURCES:
+        findings.append(
+            "Content-Security-Policy img-src must contain only self, data, blob, "
+            "and the reviewed Rufous media origin"
+        )
+    media_sources = frozenset(directives.get("media-src", []))
+    if media_sources != _APPROVED_MEDIA_SOURCES:
+        findings.append(
+            "Content-Security-Policy media-src must contain only self and the reviewed "
+            "Rufous media origin"
         )
     frame_ancestors = frozenset(directives.get("frame-ancestors", []))
     if frame_ancestors != {
@@ -411,7 +499,48 @@ def audit_workflow_runners(workflow_root: Path) -> list[str]:
                         f"{path.name} must trigger push and pull-request audits for "
                         f"deployment hazard path {deployment_hazard!r}"
                     )
+        media_publishers = _workflow_media_publisher_commands(text)
+        if media_publishers:
+            required_markers = (
+                "config/rufous-media-visual-approvals.json",
+                "python scripts/verify_rufous_media_approvals.py",
+                "--media-approvals config/rufous-media-visual-approvals.json",
+            )
+            for marker in required_markers:
+                if marker not in text:
+                    findings.append(
+                        f"{path.name} media publication is missing human approval gate "
+                        f"marker {marker!r}"
+                    )
+            for line_number, arguments in media_publishers:
+                if "--approvals config/rufous-media-visual-approvals.json" not in arguments:
+                    findings.append(
+                        f"{path.name}:{line_number} media publisher omits the committed "
+                        "human approval ledger"
+                    )
+            gate_position = text.find("python scripts/verify_rufous_media_approvals.py")
+            first_publisher = text.find("python scripts/publish_rufous_media.py")
+            if gate_position < 0 or gate_position > first_publisher:
+                findings.append(
+                    f"{path.name} must run the human media approval gate before cloud publishers"
+                )
     return findings
+
+
+def _workflow_media_publisher_commands(text: str) -> list[tuple[int, str]]:
+    lines = text.splitlines()
+    commands: list[tuple[int, str]] = []
+    for index, line in enumerate(lines):
+        if line.strip() != "python scripts/publish_rufous_media.py":
+            continue
+        arguments: list[str] = []
+        for following in lines[index + 1 :]:
+            stripped = following.strip()
+            if not stripped.startswith("--"):
+                break
+            arguments.append(stripped)
+        commands.append((index + 1, " ".join(arguments)))
+    return commands
 
 
 def audit_deploy_context(repository_root: Path) -> list[str]:
@@ -466,6 +595,10 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
                 findings.append("production GBIF source must disclose bounded sample coverage")
             if source_policy.get("required_taxon_key") != GBIF_RUFOUS_TAXON_KEY:
                 findings.append("production GBIF source must reserve the Rufous taxon")
+            if source_policy.get("media_source") != "usfws":
+                findings.append("production media source must be USFWS")
+            if source_policy.get("media_delivery") != "immutable_r2":
+                findings.append("production media must use immutable R2 delivery")
         elif mode == "synthetic":
             if source_policy.get("occurrence_source") != "synthetic":
                 findings.append("synthetic occurrence source marker is missing")
@@ -475,6 +608,13 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
                 findings.append("synthetic manifest must disclose fixture coverage")
             if source_policy.get("required_taxon_key") is not None:
                 findings.append("synthetic manifest must not claim a required GBIF taxon")
+            if source_policy.get("media_source") not in {"none", "usfws"}:
+                findings.append("synthetic media source marker is invalid")
+            expected_delivery = (
+                "immutable_r2" if source_policy.get("media_source") == "usfws" else "none"
+            )
+            if source_policy.get("media_delivery") != expected_delivery:
+                findings.append("synthetic media delivery marker is invalid")
     if mode not in {"production", "synthetic"}:
         findings.append("manifest release_mode must be synthetic or production")
 
@@ -496,7 +636,7 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
             if isinstance(sources, list)
             else set()
         )
-        for required in ("gbif_ebird_eod", "usgs_gnis", "us_census_tigerweb"):
+        for required in ("gbif_ebird_eod", "usgs_gnis", "us_census_tigerweb", "usfws"):
             if required not in providers:
                 findings.append(f"production attribution is missing {required}")
         if "ebird" in providers:
@@ -530,6 +670,26 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
                 findings.append(
                     "production GBIF attribution must retain the dataset accuracy notice"
                 )
+        usfws_sources = (
+            [item for item in sources if isinstance(item, dict) and item.get("provider") == "usfws"]
+            if isinstance(sources, list)
+            else []
+        )
+        if len(usfws_sources) != 1:
+            findings.append("production attribution must contain one USFWS media source")
+        else:
+            usfws = usfws_sources[0]
+            if (
+                usfws.get("url") != "https://www.fws.gov/search/images"
+                or usfws.get("license_url") != "https://www.fws.gov/notices"
+            ):
+                findings.append("production USFWS attribution has invalid official links")
+            modifications = usfws.get("modifications")
+            if not isinstance(modifications, str) or not all(
+                marker in modifications.casefold()
+                for marker in ("resized", "re-encoded", "stripped metadata")
+            ):
+                findings.append("production USFWS attribution must disclose image changes")
 
     referenced: set[Path] = {manifest_path, attribution_path}
     attribution_items = attribution.get("items")
@@ -544,6 +704,9 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
     cells = manifest.get("cells")
     prefixes = manifest.get("place_prefixes")
     production_has_rufous = False
+    production_rufous_has_media = False
+    media_item_count = 0
+    species_with_media = 0
     if not isinstance(species, list) or not species:
         findings.append("manifest species index is empty or malformed")
     else:
@@ -558,15 +721,40 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
             referenced.add(path)
             profile = _read_object(path, findings)
             scientific_name = profile.get("scientific_name")
+            for field in ("species_code", "common_name", "scientific_name"):
+                if item.get(field) != profile.get(field):
+                    findings.append(f"species summary disagrees with profile field {field}")
+            media = profile.get("media")
+            profile_media = media if isinstance(media, list) else []
+            summary_count = item.get("photo_count")
+            if type(summary_count) is not int or summary_count != len(profile_media):
+                findings.append("species summary photo_count disagrees with its profile")
+            expected_hero = profile_media[0] if profile_media else None
+            if item.get("hero_photo") != expected_hero:
+                findings.append("species summary hero_photo disagrees with its profile")
+            media_item_count += len(profile_media)
+            if profile_media:
+                species_with_media += 1
             if (
                 mode == "production"
                 and isinstance(scientific_name, str)
-                and scientific_name.casefold().startswith("selasphorus rufus")
+                and scientific_name.casefold() == "selasphorus rufus"
             ):
                 production_has_rufous = True
-            findings.extend(_audit_species_profile(profile, path.relative_to(site_dir)))
+                production_rufous_has_media = bool(profile_media)
+            findings.extend(_audit_species_profile(profile, path.relative_to(site_dir), mode=mode))
     if mode == "production" and not production_has_rufous:
         findings.append("production species index is missing Rufous Hummingbird")
+    elif mode == "production" and not production_rufous_has_media:
+        findings.append("production Rufous Hummingbird profile is missing USFWS media")
+    counts = manifest.get("counts")
+    if not isinstance(counts, dict):
+        findings.append("manifest counts are missing")
+    else:
+        if counts.get("media_items") != media_item_count:
+            findings.append("manifest media_items count does not match profiles")
+        if counts.get("species_with_media") != species_with_media:
+            findings.append("manifest species_with_media count does not match profiles")
     for name, rows, path_field in (("cell", cells, "path"), ("place", prefixes, "path")):
         if not isinstance(rows, list):
             findings.append(f"manifest {name} index is malformed")
@@ -722,7 +910,7 @@ def _read_object(path: Path, findings: list[str]) -> dict[str, Any]:
     return value
 
 
-def _audit_species_profile(profile: dict[str, Any], relative: Path) -> list[str]:
+def _audit_species_profile(profile: dict[str, Any], relative: Path, *, mode: object) -> list[str]:
     findings = _audit_forbidden_keys(profile, relative)
     for field in ("species_code", "common_name", "scientific_name"):
         if not isinstance(profile.get(field), str) or not profile[field].strip():
@@ -731,12 +919,27 @@ def _audit_species_profile(profile: dict[str, Any], relative: Path) -> list[str]
     if not isinstance(media, list):
         findings.append(f"{relative} media must be an array")
         return findings
+    seen_media_ids: set[str] = set()
+    seen_source_urls: set[str] = set()
     for item in media:
         if not isinstance(item, dict):
             findings.append(f"{relative} contains malformed media")
             continue
         provider = item.get("provider")
-        required = ("creator", "source_url", "license", "license_url", "attribution_id", "url")
+        required = (
+            "media_id",
+            "creator",
+            "source_url",
+            "license",
+            "license_url",
+            "attribution_id",
+            "url",
+            "scientific_name",
+            "title",
+            "alt_text",
+            "sha256",
+            "mime_type",
+        )
         if not isinstance(provider, str) or provider not in ALLOWED_LICENSES:
             findings.append(f"{relative} media provider is not allowed")
         elif canonical_license(provider, item.get("license")) is None:
@@ -744,6 +947,79 @@ def _audit_species_profile(profile: dict[str, Any], relative: Path) -> list[str]
         for field in required:
             if not isinstance(item.get(field), str) or not item[field].strip():
                 findings.append(f"{relative} media is missing {field}")
+        if mode == "production" and provider != "usfws":
+            findings.append(f"{relative} production media provider must be usfws")
+        if provider != "usfws":
+            continue
+        media_id = item.get("media_id")
+        attribution_id = item.get("attribution_id")
+        source_url = item.get("source_url")
+        asset_url = item.get("url")
+        sha256 = item.get("sha256")
+        license_pair = canonical_license("usfws", item.get("license"))
+        match = _PUBLIC_MEDIA_URL.fullmatch(asset_url) if isinstance(asset_url, str) else None
+        if not isinstance(media_id, str) or not _MEDIA_ID.fullmatch(media_id):
+            findings.append(f"{relative} USFWS media_id is invalid")
+        elif media_id in seen_media_ids:
+            findings.append(f"{relative} repeats USFWS media_id {media_id}")
+        else:
+            seen_media_ids.add(media_id)
+        if not isinstance(attribution_id, str) or not _MEDIA_ATTRIBUTION_ID.fullmatch(
+            attribution_id
+        ):
+            findings.append(f"{relative} USFWS attribution_id is invalid")
+        if not isinstance(source_url, str) or not _USFWS_MEDIA_PAGE.fullmatch(source_url):
+            findings.append(f"{relative} USFWS source_url is not an official media page")
+        elif source_url in seen_source_urls:
+            findings.append(f"{relative} repeats a USFWS source page")
+        else:
+            seen_source_urls.add(source_url)
+        if (
+            not isinstance(sha256, str)
+            or not _SHA256.fullmatch(sha256)
+            or match is None
+            or match.group("sha") != sha256
+            or match.group("shard") != sha256[:2]
+        ):
+            findings.append(f"{relative} USFWS asset URL is not content-addressed")
+        if license_pair is None or item.get("license_url") != license_pair[1]:
+            findings.append(f"{relative} USFWS license URL is invalid")
+        if item.get("scientific_name") != profile.get("scientific_name"):
+            findings.append(f"{relative} USFWS scientific identity does not match the profile")
+        if item.get("kind") != "photo" or item.get("mime_type") != "image/webp":
+            findings.append(f"{relative} USFWS media must be a WebP photo")
+        for dimension in ("width", "height"):
+            value = item.get(dimension)
+            if type(value) is not int or not 1 <= value <= 650:
+                findings.append(f"{relative} USFWS media has invalid {dimension}")
+        creator = item.get("creator")
+        title = item.get("title")
+        alt_text = item.get("alt_text")
+        identity_values = {
+            str(value).strip().casefold()
+            for value in (profile.get("common_name"), profile.get("scientific_name"), title)
+            if isinstance(value, str) and value.strip()
+        }
+        if not isinstance(creator, str) or creator.strip().casefold() in identity_values:
+            findings.append(f"{relative} USFWS creator credit is not credible")
+        for field in ("creator", "title", "caption", "alt_text"):
+            value = item.get(field)
+            reason = _public_media_privacy_reason(value) if isinstance(value, str) else None
+            if reason is not None:
+                findings.append(f"{relative} USFWS {field} exposes {reason}")
+        if not isinstance(title, str) or not isinstance(alt_text, str):
+            continue
+        restricted_mark = restricted_usfws_mark_reason(
+            (
+                title,
+                item.get("caption") if isinstance(item.get("caption"), str) else None,
+                alt_text,
+                source_url if isinstance(source_url, str) else None,
+                asset_url if isinstance(asset_url, str) else None,
+            )
+        )
+        if restricted_mark is not None:
+            findings.append(f"{relative} USFWS item identifies restricted mark {restricted_mark}")
     return findings
 
 

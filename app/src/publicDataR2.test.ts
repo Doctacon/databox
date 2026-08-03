@@ -19,15 +19,15 @@ const fallbackManifest = {
   cells: [],
   place_prefixes: [],
   attribution_path: "/data/attribution.json",
-  source_policy: { direct_ebird: "excluded", occurrence_source: "synthetic", gbif_dataset_key: null, coverage: "fictional_fixture", required_taxon_key: null },
+  source_policy: { direct_ebird: "excluded", occurrence_source: "synthetic", gbif_dataset_key: null, coverage: "fictional_fixture", required_taxon_key: null, media_source: "none", media_delivery: "none" },
   license_policy: { version: 1, allowed: {}, rejected_counts: {} },
-  counts: { species: 0, observations: 0, places: 0, attribution_items: 0 },
+  counts: { species: 0, observations: 0, places: 0, attribution_items: 0, media_items: 0, species_with_media: 0 },
 } as const;
 
 const immutableManifest = {
   ...fallbackManifest,
   data_version: dataVersion,
-  species: [{ species_code: "rufhum", common_name: "Rufous Hummingbird", scientific_name: "Selasphorus rufus", profile_path: "/data/species/rufhum.json" }],
+  species: [{ species_code: "rufhum", common_name: "Rufous Hummingbird", scientific_name: "Selasphorus rufus", profile_path: "/data/species/rufhum.json", hero_photo: null, photo_count: 0 }],
   counts: { ...fallbackManifest.counts, species: 1 },
 };
 
@@ -73,7 +73,7 @@ describe("public R2 release resolution", () => {
       if (url === `${approvedRoot}/manifest.json`) return json(pointer);
       if (url === immutableManifestUrl) return json(immutableManifest);
       if (url === `https://rufous-data.loughondata.com/rufous-public/releases/${releaseId}/objects/data/species/rufhum.json`) {
-        return json({ schema_version: 1, species_code: "rufhum" });
+        return json({ schema_version: 1, species_code: "rufhum", media: [] });
       }
       return Promise.resolve(new Response("not found", { status: 404 }));
     });
@@ -142,7 +142,7 @@ describe("public R2 release resolution", () => {
   it("retries a failed R2 shard only through a same-version bundled release", async () => {
     vi.stubEnv("VITE_RUFOUS_DATA_BASE_URL", approvedRoot);
     mockDigest();
-    const profile = { schema_version: 1, species_code: "rufhum" };
+    const profile = { schema_version: 1, species_code: "rufhum", media: [] };
     const r2ProfileUrl = `https://rufous-data.loughondata.com/rufous-public/releases/${releaseId}/objects/data/species/rufhum.json`;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
@@ -171,7 +171,7 @@ describe("public R2 release resolution", () => {
       if (url === immutableManifestUrl) return json(immutableManifest);
       if (url === r2ProfileUrl) return Promise.resolve(new Response("missing", { status: 404 }));
       if (url === "/data/manifest.json") return json(fallbackManifest);
-      if (url === "/data/species/rufhum.json") return json({ schema_version: 1, species_code: "rufhum" });
+      if (url === "/data/species/rufhum.json") return json({ schema_version: 1, species_code: "rufhum", media: [] });
       return Promise.resolve(new Response("not found", { status: 404 }));
     });
     const { getPublicManifest, getPublicSpecies } = await import("./publicData");
@@ -202,7 +202,7 @@ describe("public R2 release resolution", () => {
     vi.useFakeTimers();
     vi.stubEnv("VITE_RUFOUS_DATA_BASE_URL", approvedRoot);
     mockDigest();
-    const profile = { schema_version: 1, species_code: "rufhum" };
+    const profile = { schema_version: 1, species_code: "rufhum", media: [] };
     const r2ProfileUrl = `https://rufous-data.loughondata.com/rufous-public/releases/${releaseId}/objects/data/species/rufhum.json`;
     let remoteShardSignal: AbortSignal | null | undefined;
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {

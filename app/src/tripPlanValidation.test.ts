@@ -60,12 +60,51 @@ function inaturalistPlan(): TripPlanDetail {
   return value;
 }
 
+function usfwsPlan(): TripPlanDetail {
+  const value = structuredClone(plan);
+  const sha256 = `ab${"c".repeat(62)}`;
+  value.recommendations[0].photo = {
+    status: "available", source_record_id: "usfws-mexican-jay-1", species_name: "Aphelocoma wollweberi",
+    display_url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/ab/${sha256}.webp`,
+    source_url: "https://www.fws.gov/media/mexican--jay", creator: "USFWS Photographer",
+    rights_holder: null, publisher: "U.S. Fish and Wildlife Service", format: "image/webp",
+    license_text: "Public Domain", license_url: "https://www.fws.gov/notices",
+    selection_reason: "Validated USFWS public-release photo", provider: "usfws",
+    license_code: "Public Domain", original_width: 650, original_height: 488, caveats: [],
+  };
+  value.evidence.push({
+    evidence_id: "photo_usfws_fixture", recommendation_id: "rec_fixture", source: "usfws",
+    source_table: "published_usfws_media", source_record_id: "usfws-mexican-jay-1",
+    evidence_type: "recommendation_photo", status: "available", retrieved_at: "2026-07-09T12:00:00Z",
+    summary: {}, payload: {}, caveats: [],
+  });
+  return value;
+}
+
 describe("Trip Planner runtime response validation", () => {
   it("accepts exact bounded source-labeled location, summary, and nested detail contracts", () => {
     expect(validateLocationSearch({ locations: [suggestion] })).toHaveLength(1);
     expect(validatePlanList({ plans: [summary()] })).toEqual([summary()]);
     expect(validatePlanDetail(plan)).toEqual(plan);
     expect(validatePlanDetail(inaturalistPlan()).recommendations[0].photo.provider).toBe("inaturalist");
+    expect(validatePlanDetail(usfwsPlan()).recommendations[0].photo.provider).toBe("usfws");
+  });
+
+  it("requires exact matching USFWS recommendation-photo evidence source and identity", () => {
+    const valid = usfwsPlan();
+    expect(validatePlanDetail(valid).recommendations[0].photo.source_record_id).toBe("usfws-mexican-jay-1");
+
+    for (const mutate of [
+      (value: TripPlanDetail) => { value.evidence = value.evidence.filter((item) => item.evidence_id !== "photo_usfws_fixture"); },
+      (value: TripPlanDetail) => { value.evidence.find((item) => item.evidence_id === "photo_usfws_fixture")!.source = "curated_photo"; },
+      (value: TripPlanDetail) => { value.evidence.find((item) => item.evidence_id === "photo_usfws_fixture")!.source_record_id = "usfws-other-photo"; },
+      (value: TripPlanDetail) => { value.recommendations[0].photo.display_url = value.recommendations[0].photo.display_url!.replace("/objects/ab/", "/objects/cd/"); },
+      (value: TripPlanDetail) => { value.recommendations[0].photo.license_text = value.recommendations[0].photo.license_code = "CC BY-NC 4.0"; value.recommendations[0].photo.license_url = "https://creativecommons.org/licenses/by-nc/4.0/"; },
+    ]) {
+      const value = usfwsPlan();
+      mutate(value);
+      expect(() => validatePlanDetail(value)).toThrow("Invalid trip planner response");
+    }
   });
 
   it.each([

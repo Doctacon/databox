@@ -1,0 +1,57 @@
+Table "image_search_runs" [note: 'excluded: ingestion completion markers used only to select the latest complete snapshot'] {
+  "run_id" text [primary_key, not null]
+  "status" text [not null]
+  "target_species_count" bigint [not null]
+  "completed_target_species_count" bigint [not null]
+  "record_count" bigint [not null]
+  "started_at" timestamp [not null]
+  "completed_at" timestamp [not null]
+  "search_endpoint" text [not null]
+  "page_size" bigint [not null]
+  "max_images_per_target" bigint [not null]
+  "request_max_attempts" bigint [not null]
+  "detail_worker_count" bigint [not null]
+  "_loaded_at" timestamp [not null]
+}
+
+Table "image_records" [note: 'concept: BirdMediaImage | role: primary | grain: one raw FWS media page per caller target species per completed snapshot | license_policy: downstream_fail_closed'] {
+  "run_id" text [primary_key, not null]
+  "species_code" text [primary_key, not null]
+  "target_common_name" text [not null]
+  "target_scientific_name" text [not null]
+  "media_id" text [not null]
+  "discovery_method" text [not null]
+  "source_page_url" text [primary_key, not null]
+  "search_result_page_href" text
+  "search_result_title" text
+  "search_result_caption" text
+  "search_result_credit" text
+  "search_result_image_url" text
+  "search_result_alt_text" text
+  "search_result_width" bigint
+  "search_result_height" bigint
+  "search_result_published_at" text
+  "search_result_mime_label" text
+  "detail_fetch_status" text [not null]
+  "source_title" text
+  "source_caption" text
+  "source_alt_text" text
+  "source_creator" text
+  "source_license" text
+  "source_license_url" text
+  "source_published_at" text
+  "source_created_text" text
+  "source_media_type" text
+  "source_mime_type" text
+  "source_image_medium_url" text
+  "source_image_medium_width" bigint
+  "source_image_medium_height" bigint
+  "source_image_original_url" text
+  "source_image_original_width" bigint
+  "source_image_original_height" bigint
+  "scientific_name_tags_json" text
+  "species_tag_urls_json" text
+  "subject_tags_json" text
+  "_search_endpoint" text [not null]
+  "_loaded_at" timestamp [not null]
+}

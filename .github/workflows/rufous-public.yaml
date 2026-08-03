@@ -5,23 +5,41 @@ on:
     branches: [main]
     paths:
       - "app/**"
+      - "config/rufous-media-visual-approvals.json"
+      - "pyproject.toml"
+      - "packages/databox/pyproject.toml"
+      - "packages/databox-sources/pyproject.toml"
       - "packages/databox-sources/databox_sources/gbif/**"
+      - "packages/databox-sources/databox_sources/usfws/**"
       - "packages/databox-sources/tests/gbif/**"
+      - "packages/databox-sources/tests/usfws/**"
       - "packages/databox-sources/tests/conftest.py"
       - "packages/databox-sources/tests/test_vcr_sanitization.py"
       - "packages/databox/databox/config/settings.py"
+      - "packages/databox/databox/config/sources.py"
+      - "packages/databox/databox/orchestration/definitions.py"
       - "packages/databox/databox/orchestration/domains/gbif.py"
+      - "packages/databox/databox/orchestration/domains/usfws.py"
       - "packages/databox/databox/public_export*.py"
+      - "packages/databox/databox/public_media*.py"
+      - "packages/databox/databox/public_restricted_marks.py"
       - "packages/databox/databox/public_release.py"
       - "scripts/load_dlt_quack.py"
       - "scripts/*rufous_public.py"
+      - "scripts/*rufous*media.py"
+      - "scripts/build_rufous_media_review.py"
+      - "scripts/verify_rufous_media_approvals.py"
       - "scripts/sqlmesh_plan_rufous_public.sh"
+      - "scripts/sqlmesh_plan_rufous_media.sh"
       - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
       - "tests/test_public_export*.py"
       - "tests/test_public_release.py"
+      - "tests/test_public_media*.py"
       - "tests/test_settings.py"
+      - "tests/test_source_builders.py"
+      - "tests/test_source_registry.py"
       - "transforms/main/models/birding_agent/**"
       - "transforms/main/models/environmental_observations/**"
       - "transforms/main/models/rufous_public/**"
@@ -41,23 +59,41 @@ on:
     branches: [main]
     paths:
       - "app/**"
+      - "config/rufous-media-visual-approvals.json"
+      - "pyproject.toml"
+      - "packages/databox/pyproject.toml"
+      - "packages/databox-sources/pyproject.toml"
       - "packages/databox-sources/databox_sources/gbif/**"
+      - "packages/databox-sources/databox_sources/usfws/**"
       - "packages/databox-sources/tests/gbif/**"
+      - "packages/databox-sources/tests/usfws/**"
       - "packages/databox-sources/tests/conftest.py"
       - "packages/databox-sources/tests/test_vcr_sanitization.py"
       - "packages/databox/databox/config/settings.py"
+      - "packages/databox/databox/config/sources.py"
+      - "packages/databox/databox/orchestration/definitions.py"
       - "packages/databox/databox/orchestration/domains/gbif.py"
+      - "packages/databox/databox/orchestration/domains/usfws.py"
       - "packages/databox/databox/public_export*.py"
+      - "packages/databox/databox/public_media*.py"
+      - "packages/databox/databox/public_restricted_marks.py"
       - "packages/databox/databox/public_release.py"
       - "scripts/load_dlt_quack.py"
       - "scripts/*rufous_public.py"
+      - "scripts/*rufous*media.py"
+      - "scripts/build_rufous_media_review.py"
+      - "scripts/verify_rufous_media_approvals.py"
       - "scripts/sqlmesh_plan_rufous_public.sh"
+      - "scripts/sqlmesh_plan_rufous_media.sh"
       - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
       - "tests/test_public_export*.py"
       - "tests/test_public_release.py"
+      - "tests/test_public_media*.py"
       - "tests/test_settings.py"
+      - "tests/test_source_builders.py"
+      - "tests/test_source_registry.py"
       - "transforms/main/models/birding_agent/**"
       - "transforms/main/models/environmental_observations/**"
       - "transforms/main/models/rufous_public/**"
@@ -147,17 +183,24 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
       - name: Install Python dependencies
-        run: uv sync --all-extras --dev
+        run: uv sync --all-extras --dev --locked
       - name: Install browser dependencies
         run: npm --prefix app ci
       - name: Test public exporter and release invariant
         run: >-
-          uv run pytest tests/test_public_export.py tests/test_public_export_audit.py
-          tests/test_public_release.py
+          uv run pytest packages/databox-sources/tests/usfws
+          tests/test_public_export.py tests/test_public_export_audit.py
+          tests/test_public_release.py tests/test_public_media.py
+          tests/test_public_media_approval.py
+          tests/test_public_media_ingest.py tests/test_public_media_release.py
+          tests/test_public_media_review.py
+          tests/test_source_builders.py tests/test_source_registry.py
           -o "addopts=-v --tb=short"
       - name: Test public SQLMesh publication model
         working-directory: transforms/main
-        run: ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
+        run: |
+          ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
+          ../../.venv/bin/sqlmesh test -k test_rufous_public_usfws_commercial_image
       - name: Test public browser application
         run: |
           npm --prefix app run typecheck
@@ -193,7 +236,7 @@ jobs:
        github.event_name == 'schedule' ||
        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 180
     env:
       RUNTIME__DLTHUB_TELEMETRY: "false"
       SQLMESH__DISABLE_ANONYMIZED_ANALYTICS: "true"
@@ -212,19 +255,35 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: app/package-lock.json
+      - id: restore-media-cache
+        name: Restore the last verified prepared-media cache
+        continue-on-error: true
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: build/rufous-media
+          key: rufous-media-v2-${{ runner.os }}-${{ hashFiles('uv.lock', 'packages/databox/pyproject.toml', 'packages/databox/databox/public_media.py') }}-${{ github.run_id }}
+          restore-keys: |
+            rufous-media-v2-${{ runner.os }}-${{ hashFiles('uv.lock', 'packages/databox/pyproject.toml', 'packages/databox/databox/public_media.py') }}-
       - name: Install dependencies
         run: |
           mkdir -p "$DAGSTER_HOME"
-          uv sync --all-extras --dev
+          uv sync --all-extras --dev --locked
           npm --prefix app ci
       - name: Test public exporter and release invariant
         run: >-
-          uv run pytest tests/test_public_export.py tests/test_public_export_audit.py
-          tests/test_public_release.py
+          uv run pytest packages/databox-sources/tests/usfws
+          tests/test_public_export.py tests/test_public_export_audit.py
+          tests/test_public_release.py tests/test_public_media.py
+          tests/test_public_media_approval.py
+          tests/test_public_media_ingest.py tests/test_public_media_release.py
+          tests/test_public_media_review.py
+          tests/test_source_builders.py tests/test_source_registry.py
           -o "addopts=-v --tb=short"
       - name: Test public SQLMesh publication model
         working-directory: transforms/main
-        run: ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
+        run: |
+          ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
+          ../../.venv/bin/sqlmesh test -k test_rufous_public_usfws_commercial_image
       - name: Test public browser application
         run: |
           npm --prefix app run typecheck
@@ -239,6 +298,32 @@ jobs:
             --database data/databox.duckdb \
             --skip-sqlmesh
           bash scripts/sqlmesh_plan_rufous_public.sh
+      - name: Refresh and model the public USFWS media metadata
+        run: |
+          uv run python scripts/load_rufous_usfws_media.py \
+            --database data/databox.duckdb \
+            --max-images-per-target 500
+          bash scripts/sqlmesh_plan_rufous_media.sh
+      - name: Prepare bounded immutable WebP media
+        run: >-
+          uv run python scripts/prepare_rufous_media.py
+          --database-path data/databox.duckdb
+          --output-dir build/rufous-media
+      - name: Require one committed safe image selection per represented species
+        run: >-
+          uv run python scripts/verify_rufous_media_approvals.py
+          --manifest build/rufous-media/manifest.json
+          --approvals config/rufous-media-visual-approvals.json
+      - id: prepared-media
+        name: Identify the verified prepared-media cache
+        shell: bash
+        run: |
+          identity=$(python -c 'import json; print(json.load(open("build/rufous-media/manifest.json"))["cache_identity"])')
+          if [[ ! "$identity" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "Prepared media cache identity is invalid." >&2
+            exit 1
+          fi
+          echo "cache_identity=$identity" >> "$GITHUB_OUTPUT"
       - name: Download official Arizona GNIS archive
         run: >-
           curl --fail --silent --show-error --location
@@ -262,6 +347,8 @@ jobs:
           --database data/databox.duckdb
           --gnis data/DomesticNames_AZ.txt
           --gnis-sha256 "$RUF_GNIS_SHA256"
+          --media-manifest build/rufous-media/manifest.json
+          --media-approvals config/rufous-media-visual-approvals.json
           --output build/rufous-public-data
       - name: Build static public app
         env:
@@ -284,6 +371,12 @@ jobs:
             echo "Refusing to deploy a revision that is no longer the main branch head." >&2
             exit 1
           fi
+      - name: Save the audited prepared-media cache
+        continue-on-error: true
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: build/rufous-media
+          key: rufous-media-v2-${{ runner.os }}-${{ hashFiles('uv.lock', 'packages/databox/pyproject.toml', 'packages/databox/databox/public_media.py') }}-${{ steps.prepared-media.outputs.cache_identity }}
       - name: Preflight monotonic R2 activation before Pages deployment
         env:
           RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -299,6 +392,47 @@ jobs:
           --publication-attempt "$GITHUB_RUN_ATTEMPT"
           --source-revision "$GITHUB_SHA"
           --dry-run
+      - name: Preflight the immutable shared-media namespace
+        env:
+          RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
+          RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
+        run: >-
+          uv run --package databox --extra r2 --locked
+          python scripts/publish_rufous_media.py
+          --source build/rufous-media
+          --approvals config/rufous-media-visual-approvals.json
+          --r2
+          --prefix rufous-media/v1/objects
+          --dry-run
+      - name: Recheck the main branch head before media publication
+        shell: bash
+        run: |
+          read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
+          if [[ ! "$main_sha" =~ ^[0-9a-f]{40}$ || "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "Refusing to publish media for a superseded main revision." >&2
+            exit 1
+          fi
+      - name: Publish missing immutable shared-media objects
+        env:
+          RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
+          RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
+        run: >-
+          uv run --package databox --extra r2 --locked
+          python scripts/publish_rufous_media.py
+          --source build/rufous-media
+          --approvals config/rufous-media-visual-approvals.json
+          --r2
+          --prefix rufous-media/v1/objects
+      - name: Recheck the main branch head after media publication
+        shell: bash
+        run: |
+          read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
+          if [[ ! "$main_sha" =~ ^[0-9a-f]{40}$ || "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "Refusing to deploy a revision that is no longer the main branch head." >&2
+            exit 1
+          fi
       - id: changed
         name: Skip only an unchanged scheduled data refresh
         shell: bash

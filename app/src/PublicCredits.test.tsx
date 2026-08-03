@@ -29,13 +29,22 @@ const manifest: PublicManifest = {
     gbif_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
     coverage: "bounded_sample",
     required_taxon_key: 2476855,
+    media_source: "usfws",
+    media_delivery: "immutable_r2",
   },
   license_policy: {
     version: 1,
     allowed: { gbif: ["CC BY 4.0"] },
     rejected_counts: {},
   },
-  counts: { species: 12, observations: 3000, places: 500, attribution_items: 1 },
+  counts: {
+    species: 12,
+    observations: 3000,
+    places: 500,
+    attribution_items: 1,
+    media_items: 0,
+    species_with_media: 0,
+  },
 };
 
 const attribution: PublicAttribution = {

@@ -40,7 +40,11 @@ defs = dg.Definitions(
         *analytics.asset_checks,
     ],
     jobs=[
-        *(module.ingest_job for module in _SOURCE_DOMAINS.values()),
+        *(
+            module.ingest_job
+            for module in _SOURCE_DOMAINS.values()
+            if module.ingest_job is not None
+        ),
         *(_SOURCE_DOMAINS[source.name].daily_pipeline for source in SOURCES if source.scheduled),
         parallel_quack_full_refresh,
     ],

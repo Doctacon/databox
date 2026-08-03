@@ -91,9 +91,7 @@ function MatchMap({ evaluation, manifest }: { evaluation: WatchEvaluation; manif
 
 function SpeciesProfile({ profile }: { profile: PublicSpeciesProfile }) {
   const photo = profile.media.find((item) => item.kind === "photo");
-  const audio = profile.media.find((item) => item.kind === "audio");
   const photoUrl = photo ? safeExternalUrl(photo.url) : null;
-  const audioUrl = audio ? safeExternalUrl(audio.url) : null;
   return <section className="panel public-species-profile" aria-labelledby="public-species-heading">
     <div>
       <p className="eyebrow">Selected Arizona bird</p>
@@ -111,7 +109,6 @@ function SpeciesProfile({ profile }: { profile: PublicSpeciesProfile }) {
         : <div className="media-placeholder"><img src={rufousImage} alt="" aria-hidden="true" /><span>No licensed public photo in this release.</span></div>}
       {photo && <figcaption>Photo: {photo.creator} · <a href={photo.source_url} target="_blank" rel="noreferrer">{photo.provider} source</a> · <a href={photo.license_url} target="_blank" rel="noreferrer">{photo.license}</a></figcaption>}
     </figure>
-    {audio && audioUrl && <div className="public-audio"><audio controls preload="none" src={audioUrl} aria-label={`Play a call of ${birdName(profile)}`} /><small>Recording: {audio.creator} · <a href={audio.source_url} target="_blank" rel="noreferrer">source</a> · <a href={audio.license_url} target="_blank" rel="noreferrer">{audio.license}</a></small></div>}
   </section>;
 }
 

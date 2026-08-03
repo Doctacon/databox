@@ -2,9 +2,10 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { SpeciesPhotoGallery } from "./BirdPages";
 import styles from "./styles.css?raw";
 import { getBird, listBirds } from "./birdApi";
-import type { BirdCatalogSummary, BirdProfile } from "./types";
+import type { BirdCatalogSummary, BirdProfile, CatalogPhoto } from "./types";
 
 function response(body: unknown, status = 200) {
   return Promise.resolve(new Response(JSON.stringify(body), {
@@ -18,6 +19,33 @@ function rawResponse(body: unknown) {
 
 const unavailablePhoto = { status: "unavailable" as const, source_record_id: null, species_name: null, display_url: null, source_url: null, creator: null, rights_holder: null, publisher: null, format: null, license_text: null, license_url: null, selection_reason: null, provider: null, license_code: null, original_width: null, original_height: null, caveats: ["Not enriched"], lookup_at: null };
 const unavailableCall = { status: "unavailable" as const, source_record_id: null, recording_id: null, species_name: null, geographic_scope: null, recording_type: null, quality: null, recordist: null, locality: null, country: null, source_url: null, audio_url: null, license_text: null, license_url: null, selection_reason: null, caveats: ["Not enriched"], lookup_at: null };
+
+function usfwsPhoto(index: number): CatalogPhoto {
+  return {
+    status: "available",
+    source_record_id: `usfws-${index}`,
+    species_name: "Selasphorus rufus",
+    display_url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/ab/${index.toString().padStart(64, "a")}.webp`,
+    source_url: `https://www.fws.gov/media/rufous-hummingbird-${index}`,
+    creator: `USFWS Photographer ${index}`,
+    rights_holder: null,
+    publisher: "U.S. Fish and Wildlife Service",
+    format: "image/webp",
+    license_text: "Public Domain",
+    license_url: "https://www.fws.gov/notices",
+    selection_reason: "Validated USFWS public-release photo",
+    provider: "usfws",
+    license_code: "Public Domain",
+    original_width: 1_200,
+    original_height: 900,
+    caveats: [],
+    lookup_at: "2026-08-03T12:00:00Z",
+    alt_text: index === 1 ? "Rufous Hummingbird perched in profile" : `Rufous Hummingbird alternate ${index}`,
+    media_title: `Rufous photo ${index}`,
+    caption: `USFWS caption ${index}`,
+    attribution_id: `usfws-attribution-${index}`,
+  };
+}
 
 function bird(index: number): BirdCatalogSummary {
   return {
@@ -310,6 +338,47 @@ describe("Arizona bird catalog and modeled profiles", () => {
     await userEvent.click(screen.getByRole("option", { name: "Arizona Bird 001" }));
     expect(screen.getByRole("img", { name: "No licensed photo available for Arizona Bird 001 (Avis arizona001)" })).toBeVisible();
     expect(document.querySelector("audio")).toBeNull();
+  });
+
+  it("browses every USFWS profile photo lazily in accessible twelve-photo batches", async () => {
+    const photos = Array.from({ length: 13 }, (_, index) => usfwsPhoto(index + 1));
+    render(<SpeciesPhotoGallery photo={photos[0]} photos={photos} label="Rufous Hummingbird (Selasphorus rufus)" />);
+
+    const hero = screen.getByRole("img", { name: "Rufous Hummingbird perched in profile" });
+    expect(hero).toHaveAttribute("loading", "lazy");
+    expect(hero).toHaveAttribute("decoding", "async");
+    expect(screen.getByText("13 validated USFWS photos")).toBeVisible();
+    expect(screen.getAllByRole("button", { name: /View Rufous photo/ })).toHaveLength(12);
+    expect(screen.queryByRole("button", { name: "View Rufous photo 13" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "USFWS source" })).toHaveAttribute(
+      "href", "https://www.fws.gov/media/rufous-hummingbird-1",
+    );
+    expect(screen.getByRole("link", { name: "Public Domain" })).toHaveAttribute(
+      "href", "https://www.fws.gov/notices",
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "View Rufous photo 2" }));
+    expect(screen.getByRole("img", { name: "Rufous Hummingbird alternate 2" })).toBeVisible();
+    expect(screen.getByText("Photo: USFWS Photographer 2")).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Show more photos" }));
+    expect(screen.getByRole("button", { name: "View Rufous photo 13" })).toBeVisible();
+    for (const image of document.querySelectorAll(".catalog-photo-gallery img")) {
+      expect(image).toHaveAttribute("loading", "lazy");
+      expect(image).toHaveAttribute("decoding", "async");
+    }
+  });
+
+  it("keeps credits visible when a USFWS hero fails and preserves the no-photo state", () => {
+    const photo = usfwsPhoto(1);
+    const { rerender } = render(<SpeciesPhotoGallery photo={photo} photos={[photo]} label="Rufous Hummingbird" />);
+    fireEvent.error(screen.getByRole("img", { name: photo.alt_text }));
+    expect(screen.getByText("Photo could not be loaded.")).toBeVisible();
+    expect(screen.getByText("Photo: USFWS Photographer 1")).toBeVisible();
+    expect(screen.getByRole("img", { name: "No licensed photo available for Rufous Hummingbird" })).toBeVisible();
+
+    rerender(<SpeciesPhotoGallery photo={unavailablePhoto} photos={[]} label="Unphotographed Bird" />);
+    expect(screen.getByRole("img", { name: "No licensed photo available for Unphotographed Bird" })).toBeVisible();
+    expect(screen.getByText("No validated catalog photo is available.")).toBeVisible();
   });
   it("stops the active catalog call when wheel selection or filtering changes", async () => {
     window.history.replaceState(null, "", "/birds");

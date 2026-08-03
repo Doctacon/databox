@@ -2,8 +2,8 @@
 
 Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/generate_docs.py`.
 
-- **Models:** 19
-- **Soda contracts:** 26
+- **Models:** 20
+- **Soda contracts:** 27
 - **Lineage:** [browse the dependency graph](lineage.md)
 
 ## `analytics`
@@ -50,3 +50,4 @@ Canonical environmental-observations CDM models generated from the .schema workf
 | Model | Contract | Description |
 | --- | --- | --- |
 | [`rufous_public.gbif_eod_occurrence`](rufous_public/gbif_eod_occurrence.md) | yes | Sanitized Arizona occurrence projection from the CC BY GBIF EOD dataset; no observer, locality, checklist, or direct-eBird fields. |
+| [`rufous_public.usfws_commercial_image`](rufous_public/usfws_commercial_image.md) | yes | Commercial-use USFWS bird images from the latest complete caller-owned species snapshot; exact scientific tags, safe FWS URLs, usable credits, and fail-closed licenses only. |

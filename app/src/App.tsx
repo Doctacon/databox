@@ -123,6 +123,16 @@ function safeLicense(
   }
 }
 
+function safePhotoLicense(
+  urlValue: unknown,
+  labelValue: unknown,
+): { href: string; code: string } | null {
+  if (urlValue === "https://www.fws.gov/notices" && labelValue === "Public Domain") {
+    return { href: urlValue, code: labelValue };
+  }
+  return safeLicense(urlValue, labelValue);
+}
+
 function evidenceSummary(row: Evidence): string {
   const values = [
     text(row.summary.common_name),
@@ -138,7 +148,7 @@ function birdName(row: Recommendation): string {
   return row.common_name || row.scientific_name || row.species_code || "Unknown species";
 }
 
-function PhotoArea({ row }: { row: Recommendation }) {
+export function PhotoArea({ row }: { row: Recommendation }) {
   const [loadFailed, setLoadFailed] = useState(false);
   const photo = record(row.photo);
   const caveats = safeCaveats(photo?.caveats);
@@ -150,7 +160,7 @@ function PhotoArea({ row }: { row: Recommendation }) {
   const rightsHolder = text(photo?.rights_holder);
   const publisher = text(photo?.publisher);
   const licenseText = text(photo?.license_text);
-  const license = validated ? { href: validated.licenseUrl, code: validated.licenseCode } : null;
+  const license = validated ? safePhotoLicense(validated.licenseUrl, validated.licenseCode) : null;
   const metadataTrusted = Boolean(photo && row.scientific_name !== null && photo.species_name === row.scientific_name);
   const available = Boolean(metadataTrusted && caveats.valid && status === "available" && validated);
   const name = birdName(row);

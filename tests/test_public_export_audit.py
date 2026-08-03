@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from databox.public_export import export_public_data
 from databox.public_export_audit import (
     MAX_FILE_BYTES,
@@ -16,6 +17,8 @@ from databox.public_export_audit import (
 _REVIEWED_CSP = (
     "/*\n"
     "  Content-Security-Policy: default-src 'self'; "
+    "img-src 'self' data: blob: https://rufous-data.loughondata.com; "
+    "media-src 'self' https://rufous-data.loughondata.com; "
     "connect-src 'self' https://tiles.openfreemap.org "
     "https://rufous-data.loughondata.com; "
     "frame-ancestors https://loughondata.com https://www.loughondata.com\n"
@@ -28,6 +31,47 @@ def _synthetic_site(tmp_path: Path) -> Path:
     return site
 
 
+def _attach_synthetic_usfws_media(site: Path, **overrides: object) -> None:
+    manifest_path = site / "data/manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = manifest["species"][0]
+    profile_path = site / str(summary["profile_path"]).removeprefix("/")
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    digest = "d" * 64
+    media: dict[str, object] = {
+        "kind": "photo",
+        "provider": "usfws",
+        "media_id": "usfws-" + "a" * 24,
+        "url": (
+            "https://rufous-data.loughondata.com/rufous-media/v1/objects/"
+            f"{digest[:2]}/{digest}.webp"
+        ),
+        "source_url": "https://www.fws.gov/media/annas-hummingbird",
+        "creator": "Jane Birder/USFWS",
+        "license": "Public Domain",
+        "license_url": "https://www.fws.gov/notices",
+        "attribution_id": "usfws-attribution-" + "b" * 24,
+        "scientific_name": profile["scientific_name"],
+        "title": "Anna's Hummingbird at flowers",
+        "caption": "An adult hummingbird feeds at desert flowers.",
+        "alt_text": "An Anna's Hummingbird feeding at red flowers.",
+        "width": 650,
+        "height": 433,
+        "mime_type": "image/webp",
+        "sha256": digest,
+    }
+    media.update(overrides)
+    profile["media"] = [media]
+    summary["hero_photo"] = media
+    summary["photo_count"] = 1
+    manifest["counts"]["media_items"] = 1
+    manifest["counts"]["species_with_media"] = 1
+    manifest["source_policy"]["media_source"] = "usfws"
+    manifest["source_policy"]["media_delivery"] = "immutable_r2"
+    profile_path.write_text(json.dumps(profile), encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
 def test_synthetic_contract_passes_cost_privacy_audit(tmp_path: Path) -> None:
     site = _synthetic_site(tmp_path)
     workflows = tmp_path / "workflows"
@@ -36,6 +80,95 @@ def test_synthetic_contract_passes_cost_privacy_audit(tmp_path: Path) -> None:
         "jobs:\n  build:\n    runs-on: ubuntu-latest\n", encoding="utf-8"
     )
     assert audit_public_site(site, workflows) == []
+
+
+def test_audit_accepts_ordinary_usfws_bird_media(tmp_path: Path) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_usfws_media(site)
+
+    assert audit_public_site(site) == []
+
+
+def test_audit_accepts_ordinary_names_dates_dimensions_and_public_source_url(
+    tmp_path: Path,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_usfws_media(
+        site,
+        creator="Dr. Jane Q. Birder / USFWS",
+        title="Twelve hummingbirds near Desert Road",
+        caption="About 7,000 feathers; photographed 08/03/2026 at 650 x 433 pixels.",
+        alt_text="Bird image from the public USFWS media catalog.",
+        source_url="https://www.fws.gov/media/2026-08-03-hummingbird-photo",
+    )
+
+    assert audit_public_site(site) == []
+
+
+@pytest.mark.parametrize(
+    ("override", "field", "reason"),
+    [
+        ({"creator": "Jane Birder <jane@example.org>"}, "creator", "email_address"),
+        ({"caption": "Call (602) 555-0199 for access."}, "caption", "phone_number"),
+        ({"title": "Nest behind 123 Example Street"}, "title", "postal_address"),
+        ({"caption": "Mail permit to P.O. Box 1234"}, "caption", "postal_address"),
+        ({"alt_text": "Private nest at 33.4484, -112.0740"}, "alt_text", "precise_coordinates"),
+        ({"caption": "GPS: 33.4, -112.1"}, "caption", "precise_coordinates"),
+        ({"title": "Nest at 33° 26.5' N"}, "title", "precise_coordinates"),
+    ],
+)
+def test_audit_rejects_obvious_contact_pii_and_private_locations_in_usfws_text(
+    tmp_path: Path,
+    override: dict[str, object],
+    field: str,
+    reason: str,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_usfws_media(site, **override)
+
+    findings = audit_public_site(site)
+
+    assert any(f"USFWS {field} exposes {reason}" in finding for finding in findings)
+
+
+def test_audit_rejects_usfws_media_page_with_trailing_hyphen(tmp_path: Path) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_usfws_media(
+        site,
+        source_url="https://www.fws.gov/media/annas-hummingbird-",
+    )
+
+    assert any(
+        "source_url is not an official media page" in finding for finding in audit_public_site(site)
+    )
+
+
+@pytest.mark.parametrize(
+    ("override", "reason"),
+    [
+        ({"title": "U.S. Fish & Wildlife Service word-mark"}, "service_or_agency"),
+        ({"caption": "2026 Federal Duck Stamp artwork"}, "federal_or_junior"),
+        (
+            {"alt_text": "Federal Aid in Sport Fish Restoration symbol"},
+            "federal_aid_restoration",
+        ),
+        (
+            {"source_url": "https://www.fws.gov/media/blue-goose-refuge-mark"},
+            "blue_goose_refuge",
+        ),
+    ],
+)
+def test_audit_rejects_normalized_restricted_usfws_marks(
+    tmp_path: Path,
+    override: dict[str, object],
+    reason: str,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_usfws_media(site, **override)
+
+    findings = audit_public_site(site)
+
+    assert any("restricted mark" in finding and reason in finding for finding in findings)
 
 
 def test_audit_rejects_unreviewed_r2_endpoints_and_broad_connect_policy(
@@ -63,6 +196,46 @@ def test_audit_rejects_unreviewed_r2_endpoints_and_broad_connect_policy(
     assert any("x-amz-signature" in item.casefold() for item in findings)
     assert any("connect-src" in item for item in findings)
     assert any("frame-ancestors" in item for item in findings)
+
+
+def test_audit_rejects_broad_or_duplicate_image_and_media_csp_sources(
+    tmp_path: Path,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    (site / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    (site / "_headers").write_text(
+        "/*\n"
+        "  Content-Security-Policy: default-src 'self'; "
+        "img-src 'self' data: blob: https:; img-src 'self' https:; "
+        "media-src https:; "
+        "connect-src 'self' https://tiles.openfreemap.org "
+        "https://rufous-data.loughondata.com; "
+        "frame-ancestors https://loughondata.com https://www.loughondata.com\n"
+        "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
+        encoding="utf-8",
+    )
+
+    findings = audit_public_site(site)
+
+    assert any("must not repeat directives" in item for item in findings)
+    assert any("img-src" in item for item in findings)
+    assert any("media-src" in item for item in findings)
+
+
+def test_audit_rejects_local_human_review_bundle_marker(tmp_path: Path) -> None:
+    site = _synthetic_site(tmp_path)
+    (site / "index.html").write_text(
+        "<!doctype html>RUF_LOCAL_MEDIA_REVIEW_ONLY_DO_NOT_DEPLOY",
+        encoding="utf-8",
+    )
+    (site / "_headers").write_text(
+        _REVIEWED_CSP + "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
+        encoding="utf-8",
+    )
+
+    findings = audit_public_site(site)
+
+    assert any("local-only application marker" in item for item in findings)
 
 
 def test_audit_rejects_functions_bindings_metered_services_and_oversized_files(
@@ -252,3 +425,26 @@ def test_workflow_audit_rejects_data_only_skip_for_application_release(tmp_path:
     findings = audit_workflow_runners(workflows)
 
     assert any("may skip application releases" in item for item in findings)
+
+
+def test_workflow_audit_requires_committed_human_gate_on_each_media_publisher(
+    tmp_path: Path,
+) -> None:
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / "unsafe.yaml").write_text(
+        "jobs:\n  deploy:\n    runs-on: ubuntu-latest\n"
+        "    steps:\n"
+        "      - run: >-\n"
+        "          python scripts/publish_rufous_media.py\n"
+        "          --source build/rufous-media\n"
+        "          --r2\n"
+        "      - run: python scripts/verify_rufous_media_approvals.py\n",
+        encoding="utf-8",
+    )
+
+    findings = audit_workflow_runners(workflows)
+
+    assert any("--media-approvals" in item for item in findings)
+    assert any("publisher omits" in item for item in findings)
+    assert any("before cloud publishers" in item for item in findings)

@@ -2,9 +2,9 @@
 
 The registry at `databox.config.sources.SOURCES` is the single declaration of
 every active source. Every registered source must have a matching domain
-module that exports `dlt_asset_keys`, `sqlmesh_asset_keys`, `daily_pipeline`,
-and `schedule` — and every orchestration domain module (minus `analytics`)
-must have a registry entry. This test fails the build when one side drifts.
+module, and every orchestration domain module (minus `analytics`) must have a
+registry entry. Explicit caller-owned sources may deliberately omit Dagster
+assets and jobs when no safe default input snapshot exists.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ EXPECTED_SOURCES = {
     "noaa",
     "usgs",
     "usgs_earthquakes",
+    "usfws",
     "xeno_canto",
 }
 
@@ -40,9 +41,15 @@ def test_every_registered_source_has_a_domain_module(source) -> None:
     module = importlib.import_module(f"databox.orchestration.domains.{source_name}")
     for attr in EXPECTED_DOMAIN_EXPORTS:
         assert hasattr(module, attr), f"{source_name}.py missing `{attr}`"
-    assert hasattr(module, f"{source_name}_dlt_assets"), (
-        f"{source_name}.py must export `{source_name}_dlt_assets` for smoke + definitions wiring"
-    )
+    if source_name == "usfws":
+        assert module.assets == []
+        assert module.dlt_asset_keys == []
+        assert module.ingest_job is None
+    else:
+        assert hasattr(module, f"{source_name}_dlt_assets"), (
+            f"{source_name}.py must export `{source_name}_dlt_assets` "
+            "for smoke + definitions wiring"
+        )
     assert hasattr(module, "daily_pipeline") is source.scheduled
     assert hasattr(module, "schedule") is source.scheduled
 
@@ -104,10 +111,11 @@ def test_every_raw_catalog_uses_single_local_database() -> None:
     assert {settings.raw_catalog_path(src.name) for src in SOURCES} == {settings.database_path}
 
 
-def test_static_sources_are_not_scheduled_or_parallel() -> None:
-    avonet = next(source for source in SOURCES if source.name == "avonet")
-    assert avonet.scheduled is False
-    assert avonet.parallel_refresh is False
+def test_explicit_sources_are_not_scheduled_or_parallel() -> None:
+    explicit = {source.name: source for source in SOURCES if source.name in {"avonet", "usfws"}}
+    assert set(explicit) == {"avonet", "usfws"}
+    assert all(source.scheduled is False for source in explicit.values())
+    assert all(source.parallel_refresh is False for source in explicit.values())
 
 
 def test_analytics_anchor_is_single() -> None:

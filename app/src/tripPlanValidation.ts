@@ -183,7 +183,7 @@ function photo(value: unknown): RecommendationPhoto {
   for (const [key, max] of Object.entries({ source_record_id: 500, species_name: 300, display_url: 2048, source_url: 2048, creator: 500, rights_holder: 500, publisher: 500, format: 128, license_text: 500, license_url: 2048, selection_reason: 1000, license_code: 500 })) {
     if (!string(row[key], max, true, true)) invalid();
   }
-  if (row.provider !== null && row.provider !== "inaturalist") invalid();
+  if (row.provider !== null && row.provider !== "inaturalist" && row.provider !== "usfws") invalid();
   if (!(row.original_width === null || integer(row.original_width, 1, 100000))
     || !(row.original_height === null || integer(row.original_height, 1, 100000))) invalid();
   return { ...(row as unknown as RecommendationPhoto), caveats: caveats(row.caveats) };
@@ -341,7 +341,7 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
   for (const item of evidenceRows.filter((row) => row.evidence_type === "recommendation_photo" || row.evidence_type === "recommendation_call")) {
     if (item.recommendation_id === null
       || (item.evidence_type === "recommendation_photo"
-        ? item.source !== "inaturalist" && item.source !== "curated_photo"
+        ? item.source !== "inaturalist" && item.source !== "curated_photo" && item.source !== "usfws"
         : item.source !== "xeno_canto")) invalid();
     const key = `${item.recommendation_id}|${item.evidence_type}`;
     if (enrichmentByRecommendation.has(key)) invalid();

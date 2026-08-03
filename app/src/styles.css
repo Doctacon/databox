@@ -193,6 +193,18 @@ summary { min-height: 44px; cursor: pointer; color: var(--teal-950); font-weight
 .catalog-profile-media-grid .catalog-media-attribution > * { overflow-wrap: break-word; word-break: normal; }
 .catalog-photo-profile .catalog-photo-frame { max-height: 560px; }
 .catalog-photo-profile .catalog-media-placeholder { min-height: 280px; }
+.catalog-photo-gallery { min-width: 0; display: grid; gap: 16px; }
+.catalog-gallery-browser { min-width: 0; display: grid; gap: 10px; padding-top: 4px; border-top: 2px dashed var(--teal-800); }
+.catalog-gallery-heading-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.catalog-gallery-heading-row h3 { margin: 0; }
+.catalog-gallery-heading-row span { color: var(--muted); font-size: .76rem; }
+.catalog-gallery-thumbnails { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; margin: 0; padding: 0; }
+.catalog-gallery-thumbnails li { min-width: 0; }
+.catalog-gallery-thumbnails button { width: 100%; aspect-ratio: 4 / 3; min-height: 0; margin: 0; padding: 0; overflow: hidden; border: 2px solid var(--ink); border-radius: 2px 7px 2px 7px; background: var(--cream-200); box-shadow: none; }
+.catalog-gallery-thumbnails button[aria-pressed="true"] { border-color: var(--rust-700); box-shadow: 3px 3px 0 var(--rust-700); }
+.catalog-gallery-thumbnails img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.catalog-gallery-thumbnail-unavailable { width: 100%; height: 100%; display: grid; place-items: center; padding: 5px; color: var(--muted); background: var(--cream-100); font-size: .66rem; font-style: italic; }
+.catalog-gallery-more { justify-self: start; margin-top: 2px; }
 .catalog-call-profile { margin: 0; padding: 16px; border: 2px solid var(--ink); background: var(--cream-100); }
 .card-status { list-style: none; padding: 12px 0 0; margin: 12px 0 0; border-top: 2px dashed var(--teal-800); color: #38463f; font-size: .82rem; line-height: 1.6; }
 .card-status li::before { content: "■ "; color: var(--teal-700); }

@@ -1,5 +1,5 @@
 import type { MapEncounter, MapPhoto, MapSnapshot } from "../types";
-import { unavailablePhoto } from "./media";
+import { publicCatalogPhoto, publicCatalogPhotos, unavailablePhoto } from "./media";
 import { queryPublicObservations } from "./observationStore";
 import { publicManifest, publicProfile } from "./runtime";
 
@@ -39,8 +39,12 @@ export async function getMapSnapshot(): Promise<MapSnapshot> {
   }).sort((left, right) => right.observation_at.localeCompare(left.observation_at));
   const photos: MapPhoto[] = codes.map((code) => {
     const profile = profileByCode.get(code);
-    const scientificName = profile?.scientific_name ?? summaryByCode.get(code)?.scientific_name ?? null;
-    return { species_code: code, scientific_name: scientificName, photo: unavailablePhoto(scientificName, manifest.generated_at) };
+    const species = summaryByCode.get(code);
+    const scientificName = profile?.scientific_name ?? species?.scientific_name ?? null;
+    const photo = publicCatalogPhoto(species?.hero_photo, scientificName, manifest.generated_at)
+      ?? publicCatalogPhotos(profile?.media, scientificName, manifest.generated_at)[0]
+      ?? unavailablePhoto(scientificName, manifest.generated_at);
+    return { species_code: code, scientific_name: scientificName, photo };
   });
   return {
     snapshot_latest_observation_at: encounters[0]?.observation_at ?? null,

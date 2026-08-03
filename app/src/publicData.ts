@@ -136,6 +136,18 @@ function validateManifest(manifest: PublicManifest): PublicManifest {
   const expectedDatasetKey = manifest.release_mode === "production" ? EBIRD_EOD_DATASET_KEY : null;
   const expectedCoverage = manifest.release_mode === "production" ? "bounded_sample" : "fictional_fixture";
   const expectedRequiredTaxon = manifest.release_mode === "production" ? RUFOUS_TAXON_KEY : null;
+  const validMediaPolicy = manifest.release_mode === "production"
+    ? manifest.source_policy?.media_source === "usfws"
+      && manifest.source_policy?.media_delivery === "immutable_r2"
+    : (manifest.source_policy?.media_source === "none" && manifest.source_policy?.media_delivery === "none")
+      || (manifest.source_policy?.media_source === "usfws"
+        && manifest.source_policy?.media_delivery === "immutable_r2");
+  const mediaItems = Array.isArray(manifest.species)
+    ? manifest.species.reduce((total, species) => total + species.photo_count, 0)
+    : -1;
+  const speciesWithMedia = Array.isArray(manifest.species)
+    ? manifest.species.filter((species) => species.photo_count > 0).length
+    : -1;
   if (
     manifest.schema_version !== 1
     || manifest.mode !== "public"
@@ -146,10 +158,19 @@ function validateManifest(manifest: PublicManifest): PublicManifest {
     || manifest.source_policy?.gbif_dataset_key !== expectedDatasetKey
     || manifest.source_policy?.coverage !== expectedCoverage
     || manifest.source_policy?.required_taxon_key !== expectedRequiredTaxon
+    || !validMediaPolicy
     || manifest.license_policy?.version !== 1
     || !Number.isInteger(manifest.counts?.attribution_items)
+    || !Number.isSafeInteger(manifest.counts?.media_items) || manifest.counts.media_items < 0
+    || !Number.isSafeInteger(manifest.counts?.species_with_media) || manifest.counts.species_with_media < 0
     || !Array.isArray(manifest.species)
-    || manifest.species.some((species) => !isPublicSpeciesCode(species.species_code))
+    || manifest.species.some((species) => !isPublicSpeciesCode(species.species_code)
+      || !Number.isSafeInteger(species.photo_count) || species.photo_count < 0
+      || !("hero_photo" in species)
+      || (species.photo_count === 0 && species.hero_photo !== null)
+      || (species.photo_count > 0 && species.hero_photo === null))
+    || manifest.counts?.media_items !== mediaItems
+    || manifest.counts?.species_with_media !== speciesWithMedia
   ) {
     throw new Error("This Rufous public data release is not supported.");
   }
@@ -276,7 +297,12 @@ export async function getPublicSpecies(
   const path = safePath(species.profile_path, "species");
   const load = async (url: string, requestSignal?: AbortSignal) => {
     const profile = await fetchJson<PublicSpeciesProfile>(url, requestSignal);
-    if (profile.schema_version !== 1 || profile.species_code !== species.species_code) {
+    if (profile.schema_version !== 1 || profile.species_code !== species.species_code
+      || !Array.isArray(profile.media)
+      || profile.media.length !== species.photo_count
+      || (species.hero_photo === null
+        ? profile.media.length !== 0
+        : profile.media[0]?.media_id !== species.hero_photo.media_id)) {
       throw new Error("The bird profile did not match the public catalog.");
     }
     return profile;

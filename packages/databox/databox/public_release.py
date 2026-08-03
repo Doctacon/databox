@@ -82,6 +82,14 @@ class ObjectValue:
 
 
 @dataclass(frozen=True)
+class PrefixUsage:
+    """Bounded object count and byte usage below one object-store prefix."""
+
+    object_count: int
+    total_bytes: int
+
+
+@dataclass(frozen=True)
 class PublicationMetadata:
     """Monotonic identity of one serialized publication attempt."""
 
@@ -125,6 +133,18 @@ class ReleaseStore(Protocol):
         if_none_match: bool,
         if_match: str | None = None,
     ) -> None: ...
+
+
+class PrefixUsageStore(ReleaseStore, Protocol):
+    """A release store that can safely measure one bounded object subtree."""
+
+    def prefix_usage(
+        self,
+        prefix: str,
+        *,
+        maximum_objects: int,
+        maximum_bytes: int,
+    ) -> PrefixUsage: ...
 
 
 @dataclass(frozen=True, repr=False)
@@ -277,6 +297,95 @@ class R2ReleaseStore:
                 etag=_optional_etag(response.get("ETag"), key),
             ),
         )
+
+    def prefix_usage(
+        self,
+        prefix: str,
+        *,
+        maximum_objects: int,
+        maximum_bytes: int,
+    ) -> PrefixUsage:
+        """List one exact R2 subtree while enforcing bounded pagination and totals."""
+        clean_prefix = _validate_prefix_usage_request(
+            prefix,
+            maximum_objects=maximum_objects,
+            maximum_bytes=maximum_bytes,
+        )
+        object_prefix = f"{clean_prefix}/"
+        continuation_token: str | None = None
+        seen_tokens: set[str] = set()
+        seen_keys: set[str] = set()
+        object_count = 0
+        total_bytes = 0
+        while True:
+            arguments: dict[str, Any] = {
+                "Bucket": self._config.bucket,
+                "Prefix": object_prefix,
+                "MaxKeys": min(1_000, maximum_objects + 1),
+            }
+            if continuation_token is not None:
+                arguments["ContinuationToken"] = continuation_token
+            try:
+                response = self._client.list_objects_v2(**arguments)
+            except Exception:
+                raise PublicReleaseError(f"R2 prefix listing failed for {clean_prefix!r}") from None
+            contents = response.get("Contents", [])
+            if not isinstance(contents, list):
+                raise PublicReleaseError(
+                    f"R2 returned an invalid prefix listing for {clean_prefix!r}"
+                )
+            for item in contents:
+                if not isinstance(item, Mapping):
+                    raise PublicReleaseError(
+                        f"R2 returned an invalid prefix listing for {clean_prefix!r}"
+                    )
+                key = item.get("Key")
+                size = item.get("Size")
+                if (
+                    not isinstance(key, str)
+                    or not key.startswith(object_prefix)
+                    or key in seen_keys
+                    or not isinstance(size, int)
+                    or isinstance(size, bool)
+                    or size < 0
+                ):
+                    raise PublicReleaseError(
+                        f"R2 returned an invalid prefix listing for {clean_prefix!r}"
+                    )
+                _validate_key(key)
+                seen_keys.add(key)
+                object_count += 1
+                total_bytes += size
+                _assert_prefix_usage_within_bounds(
+                    clean_prefix,
+                    object_count=object_count,
+                    total_bytes=total_bytes,
+                    maximum_objects=maximum_objects,
+                    maximum_bytes=maximum_bytes,
+                )
+            is_truncated = response.get("IsTruncated", False)
+            if not isinstance(is_truncated, bool):
+                raise PublicReleaseError(
+                    f"R2 returned an invalid prefix listing for {clean_prefix!r}"
+                )
+            if not is_truncated:
+                break
+            if not contents:
+                raise PublicReleaseError(f"R2 returned an invalid empty page for {clean_prefix!r}")
+            next_cursor = response.get("NextContinuationToken")
+            if (
+                not isinstance(next_cursor, str)
+                or not next_cursor
+                or len(next_cursor) > 4_096
+                or next_cursor in seen_tokens
+                or any(character in next_cursor for character in "\r\n\x00")
+            ):
+                raise PublicReleaseError(
+                    f"R2 returned an unsafe pagination token for {clean_prefix!r}"
+                )
+            seen_tokens.add(next_cursor)
+            continuation_token = next_cursor
+        return PrefixUsage(object_count=object_count, total_bytes=total_bytes)
 
     def put_file(
         self,
@@ -444,6 +553,53 @@ class LocalReleaseStore:
             payload=payload,
             head=self._head_for_path(key, path),
         )
+
+    def prefix_usage(
+        self,
+        prefix: str,
+        *,
+        maximum_objects: int,
+        maximum_bytes: int,
+    ) -> PrefixUsage:
+        """Measure one exact local subtree without following links or hidden stores."""
+        clean_prefix = _validate_prefix_usage_request(
+            prefix,
+            maximum_objects=maximum_objects,
+            maximum_bytes=maximum_bytes,
+        )
+        prefix_path = self._path(clean_prefix)
+        if not prefix_path.exists():
+            return PrefixUsage(object_count=0, total_bytes=0)
+        if prefix_path.is_symlink() or not prefix_path.is_dir():
+            raise PublicReleaseError(
+                f"local object prefix is not a real directory: {clean_prefix!r}"
+            )
+        object_count = 0
+        total_bytes = 0
+        for path in sorted(prefix_path.rglob("*")):
+            if path.is_symlink():
+                raise PublicReleaseError(
+                    f"local object prefix contains a symlink: {clean_prefix!r}"
+                )
+            if path.is_dir():
+                continue
+            if not path.is_file():
+                raise PublicReleaseError(
+                    f"local object prefix contains a non-regular object: {clean_prefix!r}"
+                )
+            relative = path.relative_to(self.root).as_posix()
+            _validate_key(relative)
+            size = path.stat().st_size
+            object_count += 1
+            total_bytes += size
+            _assert_prefix_usage_within_bounds(
+                clean_prefix,
+                object_count=object_count,
+                total_bytes=total_bytes,
+                maximum_objects=maximum_objects,
+                maximum_bytes=maximum_bytes,
+            )
+        return PrefixUsage(object_count=object_count, total_bytes=total_bytes)
 
     def put_file(
         self,
@@ -1541,6 +1697,39 @@ def _validate_prefix(prefix: str) -> str:
         raise PublicReleaseError("release prefix must not be empty or start/end with a slash")
     _validate_key(prefix)
     return prefix
+
+
+def _validate_prefix_usage_request(
+    prefix: str,
+    *,
+    maximum_objects: int,
+    maximum_bytes: int,
+) -> str:
+    clean_prefix = _validate_prefix(prefix)
+    if (
+        not isinstance(maximum_objects, int)
+        or isinstance(maximum_objects, bool)
+        or maximum_objects <= 0
+        or not isinstance(maximum_bytes, int)
+        or isinstance(maximum_bytes, bool)
+        or maximum_bytes <= 0
+    ):
+        raise PublicReleaseError("prefix usage limits must be positive integers")
+    return clean_prefix
+
+
+def _assert_prefix_usage_within_bounds(
+    prefix: str,
+    *,
+    object_count: int,
+    total_bytes: int,
+    maximum_objects: int,
+    maximum_bytes: int,
+) -> None:
+    if object_count > maximum_objects:
+        raise PublicReleaseError(f"object prefix {prefix!r} exceeds its safe object-count limit")
+    if total_bytes > maximum_bytes:
+        raise PublicReleaseError(f"object prefix {prefix!r} exceeds its safe byte limit")
 
 
 def _validate_relative_path(relative: Path) -> str:

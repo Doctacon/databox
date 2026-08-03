@@ -340,6 +340,34 @@
       "Modeled traits contain only exact governed normalized-scientific-name matches to the conformed species dimension; unmatched AVONET rows and unmatched current taxa are not guessed together."
     ]
   },
+  "BirdMediaImage": {
+    "description": "USFWS bird image metadata discovered for explicit target species, with raw rights text retained and commercial eligibility applied only in the public SQL projection.",
+    "use_cases": [
+      "commercial-use bird imagery for public Rufous species profiles"
+    ],
+    "references": [
+      "image_records",
+      "species_code",
+      "target_scientific_name",
+      "source_page_url",
+      "source_image_medium_url",
+      "source_creator",
+      "source_license"
+    ],
+    "tables": [
+      {
+        "table": "image_records",
+        "source_pipeline": "usfws_media",
+        "role": "primary"
+      }
+    ],
+    "natural_key": "species_code + source_page_url within latest complete snapshot",
+    "assumptions": [
+      "Raw ingestion retains every returned license and credit state without deciding commercial eligibility.",
+      "Publication requires an exact target scientific-name tag, an allowed Public Domain/CC0/CC BY/CC BY-SA license, safe FWS page and image URLs, and a non-placeholder creator.",
+      "Only the newest fully completed caller-owned target-species snapshot whose distinct persisted record count matches its completion marker is publishable."
+    ]
+  },
   "ArizonaBirdCatalog": {
     "description": "Every latest eBird US-AZ regional taxon with stable eBird identity, exact optional AVONET traits, public reviewed Arizona activity, and optional GBIF/Xeno-canto aggregates.",
     "use_cases": [
@@ -463,6 +491,11 @@
       "table": "_dlt_loads",
       "source_pipeline": "avonet",
       "reason": "dlt internal load tracking table"
+    },
+    {
+      "table": "image_search_runs",
+      "source_pipeline": "usfws_media",
+      "reason": "Ingestion completion markers used only to select the latest complete snapshot"
     }
   ]
 }

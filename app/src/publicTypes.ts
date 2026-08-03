@@ -10,6 +10,8 @@ export interface PublicSpeciesSummary {
   common_name: string | null;
   scientific_name: string | null;
   profile_path: string;
+  hero_photo: PublicMedia | null;
+  photo_count: number;
 }
 
 export interface PublicCellSummary {
@@ -46,6 +48,8 @@ export interface PublicManifest {
     gbif_dataset_key: string | null;
     coverage: "fictional_fixture" | "bounded_sample";
     required_taxon_key: number | null;
+    media_source: "none" | "usfws";
+    media_delivery: "none" | "immutable_r2";
   };
   license_policy: {
     version: 1;
@@ -57,6 +61,8 @@ export interface PublicManifest {
     observations: number;
     places: number;
     attribution_items: number;
+    media_items: number;
+    species_with_media: number;
   };
 }
 
@@ -78,14 +84,23 @@ export interface PublicReleasePointer {
 }
 
 export interface PublicMedia {
-  kind: "photo" | "audio";
-  provider: "inaturalist" | "xeno_canto";
+  kind: "photo";
+  provider: "usfws";
+  media_id: string;
   url: string;
   source_url: string;
   creator: string;
   license: string;
   license_url: string;
   attribution_id: string;
+  scientific_name: string;
+  title: string;
+  caption: string | null;
+  alt_text: string;
+  width: number;
+  height: number;
+  mime_type: "image/jpeg" | "image/png" | "image/webp";
+  sha256: string;
 }
 
 export interface PublicSpeciesProfile {

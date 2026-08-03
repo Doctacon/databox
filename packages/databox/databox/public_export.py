@@ -12,10 +12,13 @@ import csv
 import hashlib
 import json
 import math
+import os
 import re
 import shutil
+import stat
 import tempfile
 import unicodedata
+import uuid
 from collections import Counter, defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -28,6 +31,7 @@ from zoneinfo import ZoneInfo
 import duckdb
 
 from databox.agent_tools.arizona_boundary import is_in_arizona
+from databox.public_media_approval import MediaApprovalError, require_visual_approvals
 
 SCHEMA_VERSION = 1
 REGION = {
@@ -44,6 +48,38 @@ MAX_GNIS_BYTES = 250 * 1024 * 1024
 _SPECIES_CODE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 _SHA256 = re.compile(r"^[a-f0-9]{64}$")
 _PLACE_KEY = re.compile(r"[^a-z0-9]+")
+_MEDIA_ID = re.compile(r"^usfws-[a-f0-9]{24}$")
+_MEDIA_ATTRIBUTION_ID = re.compile(r"^usfws-attribution-[a-f0-9]{24}$")
+_SCIENTIFIC_NAME = re.compile(r"^[A-Z][A-Za-z-]+ [a-z][A-Za-z-]+(?: [A-Za-z-]+)?$")
+_SPECIES_BINOMIAL = re.compile(r"^[A-Z][A-Za-z-]+ [a-z][A-Za-z-]+$")
+_USFWS_MEDIA_PAGE = re.compile(
+    r"^https://www\.fws\.gov/media/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$"
+)
+_PUBLIC_MEDIA_URL = re.compile(
+    r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
+    r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.webp$"
+)
+MAX_MEDIA_MANIFEST_BYTES = 25 * 1024 * 1024
+MAX_PUBLIC_ASSET_BYTES = 25 * 1024 * 1024
+MAX_PUBLIC_ASSET_FILES = 20_000
+
+_PUBLIC_MANIFEST_KEYS = frozenset(
+    {
+        "schema_version",
+        "mode",
+        "release_mode",
+        "generated_at",
+        "region",
+        "species",
+        "cells",
+        "place_prefixes",
+        "attribution_path",
+        "source_policy",
+        "license_policy",
+        "counts",
+        "data_version",
+    }
+)
 
 GBIF_EBIRD_EOD_DATASET_KEY = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
 GBIF_EBIRD_EOD_DATASET_URL = "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
@@ -86,11 +122,37 @@ ALLOWED_LICENSES: dict[str, frozenset[str]] = {
             "CC BY 4.0",
         }
     ),
+    "usfws": frozenset(
+        {
+            "Public Domain",
+            "CC0 1.0",
+            "CC BY 1.0",
+            "CC BY 2.0",
+            "CC BY 2.5",
+            "CC BY 3.0",
+            "CC BY 4.0",
+            "CC BY-SA 1.0",
+            "CC BY-SA 2.0",
+            "CC BY-SA 2.5",
+            "CC BY-SA 3.0",
+            "CC BY-SA 4.0",
+        }
+    ),
 }
 
 
 class PublicExportError(RuntimeError):
     """The source material cannot safely satisfy the public contract."""
+
+
+@dataclass(frozen=True)
+class _ValidatedPublicOutput:
+    kind: str
+    content_identity: str | None = None
+
+    @property
+    def state(self) -> tuple[str, str | None]:
+        return self.kind, self.content_identity
 
 
 @dataclass
@@ -108,6 +170,8 @@ def canonical_license(provider: str, value: object) -> tuple[str, str] | None:
     if not isinstance(value, str) or not value.strip() or provider not in ALLOWED_LICENSES:
         return None
     raw = value.strip()
+    if provider == "usfws" and raw == "Public Domain":
+        return "Public Domain", "https://www.fws.gov/notices"
     if "://" in raw:
         try:
             parsed = urlsplit(raw)
@@ -237,6 +301,188 @@ def _parse_aware_datetime(value: str, label: str) -> datetime:
     if parsed.tzinfo is None:
         raise PublicExportError(f"{label} must include a timezone")
     return parsed
+
+
+def load_public_media_manifest(
+    path: Path,
+    *,
+    selected_sha256_by_species: Mapping[str, str] | None = None,
+    excluded_species: frozenset[str] = frozenset(),
+) -> dict[str, list[JsonObject]]:
+    """Revalidate prepared USFWS media and return only the public projection.
+
+    The preparation manifest contains operational fields such as the upstream
+    image URL and ranking score.  Neither crosses into the browser contract.
+    """
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_MEDIA_MANIFEST_BYTES:
+        raise PublicExportError("USFWS media manifest is missing or exceeds 25 MiB")
+    try:
+        payload = json.loads(path.read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        raise PublicExportError("USFWS media manifest is not valid UTF-8 JSON") from None
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema_version") != 1
+        or payload.get("mode") != "rufous-media-preparation"
+        or not isinstance(payload.get("items"), list)
+        or not payload["items"]
+    ):
+        raise PublicExportError("USFWS media manifest has an invalid contract")
+
+    ranked: dict[str, list[tuple[float, JsonObject]]] = defaultdict(list)
+    identifiers: set[str] = set()
+    source_identities: set[tuple[str, str]] = set()
+    object_hashes: set[str] = set()
+    manifest_species: set[str] = set()
+    for index, raw in enumerate(payload["items"]):
+        if not isinstance(raw, dict):
+            raise PublicExportError(f"USFWS media item {index} is malformed")
+        media_id = _text(raw.get("media_id"), maximum=64)
+        attribution_id = _text(raw.get("attribution_id"), maximum=64)
+        scientific_name = _text(raw.get("scientific_name"), maximum=200)
+        common_name = _text(raw.get("common_name"), maximum=200)
+        creator = _text(raw.get("creator"), maximum=500)
+        title = _text(raw.get("title"), maximum=500)
+        caption = _text(raw.get("caption"), maximum=2_000)
+        alt_text = _text(raw.get("alt_text"), maximum=1_000)
+        source_url = _text(raw.get("source_page_url"), maximum=2_000)
+        url = _text(raw.get("url"), maximum=2_000)
+        sha256 = _text(raw.get("sha256"), maximum=64)
+        license_pair = canonical_license("usfws", raw.get("license"))
+        license_url = _text(raw.get("license_url"), maximum=2_000)
+        match = _PUBLIC_MEDIA_URL.fullmatch(url) if url else None
+        width = raw.get("width")
+        height = raw.get("height")
+        score = raw.get("hero_score")
+        identity_texts = {
+            value.casefold()
+            for value in (common_name, scientific_name, title)
+            if isinstance(value, str)
+        }
+        if (
+            not media_id
+            or not _MEDIA_ID.fullmatch(media_id)
+            or not attribution_id
+            or not _MEDIA_ATTRIBUTION_ID.fullmatch(attribution_id)
+            or media_id in identifiers
+            or not scientific_name
+            or not _SCIENTIFIC_NAME.fullmatch(scientific_name)
+            or not common_name
+            or not creator
+            or creator.casefold() in identity_texts
+            or not title
+            or not alt_text
+            or not source_url
+            or not _USFWS_MEDIA_PAGE.fullmatch(source_url)
+            or not sha256
+            or not _SHA256.fullmatch(sha256)
+            or match is None
+            or match.group("sha") != sha256
+            or match.group("shard") != sha256[:2]
+            or license_pair is None
+            or license_url != license_pair[1]
+            or raw.get("mime_type") != "image/webp"
+            or type(width) is not int
+            or type(height) is not int
+            or not 1 <= width <= 650
+            or not 1 <= height <= 650
+            or isinstance(score, bool)
+            or not isinstance(score, int | float)
+            or not math.isfinite(float(score))
+        ):
+            raise PublicExportError(f"USFWS media item {index} fails the public contract")
+        source_identity = (scientific_name.casefold(), source_url)
+        if source_identity in source_identities:
+            raise PublicExportError("USFWS media manifest repeats a species source page")
+        identifiers.add(media_id)
+        source_identities.add(source_identity)
+        object_hashes.add(sha256)
+        species_key = scientific_name.casefold()
+        manifest_species.add(species_key)
+        public_item: JsonObject = {
+            "kind": "photo",
+            "provider": "usfws",
+            "media_id": media_id,
+            "url": url,
+            "source_url": source_url,
+            "creator": creator,
+            "license": license_pair[0],
+            "license_url": license_pair[1],
+            "attribution_id": attribution_id,
+            "scientific_name": scientific_name,
+            "title": title,
+            "caption": caption,
+            "alt_text": alt_text,
+            "width": width,
+            "height": height,
+            "mime_type": "image/webp",
+            "sha256": sha256,
+        }
+        if (
+            selected_sha256_by_species is None
+            or selected_sha256_by_species.get(species_key) == sha256
+        ):
+            ranked[species_key].append((float(score), public_item))
+
+    counts = payload.get("counts")
+    if (
+        not isinstance(counts, dict)
+        or counts.get("items") != len(payload["items"])
+        or counts.get("objects") != len(object_hashes)
+        or counts.get("species") != len(manifest_species)
+    ):
+        raise PublicExportError("USFWS media manifest counts do not match its contents")
+    if selected_sha256_by_species is not None:
+        if (
+            set(selected_sha256_by_species).intersection(excluded_species)
+            or set(selected_sha256_by_species).union(excluded_species) != manifest_species
+        ):
+            raise PublicExportError(
+                "USFWS media selections and exclusions do not cover exactly the manifest species"
+            )
+        missing = sorted(set(selected_sha256_by_species) - set(ranked))
+        if missing:
+            raise PublicExportError(f"USFWS selected media is absent for species {missing[0]}")
+    public_by_species: dict[str, list[JsonObject]] = {}
+    for scientific_name, items in sorted(ranked.items()):
+        ordered = [
+            item
+            for _score, item in sorted(
+                items,
+                key=lambda pair: (
+                    -pair[0],
+                    str(pair[1]["source_url"]),
+                    str(pair[1]["media_id"]),
+                ),
+            )
+        ]
+        public_by_species[scientific_name] = (
+            ordered[:1] if selected_sha256_by_species is not None else ordered
+        )
+    return public_by_species
+
+
+def attach_public_media(
+    records: PublicRecords,
+    media_by_scientific_name: Mapping[str, list[JsonObject]],
+) -> int:
+    """Attach exact-species media without broad or fuzzy taxon matching."""
+    matched_keys: set[str] = set()
+    attached = 0
+    for species in records.species:
+        scientific_name = _text(species.get("scientific_name"), maximum=200)
+        key = scientific_name.casefold() if scientific_name else ""
+        items = media_by_scientific_name.get(key, [])
+        species["media"] = [dict(item) for item in items]
+        if items:
+            matched_keys.add(key)
+            attached += len(items)
+    unmatched = sum(
+        len(items) for key, items in media_by_scientific_name.items() if key not in matched_keys
+    )
+    if unmatched:
+        records.rejected["usfws_unmatched_species"] += unmatched
+    return attached
 
 
 def _public_id(namespace: str, *parts: object) -> str:
@@ -572,16 +818,32 @@ def _database_gbif_eod_records(
         source_url = _safe_url(row[6])
         dataset_license = canonical_license("gbif", row[7])
         occurrence_license = canonical_license("gbif", row[8])
-        scientific_name = _text(row[10]) or _text(row[9])
+        # The modeled ``scientific_name`` deliberately prefers GBIF's clean
+        # species field. ``accepted_scientific_name`` commonly includes an
+        # authority, which would break exact matching against the USFWS media
+        # manifest; retain it only as a fallback for older modeled snapshots.
+        scientific_name = _text(row[9]) or _text(row[10])
         common_name = _text(row[11]) or scientific_name
+        taxon_rank = _text(row[12], maximum=100)
         taxon_key = _gbif_taxon_key(row[15], row[16], row[17])
         observed_at = _iso_arizona(row[18])
         if dataset_key != GBIF_EBIRD_EOD_DATASET_KEY:
             rejected["gbif_non_eod_dataset"] += 1
             continue
         if (
+            taxon_rank is None
+            or taxon_rank.casefold() != "species"
+            or scientific_name is None
+            or _SPECIES_BINOMIAL.fullmatch(scientific_name) is None
+        ):
+            # Some EOD records pair a species vernacular name with a genus-rank
+            # GBIF match such as ``Astur Lacepède, 1799``. Publishing those as
+            # species would misidentify observations and make exact media
+            # matching impossible, so keep one explicit fail-closed count.
+            rejected["gbif_non_species_taxon"] += 1
+            continue
+        if (
             not source_id
-            or not scientific_name
             or not common_name
             or not taxon_key
             or not observed_at
@@ -675,7 +937,7 @@ def _database_gbif_eod_records(
                 "species_code": species_code,
                 "common_name": common_name,
                 "scientific_name": scientific_name,
-                "taxonomic_category": _text(row[12], maximum=100) or "species",
+                "taxonomic_category": taxon_rank,
                 "family": {
                     "common_name": None,
                     "scientific_name": _text(row[13]),
@@ -762,6 +1024,9 @@ def build_public_assets(
         if not _SPECIES_CODE.fullmatch(code):
             raise PublicExportError(f"unsafe species code: {code!r}")
         row = species_by_code[code]
+        media = row.get("media")
+        if not isinstance(media, list):
+            raise PublicExportError(f"species {code!r} has malformed media")
         path = f"data/species/{code}.json"
         assets[path] = {"schema_version": SCHEMA_VERSION, **row}
         species_summaries.append(
@@ -770,6 +1035,8 @@ def build_public_assets(
                 "common_name": row["common_name"],
                 "scientific_name": row["scientific_name"],
                 "profile_path": f"/{path}",
+                "hero_photo": media[0] if media else None,
+                "photo_count": len(media),
             }
         )
 
@@ -853,6 +1120,12 @@ def build_public_assets(
             "gbif_dataset_key": (None if mode == "synthetic" else GBIF_EBIRD_EOD_DATASET_KEY),
             "coverage": "fictional_fixture" if mode == "synthetic" else "bounded_sample",
             "required_taxon_key": None if mode == "synthetic" else GBIF_RUFOUS_TAXON_KEY,
+            "media_source": (
+                "usfws" if any(item["photo_count"] for item in species_summaries) else "none"
+            ),
+            "media_delivery": (
+                "immutable_r2" if any(item["photo_count"] for item in species_summaries) else "none"
+            ),
         },
         "license_policy": license_policy,
         "counts": {
@@ -860,6 +1133,10 @@ def build_public_assets(
             "observations": len(records.observations),
             "places": len(records.places),
             "attribution_items": len(attribution_items),
+            "media_items": sum(int(item["photo_count"]) for item in species_summaries),
+            "species_with_media": sum(
+                1 for item in species_summaries if int(item["photo_count"]) > 0
+            ),
         },
     }
     assets["data/manifest.json"] = manifest
@@ -929,6 +1206,12 @@ def _attribution_sources(
         census_boundary,
     ]
     providers = {str(item.get("provider")) for item in records.attribution_items}
+    providers.update(
+        str(item.get("provider"))
+        for species in records.species
+        for item in species.get("media", [])
+        if isinstance(item, dict)
+    )
     provider_sources: dict[str, JsonObject] = {
         "inaturalist": {
             "provider": "inaturalist",
@@ -945,6 +1228,18 @@ def _attribution_sources(
             "license": "Per-item Creative Commons license",
             "license_url": None,
             "credit": "Individual recordists are credited on each audio item.",
+        },
+        "usfws": {
+            "provider": "usfws",
+            "title": "U.S. Fish and Wildlife Service Media Library",
+            "url": "https://www.fws.gov/search/images",
+            "license": "Per-item Public Domain or Creative Commons license",
+            "license_url": "https://www.fws.gov/notices",
+            "credit": "Individual creators are credited beside each image.",
+            "modifications": (
+                "Rufous resized, re-encoded, and stripped metadata from web display copies; "
+                "each credit links to the original USFWS media page."
+            ),
         },
     }
     sources.extend(
@@ -987,10 +1282,11 @@ def _without_volatile_fields(value: object) -> object:
 
 
 def write_public_assets(output_dir: Path, assets: dict[str, JsonObject]) -> None:
-    """Atomically replace one dedicated build directory with encoded assets."""
+    """Safely replace one dedicated Rufous build directory with encoded assets."""
+    if output_dir.is_symlink():
+        raise PublicExportError("public export output must not be a symbolic link")
     output = output_dir.resolve()
-    if output in {Path("/").resolve(), Path.cwd().resolve(), Path.home().resolve()}:
-        raise PublicExportError("refusing unsafe public export output directory")
+    existing_output = _validate_public_output_target(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{output.name}-", dir=output.parent))
     try:
@@ -999,17 +1295,241 @@ def write_public_assets(output_dir: Path, assets: dict[str, JsonObject]) -> None
                 raise PublicExportError(f"unsafe public asset path: {relative}")
             destination = temporary / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_text(
+            encoded = (
                 json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-                + "\n",
-                encoding="utf-8",
-            )
-        if output.exists():
-            shutil.rmtree(output)
-        temporary.replace(output)
+                + "\n"
+            ).encode()
+            if len(encoded) > MAX_PUBLIC_ASSET_BYTES:
+                raise PublicExportError(f"public asset exceeds 25 MiB: {relative}")
+            with destination.open("xb") as stream:
+                stream.write(encoded)
+                stream.flush()
+                os.fsync(stream.fileno())
+        _validate_public_output_target(temporary)
+        _publish_public_tree(temporary, output, expected=existing_output)
     finally:
         if temporary.exists():
             shutil.rmtree(temporary)
+
+
+def _validate_public_output_target(output: Path) -> _ValidatedPublicOutput:
+    if output in {Path(output.anchor), output.parent, Path.cwd().resolve(), Path.home().resolve()}:
+        raise PublicExportError("refusing unsafe public export output directory")
+    if not output.exists():
+        return _ValidatedPublicOutput(kind="absent")
+    try:
+        output_stat = output.lstat()
+    except OSError as exc:
+        raise PublicExportError("existing public export output could not be inspected") from exc
+    if output.is_symlink() or not stat.S_ISDIR(output_stat.st_mode):
+        raise PublicExportError("existing public export output must be a real directory")
+    try:
+        if next(output.iterdir(), None) is None:
+            return _ValidatedPublicOutput(kind="empty")
+    except OSError as exc:
+        raise PublicExportError("existing public export output could not be inspected") from exc
+    content_identity = _validate_existing_public_output(output)
+    return _ValidatedPublicOutput(kind="rufous-public", content_identity=content_identity)
+
+
+def _validate_existing_public_output(output: Path) -> str:
+    try:
+        manifest, manifest_bytes = _read_public_json(output / "data" / "manifest.json")
+    except PublicExportError as exc:
+        raise PublicExportError(
+            "refusing to replace a non-empty directory without a valid Rufous public manifest"
+        ) from exc
+    if (
+        set(manifest) != _PUBLIC_MANIFEST_KEYS
+        or manifest.get("schema_version") != SCHEMA_VERSION
+        or manifest.get("mode") != "public"
+        or manifest.get("release_mode") not in {"synthetic", "production"}
+        or manifest.get("region") != REGION
+        or not isinstance(manifest.get("data_version"), str)
+        or _SHA256.fullmatch(manifest["data_version"]) is None
+    ):
+        raise PublicExportError(
+            "refusing to replace a non-empty directory without a valid Rufous public manifest"
+        )
+    expected_files = _public_manifest_paths(manifest)
+    _validate_public_output_inventory(output, expected_files)
+    assets: dict[str, JsonObject] = {"data/manifest.json": manifest}
+    encoded_by_path = {"data/manifest.json": manifest_bytes}
+    for relative in sorted(expected_files - {Path("data/manifest.json")}):
+        payload, encoded = _read_public_json(output / relative)
+        assets[relative.as_posix()] = payload
+        encoded_by_path[relative.as_posix()] = encoded
+    if semantic_data_version(assets) != manifest["data_version"]:
+        raise PublicExportError("existing Rufous public output does not match its data version")
+    digest = hashlib.sha256()
+    for asset_path, encoded in sorted(encoded_by_path.items()):
+        digest.update(asset_path.encode())
+        digest.update(b"\0")
+        digest.update(encoded)
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _public_manifest_paths(manifest: Mapping[str, object]) -> set[Path]:
+    expected = {Path("data/manifest.json")}
+
+    def add_path(raw: object, label: str) -> None:
+        if not isinstance(raw, str) or not raw.startswith("/data/") or not raw.endswith(".json"):
+            raise PublicExportError(f"existing Rufous public manifest has an invalid {label}")
+        relative = Path(raw.removeprefix("/"))
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or any(part in {"", "."} for part in relative.parts)
+            or any(not re.fullmatch(r"[A-Za-z0-9._-]+", part) for part in relative.parts)
+        ):
+            raise PublicExportError(f"existing Rufous public manifest has an unsafe {label}")
+        if relative in expected:
+            raise PublicExportError("existing Rufous public manifest repeats an asset path")
+        expected.add(relative)
+
+    add_path(manifest.get("attribution_path"), "attribution path")
+    for collection, path_field in (
+        ("species", "profile_path"),
+        ("cells", "path"),
+        ("place_prefixes", "path"),
+    ):
+        rows = manifest.get(collection)
+        if not isinstance(rows, list):
+            raise PublicExportError(
+                f"existing Rufous public manifest has a malformed {collection} list"
+            )
+        for row in rows:
+            if not isinstance(row, dict):
+                raise PublicExportError(
+                    f"existing Rufous public manifest has a malformed {collection} item"
+                )
+            add_path(row.get(path_field), f"{collection} path")
+    if len(expected) > MAX_PUBLIC_ASSET_FILES:
+        raise PublicExportError("existing Rufous public output exceeds the file-count limit")
+    return expected
+
+
+def _validate_public_output_inventory(output: Path, expected_files: set[Path]) -> None:
+    expected_directories: set[Path] = set()
+    for relative in expected_files:
+        parent = relative.parent
+        while parent != Path("."):
+            expected_directories.add(parent)
+            parent = parent.parent
+    actual_files: set[Path] = set()
+    actual_directories: set[Path] = set()
+
+    def walk_error(exc: OSError) -> None:
+        raise PublicExportError("existing public export output could not be inspected") from exc
+
+    for root, directories, files in os.walk(output, topdown=True, onerror=walk_error):
+        root_path = Path(root)
+        for name in directories:
+            child = root_path / name
+            try:
+                child_stat = child.lstat()
+            except OSError as exc:
+                raise PublicExportError(
+                    "existing public export output could not be inspected"
+                ) from exc
+            if child.is_symlink() or not stat.S_ISDIR(child_stat.st_mode):
+                raise PublicExportError(
+                    "existing public export output contains an unsafe directory"
+                )
+            actual_directories.add(child.relative_to(output))
+        for name in files:
+            child = root_path / name
+            try:
+                child_stat = child.lstat()
+            except OSError as exc:
+                raise PublicExportError(
+                    "existing public export output could not be inspected"
+                ) from exc
+            if child.is_symlink() or not stat.S_ISREG(child_stat.st_mode):
+                raise PublicExportError("existing public export output contains an unsafe file")
+            actual_files.add(child.relative_to(output))
+    if actual_files != expected_files or actual_directories != expected_directories:
+        raise PublicExportError("existing public export output does not match its exact manifest")
+
+
+def _read_public_json(path: Path) -> tuple[JsonObject, bytes]:
+    try:
+        file_stat = path.lstat()
+    except OSError as exc:
+        raise PublicExportError(
+            "existing Rufous public output is missing a required asset"
+        ) from exc
+    if (
+        path.is_symlink()
+        or not stat.S_ISREG(file_stat.st_mode)
+        or file_stat.st_size > MAX_PUBLIC_ASSET_BYTES
+    ):
+        raise PublicExportError("existing Rufous public output contains an unsafe asset")
+    try:
+        encoded = path.read_bytes()
+        payload: object = json.loads(encoded)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PublicExportError("existing Rufous public output contains invalid JSON") from exc
+    if not isinstance(payload, dict):
+        raise PublicExportError("existing Rufous public output asset must be a JSON object")
+    return payload, encoded
+
+
+def _publish_public_tree(
+    stage: Path,
+    output: Path,
+    *,
+    expected: _ValidatedPublicOutput,
+) -> None:
+    current = _validate_public_output_target(output)
+    if current.state != expected.state:
+        raise PublicExportError("public export output changed while replacement was being built")
+    _fsync_tree_directories(stage)
+    backup: Path | None = None
+    if output.exists():
+        backup = output.with_name(f".{output.name}.backup-{uuid.uuid4().hex}")
+        try:
+            os.replace(output, backup)
+            _fsync_directory(output.parent)
+        except OSError as exc:
+            raise PublicExportError("could not preserve the previous public export") from exc
+    try:
+        os.replace(stage, output)
+        _fsync_directory(output.parent)
+    except OSError as exc:
+        if backup is not None and backup.exists():
+            try:
+                os.replace(backup, output)
+                _fsync_directory(output.parent)
+            except OSError as restore_exc:
+                raise PublicExportError(
+                    "could not publish the public export or restore its preserved backup"
+                ) from restore_exc
+        raise PublicExportError("could not atomically publish the public export") from exc
+    if backup is not None:
+        try:
+            shutil.rmtree(backup)
+        except OSError:
+            pass
+
+
+def _fsync_directory(path: Path) -> None:
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    except OSError:
+        return
+    try:
+        os.fsync(descriptor)
+    except OSError:
+        pass
+    finally:
+        os.close(descriptor)
+
+
+def _fsync_tree_directories(root: Path) -> None:
+    for directory, _children, _files in os.walk(root, topdown=False):
+        _fsync_directory(Path(directory))
 
 
 def export_public_data(
@@ -1019,18 +1539,59 @@ def export_public_data(
     database_path: Path | None = None,
     gnis_path: Path | None = None,
     gnis_sha256: str | None = None,
+    media_manifest_path: Path | None = None,
+    media_approvals_path: Path | None = None,
     generated_at: str | None = None,
 ) -> JsonObject:
     if mode == "synthetic":
         records = synthetic_records()
         pinned_sha = None
     else:
-        if database_path is None or gnis_path is None or not gnis_sha256:
+        if (
+            database_path is None
+            or gnis_path is None
+            or not gnis_sha256
+            or media_manifest_path is None
+            or media_approvals_path is None
+        ):
             raise PublicExportError(
-                "production export requires --database, --gnis, and --gnis-sha256"
+                "production export requires --database, --gnis, --gnis-sha256, "
+                "--media-manifest, and --media-approvals"
             )
         pinned_sha = gnis_sha256.strip().casefold()
         records = records_from_database(database_path, load_gnis_places(gnis_path, pinned_sha))
+    if media_manifest_path is not None:
+        selected_media: Mapping[str, str] | None = None
+        excluded_media: frozenset[str] = frozenset()
+        if mode == "production":
+            assert media_approvals_path is not None
+            try:
+                media_plan = require_visual_approvals(media_manifest_path, media_approvals_path)
+            except MediaApprovalError as exc:
+                raise PublicExportError(f"USFWS media visual approval failed: {exc}") from None
+            selected_media = media_plan.selected_sha256_by_species
+            excluded_media = media_plan.excluded_species
+        attached = attach_public_media(
+            records,
+            load_public_media_manifest(
+                media_manifest_path,
+                selected_sha256_by_species=selected_media,
+                excluded_species=excluded_media,
+            ),
+        )
+        if mode == "production":
+            rufous = next(
+                (
+                    species
+                    for species in records.species
+                    if str(species.get("scientific_name", "")).casefold() == "selasphorus rufus"
+                ),
+                None,
+            )
+            if attached == 0 or rufous is None or not rufous.get("media"):
+                raise PublicExportError(
+                    "production media must include an exact Rufous Hummingbird image"
+                )
     assets = build_public_assets(
         records,
         mode=mode,
@@ -1048,6 +1609,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--database", type=Path)
     parser.add_argument("--gnis", type=Path)
     parser.add_argument("--gnis-sha256")
+    parser.add_argument("--media-manifest", type=Path)
+    parser.add_argument("--media-approvals", type=Path)
     parser.add_argument("--generated-at")
     return parser.parse_args(argv)
 
@@ -1061,6 +1624,8 @@ def main(argv: list[str] | None = None) -> int:
             database_path=args.database,
             gnis_path=args.gnis,
             gnis_sha256=args.gnis_sha256,
+            media_manifest_path=args.media_manifest,
+            media_approvals_path=args.media_approvals,
             generated_at=args.generated_at,
         )
     except (OSError, PublicExportError, duckdb.Error) as exc:

@@ -167,11 +167,16 @@ function reducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
-function EncounterThumbnail({ photo, name }: { photo: CatalogPhoto | undefined; name: string }) {
+function photoProviderLabel(photo: CatalogPhoto): "USFWS" | "iNaturalist" {
+  return photo.provider === "usfws" ? "USFWS" : "iNaturalist";
+}
+
+export function EncounterThumbnail({ photo, name }: { photo: CatalogPhoto | undefined; name: string }) {
   const [failed, setFailed] = useState(false);
   const metadataAvailable = photo?.status === "available" && Boolean(photo.display_url);
-  const provider = "iNaturalist";
-  const attribution = metadataAvailable ? `Photo: ${photo.creator || photo.rights_holder} · ${photo.license_text} · ${provider}` : null;
+  const attribution = metadataAvailable
+    ? `Photo: ${photo.creator || photo.rights_holder} · ${photo.license_text} · ${photoProviderLabel(photo)}`
+    : null;
   return <span className="encounter-thumbnail">
     {metadataAvailable && !failed ? <img src={photo.display_url!} alt={name} loading="lazy" onError={() => setFailed(true)} />
       : <img src={rufousImage} alt="" aria-hidden="true" loading="lazy" />}
@@ -179,9 +184,9 @@ function EncounterThumbnail({ photo, name }: { photo: CatalogPhoto | undefined; 
   </span>;
 }
 
-function EncounterPhotoLinks({ photo }: { photo: CatalogPhoto | undefined }) {
+export function EncounterPhotoLinks({ photo }: { photo: CatalogPhoto | undefined }) {
   if (photo?.status !== "available" || !photo.source_url || !photo.license_url || !photo.license_code) return null;
-  const provider = "iNaturalist";
+  const provider = photoProviderLabel(photo);
   return <small className="encounter-photo-links">
     <a href={photo.source_url} target="_blank" rel="noreferrer">{provider} photo source</a>
     {" · "}<a href={photo.license_url} target="_blank" rel="noreferrer">{photo.license_code} license</a>

@@ -51,8 +51,8 @@ SELECT
     'https://creativecommons.org/licenses/by/4.0/'
   ) AS dataset_license,
   COALESCE(
-    NULLIF(TRIM(accepted_scientific_name), ''),
     NULLIF(TRIM(species), ''),
+    NULLIF(TRIM(accepted_scientific_name), ''),
     NULLIF(TRIM(scientific_name), '')
   ) AS scientific_name,
   NULLIF(TRIM(accepted_scientific_name), '') AS accepted_scientific_name,
@@ -77,8 +77,8 @@ SELECT
 FROM eligible
 WHERE rn = 1
   AND COALESCE(
-    NULLIF(TRIM(accepted_scientific_name), ''),
     NULLIF(TRIM(species), ''),
+    NULLIF(TRIM(accepted_scientific_name), ''),
     NULLIF(TRIM(scientific_name), '')
   ) IS NOT NULL
 ;

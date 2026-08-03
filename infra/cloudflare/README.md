@@ -24,10 +24,12 @@ Apply these edge rules to the custom domain:
 
 - cache `/rufous-public/releases/*` as immutable and ignore or reject query
   strings;
+- cache `/rufous-media/v1/objects/*` as immutable and reject query strings;
 - bypass cache for `/rufous-public/manifest.json`;
 - use a hostname-scoped WAF rule to allow only GET, HEAD, and CORS preflight
-  OPTIONS, reject query strings, and block paths outside the pointer and
-  immutable-release namespaces;
+  OPTIONS, reject query strings, and block paths outside the pointer,
+  immutable-release, and exact content-addressed media namespaces. Browsers may
+  fetch known image URLs but cannot list, upload, replace, or delete objects;
 - keep Cloudflare's default DDoS protection enabled. Do not turn on free Bot
   Fight Mode solely for Rufous: it applies to the entire shared
   `loughondata.com` zone and cannot be scoped or skipped;
@@ -35,7 +37,22 @@ Apply these edge rules to the custom domain:
   that broader path-scoped rule and zone-wide Smart Tiered Cache as optional;
 - apply a 90-day R2 Bucket Lock to the `rufous-public/releases/` prefix while
   leaving the mutable `rufous-public/manifest.json` pointer outside the lock;
+- apply the same or a longer lock to `rufous-media/v1/objects/`; its WebP names
+  are hashes and are never intentionally overwritten;
 - do not enable Cache Reserve.
+
+The publisher independently lists the exact media prefix before any mutation,
+verifies the bytes behind every reused object, and refuses a run above 5,000
+new objects/1 GiB or a projected prefix above 20,000 objects/5 GiB. A Bucket
+Lock does not replace that cumulative cost gate; locked orphan objects remain
+included until a later reviewed cleanup is legally possible.
+
+Object storage is also downstream of a human pixel-review gate. Production
+accepts only final WebP hashes recorded in the committed
+`config/rufous-media-visual-approvals.json` ledger with their reviewed USFWS
+source pages and scientific names. A local refresh can prepare contact sheets,
+but neither a newly discovered hash nor changed provenance can reach this
+bucket until a human reviews and commits the corresponding approval entry.
 
 The emergency cost stop is to block or detach the custom domain. Do not delete
 the bucket or active release: the browser will fall back to the complete Pages

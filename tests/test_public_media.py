@@ -1,0 +1,1363 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+from collections.abc import Callable
+from datetime import UTC, datetime
+from io import BytesIO
+from pathlib import Path
+
+import databox.public_media as public_media
+import duckdb
+import httpx
+import pytest
+from databox.public_media import (
+    MAX_DOWNLOAD_BYTES,
+    PUBLIC_BASE_URL,
+    PublicMediaError,
+    normalize_license,
+    prepare_public_media,
+    validate_source_image_url,
+    validate_source_page_url,
+)
+from databox.public_restricted_marks import restricted_usfws_mark_reason
+from PIL import Image
+
+_CREATE_TABLE = """
+CREATE SCHEMA rufous_public;
+CREATE TABLE rufous_public.usfws_commercial_image (
+    species_code VARCHAR,
+    common_name VARCHAR,
+    scientific_name VARCHAR,
+    source_page_url VARCHAR,
+    source_image_url VARCHAR,
+    creator VARCHAR,
+    license VARCHAR,
+    title VARCHAR,
+    caption VARCHAR,
+    alt_text VARCHAR,
+    source_published_at TIMESTAMPTZ,
+    source_width BIGINT,
+    source_height BIGINT,
+    mime_type VARCHAR,
+    discovery_method VARCHAR,
+    loaded_at TIMESTAMPTZ
+)
+"""
+
+
+def _row(**overrides: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "species_code": "rufhum",
+        "common_name": "Rufous Hummingbird",
+        "scientific_name": "Selasphorus rufus",
+        "source_page_url": "https://www.fws.gov/media/rufous-hummingbird",
+        "source_image_url": "https://www.fws.gov/sites/default/files/birds/rufous.png",
+        "creator": "Peter Pearsall/USFWS",
+        "license": "Public Domain",
+        "title": "Rufous hummingbird on a branch",
+        "caption": "A male Rufous Hummingbird perches on a bare branch.",
+        "alt_text": "A small orange Rufous Hummingbird perched on a branch",
+        "source_published_at": datetime(2024, 6, 20, tzinfo=UTC),
+        "source_width": 900,
+        "source_height": 600,
+        "mime_type": "image/png",
+        "discovery_method": "usfws_species_facet",
+        "loaded_at": datetime(2026, 8, 3, 12, 30, tzinfo=UTC),
+    }
+    row.update(overrides)
+    return row
+
+
+def _database(tmp_path: Path, rows: list[dict[str, object]]) -> Path:
+    path = tmp_path / "media.duckdb"
+    with duckdb.connect(str(path)) as connection:
+        connection.execute(_CREATE_TABLE)
+        _insert_rows(connection, rows)
+    return path
+
+
+def _insert_rows(connection: duckdb.DuckDBPyConnection, rows: list[dict[str, object]]) -> None:
+    placeholders = ", ".join("?" for _ in public_media.SOURCE_COLUMNS)
+    columns = ", ".join(public_media.SOURCE_COLUMNS)
+    for row in rows:
+        connection.execute(
+            f"INSERT INTO rufous_public.usfws_commercial_image ({columns}) VALUES ({placeholders})",
+            [row[column] for column in public_media.SOURCE_COLUMNS],
+        )
+
+
+def _png(
+    width: int = 900,
+    height: int = 600,
+    color: tuple[int, int, int] = (179, 83, 41),
+) -> bytes:
+    image = Image.new("RGB", (width, height), color)
+    output = BytesIO()
+    image.save(output, format="PNG", pnginfo=None)
+    return output.getvalue()
+
+
+def _jpeg(width: int = 900, height: int = 600) -> bytes:
+    image = Image.new("RGB", (width, height), (179, 83, 41))
+    output = BytesIO()
+    image.save(output, format="JPEG")
+    return output.getvalue()
+
+
+def _webp(width: int = 900, height: int = 600) -> bytes:
+    image = Image.new("RGB", (width, height), (179, 83, 41))
+    output = BytesIO()
+    image.save(output, format="WEBP")
+    return output.getvalue()
+
+
+def _gif(width: int = 900, height: int = 600) -> bytes:
+    image = Image.new("RGB", (width, height), (179, 83, 41))
+    output = BytesIO()
+    image.save(output, format="GIF")
+    return output.getvalue()
+
+
+def _animated_webp(width: int = 900, height: int = 600) -> bytes:
+    first = Image.new("RGB", (width, height), (179, 83, 41))
+    second = Image.new("RGB", (width, height), (20, 80, 160))
+    output = BytesIO()
+    first.save(
+        output,
+        format="WEBP",
+        save_all=True,
+        append_images=[second],
+        duration=100,
+        loop=0,
+    )
+    return output.getvalue()
+
+
+def _oriented_jpeg() -> bytes:
+    image = Image.new("RGB", (40, 20), (12, 90, 130))
+    exif = Image.Exif()
+    exif[274] = 6
+    output = BytesIO()
+    image.save(output, format="JPEG", exif=exif)
+    return output.getvalue()
+
+
+def _client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
+    return httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected", "url"),
+    [
+        (
+            "Public Domain",
+            "Public Domain",
+            "https://www.fws.gov/notices",
+        ),
+        ("CC0", "CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"),
+        ("CC BY 2.5", "CC BY 2.5", "https://creativecommons.org/licenses/by/2.5/"),
+        (
+            "CC BY-SA 4.0",
+            "CC BY-SA 4.0",
+            "https://creativecommons.org/licenses/by-sa/4.0/",
+        ),
+        (
+            "Creative Commons Attribution ShareAlike 3.0",
+            "CC BY-SA 3.0",
+            "https://creativecommons.org/licenses/by-sa/3.0/",
+        ),
+        (
+            "http://creativecommons.org/licenses/by/1.0/legalcode/",
+            "CC BY 1.0",
+            "https://creativecommons.org/licenses/by/1.0/",
+        ),
+    ],
+)
+def test_license_allowlist_normalizes_commercial_terms(raw: str, expected: str, url: str) -> None:
+    assert normalize_license(raw) == (expected, url)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        None,
+        "",
+        "CC BY",
+        "CC BY-NC 4.0",
+        "CC BY-ND 4.0",
+        "CC0 4.0",
+        "All Rights Reserved",
+        "Public Domain?",
+    ],
+)
+def test_license_allowlist_fails_closed(raw: object) -> None:
+    with pytest.raises(PublicMediaError):
+        normalize_license(raw)
+
+
+def test_source_urls_require_exact_safe_fws_origins() -> None:
+    assert (
+        validate_source_page_url("https://www.fws.gov/media/rufous-hummingbird-5")
+        == "https://www.fws.gov/media/rufous-hummingbird-5"
+    )
+    assert (
+        validate_source_image_url(
+            "https://www.fws.gov/sites/default/files/birds/rufous%20hummingbird.jpg"
+        )
+        == "https://www.fws.gov/sites/default/files/birds/rufous%20hummingbird.jpg"
+    )
+    assert (
+        validate_source_image_url(
+            "https://www.fws.gov/sites/default/files/styles/max_650x650/public/"
+            "birds/rufous.jpg?itok=az_09-Z"
+        )
+        == "https://www.fws.gov/sites/default/files/styles/max_650x650/public/"
+        "birds/rufous.jpg?itok=az_09-Z"
+    )
+
+    unsafe_pages = [
+        "http://www.fws.gov/media/rufous-hummingbird",
+        "https://www.fws.gov.evil.example/media/rufous-hummingbird",
+        "https://user@www.fws.gov/media/rufous-hummingbird",
+        "https://www.fws.gov/media/Rufous_Hummingbird",
+        "https://www.fws.gov/media/rufous-hummingbird?download=1",
+        "https://www.fws.gov/media/rufous-\nhummingbird",
+    ]
+    unsafe_images = [
+        "https://evil.example/sites/default/files/rufous.jpg",
+        "https://www.fws.gov:443/sites/default/files/rufous.jpg",
+        "https://www.fws.gov/sites/default/files/birds/../secret.jpg",
+        "https://www.fws.gov/sites/default/files/birds/rufous.svg",
+        "https://www.fws.gov/sites/default/files/birds/rufous.jpg?token=secret",
+    ]
+    for value in unsafe_pages:
+        with pytest.raises(PublicMediaError):
+            validate_source_page_url(value)
+    for value in unsafe_images:
+        with pytest.raises(PublicMediaError):
+            validate_source_image_url(value)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "reason"),
+    [
+        (
+            {"title": "U.S. Fish & Wildlife Service LÓGÓ"},
+            "service_or_agency_logo_or_seal",
+        ),
+        (
+            {"caption": "Official agency-seal artwork"},
+            "service_or_agency_logo_or_seal",
+        ),
+        (
+            {"alt_text": "The 2026 Junior Duck-Stamp artwork"},
+            "federal_or_junior_duck_stamp",
+        ),
+        (
+            {
+                "source_page_url": (
+                    "https://www.fws.gov/media/federal-aid-in-wildlife-restoration-symbol"
+                )
+            },
+            "federal_aid_restoration_symbol",
+        ),
+        (
+            {
+                "source_image_url": (
+                    "https://www.fws.gov/sites/default/files/"
+                    "sport%252Dfish%252Drestoration%252Dsymbol.png"
+                )
+            },
+            "federal_aid_restoration_symbol",
+        ),
+        (
+            {
+                "title": "Blue Goose",
+                "caption": "National Wildlife Refuge System symbol",
+            },
+            "blue_goose_refuge_mark",
+        ),
+    ],
+)
+def test_restricted_usfws_marks_fail_before_download(
+    tmp_path: Path,
+    overrides: dict[str, object],
+    reason: str,
+) -> None:
+    database = _database(tmp_path, [_row(**overrides)])
+    network_calls = 0
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal network_calls
+        network_calls += 1
+        raise AssertionError("restricted marks must fail before network access")
+
+    with _client(forbidden_handler) as client:
+        with pytest.raises(PublicMediaError, match=reason):
+            prepare_public_media(database, tmp_path / "prepared", client=client)
+
+    assert network_calls == 0
+
+
+def test_restricted_mark_gate_does_not_confuse_birds_or_animals_with_marks() -> None:
+    assert (
+        restricted_usfws_mark_reason(
+            (
+                "Blue Goose in flight",
+                "A blue-morph Snow Goose flies above a harbor seal colony.",
+                "https://www.fws.gov/media/snow-goose-blue-morph",
+            )
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("creator", "--"),
+        ("creator", "Unknown"),
+        ("creator", "Rufous Hummingbird"),
+        ("creator", "A" * 201),
+        ("creator", "Jane <script>"),
+        ("title", "Rufous Hummingbird\nportrait"),
+        ("caption", "A perched bird\tnear flowers"),
+        ("alt_text", "A perched bird\nnear flowers"),
+    ],
+)
+def test_preparation_independently_rejects_weak_credit_and_control_text(
+    tmp_path: Path, field: str, value: str
+) -> None:
+    database = _database(tmp_path, [_row(**{field: value})])
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("metadata validation must happen before network access")
+
+    with _client(forbidden_handler) as client:
+        with pytest.raises(PublicMediaError):
+            prepare_public_media(database, tmp_path / "prepared", client=client)
+
+
+def test_preparation_deduplicates_bytes_but_preserves_distinct_metadata_rows(
+    tmp_path: Path,
+) -> None:
+    database = _database(
+        tmp_path,
+        [
+            _row(),
+            _row(
+                species_code="acowoo",
+                common_name="Acorn Woodpecker",
+                scientific_name="Melanerpes formicivorus",
+                title="Two birds sharing one USFWS photograph",
+            ),
+        ],
+    )
+    image_bytes = _png()
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        assert "RufousMediaBuilder" in request.headers["user-agent"]
+        assert "connor@loughondata.com" in request.headers["user-agent"]
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png", "content-length": str(len(image_bytes))},
+            content=image_bytes,
+        )
+
+    output = tmp_path / "prepared"
+    with _client(handler) as client:
+        result = prepare_public_media(
+            database, output, client=client, sleeper=lambda _seconds: None
+        )
+
+    assert result.items == 2
+    assert result.objects == 1
+    assert result.species == 2
+    assert len(calls) == 1
+    manifest = json.loads(result.manifest_path.read_text())
+    assert manifest["schema_version"] == 1
+    assert manifest["mode"] == "rufous-media-preparation"
+    assert manifest["generated_at"] == "2026-08-03T12:30:00Z"
+    assert public_media._SHA256.fullmatch(manifest["preparer_fingerprint"])
+    assert public_media._SHA256.fullmatch(manifest["cache_identity"])
+    assert manifest["counts"] == {
+        "items": 2,
+        "objects": 1,
+        "species": 2,
+        "unavailable_items": 0,
+        "unavailable_source_objects": 0,
+    }
+    assert manifest["unavailable_items"] == []
+    assert [item["species_code"] for item in manifest["items"]] == ["acowoo", "rufhum"]
+
+    first, second = manifest["items"]
+    assert first["sha256"] == second["sha256"]
+    assert first["media_id"] != second["media_id"]
+    assert first["license"] == "Public Domain"
+    assert first["caption"] is not None
+    assert first["byte_size"] > 0
+    assert isinstance(first["hero_score"], int)
+    relative = f"objects/{first['sha256'][:2]}/{first['sha256']}.webp"
+    assert first["object_path"] == relative
+    assert first["url"] == f"{PUBLIC_BASE_URL}/{relative}"
+
+    object_path = output / relative
+    payload = object_path.read_bytes()
+    assert len(payload) <= 1024 * 1024
+    assert hashlib.sha256(payload).hexdigest() == first["sha256"]
+    with Image.open(object_path) as image:
+        assert image.format == "WEBP"
+        assert image.size == (650, 433)
+        assert not image.getexif()
+
+
+def test_prepared_objects_are_staged_as_processed_without_retaining_payloads(
+    tmp_path: Path,
+) -> None:
+    database = _database(
+        tmp_path,
+        [
+            _row(),
+            _row(
+                species_code="acowoo",
+                common_name="Acorn Woodpecker",
+                scientific_name="Melanerpes formicivorus",
+                source_page_url="https://www.fws.gov/media/acorn-woodpecker",
+                source_image_url="https://www.fws.gov/sites/default/files/birds/acorn.png",
+            ),
+        ],
+    )
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            stages = list(tmp_path.glob(".prepared.stage-*"))
+            assert len(stages) == 1
+            assert len(list(stages[0].rglob("*.webp"))) == 1
+        color = (20, 80, 160) if request.url.path.endswith("acorn.png") else (179, 83, 41)
+        payload = _png(color=color)
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=payload)
+
+    with _client(handler) as client:
+        result = prepare_public_media(database, tmp_path / "prepared", client=client)
+
+    assert calls == 2
+    assert result.objects == 2
+    assert "payload" not in public_media.PreparedObject.__dataclass_fields__
+
+
+def test_preparation_applies_exif_orientation_and_strips_metadata(tmp_path: Path) -> None:
+    source = _oriented_jpeg()
+    row = _row(
+        source_image_url="https://www.fws.gov/sites/default/files/birds/oriented.jpg",
+        source_width=40,
+        source_height=20,
+        mime_type="image/jpeg",
+    )
+    database = _database(tmp_path, [row])
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/jpeg"}, content=source)
+
+    with _client(handler) as client:
+        result = prepare_public_media(database, tmp_path / "prepared", client=client)
+    manifest = json.loads(result.manifest_path.read_text())
+    item = manifest["items"][0]
+    assert (item["width"], item["height"]) == (20, 40)
+    with Image.open(result.output_dir / item["object_path"]) as image:
+        assert image.size == (20, 40)
+        assert not image.getexif()
+
+
+def test_allowlisted_http_mime_can_differ_from_the_source_hint(tmp_path: Path) -> None:
+    image_bytes = _png()
+    database = _database(
+        tmp_path,
+        [
+            _row(
+                source_image_url=(
+                    "https://www.fws.gov/sites/default/files/birds/misleading-extension.jpg"
+                ),
+                mime_type="image/jpeg",
+            )
+        ],
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["accept"] == "image/jpeg"
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            content=image_bytes,
+        )
+
+    with _client(handler) as client:
+        result = prepare_public_media(database, tmp_path / "prepared", client=client)
+
+    manifest = json.loads(result.manifest_path.read_text())
+    assert manifest["items"][0]["source_mime_type"] == "image/jpeg"
+    assert manifest["items"][0]["decoded_source_mime_type"] == "image/png"
+    with Image.open(result.output_dir / manifest["items"][0]["object_path"]) as image:
+        assert image.format == "WEBP"
+
+
+def test_allowlisted_decoded_mime_can_differ_from_model_and_http_hints(
+    tmp_path: Path,
+) -> None:
+    database = _database(
+        tmp_path,
+        [
+            _row(
+                source_image_url="https://www.fws.gov/sites/default/files/birds/vireo.png",
+                mime_type="image/png",
+            )
+        ],
+    )
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            content=_jpeg(),
+        )
+
+    with _client(handler) as client:
+        result = prepare_public_media(database, tmp_path / "prepared", client=client)
+
+    manifest = json.loads(result.manifest_path.read_text())
+    item = manifest["items"][0]
+    assert item["source_mime_type"] == "image/png"
+    assert item["decoded_source_mime_type"] == "image/jpeg"
+
+
+@pytest.mark.parametrize(
+    ("payload_factory", "decoded_mime"),
+    [
+        (_png, "image/png"),
+        (_jpeg, "image/jpeg"),
+        (_webp, "image/webp"),
+    ],
+)
+def test_decoded_source_format_allowlist_is_explicit(
+    tmp_path: Path,
+    payload_factory: Callable[[], bytes],
+    decoded_mime: str,
+) -> None:
+    database = _database(tmp_path, [_row()])
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            content=payload_factory(),
+        )
+
+    with _client(handler) as client:
+        result = prepare_public_media(database, tmp_path / "prepared", client=client)
+
+    manifest = json.loads(result.manifest_path.read_text())
+    assert manifest["items"][0]["decoded_source_mime_type"] == decoded_mime
+
+
+def test_unsupported_decoded_source_format_fails_closed(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            content=_gif(),
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(PublicMediaError, match="unsupported format"):
+            prepare_public_media(database, tmp_path / "prepared", client=client)
+
+
+def test_corrupt_allowlisted_source_format_fails_closed(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            content=b"not an image",
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(PublicMediaError, match="safely decoded"):
+            prepare_public_media(database, tmp_path / "prepared", client=client)
+
+
+def test_animated_allowlisted_source_format_fails_closed(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/webp"},
+            content=_animated_webp(),
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(PublicMediaError, match="animated source"):
+            prepare_public_media(database, tmp_path / "prepared", client=client)
+
+
+def test_retry_is_bounded_and_can_recover(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    image_bytes = _png()
+    calls = 0
+    sleeps: list[float] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            return httpx.Response(503)
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=image_bytes)
+
+    with _client(handler) as client:
+        prepare_public_media(
+            database,
+            tmp_path / "prepared",
+            client=client,
+            sleeper=sleeps.append,
+        )
+    assert calls == 3
+    assert sleeps == [1.0, 2.0]
+
+
+@pytest.mark.parametrize("content_type", [None, "application/octet-stream"])
+def test_missing_or_unsupported_http_mime_exhausts_bounded_retries(
+    tmp_path: Path,
+    content_type: str | None,
+) -> None:
+    database = _database(tmp_path, [_row()])
+    calls = 0
+    sleeps: list[float] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        headers = {"content-type": content_type} if content_type is not None else None
+        return httpx.Response(200, headers=headers, content=b"not-an-image")
+
+    with _client(handler) as client:
+        result = prepare_public_media(
+            database,
+            tmp_path / "prepared",
+            client=client,
+            sleeper=sleeps.append,
+        )
+
+    assert calls == 6
+    assert sleeps == [1.0, 2.0, 4.0, 8.0, 16.0]
+    manifest = json.loads(result.manifest_path.read_text())
+    assert manifest["counts"] == {
+        "items": 0,
+        "objects": 0,
+        "species": 0,
+        "unavailable_items": 1,
+        "unavailable_source_objects": 1,
+    }
+    assert manifest["unavailable_items"][0]["reason"] == (
+        "unsupported_http_content_type" if content_type is not None else "missing_http_content_type"
+    )
+
+
+def test_one_unavailable_source_is_audited_once_for_all_semantic_rows(
+    tmp_path: Path,
+) -> None:
+    unavailable_url = "https://www.fws.gov/sites/default/files/birds/unavailable.png"
+    database = _database(
+        tmp_path,
+        [
+            _row(),
+            _row(
+                species_code="acowoo",
+                common_name="Acorn Woodpecker",
+                scientific_name="Melanerpes formicivorus",
+                source_page_url="https://www.fws.gov/media/acorn-woodpecker",
+                source_image_url=unavailable_url,
+            ),
+            _row(
+                species_code="yelwar",
+                common_name="Yellow Warbler",
+                scientific_name="Setophaga petechia",
+                source_page_url="https://www.fws.gov/media/yellow-warbler",
+                source_image_url=unavailable_url,
+            ),
+        ],
+    )
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        if request.url.path.endswith("rufous.png"):
+            return httpx.Response(
+                200,
+                headers={"content-type": "image/png"},
+                content=_png(),
+            )
+        return httpx.Response(503)
+
+    with _client(handler) as client:
+        result = prepare_public_media(
+            database,
+            tmp_path / "prepared",
+            client=client,
+            sleeper=lambda _seconds: None,
+        )
+
+    assert calls.count("/sites/default/files/birds/unavailable.png") == 6
+    assert calls.count("/sites/default/files/birds/rufous.png") == 1
+    assert result.items == 1
+    assert result.objects == 1
+    assert result.species == 1
+    manifest = json.loads(result.manifest_path.read_text())
+    assert manifest["counts"] == {
+        "items": 1,
+        "objects": 1,
+        "species": 1,
+        "unavailable_items": 2,
+        "unavailable_source_objects": 1,
+    }
+    assert [item["species_code"] for item in manifest["unavailable_items"]] == [
+        "acowoo",
+        "yelwar",
+    ]
+    assert {item["source_page_url"] for item in manifest["unavailable_items"]} == {
+        "https://www.fws.gov/media/acorn-woodpecker",
+        "https://www.fws.gov/media/yellow-warbler",
+    }
+    assert {item["source_image_url"] for item in manifest["unavailable_items"]} == {unavailable_url}
+    assert {(item["reason"], item["attempts"]) for item in manifest["unavailable_items"]} == {
+        ("retryable_http_503", 6)
+    }
+
+
+def test_truncated_body_is_retried_within_the_same_bound(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    image_bytes = _png()
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(
+                200,
+                headers={"content-type": "image/png", "content-length": "20"},
+                content=b"truncated",
+            )
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png", "content-length": str(len(image_bytes))},
+            content=image_bytes,
+        )
+
+    with _client(handler) as client:
+        prepare_public_media(
+            database,
+            tmp_path / "prepared",
+            client=client,
+            sleeper=lambda _seconds: None,
+        )
+    assert calls == 2
+
+
+def test_unsafe_redirect_is_rejected_before_following(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(302, headers={"location": "https://evil.example/bird.png"})
+
+    with _client(handler) as client:
+        with pytest.raises(PublicMediaError, match="exact HTTPS fws.gov origin"):
+            prepare_public_media(database, tmp_path / "prepared", client=client)
+    assert calls == 1
+    assert not (tmp_path / "prepared").exists()
+
+
+def test_oversized_download_is_rejected_without_allocating_it(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={
+                "content-type": "image/png",
+                "content-length": str(MAX_DOWNLOAD_BYTES + 1),
+            },
+            content=b"small",
+        )
+
+    with _client(handler) as client:
+        with pytest.raises(PublicMediaError, match="download-size limit"):
+            prepare_public_media(database, tmp_path / "prepared", client=client)
+    assert not (tmp_path / "prepared").exists()
+
+
+def test_decompression_bomb_style_pixel_limit_is_enforced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = _png(4, 4)
+    database = _database(tmp_path, [_row(source_width=3, source_height=3)])
+    monkeypatch.setattr(public_media, "MAX_SOURCE_PIXELS", 10)
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=source)
+
+    with _client(handler) as client:
+        with pytest.raises(PublicMediaError, match="decoded source image exceeds"):
+            prepare_public_media(database, tmp_path / "prepared", client=client)
+
+
+def test_verified_cache_reuse_needs_no_network_and_is_stable(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+    image_bytes = _png()
+
+    def initial_handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=image_bytes)
+
+    with _client(initial_handler) as client:
+        prepare_public_media(database, output, client=client)
+    before = (output / "manifest.json").read_bytes()
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("verified cache reuse must not access the network")
+
+    with _client(forbidden_handler) as client:
+        result = prepare_public_media(database, output, client=client)
+    assert result.items == 1
+    assert (output / "manifest.json").read_bytes() == before
+
+
+def test_cache_reuses_good_webp_but_retries_and_recovers_unavailable_source(
+    tmp_path: Path,
+) -> None:
+    unavailable_path = "/sites/default/files/birds/acorn.png"
+    database = _database(
+        tmp_path,
+        [
+            _row(),
+            _row(
+                species_code="acowoo",
+                common_name="Acorn Woodpecker",
+                scientific_name="Melanerpes formicivorus",
+                source_page_url="https://www.fws.gov/media/acorn-woodpecker",
+                source_image_url=f"https://www.fws.gov{unavailable_path}",
+            ),
+        ],
+    )
+    output = tmp_path / "prepared"
+
+    def initial_handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == unavailable_path:
+            return httpx.Response(503)
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            content=_png(),
+        )
+
+    with _client(initial_handler) as client:
+        first = prepare_public_media(
+            database,
+            output,
+            client=client,
+            sleeper=lambda _seconds: None,
+        )
+    first_manifest = json.loads(first.manifest_path.read_text())
+    good_item = first_manifest["items"][0]
+    good_payload = (output / good_item["object_path"]).read_bytes()
+    assert first_manifest["counts"]["unavailable_source_objects"] == 1
+
+    calls: list[str] = []
+
+    def recovery_handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        assert request.url.path == unavailable_path
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            content=_png(color=(20, 80, 160)),
+        )
+
+    with _client(recovery_handler) as client:
+        second = prepare_public_media(database, output, client=client)
+
+    assert calls == [unavailable_path]
+    assert second.items == 2
+    assert second.objects == 2
+    second_manifest = json.loads(second.manifest_path.read_text())
+    assert second_manifest["unavailable_items"] == []
+    assert second_manifest["counts"]["unavailable_items"] == 0
+    recovered_good = next(
+        item for item in second_manifest["items"] if item["species_code"] == "rufhum"
+    )
+    assert recovered_good["sha256"] == good_item["sha256"]
+    assert (output / recovered_good["object_path"]).read_bytes() == good_payload
+
+
+def test_unavailable_manifest_tampering_is_rejected_by_complete_cache_identity(
+    tmp_path: Path,
+) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+
+    def unavailable_handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503)
+
+    with _client(unavailable_handler) as client:
+        result = prepare_public_media(
+            database,
+            output,
+            client=client,
+            sleeper=lambda _seconds: None,
+        )
+    manifest = json.loads(result.manifest_path.read_text())
+    manifest["unavailable_items"][0]["reason"] = "retryable_http_502"
+    result.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(PublicMediaError, match="cache identity"):
+        public_media._load_cache(
+            output,
+            preparer_fingerprint=manifest["preparer_fingerprint"],
+        )
+
+
+def test_decoded_source_mime_tampering_is_rejected_by_cache_identity(
+    tmp_path: Path,
+) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            content=_png(),
+        )
+
+    with _client(handler) as client:
+        result = prepare_public_media(database, output, client=client)
+    manifest = json.loads(result.manifest_path.read_text())
+    manifest["items"][0]["decoded_source_mime_type"] = "image/jpeg"
+    result.manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(PublicMediaError, match="cache identity"):
+        public_media._load_cache(
+            output,
+            preparer_fingerprint=manifest["preparer_fingerprint"],
+        )
+
+
+def test_cache_identity_excludes_refresh_timestamps(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+    image_bytes = _png()
+
+    def initial_handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=image_bytes)
+
+    with _client(initial_handler) as client:
+        prepare_public_media(database, output, client=client)
+    before = json.loads((output / "manifest.json").read_text())
+
+    with duckdb.connect(str(database)) as connection:
+        connection.execute(
+            "UPDATE rufous_public.usfws_commercial_image "
+            "SET loaded_at = TIMESTAMPTZ '2026-08-04 12:30:00+00'"
+        )
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("loaded_at must not invalidate prepared image bytes")
+
+    with _client(forbidden_handler) as client:
+        prepare_public_media(database, output, client=client)
+    after = json.loads((output / "manifest.json").read_text())
+
+    assert after["cache_identity"] == before["cache_identity"]
+    assert after["generated_at"] == "2026-08-04T12:30:00Z"
+    assert after["items"][0]["loaded_at"] == "2026-08-04T12:30:00Z"
+
+
+def test_restored_cache_reuses_unchanged_rows_when_dataset_grows(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+    first_image = _png()
+
+    def initial_handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=first_image)
+
+    with _client(initial_handler) as client:
+        prepare_public_media(database, output, client=client)
+
+    new_row = _row(
+        species_code="acowoo",
+        common_name="Acorn Woodpecker",
+        scientific_name="Melanerpes formicivorus",
+        source_page_url="https://www.fws.gov/media/acorn-woodpecker",
+        source_image_url="https://www.fws.gov/sites/default/files/birds/acorn.png",
+    )
+    with duckdb.connect(str(database)) as connection:
+        _insert_rows(connection, [new_row])
+
+    calls: list[str] = []
+
+    def new_only_handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        assert request.url.path.endswith("acorn.png")
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/png"},
+            content=_png(color=(20, 80, 160)),
+        )
+
+    with _client(new_only_handler) as client:
+        result = prepare_public_media(database, output, client=client)
+
+    assert calls == ["/sites/default/files/birds/acorn.png"]
+    assert result.items == 2
+    assert result.objects == 2
+
+
+def test_invalid_existing_manifest_is_rejected_without_replacement(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+    image_bytes = _png()
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=image_bytes)
+
+    with _client(handler) as client:
+        prepare_public_media(database, output, client=client)
+    (output / "manifest.json").write_text("{not valid JSON", encoding="utf-8")
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("unsafe output rejection must happen before network access")
+
+    with _client(forbidden_handler) as client:
+        with pytest.raises(PublicMediaError, match="valid Rufous media manifest"):
+            prepare_public_media(database, output, client=client)
+
+    assert (output / "manifest.json").read_text(encoding="utf-8") == "{not valid JSON"
+
+
+def test_invalid_existing_object_is_rejected_without_replacement(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+    image_bytes = _png()
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=image_bytes)
+
+    with _client(handler) as client:
+        first = prepare_public_media(database, output, client=client)
+    manifest = json.loads(first.manifest_path.read_text())
+    (output / manifest["items"][0]["object_path"]).write_bytes(b"corrupt")
+
+    object_path = output / manifest["items"][0]["object_path"]
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("unsafe output rejection must happen before network access")
+
+    with _client(forbidden_handler) as client:
+        with pytest.raises(PublicMediaError, match="changed while reading|hash does not match"):
+            prepare_public_media(database, output, client=client)
+    assert object_path.read_bytes() == b"corrupt"
+
+
+def test_nonempty_arbitrary_output_is_never_replaced(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "pictures"
+    output.mkdir()
+    sentinel = output / "family-photo.txt"
+    sentinel.write_text("keep me", encoding="utf-8")
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("unsafe output rejection must happen before network access")
+
+    with _client(forbidden_handler) as client:
+        with pytest.raises(PublicMediaError, match="valid Rufous media manifest"):
+            prepare_public_media(database, output, client=client)
+
+    assert sentinel.read_text(encoding="utf-8") == "keep me"
+    assert list(output.iterdir()) == [sentinel]
+
+
+def test_symbolic_link_output_is_rejected_without_touching_its_target(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    target = tmp_path / "pictures"
+    target.mkdir()
+    sentinel = target / "family-photo.txt"
+    sentinel.write_text("keep me", encoding="utf-8")
+    output = tmp_path / "prepared"
+    output.symlink_to(target, target_is_directory=True)
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("unsafe output rejection must happen before network access")
+
+    with _client(forbidden_handler) as client:
+        with pytest.raises(PublicMediaError, match="symbolic link"):
+            prepare_public_media(database, output, client=client)
+
+    assert output.is_symlink()
+    assert sentinel.read_text(encoding="utf-8") == "keep me"
+
+
+def test_empty_existing_output_directory_is_allowed(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+    output.mkdir()
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=_png())
+
+    with _client(handler) as client:
+        result = prepare_public_media(database, output, client=client)
+
+    assert result.items == 1
+    assert result.manifest_path.is_file()
+
+
+def test_valid_output_with_unmanifested_file_is_never_replaced(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=_png())
+
+    with _client(handler) as client:
+        prepare_public_media(database, output, client=client)
+    extra = output / "unrelated.txt"
+    extra.write_text("do not delete", encoding="utf-8")
+
+    with _client(handler) as client:
+        with pytest.raises(PublicMediaError, match="exact Rufous manifest"):
+            prepare_public_media(database, output, client=client)
+
+    assert extra.read_text(encoding="utf-8") == "do not delete"
+
+
+def test_failed_media_tree_install_restores_last_good_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=_png())
+
+    with _client(handler) as client:
+        prepare_public_media(database, output, client=client)
+    before = {
+        path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()
+    }
+    stage = tmp_path / "replacement-stage"
+    shutil.copytree(output, stage)
+    expected = public_media._validate_output_target(output)
+    real_replace = public_media.os.replace
+
+    def fail_install(source: object, destination: object) -> None:
+        if Path(source) == stage and Path(destination) == output:
+            raise OSError("simulated interrupted install")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(public_media.os, "replace", fail_install)
+
+    with pytest.raises(PublicMediaError, match="atomically publish"):
+        public_media._publish_staged_tree(stage, output, expected=expected)
+
+    assert {
+        path.relative_to(output): path.read_bytes() for path in output.rglob("*") if path.is_file()
+    } == before
+    assert stage.is_dir()
+    assert not list(tmp_path.glob(".prepared.backup-*"))
+
+
+def test_semantic_cache_identity_covers_attribution_and_preparer_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    values = _row()
+    base = public_media.SourceImageRow.from_values(values)
+    fingerprint = "a" * 64
+    base_identity = public_media._cache_identity([(base, "image/png")], fingerprint)
+    changes: list[tuple[str, object]] = [
+        ("species_code", "acowoo"),
+        ("common_name", "Acorn Woodpecker"),
+        ("scientific_name", "Melanerpes formicivorus"),
+        ("source_page_url", "https://www.fws.gov/media/acorn-woodpecker"),
+        ("source_image_url", "https://www.fws.gov/sites/default/files/birds/acorn.png"),
+        ("creator", "Jane Birder/USFWS"),
+        ("license", "CC BY 4.0"),
+        ("title", "A different reviewed title"),
+        ("caption", "A different reviewed caption."),
+        ("alt_text", "A different accessible bird description"),
+        ("source_published_at", datetime(2024, 6, 21, tzinfo=UTC)),
+        ("source_width", 901),
+        ("source_height", 601),
+        ("mime_type", "image/webp"),
+        ("discovery_method", "usfws_exact_scientific_name"),
+    ]
+    for field, value in changes:
+        changed_values = dict(values)
+        changed_values[field] = value
+        changed = public_media.SourceImageRow.from_values(changed_values)
+        assert public_media._cache_identity([(changed, "image/png")], fingerprint) != base_identity
+
+    refreshed_values = dict(values)
+    refreshed_values["loaded_at"] = datetime(2026, 8, 4, tzinfo=UTC)
+    refreshed = public_media.SourceImageRow.from_values(refreshed_values)
+    assert public_media._cache_identity([(refreshed, "image/png")], fingerprint) == base_identity
+    assert public_media._cache_identity([(base, "image/jpeg")], fingerprint) != base_identity
+    assert public_media._cache_identity([(base, "image/png")], "b" * 64) != base_identity
+
+    original_fingerprint = public_media._preparer_fingerprint()
+    expected = hashlib.sha256()
+    expected.update(Path(public_media.__file__).read_bytes())
+    expected.update(b"\x00rufous-restricted-mark-policy\x00")
+    expected.update(Path(public_media.restricted_marks.__file__).read_bytes())
+    expected.update(b"\x00rufous-preparer-runtime\x00")
+    expected.update(
+        public_media._canonical_json_bytes(
+            {
+                "pillow_version": public_media.PIL.__version__,
+                "webp_version": str(
+                    getattr(public_media.Image.core, "webp_version", "unavailable")
+                ),
+            }
+        )
+    )
+    assert original_fingerprint == expected.hexdigest()
+    monkeypatch.setattr(public_media.PIL, "__version__", "changed-for-test")
+    assert public_media._preparer_fingerprint() != original_fingerprint
+
+
+def test_eligible_row_and_object_caps_fail_before_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rows = [
+        _row(),
+        _row(
+            species_code="acowoo",
+            common_name="Acorn Woodpecker",
+            scientific_name="Melanerpes formicivorus",
+            source_page_url="https://www.fws.gov/media/acorn-woodpecker",
+            source_image_url="https://www.fws.gov/sites/default/files/birds/acorn.png",
+        ),
+    ]
+    database = _database(tmp_path, rows)
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("bounded input failures must happen before network access")
+
+    monkeypatch.setattr(public_media, "MAX_ELIGIBLE_ROWS", 1)
+    with _client(forbidden_handler) as client:
+        with pytest.raises(PublicMediaError, match="reviewed row limit"):
+            prepare_public_media(database, tmp_path / "row-cap", client=client)
+
+    monkeypatch.setattr(public_media, "MAX_ELIGIBLE_ROWS", 2)
+    monkeypatch.setattr(public_media, "MAX_PREPARED_OBJECTS", 1)
+    with _client(forbidden_handler) as client:
+        with pytest.raises(PublicMediaError, match="prepared-object candidate limit"):
+            prepare_public_media(database, tmp_path / "object-cap", client=client)
+
+
+def test_total_prepared_byte_cap_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = _database(tmp_path, [_row()])
+    image_bytes = _png()
+    monkeypatch.setattr(public_media, "MAX_TOTAL_PREPARED_BYTES", 1)
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=image_bytes)
+
+    output = tmp_path / "prepared"
+    with _client(handler) as client:
+        with pytest.raises(PublicMediaError, match="total-byte limit"):
+            prepare_public_media(database, output, client=client)
+    assert not output.exists()
+    assert not list(tmp_path.glob(".prepared.stage-*"))
+
+
+def test_eleventh_unavailable_source_preserves_the_entire_last_good_output(
+    tmp_path: Path,
+) -> None:
+    database = _database(tmp_path, [_row()])
+    output = tmp_path / "prepared"
+    image_bytes = _png()
+
+    def good_handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-type": "image/png"}, content=image_bytes)
+
+    with _client(good_handler) as client:
+        prepare_public_media(database, output, client=client)
+    before_manifest = (output / "manifest.json").read_bytes()
+    before_objects = {
+        path.relative_to(output): path.read_bytes() for path in output.rglob("*.webp")
+    }
+
+    bad_rows = [
+        _row(
+            source_page_url=f"https://www.fws.gov/media/unavailable-bird-{index}",
+            source_image_url=(
+                f"https://www.fws.gov/sites/default/files/birds/unavailable-{index}.png"
+            ),
+        )
+        for index in range(11)
+    ]
+    with duckdb.connect(str(database)) as connection:
+        _insert_rows(connection, bad_rows)
+
+    calls = 0
+
+    def failing_handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(503)
+
+    with _client(failing_handler) as client:
+        sleeps: list[float] = []
+        with pytest.raises(PublicMediaError, match="source-object limit"):
+            prepare_public_media(
+                database,
+                output,
+                client=client,
+                sleeper=sleeps.append,
+            )
+    assert calls == 66
+    assert sleeps == [1.0, 2.0, 4.0, 8.0, 16.0] * 11
+    assert (output / "manifest.json").read_bytes() == before_manifest
+    assert {
+        path.relative_to(output): path.read_bytes() for path in output.rglob("*.webp")
+    } == before_objects
+    assert not list(tmp_path.glob(".prepared.stage-*"))
+
+
+def test_source_model_schema_must_be_exact(tmp_path: Path) -> None:
+    database = _database(tmp_path, [_row()])
+    with duckdb.connect(str(database)) as connection:
+        connection.execute(
+            "ALTER TABLE rufous_public.usfws_commercial_image ADD COLUMN unreviewed VARCHAR"
+        )
+
+    def forbidden_handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("schema failure must happen before network access")
+
+    with _client(forbidden_handler) as client:
+        with pytest.raises(PublicMediaError, match="exact reviewed schema"):
+            prepare_public_media(database, tmp_path / "prepared", client=client)

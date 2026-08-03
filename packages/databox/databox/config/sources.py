@@ -92,6 +92,12 @@ SOURCES: list[Source] = [
     ),
     Source(name="usgs", raw_tables=("daily_values", "sites")),
     Source(name="usgs_earthquakes", raw_tables=("events",)),
+    Source(
+        name="usfws",
+        raw_tables=("image_search_runs", "image_records"),
+        scheduled=False,
+        parallel_refresh=False,
+    ),
 ]
 
 
