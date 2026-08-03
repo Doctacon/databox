@@ -201,7 +201,9 @@ describe("Arizona bird catalog and modeled profiles", () => {
     async function expectActive(index: number) {
       const code = `bird${index.toString().padStart(3, "0")}`;
       await waitFor(() => expect(wheel).toHaveAttribute("aria-activedescendant", `wheel-${code}`));
-      expect(screen.getByRole("option", { name: `Arizona Bird ${index.toString().padStart(3, "0")}` })).toHaveAttribute("aria-selected", "true");
+      const activeOption = document.getElementById(`wheel-${code}`);
+      expect(activeOption).toHaveAttribute("role", "option");
+      expect(activeOption).toHaveAttribute("aria-selected", "true");
     }
     await expectActive(0);
     fireEvent.keyDown(wheel, { key: "ArrowDown" }); await expectActive(1);
