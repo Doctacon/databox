@@ -24,6 +24,7 @@ on:
       - "packages/databox/databox/public_media*.py"
       - "packages/databox/databox/public_restricted_marks.py"
       - "packages/databox/databox/public_release.py"
+      - "packages/databox/databox/public_release_hydrate.py"
       - "scripts/load_dlt_quack.py"
       - "scripts/*rufous_public.py"
       - "scripts/*rufous*media.py"
@@ -36,6 +37,8 @@ on:
       - "soda/contracts/rufous_public/**"
       - "tests/test_public_export*.py"
       - "tests/test_public_release.py"
+      - "tests/test_public_release_hydrate.py"
+      - "tests/test_rufous_public_workflow.py"
       - "tests/test_public_media*.py"
       - "tests/test_settings.py"
       - "tests/test_source_builders.py"
@@ -78,6 +81,7 @@ on:
       - "packages/databox/databox/public_media*.py"
       - "packages/databox/databox/public_restricted_marks.py"
       - "packages/databox/databox/public_release.py"
+      - "packages/databox/databox/public_release_hydrate.py"
       - "scripts/load_dlt_quack.py"
       - "scripts/*rufous_public.py"
       - "scripts/*rufous*media.py"
@@ -90,6 +94,8 @@ on:
       - "soda/contracts/rufous_public/**"
       - "tests/test_public_export*.py"
       - "tests/test_public_release.py"
+      - "tests/test_public_release_hydrate.py"
+      - "tests/test_rufous_public_workflow.py"
       - "tests/test_public_media*.py"
       - "tests/test_settings.py"
       - "tests/test_source_builders.py"
@@ -112,6 +118,15 @@ on:
   schedule:
     - cron: "17 7 2 * *"
   workflow_dispatch:
+    inputs:
+      release_mode:
+        description: Release scope
+        type: choice
+        required: true
+        default: full
+        options:
+          - full
+          - pages-only
 
 permissions:
   contents: read
@@ -131,21 +146,104 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  route:
+    name: Route Rufous release scope
+    runs-on: ubuntu-latest
+    outputs:
+      release_mode: ${{ steps.route.outputs.release_mode }}
+    steps:
+      - if: github.event_name == 'push'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: route
+        name: Fail closed unless a push changes only the browser app
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          DISPATCH_MODE: ${{ inputs.release_mode }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+          RELEASE_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          release_mode=none
+          if [[ "$EVENT_NAME" == "schedule" ]]; then
+            release_mode=full
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$DISPATCH_MODE" == "pages-only" ]]; then
+              release_mode=pages
+            else
+              release_mode=full
+            fi
+          elif [[ "$EVENT_NAME" == "push" && "$RELEASE_REF" == "refs/heads/main" ]]; then
+            release_mode=full
+            if [[ "$BEFORE_SHA" =~ ^[0-9a-f]{40}$ && "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] \
+              && [[ ! "$BEFORE_SHA" =~ ^0+$ ]] \
+              && git cat-file -e "$BEFORE_SHA^{commit}" \
+              && git cat-file -e "$HEAD_SHA^{commit}"; then
+              changed_count=0
+              app_only=true
+              while IFS= read -r -d '' path; do
+                changed_count=$((changed_count + 1))
+                if [[ "$path" != app/* ]]; then
+                  app_only=false
+                fi
+              done < <(git diff --no-renames --name-only --diff-filter=ACMRD -z "$BEFORE_SHA" "$HEAD_SHA")
+              if [[ "$changed_count" -gt 0 && "$app_only" == "true" ]]; then
+                release_mode=pages
+              fi
+            fi
+          fi
+          echo "release_mode=$release_mode" >> "$GITHUB_OUTPUT"
+
   readiness:
-    name: Check production release configuration
+    name: Check Pages release configuration
     if: >-
       github.event_name == 'schedule' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     outputs:
-      production_ready: ${{ steps.ready.outputs.production_ready }}
+      pages_ready: ${{ steps.ready.outputs.pages_ready }}
     env:
       RELEASE_ENABLED: ${{ vars.RUF_PUBLIC_RELEASE_ENABLED }}
       PUBLIC_URL: ${{ vars.RUF_PUBLIC_URL }}
       PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
       CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - id: ready
+        name: Evaluate without printing configuration
+        shell: bash
+        run: |
+          pages_ready=true
+          if [[ "$RELEASE_ENABLED" != "true" ]]; then
+            pages_ready=false
+          fi
+          for name in PUBLIC_URL RUFOUS_PUBLIC_DATA_URL PAGES_PROJECT CF_ACCOUNT CF_TOKEN; do
+            if [[ -z "${!name}" ]]; then
+              pages_ready=false
+            fi
+          done
+          if [[ ! "$PUBLIC_URL" =~ ^https:// ]] || [[ "$RUFOUS_PUBLIC_DATA_URL" != "https://rufous-data.loughondata.com/rufous-public" ]]; then
+            pages_ready=false
+          fi
+          echo "pages_ready=$pages_ready" >> "$GITHUB_OUTPUT"
+
+  production_readiness:
+    name: Check full R2 release configuration
+    needs: [readiness, route]
+    if: >-
+      needs.readiness.outputs.pages_ready == 'true' &&
+      needs.route.outputs.release_mode == 'full' &&
+      (github.event_name == 'schedule' ||
+       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    outputs:
+      production_ready: ${{ steps.ready.outputs.production_ready }}
+    env:
       R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
     steps:
@@ -153,19 +251,13 @@ jobs:
         name: Evaluate without printing configuration
         shell: bash
         run: |
-          ready=true
-          if [[ "$RELEASE_ENABLED" != "true" ]]; then
-            ready=false
-          fi
-          for name in PUBLIC_URL RUFOUS_PUBLIC_DATA_URL PAGES_PROJECT RUFOUS_R2_BUCKET CF_ACCOUNT CF_TOKEN R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
+          production_ready=true
+          for name in RUFOUS_R2_BUCKET R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
             if [[ -z "${!name}" ]]; then
-              ready=false
+              production_ready=false
             fi
           done
-          if [[ ! "$PUBLIC_URL" =~ ^https:// ]] || [[ "$RUFOUS_PUBLIC_DATA_URL" != "https://rufous-data.loughondata.com/rufous-public" ]]; then
-            ready=false
-          fi
-          echo "production_ready=$ready" >> "$GITHUB_OUTPUT"
+          echo "production_ready=$production_ready" >> "$GITHUB_OUTPUT"
 
   synthetic:
     name: Build synthetic static preview
@@ -191,6 +283,8 @@ jobs:
           uv run pytest packages/databox-sources/tests/usfws
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_release.py tests/test_public_media.py
+          tests/test_public_release_hydrate.py
+          tests/test_rufous_public_workflow.py
           tests/test_public_media_approval.py
           tests/test_public_media_ingest.py tests/test_public_media_release.py
           tests/test_public_media_review.py
@@ -227,11 +321,79 @@ jobs:
           --workflows .github/workflows
           --repository-root .
 
+  pages:
+    name: Build and deploy app with the active public snapshot
+    needs: [readiness, route]
+    if: >-
+      needs.readiness.outputs.pages_ready == 'true' &&
+      needs.route.outputs.release_mode == 'pages' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras --dev --locked
+          npm --prefix app ci
+      - name: Test current-release hydration and public browser application
+        run: |
+          uv run pytest \
+            tests/test_public_release_hydrate.py \
+            tests/test_rufous_public_workflow.py \
+            -o "addopts=-v --tb=short"
+          npm --prefix app run typecheck
+          npm --prefix app test -- --reporter=dot
+      - name: Build static public app
+        env:
+          VITE_RUFOUS_DATA_BASE_URL: ${{ env.RUFOUS_PUBLIC_DATA_URL }}
+        run: npm --prefix app run build:public
+      - name: Install the verified active production snapshot
+        run: uv run python scripts/hydrate_rufous_public.py app/dist
+      - name: Audit browser bundle configuration
+        run: uv run python scripts/audit_app_bundle.py
+      - name: Enforce public release boundary
+        run: >-
+          uv run python scripts/audit_rufous_public.py app/dist
+          --workflows .github/workflows
+          --repository-root .
+      - name: Verify this revision is still the main branch head
+        shell: bash
+        run: |
+          read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
+          if [[ ! "$main_sha" =~ ^[0-9a-f]{40}$ || "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "Refusing to deploy a revision that is no longer the main branch head." >&2
+            exit 1
+          fi
+      - name: Deploy immutable static Pages release
+        working-directory: ${{ runner.temp }}
+        env:
+          CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: >-
+          "${{ github.workspace }}/app/node_modules/.bin/wrangler" pages deploy
+          "${{ github.workspace }}/app/dist"
+          --project-name "$CLOUDFLARE_PAGES_PROJECT"
+          --branch main
+          --commit-hash "${{ github.sha }}"
+
   production:
     name: Build and deploy production R2-backed release
-    needs: readiness
+    needs: [production_readiness, route]
     if: >-
-      needs.readiness.outputs.production_ready == 'true' &&
+      needs.production_readiness.outputs.production_ready == 'true' &&
+      needs.route.outputs.release_mode == 'full' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
        github.event_name == 'schedule' ||
        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
@@ -274,6 +436,8 @@ jobs:
           uv run pytest packages/databox-sources/tests/usfws
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_release.py tests/test_public_media.py
+          tests/test_public_release_hydrate.py
+          tests/test_rufous_public_workflow.py
           tests/test_public_media_approval.py
           tests/test_public_media_ingest.py tests/test_public_media_release.py
           tests/test_public_media_review.py
