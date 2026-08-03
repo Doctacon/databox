@@ -492,6 +492,15 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(styles).toMatch(/@media \(max-width:\s*540px\)[^{]*\{[\s\S]*?\.content, \.birds-main, \.bird-profile-main, \.my-birds-main, \.field-map-main, \.credits-main\s*\{\s*padding:\s*15px 12px 22px;/);
   });
 
+  it("shows complete bird photos in the catalog while keeping selector thumbnails compact", () => {
+    expect(styles).toMatch(/\.responsive-bird-photo, \.catalog-photo-frame\s*>\s*img\s*\{[^}]*object-fit:\s*contain;[^}]*object-position:\s*center/s);
+    expect(styles).toMatch(/\.responsive-bird-photo, \.catalog-photo-frame\s*>\s*img\s*\{[^}]*min-height:\s*0;[^}]*max-height:\s*100%/s);
+    expect(styles).toMatch(/\.catalog-photo-profile \.catalog-photo-frame\s*\{[^}]*max-height:\s*none/s);
+    expect(styles).toMatch(/\.bird-wheel-preview \.catalog-photo-frame\s*\{[^}]*max-height:\s*none/s);
+    expect(styles).toMatch(/\.catalog-gallery-thumbnails img\s*\{[^}]*object-fit:\s*cover/s);
+    expect(styles).not.toContain(".catalog-photo-frame img {");
+  });
+
   it("supports native navigation, direct detail routes, and popstate without a router dependency", async () => {
     const rows = Array.from({ length: 706 }, (_, index) => bird(index));
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {

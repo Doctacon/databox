@@ -19,7 +19,7 @@
 .public-species-profile { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, .75fr); gap: 20px; }
 .public-species-profile h2 { margin: 5px 0; }
 .public-profile-media { min-width: 0; margin: 0; display: grid; gap: 7px; align-content: start; }
-.public-profile-media > img, .public-profile-media > .media-placeholder { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border: 2px solid var(--ink); }
+.public-profile-media > img, .public-profile-media > .media-placeholder { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; object-position: center; background: var(--cream-200); border: 2px solid var(--ink); }
 .public-profile-media .media-placeholder img { width: min(90%, 250px); }
 .public-profile-media figcaption, .public-audio small { color: var(--muted); font-size: .72rem; overflow-wrap: anywhere; }
 .public-audio { grid-column: 1 / -1; display: grid; gap: 5px; }

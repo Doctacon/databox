@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PublicApp from "./PublicApp";
+import publicStyles from "./publicStyles.css?raw";
 import { PUBLIC_WATCH_STORAGE_KEY } from "./publicWatch";
 import manifest from "../public/data/manifest.json";
 import attribution from "../public/data/attribution.json";
@@ -40,6 +41,10 @@ afterEach(() => {
 });
 
 describe("Rufous public app", () => {
+  it("keeps the complete licensed bird photo visible in its species profile", () => {
+    expect(publicStyles).toMatch(/\.public-profile-media\s*>\s*img[^}]*object-fit:\s*contain;[^}]*object-position:\s*center/s);
+  });
+
   it("builds, saves, evaluates, maps, and downloads a watch without collecting email", async () => {
     const fetchMock = mockFixtureFetch();
     let clickedAnchor: HTMLAnchorElement | null = null;
