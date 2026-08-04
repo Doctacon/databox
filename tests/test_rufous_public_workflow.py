@@ -239,17 +239,20 @@ def test_audio_refresh_is_manual_and_any_audio_pin_change_does_not_deploy(
     )
     implementation = _commit(
         tmp_path,
-        {
-            "packages/databox/databox/public_audio_release.py": "implementation\n",
-            "config/rufous-pinned-public-audio.json": "implementation pin\n",
-        },
+        {"packages/databox/databox/public_audio_release.py": "implementation\n"},
         "implement audio release",
+    )
+    tests_only = _commit(
+        tmp_path,
+        {"tests/test_public_audio_release.py": "tests\n"},
+        "test audio release",
     )
 
     assert _route_dispatch(tmp_path, script, "audio-refresh") == "audio"
     assert _route_push(tmp_path, script, initial, selection_only) == "none"
     assert _route_push(tmp_path, script, selection_only, pin_only) == "none"
     assert _route_push(tmp_path, script, pin_only, implementation) == "none"
+    assert _route_push(tmp_path, script, implementation, tests_only) == "none"
 
 
 def test_pages_job_cannot_publish_or_rebuild_r2_data() -> None:
@@ -439,6 +442,8 @@ def test_explicit_audio_refresh_separates_untrusted_media_from_r2_credentials() 
     assert "tests/test_public_audio_release.py" in prepare_commands
     assert "tests/test_public_audio_selection.py" in prepare_commands
     assert "tests/test_rufous_public_workflow.py" in prepare_commands
+    test_step = prepare_steps[prepare_names.index("Test the bounded public audio release path")]
+    assert test_step["env"] == {"RUFOUS_AUDIO_FIXTURE_FFMPEG": "/usr/bin/ffmpeg"}
     assert (
         "python -m databox.public_audio_release acquire "
         "--selection config/rufous-public-audio-selection.json "

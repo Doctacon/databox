@@ -233,7 +233,9 @@ jobs:
                 fi
                 case "$path" in
                   config/rufous-pinned-public-audio.json|\
-                  config/rufous-public-audio-selection.json)
+                  config/rufous-public-audio-selection.json|\
+                  packages/databox/databox/public_audio*.py|\
+                  tests/test_public_audio*.py)
                     audio_maintenance_change=true
                     ;;
                 esac
@@ -775,6 +777,11 @@ jobs:
       - name: Install focused audio release dependencies
         run: uv sync --all-extras --dev --locked
       - name: Test the bounded public audio release path
+        env:
+          # The pinned sanitizer deliberately has no external encoders. The
+          # runner FFmpeg creates synthetic fixtures only; production bytes
+          # are still sanitized and verified by the pinned build below.
+          RUFOUS_AUDIO_FIXTURE_FFMPEG: /usr/bin/ffmpeg
         run: >-
           uv run pytest
           tests/test_public_audio_export.py

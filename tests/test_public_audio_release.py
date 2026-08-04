@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -42,6 +43,10 @@ from databox.public_release import IMMUTABLE_CACHE_CONTROL, LocalReleaseStore
 def _mp3(seed: bytes = b"rufous") -> bytes:
     body = (seed * (414 // len(seed) + 1))[:413]
     return b"\xff\xfb\x90\x00" + body
+
+
+def _fixture_ffmpeg() -> str:
+    return os.environ.get("RUFOUS_AUDIO_FIXTURE_FFMPEG", "ffmpeg")
 
 
 def _fake_sanitizer(payload: bytes, source_mime: str, output_mime: str) -> bytes:
@@ -570,7 +575,7 @@ def test_mp3_fallback_strips_real_edge_id3_wrapper_and_preserves_xing_frames(
     frames_path = tmp_path / "frames.mp3"
     completed = subprocess.run(
         [
-            "ffmpeg",
+            _fixture_ffmpeg(),
             "-nostdin",
             "-hide_banner",
             "-loglevel",
@@ -802,7 +807,7 @@ def test_real_sanitizer_strips_gps_device_comment_and_creation_metadata(
     source = tmp_path / "private-source.m4a"
     completed = subprocess.run(
         [
-            "ffmpeg",
+            _fixture_ffmpeg(),
             "-nostdin",
             "-hide_banner",
             "-loglevel",
@@ -867,7 +872,7 @@ def test_webm_to_ogg_remux_preserves_decoded_pcm_and_end_padding(tmp_path: Path)
     source = tmp_path / "source.webm"
     completed = subprocess.run(
         [
-            "ffmpeg",
+            _fixture_ffmpeg(),
             "-nostdin",
             "-hide_banner",
             "-loglevel",
