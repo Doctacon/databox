@@ -442,8 +442,6 @@ def test_explicit_audio_refresh_separates_untrusted_media_from_r2_credentials() 
     assert "tests/test_public_audio_release.py" in prepare_commands
     assert "tests/test_public_audio_selection.py" in prepare_commands
     assert "tests/test_rufous_public_workflow.py" in prepare_commands
-    test_step = prepare_steps[prepare_names.index("Test the bounded public audio release path")]
-    assert test_step["env"] == {"RUFOUS_AUDIO_FIXTURE_FFMPEG": "/usr/bin/ffmpeg"}
     assert (
         "python -m databox.public_audio_release acquire "
         "--selection config/rufous-public-audio-selection.json "

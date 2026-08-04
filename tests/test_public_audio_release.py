@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import base64
+import gzip
 import hashlib
 import json
-import os
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -39,14 +40,31 @@ from databox.public_audio_release import (
 from databox.public_export import PUBLIC_AUDIO_SANITIZATION_NOTICE
 from databox.public_release import IMMUTABLE_CACHE_CONTROL, LocalReleaseStore
 
+_MP3_XING_FIXTURE_GZIP_BASE64 = (
+    "H4sIAAAAAAAC/6WUeVBTRxjAN3l5XHkxgAhBEFBBWi4JMikwSoIFK21AwIqEsUEOuaRyIzO1vAQQS4Hp4IBc1oaO"
+    "AoMHcrTYYyD0yCigpSi0kVZALgUs9xggedv3ntOZ/tF/2v5mdt7uzu5v9/u+2QcnvJTgLwLPxKeSHy7ZTABAFWAf"
+    "hYhGTCOhiafJpJHRlNLUUDTQtNMoafpp1DTTNCs0kII6VxydEyvgu/G9wd+wR+6+6qCKlS9Hg8C/A07wfgDs4oNd"
+    "Ej9j8PWLTkWQkqfil8aeJH3T/NJUJUCWyrQyFM7ASQNyfaa2UePFG4fPuKtOb1rivWYqiIWdh4GUB+OO115l5CvA"
+    "rmWHwQVYY/FRq//HpU2zbHS9Z7eOfwJxqvD1q7VTOQzOBtrroe4Fn+BIRJz3Vty0UN7cJkNl4DWc8uhzJNIMSU8T"
+    "UzhGRT4H5zZc2pjBFeAwwLaYIjb1YLVxIEUxpDBjsw+ZhzxN30st02WPAT0QIsTpdNH32ZIkjYzgZoOX5HjtiqXK"
+    "+gt3l3V5D6PM1XslUf5LWFxQHUORUNrFDza8vEbvc4SdYVlpBt/JQA/RTWr3Uh4Opz4mUsPNBAsQ9kFY6dJgv9hS"
+    "L8OcLHgSs8ui1u1BjT9rjd932kCvtJ2mLEQvHMIsTbLDNbeZLIa3PA3wKI8J1pPsBfS/Aj6ye2WiczYJaM1wiert"
+    "AN5VLbrzEsPIZy0w0fnCZ6TgGRMAmWhslI6E6G47FFA+4DxeAnLjKI8lFiiNj0AzfLFteUj2AfGPbJFvuvkfp3ZM"
+    "REWReRhdG1LiSgUHxSFh+9MyhOsEDnVTlwTXWpZjqlNWczNet6iiPLuw0PCcCC6f+Zjb0NFhCeFmNk6Mws1trLOG"
+    "I/LzG93CPjijI2BUFXmLxQcXBUqMs3+pt2S4d/h6Uip3npw9Qnmc2UuRRRqQYzNL6IQ3i84aWQFftbZA0y2ELWTC"
+    "pnTJkvLt9iLXb7mxT40mdyMCPhlj++ocgR+H83agYBPCJ5RHwO4JL9JwbJmt7W8xBc/TrE2qf7O27TepvsHisdiI"
+    "384BdLH+jitV615WhEwJDlht6gi8e2GNnLr5qC7X9IQr5TloJJG+F2Lg47P/tNhBm8BS3kvwJ+syP/Tw900hfKGr"
+    "hBuD1Q8r+t799Zs9DAV2MkU/fsdUYqr0DcdkwPD2XD36jg3tOcpWh+dpDASq6z74qWNZlVmJxSOMc2qiWzj6chmH"
+    "Qli1oRennCnyRPTqlONxIPPRfevj13xt1XAVfw7VG3ikvR3lkRpFJ/sD/U7AfVVPIdHSMF2o9vTO7+eYYXusEJsR"
+    "0fQRkceAu70xI19kxEEmnaq+122ttBM4mGOFSOhtZSblScWSIvM0nHQm/PTuYyv1ICvE2FbcdSbYgmN28ZjDur7j"
+    "/d7iO7eACP08pjy3lu+Gy294YAZuzLSCuoYijycdOCFPozy5mESaGOrXxBzoihIPuC8rbnEMg3XRiyK9D4eQiAr/"
+    "D7S2TCexX1DAPje+u3vzP0J55LzAByoJ+d6b/zuUJxIA5DCD/L3+D8+foU/QbKAFAAA="
+)
+
 
 def _mp3(seed: bytes = b"rufous") -> bytes:
     body = (seed * (414 // len(seed) + 1))[:413]
     return b"\xff\xfb\x90\x00" + body
-
-
-def _fixture_ffmpeg() -> str:
-    return os.environ.get("RUFOUS_AUDIO_FIXTURE_FFMPEG", "ffmpeg")
 
 
 def _fake_sanitizer(payload: bytes, source_mime: str, output_mime: str) -> bytes:
@@ -569,37 +587,11 @@ def test_ffprobe_allows_only_exact_technical_mp3_replay_gain_side_data(
         _probe_audio(_mp3(), "audio/mpeg")
 
 
-def test_mp3_fallback_strips_real_edge_id3_wrapper_and_preserves_xing_frames(
-    tmp_path: Path,
-) -> None:
-    frames_path = tmp_path / "frames.mp3"
-    completed = subprocess.run(
-        [
-            _fixture_ffmpeg(),
-            "-nostdin",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-f",
-            "lavfi",
-            "-i",
-            "sine=frequency=1100:duration=1.031",
-            "-c:a",
-            "libmp3lame",
-            "-id3v2_version",
-            "0",
-            "-write_xing",
-            "1",
-            "-f",
-            "mp3",
-            str(frames_path),
-        ],
-        check=False,
-        capture_output=True,
-        timeout=30,
+def test_mp3_fallback_strips_real_edge_id3_wrapper_and_preserves_xing_frames() -> None:
+    frames = gzip.decompress(base64.b64decode(_MP3_XING_FIXTURE_GZIP_BASE64))
+    assert hashlib.sha256(frames).hexdigest() == (
+        "62fd9c574275b72f8b6c70274e469c9f9c817385a7f7b638eaf0f02c12046a15"
     )
-    assert completed.returncode == 0
-    frames = frames_path.read_bytes()
     assert frames.startswith(b"\xff")
     # Exact 55-byte ID3v2 wrapper shape seen on the Red-naped Sapsucker source.
     id3_wrapper = bytes.fromhex(
@@ -807,7 +799,7 @@ def test_real_sanitizer_strips_gps_device_comment_and_creation_metadata(
     source = tmp_path / "private-source.m4a"
     completed = subprocess.run(
         [
-            _fixture_ffmpeg(),
+            "ffmpeg",
             "-nostdin",
             "-hide_banner",
             "-loglevel",
@@ -872,7 +864,7 @@ def test_webm_to_ogg_remux_preserves_decoded_pcm_and_end_padding(tmp_path: Path)
     source = tmp_path / "source.webm"
     completed = subprocess.run(
         [
-            _fixture_ffmpeg(),
+            "ffmpeg",
             "-nostdin",
             "-hide_banner",
             "-loglevel",
@@ -882,7 +874,9 @@ def test_webm_to_ogg_remux_preserves_decoded_pcm_and_end_padding(tmp_path: Path)
             "-i",
             "sine=frequency=900:duration=1.013",
             "-c:a",
-            "libopus",
+            "opus",
+            "-strict",
+            "experimental",
             str(source),
         ],
         check=False,
