@@ -292,6 +292,7 @@ jobs:
         run: >-
           uv run pytest packages/databox-sources/tests/usfws
           packages/databox-sources/tests/inaturalist
+          tests/test_analytics_contract_inventory.py
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_release.py tests/test_public_media.py
           tests/test_public_release_hydrate.py
@@ -448,6 +449,7 @@ jobs:
         run: >-
           uv run pytest packages/databox-sources/tests/usfws
           packages/databox-sources/tests/inaturalist
+          tests/test_analytics_contract_inventory.py
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_release.py tests/test_public_media.py
           tests/test_public_release_hydrate.py

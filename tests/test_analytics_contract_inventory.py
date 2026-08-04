@@ -26,11 +26,11 @@ def test_current_sqlmesh_assets_have_exactly_one_modeled_soda_check() -> None:
         (spec.key for spec in sqlmesh_project.specs), key=lambda key: tuple(key.path)
     )
     assert analytics.sqlmesh_asset_keys == expected_keys
-    assert len(expected_keys) == 19
+    assert len(expected_keys) == 21
 
     check_keys = [spec.asset_key for check in analytics.asset_checks for spec in check.check_specs]
     assert sorted(check_keys, key=lambda key: tuple(key.path)) == expected_keys
-    assert len(check_keys) == len(set(check_keys)) == 19
+    assert len(check_keys) == len(set(check_keys)) == 21
 
     required = {
         dg.AssetKey(["sqlmesh", "birding_agent", "arizona_species_catalog"]),
@@ -38,13 +38,15 @@ def test_current_sqlmesh_assets_have_exactly_one_modeled_soda_check() -> None:
         dg.AssetKey(["sqlmesh", "environmental_observations", "fact_bird_occurrence"]),
         dg.AssetKey(["sqlmesh", "environmental_observations", "fact_bird_sound_recording"]),
         dg.AssetKey(["sqlmesh", "rufous_public", "gbif_eod_occurrence"]),
+        dg.AssetKey(["sqlmesh", "rufous_public", "inaturalist_commercial_image"]),
+        dg.AssetKey(["sqlmesh", "rufous_public", "usfws_commercial_image"]),
     }
     assert required <= set(check_keys)
 
 
 def test_current_contract_pairs_are_exact_and_exclude_raw_contracts() -> None:
     pairs = analytics.modeled_soda_contracts(sqlmesh_project.specs, SODA_DIR / "contracts")
-    assert len(pairs) == 19
+    assert len(pairs) == 21
     assert all(not path.parent.name.startswith("raw_") for _, path in pairs)
     assert {path.parent.name for _, path in pairs} == {
         "analytics",

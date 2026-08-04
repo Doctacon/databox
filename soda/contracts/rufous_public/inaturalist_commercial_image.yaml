@@ -1,0 +1,68 @@
+dataset: databox/rufous_public/inaturalist_commercial_image
+
+columns:
+  - name: species_code
+    checks:
+      - missing:
+          must_be: 0
+  - name: common_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: scientific_name
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_page_url
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_image_url
+    checks:
+      - missing:
+          must_be: 0
+  - name: creator
+    checks:
+      - missing:
+          must_be: 0
+  - name: license
+    checks:
+      - missing:
+          must_be: 0
+  - name: title
+    checks:
+      - missing:
+          must_be: 0
+  - name: caption
+    checks:
+      - missing:
+          must_be: 0
+  - name: alt_text
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_published_at
+  - name: source_width
+    checks:
+      - missing:
+          must_be: 0
+  - name: source_height
+    checks:
+      - missing:
+          must_be: 0
+  - name: mime_type
+    checks:
+      - missing:
+          must_be: 0
+  - name: discovery_method
+    checks:
+      - missing:
+          must_be: 0
+  - name: loaded_at
+    checks:
+      - missing:
+          must_be: 0
+
+checks:
+  - row_count:
+      must_be_greater_than: 0
