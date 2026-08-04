@@ -690,7 +690,7 @@
       "duration_seconds": 76.38,
       "expected_bytes": 970298,
       "expected_mime_type": "audio/ogg",
-      "expected_sha256": "26cd6284d8f106667ec76efdbf4b1c425b39fd6c22b54551aa207e7cfe4e7b11",
+      "expected_sha256": "b9a059cca278d739ceb78bd696ee6a4a4ade666bc819397e9864013a3259c475",
       "license": "CC BY 2.0",
       "license_url": "https://creativecommons.org/licenses/by/2.0/",
       "modification_notice": "Audio stream copied into a metadata-free audio-only file without re-encoding; source metadata, chapters, and non-audio streams were removed.",
@@ -3726,7 +3726,7 @@
     }
   ],
   "mode": "rufous-audio-selection",
-  "reviewed_at": "2026-08-04T18:04:25Z",
+  "reviewed_at": "2026-08-04T20:35:21Z",
   "reviewed_by": "Rufous commercial-use source review",
   "schema_version": 1
 }

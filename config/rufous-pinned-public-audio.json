@@ -4,7 +4,7 @@
     "objects": 196,
     "species": 196
   },
-  "generated_at": "2026-08-04T19:26:34.065688Z",
+  "generated_at": "2026-08-04T20:35:21Z",
   "items": [
     {
       "bytes": 1446524,
@@ -703,10 +703,10 @@
       "provider": "wikimedia",
       "provider_id": "File:Sound_of_chick_and_response_from_California_condor_-111_(26156534211).webm",
       "scientific_name": "Gymnogyps californianus",
-      "sha256": "26cd6284d8f106667ec76efdbf4b1c425b39fd6c22b54551aa207e7cfe4e7b11",
+      "sha256": "b9a059cca278d739ceb78bd696ee6a4a4ade666bc819397e9864013a3259c475",
       "source_url": "https://commons.wikimedia.org/wiki/File:Sound_of_chick_and_response_from_California_condor_-111_(26156534211).webm",
       "species_code": "gbif-2481920",
-      "url": "https://rufous-data.loughondata.com/rufous-audio/v1/objects/26/26cd6284d8f106667ec76efdbf4b1c425b39fd6c22b54551aa207e7cfe4e7b11.ogg",
+      "url": "https://rufous-data.loughondata.com/rufous-audio/v1/objects/b9/b9a059cca278d739ceb78bd696ee6a4a4ade666bc819397e9864013a3259c475.ogg",
       "vocalization_type": "chick call and adult response"
     },
     {
