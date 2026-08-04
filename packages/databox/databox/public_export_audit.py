@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 from collections.abc import Mapping
 from datetime import date
@@ -13,6 +14,15 @@ from urllib.parse import unquote, urlsplit
 
 from databox.public_export import (
     ALLOWED_LICENSES,
+    AVONET_CREDIT,
+    AVONET_DATASET_DOI,
+    AVONET_DATASET_URL,
+    AVONET_LICENSE,
+    AVONET_LICENSE_URL,
+    AVONET_MODIFICATIONS,
+    AVONET_SOURCE_FILE_ID,
+    AVONET_SOURCE_FILE_MD5,
+    AVONET_VERSION,
     GBIF_EBIRD_EOD_DATASET_KEY,
     GBIF_EBIRD_EOD_DISCLAIMER,
     GBIF_EBIRD_EOD_PUBLISHER,
@@ -81,6 +91,73 @@ _ALLOWED_STATIC_SUFFIXES = frozenset(
 )
 _ALLOWED_EXTENSIONLESS = frozenset({"_headers", "_redirects"})
 _PUBLIC_ASSET_GENERATION_MARKER = "-g2-"
+_PUBLIC_AVONET_TRAIT_KEYS = frozenset(
+    {
+        "source_scientific_name",
+        "avonet_family",
+        "avonet_order_name",
+        "avibase_id",
+        "total_individuals",
+        "female_individuals",
+        "male_individuals",
+        "unknown_sex_individuals",
+        "complete_measures",
+        "beak_length_culmen_mm",
+        "beak_length_nares_mm",
+        "beak_width_mm",
+        "beak_depth_mm",
+        "tarsus_length_mm",
+        "wing_length_mm",
+        "kipps_distance_mm",
+        "secondary_length_mm",
+        "hand_wing_index",
+        "tail_length_mm",
+        "mass_g",
+        "mass_source",
+        "mass_reference_other",
+        "inference",
+        "traits_inferred",
+        "reference_species",
+        "habitat",
+        "habitat_density_code",
+        "habitat_density_label",
+        "migration_code",
+        "migration_label",
+        "trophic_level",
+        "trophic_niche",
+        "primary_lifestyle",
+        "dataset_doi",
+        "dataset_version",
+        "dataset_license",
+        "source_file_id",
+        "source_file_md5",
+    }
+)
+_PUBLIC_AVONET_COUNT_FIELDS = frozenset(
+    {
+        "total_individuals",
+        "female_individuals",
+        "male_individuals",
+        "unknown_sex_individuals",
+        "complete_measures",
+    }
+)
+_PUBLIC_AVONET_MEASUREMENT_FIELDS = frozenset(
+    {
+        "beak_length_culmen_mm",
+        "beak_length_nares_mm",
+        "beak_width_mm",
+        "beak_depth_mm",
+        "tarsus_length_mm",
+        "wing_length_mm",
+        "kipps_distance_mm",
+        "secondary_length_mm",
+        "hand_wing_index",
+        "tail_length_mm",
+        "mass_g",
+    }
+)
+_SCIENTIFIC_AUTHORITY_SUFFIX = re.compile(r"\s*\([^)]*\)\s*$")
 _REVIEWED_SPA_REDIRECTS = (
     "/birds / 200",
     "/credits / 200",
@@ -786,6 +863,33 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
         findings.append("manifest mode must be public")
     mode = manifest.get("release_mode")
     source_policy = manifest.get("source_policy")
+    manifest_species = manifest.get("species")
+    counts_metadata = manifest.get("counts")
+    has_catalog_summary_contract = isinstance(manifest_species, list) and any(
+        isinstance(item, dict)
+        and any(
+            field in item
+            for field in (
+                "taxonomic_category",
+                "family",
+                "order_name",
+                "trait_summary",
+                "evidence",
+            )
+        )
+        for item in manifest_species
+    )
+    has_trait_contract = (
+        (
+            isinstance(source_policy, dict)
+            and ("trait_source" in source_policy or "trait_delivery" in source_policy)
+        )
+        or (isinstance(counts_metadata, dict) and "species_with_traits" in counts_metadata)
+        or (
+            isinstance(manifest_species, list)
+            and any(isinstance(item, dict) and "trait_summary" in item for item in manifest_species)
+        )
+    )
     advertised_media_providers: frozenset[str] = frozenset()
     advertised_audio_providers: frozenset[str] = frozenset()
     if not isinstance(source_policy, dict):
@@ -831,6 +935,11 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
                 findings.append("production GBIF source must disclose bounded sample coverage")
             if source_policy.get("required_taxon_key") != GBIF_RUFOUS_TAXON_KEY:
                 findings.append("production GBIF source must reserve the Rufous taxon")
+            if has_trait_contract:
+                if source_policy.get("trait_source") != "avonet":
+                    findings.append("production trait source must be AVONET")
+                if source_policy.get("trait_delivery") != "inline_static_json":
+                    findings.append("production AVONET traits must use static JSON delivery")
             if not advertised_media_providers:
                 findings.append("production media source must identify a reviewed provider")
         elif mode == "synthetic":
@@ -842,6 +951,11 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
                 findings.append("synthetic manifest must disclose fixture coverage")
             if source_policy.get("required_taxon_key") is not None:
                 findings.append("synthetic manifest must not claim a required GBIF taxon")
+            if has_trait_contract:
+                if source_policy.get("trait_source") != "synthetic":
+                    findings.append("synthetic trait source marker is missing")
+                if source_policy.get("trait_delivery") != "inline_static_json":
+                    findings.append("synthetic traits must use static JSON delivery")
     if mode not in {"production", "synthetic"}:
         findings.append("manifest release_mode must be synthetic or production")
 
@@ -863,7 +977,10 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
             if isinstance(sources, list)
             else set()
         )
-        for required in ("gbif_ebird_eod", "usgs_gnis", "us_census_tigerweb"):
+        required_providers = ["gbif_ebird_eod", "usgs_gnis", "us_census_tigerweb"]
+        if has_trait_contract:
+            required_providers.append("avonet")
+        for required in required_providers:
             if required not in providers:
                 findings.append(f"production attribution is missing {required}")
         if "ebird" in providers:
@@ -897,6 +1014,34 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
                 findings.append(
                     "production GBIF attribution must retain the dataset accuracy notice"
                 )
+        avonet_sources = (
+            [
+                item
+                for item in sources
+                if isinstance(item, dict) and item.get("provider") == "avonet"
+            ]
+            if isinstance(sources, list)
+            else []
+        )
+        if has_trait_contract and len(avonet_sources) != 1:
+            findings.append("production attribution must contain one AVONET source")
+        elif has_trait_contract:
+            avonet = avonet_sources[0]
+            expected_avonet = {
+                "url": AVONET_DATASET_URL,
+                "license": AVONET_LICENSE,
+                "license_url": AVONET_LICENSE_URL,
+                "credit": AVONET_CREDIT,
+                "modifications": AVONET_MODIFICATIONS,
+                "dataset_doi": AVONET_DATASET_DOI,
+                "dataset_version": AVONET_VERSION,
+                "source_file_id": AVONET_SOURCE_FILE_ID,
+                "source_file_md5": AVONET_SOURCE_FILE_MD5,
+            }
+            if any(avonet.get(key) != value for key, value in expected_avonet.items()):
+                findings.append("production AVONET attribution does not match its pinned source")
+        elif avonet_sources:
+            findings.append("production attribution contains unadvertised AVONET traits")
     findings.extend(
         _audit_media_attribution_sources(
             sources,
@@ -915,7 +1060,7 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
         if isinstance(item, dict) and isinstance(item.get("attribution_id"), str)
     }
     attribution_ids = set(attribution_by_id)
-    species = manifest.get("species")
+    species = manifest_species
     cells = manifest.get("cells")
     prefixes = manifest.get("place_prefixes")
     production_has_rufous = False
@@ -923,6 +1068,7 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
     observed_media_providers: set[str] = set()
     media_item_count = 0
     species_with_media = 0
+    species_with_traits = 0
     audio_item_count = 0
     species_with_audio = 0
     observed_audio_providers: set[str] = set()
@@ -943,6 +1089,29 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
             for field in ("species_code", "common_name", "scientific_name"):
                 if item.get(field) != profile.get(field):
                     findings.append(f"species summary disagrees with profile field {field}")
+            if has_catalog_summary_contract:
+                for field in ("taxonomic_category", "family", "order_name", "evidence"):
+                    if item.get(field) != profile.get(field):
+                        findings.append(f"species summary disagrees with profile field {field}")
+            profile_traits = profile.get("traits")
+            has_traits = (
+                isinstance(profile_traits, dict)
+                and bool(profile_traits)
+                and any(value is not None for value in profile_traits.values())
+            )
+            expected_trait_summary = {
+                "status": "available" if has_traits else "unavailable",
+                "mass_g": (
+                    profile_traits.get("mass_g") if isinstance(profile_traits, dict) else None
+                ),
+                "habitat": (
+                    profile_traits.get("habitat") if isinstance(profile_traits, dict) else None
+                ),
+            }
+            if has_catalog_summary_contract and item.get("trait_summary") != expected_trait_summary:
+                findings.append("species summary trait_summary disagrees with its profile")
+            if has_traits:
+                species_with_traits += 1
             if "call" not in item or "call" not in profile:
                 findings.append("species summary and profile must declare an optional call")
             media = profile.get("media")
@@ -989,6 +1158,8 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
         findings.append("production species index is missing Rufous Hummingbird")
     elif mode == "production" and not production_rufous_has_media:
         findings.append("production Rufous Hummingbird profile is missing reviewed public media")
+    if mode == "production" and has_trait_contract and species_with_traits == 0:
+        findings.append("production species profiles are missing AVONET traits")
     if frozenset(observed_media_providers) != advertised_media_providers:
         findings.append("manifest media source marker does not match species profiles")
     if frozenset(observed_audio_providers) != advertised_audio_providers:
@@ -1001,6 +1172,8 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
             findings.append("manifest media_items count does not match profiles")
         if counts.get("species_with_media") != species_with_media:
             findings.append("manifest species_with_media count does not match profiles")
+        if has_trait_contract and counts.get("species_with_traits") != species_with_traits:
+            findings.append("manifest species_with_traits count does not match profiles")
         if counts.get("audio_items") != audio_item_count:
             findings.append("manifest audio_items count does not match profiles")
         if counts.get("species_with_audio") != species_with_audio:
@@ -1171,6 +1344,90 @@ def _audit_species_profile(
     for field in ("species_code", "common_name", "scientific_name"):
         if not isinstance(profile.get(field), str) or not profile[field].strip():
             findings.append(f"{relative} is missing {field}")
+    family = profile.get("family")
+    if (
+        not isinstance(family, dict)
+        or set(family) != {"common_name", "scientific_name"}
+        or any(value is not None and not isinstance(value, str) for value in family.values())
+    ):
+        findings.append(f"{relative} family is malformed")
+    evidence = profile.get("evidence")
+    if (
+        not isinstance(evidence, dict)
+        or set(evidence) != {"licensed_occurrence_count", "latest_licensed_occurrence_at"}
+        or type(evidence.get("licensed_occurrence_count")) is not int
+        or evidence.get("licensed_occurrence_count", -1) < 0
+    ):
+        findings.append(f"{relative} occurrence evidence is malformed")
+    elif mode == "production":
+        latest = evidence.get("latest_licensed_occurrence_at")
+        try:
+            parsed_latest = date.fromisoformat(latest) if isinstance(latest, str) else None
+        except ValueError:
+            parsed_latest = None
+        if latest is not None and (parsed_latest is None or latest != parsed_latest.isoformat()):
+            findings.append(f"{relative} latest occurrence evidence must be day-level")
+    traits = profile.get("traits")
+    if not isinstance(traits, dict):
+        findings.append(f"{relative} traits must be an object")
+    elif mode == "production" and traits:
+        if set(traits) != _PUBLIC_AVONET_TRAIT_KEYS:
+            findings.append(f"{relative} AVONET traits do not match the public allowlist")
+        for field in (
+            "source_scientific_name",
+            "avonet_family",
+            "avonet_order_name",
+            "avibase_id",
+        ):
+            if not isinstance(traits.get(field), str) or not traits[field].strip():
+                findings.append(f"{relative} AVONET traits are missing {field}")
+        source_name = traits.get("source_scientific_name")
+        profile_name = profile.get("scientific_name")
+        if (
+            isinstance(source_name, str)
+            and isinstance(profile_name, str)
+            and _SCIENTIFIC_AUTHORITY_SUFFIX.sub("", source_name).strip().casefold()
+            != profile_name.strip().casefold()
+        ):
+            findings.append(f"{relative} AVONET scientific identity does not match the profile")
+        for field in _PUBLIC_AVONET_COUNT_FIELDS:
+            value = traits.get(field)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                findings.append(f"{relative} AVONET {field} is malformed")
+        for field in _PUBLIC_AVONET_MEASUREMENT_FIELDS:
+            value = traits.get(field)
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, int | float)
+                or not math.isfinite(float(value))
+                or float(value) < 0
+            ):
+                findings.append(f"{relative} AVONET {field} is malformed")
+        if type(traits.get("inference")) is not bool:
+            findings.append(f"{relative} AVONET inference is malformed")
+        habitat_density_code = traits.get("habitat_density_code")
+        if (
+            not isinstance(habitat_density_code, int)
+            or isinstance(habitat_density_code, bool)
+            or habitat_density_code not in {1, 2, 3}
+        ):
+            findings.append(f"{relative} AVONET habitat_density_code is malformed")
+        migration_code = traits.get("migration_code")
+        if migration_code is not None and (
+            not isinstance(migration_code, int)
+            or isinstance(migration_code, bool)
+            or migration_code not in {1, 2, 3}
+        ):
+            findings.append(f"{relative} AVONET migration_code is malformed")
+        expected_provenance = {
+            "dataset_doi": AVONET_DATASET_DOI,
+            "dataset_version": AVONET_VERSION,
+            "dataset_license": AVONET_LICENSE,
+            "source_file_id": AVONET_SOURCE_FILE_ID,
+            "source_file_md5": AVONET_SOURCE_FILE_MD5,
+        }
+        if any(traits.get(key) != value for key, value in expected_provenance.items()):
+            findings.append(f"{relative} AVONET provenance is not pinned")
     media = profile.get("media")
     if not isinstance(media, list):
         findings.append(f"{relative} media must be an array")

@@ -74,6 +74,7 @@ def test_audio_manifest_exports_one_optional_call_with_full_attribution(tmp_path
         "attribution_items": 1,
         "media_items": 0,
         "species_with_media": 0,
+        "species_with_traits": 2,
         "audio_items": 1,
         "species_with_audio": 1,
     }

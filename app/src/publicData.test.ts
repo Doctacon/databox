@@ -121,9 +121,102 @@ function productionManifest(
   };
 }
 
+function compactMetadataManifest(): PublicManifest {
+  return {
+    ...structuredClone(manifest),
+    source_policy: {
+      ...manifest.source_policy,
+      trait_source: "synthetic",
+      trait_delivery: "inline_static_json",
+    },
+    species: [{
+      species_code: "rufhum",
+      common_name: "Rufous Hummingbird",
+      scientific_name: "Selasphorus rufus",
+      profile_path: "/data/species/rufhum.json",
+      hero_photo: null,
+      photo_count: 0,
+      taxonomic_category: "species",
+      family: { common_name: "Hummingbirds", scientific_name: "Trochilidae" },
+      order_name: "Caprimulgiformes",
+      trait_summary: { status: "available", mass_g: 3.4, habitat: "Woodland edges" },
+      evidence: { licensed_occurrence_count: 12, latest_licensed_occurrence_at: "2026-07-31" },
+    }],
+    counts: { ...manifest.counts, species: 1, species_with_traits: 1 },
+  };
+}
+
+function productionTraitManifest(): PublicManifest {
+  const production = productionManifest("usfws");
+  production.source_policy.trait_source = "avonet";
+  production.source_policy.trait_delivery = "inline_static_json";
+  Object.assign(production.species[0], {
+    taxonomic_category: "species",
+    family: { common_name: "Hummingbirds", scientific_name: "Trochilidae" },
+    order_name: "Caprimulgiformes",
+    trait_summary: { status: "available", mass_g: 3.4, habitat: "Woodland edges" },
+    evidence: { licensed_occurrence_count: 12, latest_licensed_occurrence_at: "2026-07-31" },
+  });
+  production.counts.species_with_traits = 1;
+  return production;
+}
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("public static data", () => {
+  it("accepts safe compact catalog metadata while legacy summaries remain optional", async () => {
+    const compact = compactMetadataManifest();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(compact), { status: 200 }));
+
+    await expect(getPublicManifest()).resolves.toMatchObject({
+      species: [expect.objectContaining({
+        family: { common_name: "Hummingbirds", scientific_name: "Trochilidae" },
+        trait_summary: { status: "available", mass_g: 3.4, habitat: "Woodland edges" },
+        evidence: { licensed_occurrence_count: 12, latest_licensed_occurrence_at: "2026-07-31" },
+      })],
+    });
+  });
+
+  it.each([
+    ["an unsupported taxonomic category", { taxonomic_category: "subspecies" }],
+    ["a malformed family", { family: { common_name: "Hummingbirds", scientific_name: 42 } }],
+    ["an invalid compact mass", { trait_summary: { status: "available", mass_g: -1, habitat: "Woodland edges" } }],
+    ["a negative occurrence count", { evidence: { licensed_occurrence_count: -1, latest_licensed_occurrence_at: null } }],
+    ["an invalid occurrence timestamp", { evidence: { licensed_occurrence_count: 1, latest_licensed_occurrence_at: "not-a-date" } }],
+  ])("rejects compact catalog metadata with %s", async (_label, mutation) => {
+    const invalid = compactMetadataManifest();
+    Object.assign(invalid.species[0], mutation);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(invalid), { status: 200 }));
+
+    await expect(getPublicManifest()).rejects.toThrow("This Rufous public data release is not supported.");
+  });
+
+  it("rejects compact trait summaries that omit their source policy and count", async () => {
+    const invalid = compactMetadataManifest();
+    delete invalid.source_policy.trait_source;
+    delete invalid.source_policy.trait_delivery;
+    delete invalid.counts.species_with_traits;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(invalid), { status: 200 }));
+
+    await expect(getPublicManifest()).rejects.toThrow("This Rufous public data release is not supported.");
+  });
+
+  it("rejects a partial compact catalog contract", async () => {
+    const invalid = compactMetadataManifest();
+    delete invalid.species[0].evidence;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(invalid), { status: 200 }));
+
+    await expect(getPublicManifest()).rejects.toThrow("This Rufous public data release is not supported.");
+  });
+
+  it("rejects full timestamps in production compact occurrence evidence", async () => {
+    const invalid = productionTraitManifest();
+    invalid.species[0].evidence!.latest_licensed_occurrence_at = "2026-07-31T08:00:00-07:00";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(invalid), { status: 200 }));
+
+    await expect(getPublicManifest()).rejects.toThrow("This Rufous public data release is not supported.");
+  });
+
   it("uses normalized two-character place shards", () => {
     expect(normalizedPrefix("Préscott")).toBe("pr");
     expect(normalizedPrefix("A")).toBe("a_");
@@ -300,6 +393,47 @@ describe("public static data", () => {
       String(input).endsWith("manifest.json") ? production : incompleteAttribution,
     ), { status: 200 })));
     await getPublicManifest();
+    await expect(getPublicAttribution("/data/attribution.json"))
+      .rejects.toThrow("The attribution shard did not match its manifest entry.");
+  });
+
+  it("pins AVONET creator credit, version link, and Rufous change notice", async () => {
+    const production = productionTraitManifest();
+    const attribution = {
+      schema_version: 1,
+      generated_at: "2026-08-03T12:00:00Z",
+      sources: [
+        {
+          provider: "usfws",
+          title: "U.S. Fish and Wildlife Service Media Library",
+          url: "https://www.fws.gov/search/images",
+          license: "Per-item Public Domain or Creative Commons license",
+          license_url: "https://www.fws.gov/notices",
+          credit: "Individual creators are credited beside each image.",
+        },
+        {
+          provider: "avonet",
+          title: "AVONET: morphological, ecological and geographical data for all birds",
+          url: "https://doi.org/10.6084/m9.figshare.16586228.v7",
+          license: "CC BY 4.0",
+          license_url: "https://creativecommons.org/licenses/by/4.0/",
+          credit: "Joseph Tobias. AVONET: morphological, ecological and geographical data for all birds, version 7. Figshare. https://doi.org/10.6084/m9.figshare.16586228.v7",
+          modifications: "Rufous selected exact scientific-name matches for birds in the licensed Arizona occurrence release, renamed fields for the public profile, and omitted AVONET geographical range fields.",
+          dataset_doi: "10.6084/m9.figshare.16586228.v7",
+          dataset_version: "v7",
+          source_file_id: 34480856,
+          source_file_md5: "1445afdcfb6df784010c2ca034544bc8",
+        },
+      ],
+      items: [],
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => Promise.resolve(new Response(JSON.stringify(
+      String(input).endsWith("manifest.json") ? production : attribution,
+    ), { status: 200 })));
+    await getPublicManifest();
+    await expect(getPublicAttribution("/data/attribution.json")).resolves.toEqual(attribution);
+
+    attribution.sources[1].credit = "Anonymous trait compilation";
     await expect(getPublicAttribution("/data/attribution.json"))
       .rejects.toThrow("The attribution shard did not match its manifest entry.");
   });

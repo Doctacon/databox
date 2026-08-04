@@ -1,22 +1,22 @@
-# rufous_public.usfws_commercial_image
+# rufous_public.inaturalist_commercial_image
 
-Commercial-use USFWS bird images from the latest complete caller-owned species snapshot; exact scientific tags, safe FWS URLs, usable credits, fail-closed licenses, and official restricted marks excluded.
+Strictly commercial-use iNaturalist taxon-photo candidates for catalog species without an approved image, selected from the latest internally coherent complete snapshot.
 
 ## Overview
 
 | Field | Value |
 | --- | --- |
 | Schema | `rufous_public` |
-| Name | `usfws_commercial_image` |
+| Name | `inaturalist_commercial_image` |
 | Kind | `FULL` |
-| Soda contract | [`soda/contracts/rufous_public/usfws_commercial_image.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/rufous_public/usfws_commercial_image.yaml) |
+| Soda contract | [`soda/contracts/rufous_public/inaturalist_commercial_image.yaml`](https://github.com/Doctacon/databox/blob/main/soda/contracts/rufous_public/inaturalist_commercial_image.yaml) |
 
 ## Columns
 
 | Column | Type | Checks | Notes |
 | --- | --- | --- | --- |
 | `alt_text` | `TEXT` | missing (must_be=0) | — |
-| `caption` | `TEXT` | — | — |
+| `caption` | `TEXT` | missing (must_be=0) | — |
 | `common_name` | `TEXT` | missing (must_be=0) | — |
 | `creator` | `TEXT` | missing (must_be=0) | — |
 | `discovery_method` | `TEXT` | missing (must_be=0) | — |
@@ -40,11 +40,12 @@ Commercial-use USFWS bird images from the latest complete caller-owned species s
 
 **Upstream**
 
-- `raw_usfws.image_records` (external)
-- `raw_usfws.image_search_runs` (external)
+- `raw_inaturalist.photo_candidates` (external)
+- `raw_inaturalist.photo_discovery_runs` (external)
+- `raw_inaturalist.photo_species_results` (external)
 
 ## Example query
 
 ```sql
-SELECT * FROM rufous_public.usfws_commercial_image LIMIT 100;
+SELECT * FROM rufous_public.inaturalist_commercial_image LIMIT 100;
 ```

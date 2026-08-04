@@ -66,22 +66,91 @@ def _usfws_item() -> dict[str, object]:
     }
 
 
+def _avonet_traits() -> dict[str, object]:
+    return {
+        "source_scientific_name": "Selasphorus rufus (Gmelin)",
+        "avonet_family": "Trochilidae",
+        "avonet_order_name": "Caprimulgiformes",
+        "avibase_id": "AVIBASE-RUFOUS",
+        "total_individuals": 10,
+        "female_individuals": 4,
+        "male_individuals": 5,
+        "unknown_sex_individuals": 1,
+        "complete_measures": 8,
+        "beak_length_culmen_mm": 16.1,
+        "beak_length_nares_mm": 11.2,
+        "beak_width_mm": 3.1,
+        "beak_depth_mm": 2.8,
+        "tarsus_length_mm": 5.0,
+        "wing_length_mm": 43.0,
+        "kipps_distance_mm": 12.0,
+        "secondary_length_mm": 31.0,
+        "hand_wing_index": 27.9,
+        "tail_length_mm": 29.0,
+        "mass_g": 3.4,
+        "mass_source": "AVONET compilation",
+        "mass_reference_other": None,
+        "inference": False,
+        "traits_inferred": None,
+        "reference_species": None,
+        "habitat": "Woodland",
+        "habitat_density_code": 2,
+        "habitat_density_label": "Semi-open",
+        "migration_code": 3,
+        "migration_label": "Migratory",
+        "trophic_level": "Omnivore",
+        "trophic_niche": "Nectarivore",
+        "primary_lifestyle": "Aerial",
+        "dataset_doi": "10.6084/m9.figshare.16586228.v7",
+        "dataset_version": "v7",
+        "dataset_license": "CC BY 4.0",
+        "source_file_id": 34480856,
+        "source_file_md5": "1445afdcfb6df784010c2ca034544bc8",
+        "loaded_at": "2026-08-03T12:00:00+00:00",
+    }
+
+
+def _species(
+    species_code: str,
+    common_name: str,
+    scientific_name: str,
+    *,
+    media: list[dict[str, object]],
+    traits: dict[str, object] | None = None,
+) -> dict[str, object]:
+    return {
+        "species_code": species_code,
+        "common_name": common_name,
+        "scientific_name": scientific_name,
+        "taxonomic_category": "species",
+        "family": {"common_name": None, "scientific_name": "Testidae"},
+        "order_name": "Passeriformes",
+        "traits": traits or {},
+        "evidence": {
+            "licensed_occurrence_count": 1,
+            "latest_licensed_occurrence_at": "2026-08-02",
+        },
+        "media": media,
+    }
+
+
 def _base_assets() -> dict[str, dict[str, object]]:
     species: list[dict[str, object]] = [
-        {
-            "species_code": "rufous",
-            "common_name": "Rufous Hummingbird",
-            "scientific_name": BASE_NAME,
-            "media": [_usfws_item()],
-        }
+        _species(
+            "rufous",
+            "Rufous Hummingbird",
+            BASE_NAME,
+            media=[_usfws_item()],
+            traits=_avonet_traits(),
+        )
     ]
     species.extend(
-        {
-            "species_code": f"bird-{index:02d}",
-            "common_name": f"Test Bird {index + 1}",
-            "scientific_name": scientific_name,
-            "media": [],
-        }
+        _species(
+            f"bird-{index:02d}",
+            f"Test Bird {index + 1}",
+            scientific_name,
+            media=[],
+        )
         for index, scientific_name in enumerate(CATALOG_NAMES)
     )
     records = PublicRecords(

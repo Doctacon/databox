@@ -171,6 +171,45 @@ GBIF_RUFOUS_TAXON_KEY = 2476855
 GBIF_EBIRD_EOD_DISCLAIMER = (
     "No warranty either expressed or implied is made regarding the accuracy of these data."
 )
+AVONET_TRAITS_TABLE = "rufous_public.avonet_species_traits"
+AVONET_DATASET_DOI = "10.6084/m9.figshare.16586228.v7"
+AVONET_DATASET_URL = "https://doi.org/10.6084/m9.figshare.16586228.v7"
+AVONET_SOURCE_URL = "https://ndownloader.figshare.com/files/34480856"
+AVONET_VERSION = "v7"
+AVONET_LICENSE = "CC BY 4.0"
+AVONET_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
+AVONET_SOURCE_FILE_ID = 34480856
+AVONET_SOURCE_FILE_MD5 = "1445afdcfb6df784010c2ca034544bc8"
+AVONET_CREDIT = (
+    "Joseph Tobias. AVONET: morphological, ecological and geographical data for all "
+    "birds, version 7. Figshare. https://doi.org/10.6084/m9.figshare.16586228.v7"
+)
+AVONET_MODIFICATIONS = (
+    "Rufous selected exact scientific-name matches for birds in the licensed Arizona "
+    "occurrence release, renamed fields for the public profile, and omitted AVONET "
+    "geographical range fields."
+)
+
+_AVONET_COUNT_FIELDS = (
+    "total_individuals",
+    "female_individuals",
+    "male_individuals",
+    "unknown_sex_individuals",
+    "complete_measures",
+)
+_AVONET_MEASUREMENT_FIELDS = (
+    "beak_length_culmen_mm",
+    "beak_length_nares_mm",
+    "beak_width_mm",
+    "beak_depth_mm",
+    "tarsus_length_mm",
+    "wing_length_mm",
+    "kipps_distance_mm",
+    "secondary_length_mm",
+    "hand_wing_index",
+    "tail_length_mm",
+    "mass_g",
+)
 
 ExportMode = Literal["synthetic", "production"]
 JsonObject = dict[str, Any]
@@ -1260,7 +1299,7 @@ def _synthetic_observation(
 
 
 def records_from_database(database_path: Path, gnis_places: list[JsonObject]) -> PublicRecords:
-    """Read only the separately modeled, licensed GBIF EOD public projection."""
+    """Read only separately modeled, commercially reusable public projections."""
     if not database_path.is_file():
         raise PublicExportError(f"public source database does not exist: {database_path}")
     for place in gnis_places:
@@ -1269,10 +1308,26 @@ def records_from_database(database_path: Path, gnis_places: list[JsonObject]) ->
     connection = duckdb.connect(str(database_path), read_only=True)
     rejected: Counter[str] = Counter()
     try:
-        _require_tables(connection, {GBIF_EBIRD_EOD_TABLE})
+        _require_tables(connection, {GBIF_EBIRD_EOD_TABLE, AVONET_TRAITS_TABLE})
         species, observations, attribution, source_generated_at = _database_gbif_eod_records(
             connection, rejected
         )
+        traits_by_name, traits_generated_at = _database_avonet_traits(connection)
+        matched_traits = 0
+        for item in species:
+            scientific_name = _text(item.get("scientific_name"), maximum=200)
+            traits = traits_by_name.get(scientific_name.casefold()) if scientific_name else None
+            if traits is None:
+                rejected["avonet_no_exact_match"] += 1
+                continue
+            item["traits"] = traits
+            matched_traits += 1
+        if species and matched_traits == 0:
+            raise PublicExportError(
+                "AVONET public traits do not exactly match any published species"
+            )
+        freshness = [value for value in (source_generated_at, traits_generated_at) if value]
+        source_generated_at = max(freshness) if freshness else None
     finally:
         connection.close()
     return PublicRecords(
@@ -1283,6 +1338,110 @@ def records_from_database(database_path: Path, gnis_places: list[JsonObject]) ->
         rejected=rejected,
         source_generated_at=source_generated_at,
     )
+
+
+def _database_avonet_traits(
+    connection: duckdb.DuckDBPyConnection,
+) -> tuple[dict[str, JsonObject], str | None]:
+    """Load the fixed CC BY AVONET projection without geographical range fields."""
+    cursor = connection.execute(
+        f"""SELECT species_natural_key, source_scientific_name, family, order_name,
+          avibase_id, total_individuals, female_individuals, male_individuals,
+          unknown_sex_individuals, complete_measures, beak_length_culmen_mm,
+          beak_length_nares_mm, beak_width_mm, beak_depth_mm, tarsus_length_mm,
+          wing_length_mm, kipps_distance_mm, secondary_length_mm, hand_wing_index,
+          tail_length_mm, mass_g, mass_source, mass_reference_other, inference,
+          traits_inferred, reference_species, habitat, habitat_density_code,
+          habitat_density_label, migration_code, migration_label, trophic_level,
+          trophic_niche, primary_lifestyle, dataset_doi, dataset_version,
+          dataset_license, source_file_id, source_file_md5, source_url, loaded_at
+        FROM {AVONET_TRAITS_TABLE}
+        ORDER BY species_natural_key"""
+    )
+    columns = [str(item[0]) for item in cursor.description]
+    output: dict[str, JsonObject] = {}
+    freshness: list[str] = []
+    for values in cursor.fetchall():
+        row = dict(zip(columns, values, strict=True))
+        natural_key = _text(row["species_natural_key"], maximum=200)
+        source_name = _text(row["source_scientific_name"], maximum=200)
+        family = _text(row["family"], maximum=200)
+        order_name = _text(row["order_name"], maximum=200)
+        avibase_id = _text(row["avibase_id"], maximum=200)
+        loaded_at = _iso_utc(row["loaded_at"])
+        if (
+            natural_key is None
+            or natural_key != natural_key.casefold()
+            or natural_key in output
+            or source_name is None
+            or family is None
+            or order_name is None
+            or avibase_id is None
+            or row["dataset_doi"] != AVONET_DATASET_DOI
+            or row["dataset_version"] != AVONET_VERSION
+            or row["dataset_license"] != AVONET_LICENSE
+            or row["source_file_id"] != AVONET_SOURCE_FILE_ID
+            or row["source_file_md5"] != AVONET_SOURCE_FILE_MD5
+            or row["source_url"] != AVONET_SOURCE_URL
+            or loaded_at is None
+            or not isinstance(row["inference"], bool)
+            or not isinstance(row["habitat_density_code"], int)
+            or isinstance(row["habitat_density_code"], bool)
+            or row["habitat_density_code"] not in {1, 2, 3}
+            or (
+                row["migration_code"] is not None
+                and (
+                    not isinstance(row["migration_code"], int)
+                    or isinstance(row["migration_code"], bool)
+                    or row["migration_code"] not in {1, 2, 3}
+                )
+            )
+        ):
+            raise PublicExportError("AVONET public trait row fails its pinned contract")
+        for field in _AVONET_COUNT_FIELDS:
+            value = row[field]
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise PublicExportError("AVONET public trait counts are malformed")
+        for field in _AVONET_MEASUREMENT_FIELDS:
+            value = row[field]
+            if value is not None and (
+                isinstance(value, bool)
+                or not isinstance(value, int | float)
+                or not math.isfinite(float(value))
+                or float(value) < 0
+            ):
+                raise PublicExportError("AVONET public trait measurements are malformed")
+        traits: JsonObject = {
+            "source_scientific_name": source_name,
+            "avonet_family": family,
+            "avonet_order_name": order_name,
+            "avibase_id": avibase_id,
+            **{field: row[field] for field in _AVONET_COUNT_FIELDS},
+            **{field: row[field] for field in _AVONET_MEASUREMENT_FIELDS},
+            "mass_source": _text(row["mass_source"], maximum=500),
+            "mass_reference_other": _text(row["mass_reference_other"], maximum=2_000),
+            "inference": row["inference"],
+            "traits_inferred": _text(row["traits_inferred"], maximum=500),
+            "reference_species": _text(row["reference_species"], maximum=200),
+            "habitat": _text(row["habitat"], maximum=200),
+            "habitat_density_code": row["habitat_density_code"],
+            "habitat_density_label": _text(row["habitat_density_label"], maximum=100),
+            "migration_code": row["migration_code"],
+            "migration_label": _text(row["migration_label"], maximum=100),
+            "trophic_level": _text(row["trophic_level"], maximum=200),
+            "trophic_niche": _text(row["trophic_niche"], maximum=200),
+            "primary_lifestyle": _text(row["primary_lifestyle"], maximum=200),
+            "dataset_doi": AVONET_DATASET_DOI,
+            "dataset_version": AVONET_VERSION,
+            "dataset_license": AVONET_LICENSE,
+            "source_file_id": AVONET_SOURCE_FILE_ID,
+            "source_file_md5": AVONET_SOURCE_FILE_MD5,
+        }
+        output[natural_key] = traits
+        freshness.append(loaded_at)
+    if not output:
+        raise PublicExportError("AVONET public trait projection is empty")
+    return output, max(freshness) if freshness else None
 
 
 def _require_tables(connection: duckdb.DuckDBPyConnection, tables: set[str]) -> None:
@@ -1583,9 +1742,33 @@ def build_public_assets(
         if not _SPECIES_CODE.fullmatch(code):
             raise PublicExportError(f"unsafe species code: {code!r}")
         row = species_by_code[code]
+        taxonomic_category = _text(row.get("taxonomic_category"), maximum=100)
+        taxonomic_category = taxonomic_category.casefold() if taxonomic_category else None
+        if taxonomic_category not in {"species", "hybrid"}:
+            raise PublicExportError(f"species {code!r} has an unsupported taxonomic category")
+        row["taxonomic_category"] = taxonomic_category
         media = row.get("media")
         if not isinstance(media, list):
             raise PublicExportError(f"species {code!r} has malformed media")
+        family = row.get("family")
+        traits = row.get("traits")
+        evidence = row.get("evidence")
+        if (
+            not isinstance(family, dict)
+            or set(family) != {"common_name", "scientific_name"}
+            or not isinstance(traits, dict)
+            or not isinstance(evidence, dict)
+            or set(evidence) != {"licensed_occurrence_count", "latest_licensed_occurrence_at"}
+        ):
+            raise PublicExportError(f"species {code!r} has malformed catalog metadata")
+        occurrence_count = evidence.get("licensed_occurrence_count")
+        if (
+            not isinstance(occurrence_count, int)
+            or isinstance(occurrence_count, bool)
+            or occurrence_count < 0
+        ):
+            raise PublicExportError(f"species {code!r} has malformed occurrence evidence")
+        has_traits = bool(traits) and any(value is not None for value in traits.values())
         call = row.get("call")
         if call is not None and not valid_public_audio_call(
             call,
@@ -1602,6 +1785,15 @@ def build_public_assets(
                 "species_code": code,
                 "common_name": row["common_name"],
                 "scientific_name": row["scientific_name"],
+                "taxonomic_category": taxonomic_category,
+                "family": family,
+                "order_name": row["order_name"],
+                "trait_summary": {
+                    "status": "available" if has_traits else "unavailable",
+                    "mass_g": traits.get("mass_g"),
+                    "habitat": traits.get("habitat"),
+                },
+                "evidence": evidence,
                 "profile_path": f"/{path}",
                 "hero_photo": media[0] if media else None,
                 "photo_count": len(media),
@@ -1691,6 +1883,8 @@ def build_public_assets(
             "gbif_dataset_key": (None if mode == "synthetic" else GBIF_EBIRD_EOD_DATASET_KEY),
             "coverage": "fictional_fixture" if mode == "synthetic" else "bounded_sample",
             "required_taxon_key": None if mode == "synthetic" else GBIF_RUFOUS_TAXON_KEY,
+            "trait_source": "synthetic" if mode == "synthetic" else "avonet",
+            "trait_delivery": "inline_static_json",
             "media_source": media_source,
             "media_delivery": "none" if media_source == "none" else "immutable_r2",
             "audio_source": audio_source,
@@ -1705,6 +1899,12 @@ def build_public_assets(
             "media_items": sum(int(item["photo_count"]) for item in species_summaries),
             "species_with_media": sum(
                 1 for item in species_summaries if int(item["photo_count"]) > 0
+            ),
+            "species_with_traits": sum(
+                1
+                for item in species_summaries
+                if isinstance(item.get("trait_summary"), dict)
+                and item["trait_summary"].get("status") == "available"
             ),
             "audio_items": sum(1 for item in species_summaries if item["call"] is not None),
             "species_with_audio": sum(1 for item in species_summaries if item["call"] is not None),
@@ -1774,6 +1974,19 @@ def _attribution_sources(
             "license_url": None,
             "credit": "U.S. Geological Survey; pinned snapshot SHA-256 " + gnis_sha256,
             "snapshot_sha256": gnis_sha256,
+        },
+        {
+            "provider": "avonet",
+            "title": ("AVONET: morphological, ecological and geographical data for all birds"),
+            "url": AVONET_DATASET_URL,
+            "license": AVONET_LICENSE,
+            "license_url": AVONET_LICENSE_URL,
+            "credit": AVONET_CREDIT,
+            "modifications": AVONET_MODIFICATIONS,
+            "dataset_doi": AVONET_DATASET_DOI,
+            "dataset_version": AVONET_VERSION,
+            "source_file_id": AVONET_SOURCE_FILE_ID,
+            "source_file_md5": AVONET_SOURCE_FILE_MD5,
         },
         census_boundary,
     ]

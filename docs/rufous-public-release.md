@@ -22,6 +22,7 @@ source contracts are deliberately explicit:
 | Input | Current refresh contract | R2 behavior |
 | --- | --- | --- |
 | GBIF eBird EOD bounded sample | Re-fetch the reviewed snapshot and deduplicate/model in DuckDB | Publish only the sanitized modeled result when its semantic hash changes |
+| AVONET v7 traits | Re-load the pinned 21.5 MiB complete workbook through dlt and validate its file ID, byte size, MD5, worksheet, row count, and CC BY 4.0 provenance | Publish morphology and ecology only for exact scientific-name matches; omit geographical range fields |
 | USFWS bird media | No automatic refresh; reuse the committed, audited metadata pin for the 167 selected immutable objects | Never re-fetch or re-upload an existing image during app or data deployment |
 | iNaturalist bird media | No automatic refresh; reuse the committed, audited metadata pin for the 16 selected immutable objects | Contact iNaturalist only during an explicit manual media refresh for newly approved, currently unpictured species |
 | Wikimedia Commons gap-fill media | One-time, offline curated metadata input for the 24 approved gap-fill species; never queried by a push, schedule, or normal deploy | Publish each reviewed content-addressed WebP once, then reuse its pinned immutable object |
@@ -194,8 +195,11 @@ back. Intentional rollback remains a separate verified command.
 The initial public release uses bird occurrences from Cornell Lab of
 Ornithology's [EOD – eBird Observation Dataset on
 GBIF](https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e),
-published there under CC BY 4.0. It also uses an official USGS GNIS extract for
-Arizona place search and the bundled Census-derived Arizona boundary.
+published there under CC BY 4.0. Bird morphology and ecology come from
+[AVONET version 7](https://doi.org/10.6084/m9.figshare.16586228.v7), also
+published under CC BY 4.0. The release additionally uses an official USGS GNIS
+extract for Arizona place search and the bundled Census-derived Arizona
+boundary.
 
 This is specifically the GBIF-mediated, licensed dataset path. The production
 workflow does not call the direct eBird API, require an eBird token, or publish
@@ -209,7 +213,8 @@ The production warehouse refresh is intentionally source-scoped:
 
 ```bash
 uv run python scripts/load_dlt_quack.py \
-  --source gbif --database data/databox.duckdb --skip-sqlmesh
+  --source gbif --source avonet \
+  --database data/databox.duckdb --skip-sqlmesh
 bash scripts/sqlmesh_plan_rufous_public.sh
 ```
 
@@ -228,9 +233,12 @@ That boundary follows GBIF's guidance that occurrence-search pages are capped at
 larger snapshot must replace only the transport with a citable GBIF bulk download;
 it must continue feeding the same dlt → DuckDB → SQLMesh publication path.
 
-SQLMesh first builds `rufous_public.gbif_eod_occurrence`, whose sole warehouse
-dependency is `raw_gbif.occurrences`; it does not need the private eBird,
-Xeno-canto, NOAA, or application models to exist.
+SQLMesh builds `rufous_public.gbif_eod_occurrence` from
+`raw_gbif.occurrences` and `rufous_public.avonet_species_traits` from the pinned
+`raw_avonet.species_traits` snapshot. The exporter joins the two only by an
+exact normalized scientific name. A missing match leaves that bird's trait
+fields unavailable instead of guessing across taxonomy drift. Neither model
+needs private eBird, Xeno-canto, NOAA, or application models to exist.
 
 Media discovery is an explicit local or manually dispatched maintenance task;
 it is not part of an automatic production deploy. When a reviewer deliberately
@@ -499,6 +507,10 @@ The monthly schedule never follows an unreviewed mutable GNIS URL.
 - Only the allowlisted GBIF EOD dataset may provide production bird
   observations. GBIF observation licenses must normalize exactly to CC0 or CC
   BY; the EOD dataset is expected to normalize to CC BY 4.0.
+- AVONET traits must retain the pinned version 7 DOI, source file ID and MD5,
+  and CC BY 4.0 license. Only sample, morphology, and ecology fields on the
+  explicit public allowlist may cross the exporter; AVONET geographical range
+  fields are excluded.
 - Every published observation requires the real GBIF dataset key, title,
   publisher, source URL, and license. Missing or malformed citation fields reject
   the record rather than substituting an identifier as human-readable credit.
@@ -570,8 +582,9 @@ would add provider load without making this snapshot fresher.
 
 The automatic production sequence is fail-closed:
 
-1. Run only the licensed GBIF occurrence snapshot through dlt, DuckDB, and the
-   public SQLMesh occurrence model; verify the pinned GNIS archive.
+1. Run the licensed GBIF occurrence snapshot and pinned AVONET v7 workbook in
+   parallel through dlt and DuckDB, build both public SQLMesh models, and verify
+   the pinned GNIS archive.
 2. Verify `config/rufous-pinned-public-media.json` against every committed human
    selection. All 207 selected hashes, species identities, source pages,
    licenses, credits, and immutable R2 URLs must match exactly.

@@ -40,6 +40,60 @@ function mockFixtureFetch() {
   });
 }
 
+function mockLargeCatalogFetch() {
+  const compactSpecies = structuredClone(manifest.species).map((species) => ({
+    ...species,
+    taxonomic_category: "species",
+    family: species.species_code === "rufhum"
+      ? { common_name: "Hummingbirds", scientific_name: "Trochilidae" }
+      : { common_name: null, scientific_name: null },
+    order_name: species.species_code === "rufhum" ? "Caprimulgiformes" : null,
+    trait_summary: species.species_code === "rufhum"
+      ? { status: "available", mass_g: 3.4, habitat: "Woodland edges and flowering gardens" }
+      : { status: "unavailable", mass_g: null, habitat: null },
+    evidence: species.species_code === "rufhum"
+      ? { licensed_occurrence_count: 2, latest_licensed_occurrence_at: "2026-07-31T12:05:00Z" }
+      : { licensed_occurrence_count: 0, latest_licensed_occurrence_at: null },
+  }));
+  const fillerSpecies = Array.from({ length: 48 }, (_, index) => ({
+    species_code: `fixture-${index + 1}`,
+    common_name: `Fixture Bird ${index + 1}`,
+    scientific_name: `Avis fixture${index + 1}`,
+    profile_path: `/data/species/fixture-${index + 1}.json`,
+    hero_photo: null,
+    photo_count: 0,
+    taxonomic_category: "species",
+    family: { common_name: null, scientific_name: null },
+    order_name: null,
+    trait_summary: { status: "unavailable", mass_g: null, habitat: null },
+    evidence: { licensed_occurrence_count: 0, latest_licensed_occurrence_at: null },
+  }));
+  const largeManifest = {
+    ...structuredClone(manifest),
+    source_policy: {
+      ...manifest.source_policy,
+      trait_source: "synthetic",
+      trait_delivery: "inline_static_json",
+    },
+    species: [...compactSpecies, ...fillerSpecies],
+    counts: {
+      ...manifest.counts,
+      species: compactSpecies.length + fillerSpecies.length,
+      species_with_traits: 1,
+    },
+  };
+  return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+    const url = String(input);
+    const fixtures: Record<string, unknown> = {
+      "/data/manifest.json": largeManifest,
+      "/data/cells/n32w111.json": n32w111,
+      "/data/cells/n33w113.json": n33w113,
+      "/data/cells/n34w113.json": n34w113,
+    };
+    return url in fixtures ? json(fixtures[url]) : Promise.resolve(new Response("not found", { status: 404 }));
+  });
+}
+
 const PRODUCTION_SPECIES_CODE = "gbif-2476855";
 
 function publicPhoto(index: number) {
@@ -166,6 +220,34 @@ afterEach(() => {
 });
 
 describe("full public-app browser adapters", () => {
+  it("uses compact catalog metadata without fetching profiles for a large public release", async () => {
+    const fetchMock = mockLargeCatalogFetch();
+
+    const catalog = await listBirds();
+    const map = await getMapSnapshot();
+    const rufous = catalog.find((bird) => bird.species_code === "rufhum");
+
+    expect(catalog).toHaveLength(51);
+    expect(rufous).toMatchObject({
+      taxonomic_category: "species",
+      order_name: "Caprimulgiformes",
+      family_common_name: "Hummingbirds",
+      family_scientific_name: "Trochilidae",
+      traits_status: "available",
+      mass_g: 3.4,
+      habitat: "Woodland edges and flowering gardens",
+      recent_public_observation_count: 2,
+      latest_public_observation_at: "2026-07-31T12:05:00.000Z",
+    });
+    expect(map.encounters.filter((row) => row.species_code === "rufhum")).toEqual(
+      expect.arrayContaining([expect.objectContaining({
+        family_common_name: "Hummingbirds",
+        family_scientific_name: "Trochilidae",
+      })]),
+    );
+    expect(fetchMock.mock.calls.map(([input]) => String(input)).filter((url) => url.includes("/species/"))).toEqual([]);
+  });
+
   it("searches GNIS shards and asks coordinate users to choose a time convention", async () => {
     mockFixtureFetch();
     const places = await searchLocations("Prescott");

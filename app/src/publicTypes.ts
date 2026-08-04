@@ -12,6 +12,19 @@ export interface PublicSpeciesSummary {
   profile_path: string;
   hero_photo: PublicMedia | null;
   photo_count: number;
+  /** Compact catalog metadata; absent on releases published before catalog parity. */
+  taxonomic_category?: "species" | "hybrid";
+  family?: { common_name: string | null; scientific_name: string | null };
+  order_name?: string | null;
+  trait_summary?: {
+    status: "available" | "unavailable";
+    mass_g: number | null;
+    habitat: string | null;
+  };
+  evidence?: {
+    licensed_occurrence_count: number;
+    latest_licensed_occurrence_at: string | null;
+  };
   /** One audited, commercially reusable recording; absent on legacy/no-audio releases. */
   call?: PublicAudio | null;
 }
@@ -80,6 +93,9 @@ export interface PublicManifest {
     gbif_dataset_key: string | null;
     coverage: "fictional_fixture" | "bounded_sample";
     required_taxon_key: number | null;
+    /** Optional only for compatibility with releases created before public AVONET traits. */
+    trait_source?: "synthetic" | "avonet";
+    trait_delivery?: "inline_static_json";
     media_source: PublicMediaSource;
     media_delivery: "none" | "immutable_r2";
     /** Optional only for compatibility with releases created before public audio. */
@@ -98,6 +114,8 @@ export interface PublicManifest {
     attribution_items: number;
     media_items: number;
     species_with_media: number;
+    /** Optional only for compatibility with releases created before public AVONET traits. */
+    species_with_traits?: number;
     /** Optional only for compatibility with releases created before public audio. */
     audio_items?: number;
     species_with_audio?: number;
@@ -228,6 +246,10 @@ export interface PublicAttributionSource {
   credit: string;
   modifications?: string;
   disclaimer?: string;
+  dataset_doi?: string;
+  dataset_version?: string;
+  source_file_id?: number;
+  source_file_md5?: string;
 }
 
 export interface PublicAttribution {

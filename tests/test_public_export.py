@@ -91,6 +91,8 @@ def test_synthetic_export_is_offline_deterministic_and_complete(tmp_path: Path) 
         "gbif_dataset_key": None,
         "coverage": "fictional_fixture",
         "required_taxon_key": None,
+        "trait_source": "synthetic",
+        "trait_delivery": "inline_static_json",
         "media_source": "none",
         "media_delivery": "none",
         "audio_source": "none",
@@ -103,6 +105,7 @@ def test_synthetic_export_is_offline_deterministic_and_complete(tmp_path: Path) 
         "attribution_items": 0,
         "media_items": 0,
         "species_with_media": 0,
+        "species_with_traits": 2,
         "audio_items": 0,
         "species_with_audio": 0,
     }
@@ -314,6 +317,50 @@ def _database(path: Path) -> None:
             GBIF_EBIRD_EOD_DATASET_URL,
         ],
     )
+    connection.execute(
+        """CREATE TABLE rufous_public.avonet_species_traits AS SELECT
+          'selasphorus rufus'::VARCHAR AS species_natural_key,
+          'Selasphorus rufus (Gmelin)'::VARCHAR AS source_scientific_name,
+          'Trochilidae'::VARCHAR AS family,
+          'Caprimulgiformes'::VARCHAR AS order_name,
+          'AVIBASE-RUFOUS'::VARCHAR AS avibase_id,
+          10::BIGINT AS total_individuals,
+          4::BIGINT AS female_individuals,
+          5::BIGINT AS male_individuals,
+          1::BIGINT AS unknown_sex_individuals,
+          8::BIGINT AS complete_measures,
+          16.1::DOUBLE AS beak_length_culmen_mm,
+          11.2::DOUBLE AS beak_length_nares_mm,
+          3.1::DOUBLE AS beak_width_mm,
+          2.8::DOUBLE AS beak_depth_mm,
+          5.0::DOUBLE AS tarsus_length_mm,
+          43.0::DOUBLE AS wing_length_mm,
+          12.0::DOUBLE AS kipps_distance_mm,
+          31.0::DOUBLE AS secondary_length_mm,
+          27.9::DOUBLE AS hand_wing_index,
+          29.0::DOUBLE AS tail_length_mm,
+          3.4::DOUBLE AS mass_g,
+          'AVONET compilation'::VARCHAR AS mass_source,
+          NULL::VARCHAR AS mass_reference_other,
+          false::BOOLEAN AS inference,
+          NULL::VARCHAR AS traits_inferred,
+          NULL::VARCHAR AS reference_species,
+          'Woodland'::VARCHAR AS habitat,
+          2::BIGINT AS habitat_density_code,
+          'Semi-open'::VARCHAR AS habitat_density_label,
+          3::BIGINT AS migration_code,
+          'Migratory'::VARCHAR AS migration_label,
+          'Omnivore'::VARCHAR AS trophic_level,
+          'Nectarivore'::VARCHAR AS trophic_niche,
+          'Aerial'::VARCHAR AS primary_lifestyle,
+          '10.6084/m9.figshare.16586228.v7'::VARCHAR AS dataset_doi,
+          'v7'::VARCHAR AS dataset_version,
+          'CC BY 4.0'::VARCHAR AS dataset_license,
+          34480856::BIGINT AS source_file_id,
+          '1445afdcfb6df784010c2ca034544bc8'::VARCHAR AS source_file_md5,
+          'https://ndownloader.figshare.com/files/34480856'::VARCHAR AS source_url,
+          '2026-01-15 14:13:00+00'::TIMESTAMPTZ AS loaded_at"""
+    )
 
     # These direct eBird relations and their sensitive values must be irrelevant
     # to the public projection even if the private warehouse contains them.
@@ -416,6 +463,24 @@ def _media_approvals(tmp_path: Path, manifest_path: Path) -> Path:
         )
     )
     return path
+
+
+def _production_site(tmp_path: Path) -> Path:
+    database = tmp_path / "source.duckdb"
+    _database(database)
+    gnis, checksum = _gnis_file(tmp_path)
+    media_manifest = _media_manifest(tmp_path)
+    output = tmp_path / "public"
+    export_public_data(
+        mode="production",
+        output_dir=output,
+        database_path=database,
+        gnis_path=gnis,
+        gnis_sha256=checksum,
+        media_manifest_path=media_manifest,
+        media_approvals_path=_media_approvals(tmp_path, media_manifest),
+    )
+    return output
 
 
 def _inaturalist_media_manifest(tmp_path: Path) -> Path:
@@ -623,7 +688,46 @@ def test_database_projection_is_gbif_eod_only_and_strips_personal_values(
             "taxonomic_category": "SPECIES",
             "family": {"common_name": None, "scientific_name": "Trochilidae"},
             "order_name": "Caprimulgiformes",
-            "traits": {},
+            "traits": {
+                "source_scientific_name": "Selasphorus rufus (Gmelin)",
+                "avonet_family": "Trochilidae",
+                "avonet_order_name": "Caprimulgiformes",
+                "avibase_id": "AVIBASE-RUFOUS",
+                "total_individuals": 10,
+                "female_individuals": 4,
+                "male_individuals": 5,
+                "unknown_sex_individuals": 1,
+                "complete_measures": 8,
+                "beak_length_culmen_mm": 16.1,
+                "beak_length_nares_mm": 11.2,
+                "beak_width_mm": 3.1,
+                "beak_depth_mm": 2.8,
+                "tarsus_length_mm": 5.0,
+                "wing_length_mm": 43.0,
+                "kipps_distance_mm": 12.0,
+                "secondary_length_mm": 31.0,
+                "hand_wing_index": 27.9,
+                "tail_length_mm": 29.0,
+                "mass_g": 3.4,
+                "mass_source": "AVONET compilation",
+                "mass_reference_other": None,
+                "inference": False,
+                "traits_inferred": None,
+                "reference_species": None,
+                "habitat": "Woodland",
+                "habitat_density_code": 2,
+                "habitat_density_label": "Semi-open",
+                "migration_code": 3,
+                "migration_label": "Migratory",
+                "trophic_level": "Omnivore",
+                "trophic_niche": "Nectarivore",
+                "primary_lifestyle": "Aerial",
+                "dataset_doi": "10.6084/m9.figshare.16586228.v7",
+                "dataset_version": "v7",
+                "dataset_license": "CC BY 4.0",
+                "source_file_id": 34480856,
+                "source_file_md5": "1445afdcfb6df784010c2ca034544bc8",
+            },
             "evidence": {
                 "licensed_occurrence_count": 1,
                 "latest_licensed_occurrence_at": "2026-01-14",
@@ -658,10 +762,30 @@ def test_database_projection_is_gbif_eod_only_and_strips_personal_values(
         "gbif_dataset_key": GBIF_EBIRD_EOD_DATASET_KEY,
         "coverage": "bounded_sample",
         "required_taxon_key": 2476855,
+        "trait_source": "avonet",
+        "trait_delivery": "inline_static_json",
         "media_source": "none",
         "media_delivery": "none",
         "audio_source": "none",
         "audio_delivery": "none",
+    }
+    assert assets["data/manifest.json"]["counts"]["species_with_traits"] == 1
+    assert assets["data/manifest.json"]["species"][0] == {
+        "species_code": "gbif-2476855",
+        "common_name": "Rufous Hummingbird",
+        "scientific_name": "Selasphorus rufus",
+        "taxonomic_category": "species",
+        "family": {"common_name": None, "scientific_name": "Trochilidae"},
+        "order_name": "Caprimulgiformes",
+        "trait_summary": {"status": "available", "mass_g": 3.4, "habitat": "Woodland"},
+        "evidence": {
+            "licensed_occurrence_count": 1,
+            "latest_licensed_occurrence_at": "2026-01-14",
+        },
+        "profile_path": "/data/species/gbif-2476855.json",
+        "hero_photo": None,
+        "photo_count": 0,
+        "call": None,
     }
     eod_source = next(
         source
@@ -673,6 +797,16 @@ def test_database_projection_is_gbif_eod_only_and_strips_personal_values(
     assert eod_source["disclaimer"] == (
         "No warranty either expressed or implied is made regarding the accuracy of these data."
     )
+    avonet_source = next(
+        source
+        for source in assets["data/attribution.json"]["sources"]
+        if source["provider"] == "avonet"
+    )
+    assert avonet_source["dataset_doi"] == "10.6084/m9.figshare.16586228.v7"
+    assert avonet_source["license"] == "CC BY 4.0"
+    assert avonet_source["url"] == "https://doi.org/10.6084/m9.figshare.16586228.v7"
+    assert avonet_source["credit"].startswith("Joseph Tobias. AVONET:")
+    assert "exact scientific-name matches" in avonet_source["modifications"]
     encoded = json.dumps(assets)
     legacy_raw_identifier = hashlib.sha256(
         b"rufous-public-v1|gbif-eod-observation|GBIF-SENSITIVE-ID"
@@ -700,6 +834,33 @@ def test_database_projection_is_gbif_eod_only_and_strips_personal_values(
     connection.close()
     relabeled = records_from_database(database, _gnis_places())
     assert relabeled.observations[0]["public_id"] == public_id
+
+
+def test_avonet_ingest_time_is_not_a_semantic_public_data_change(tmp_path: Path) -> None:
+    database = tmp_path / "source.duckdb"
+    _database(database)
+
+    first = build_public_assets(
+        records_from_database(database, _gnis_places()),
+        mode="production",
+        gnis_sha256="a" * 64,
+    )
+    connection = duckdb.connect(str(database))
+    connection.execute(
+        "UPDATE rufous_public.avonet_species_traits "
+        "SET loaded_at='2026-08-04 20:00:00+00'::TIMESTAMPTZ"
+    )
+    connection.close()
+    second = build_public_assets(
+        records_from_database(database, _gnis_places()),
+        mode="production",
+        gnis_sha256="a" * 64,
+    )
+
+    assert (
+        first["data/manifest.json"]["data_version"] == second["data/manifest.json"]["data_version"]
+    )
+    assert "loaded_at" not in first["data/species/gbif-2476855.json"]["traits"]
 
 
 def test_production_export_needs_no_cornell_approval_environment(
@@ -730,6 +891,72 @@ def test_production_export_needs_no_cornell_approval_environment(
     assert manifest["counts"]["observations"] == 1
     assert manifest["source_policy"]["direct_ebird"] == "excluded"
     assert audit_public_site(tmp_path / "public") == []
+
+
+def test_production_audit_pins_avonet_creator_and_change_notice(tmp_path: Path) -> None:
+    site = _production_site(tmp_path)
+    attribution_path = site / "data/attribution.json"
+    attribution = json.loads(attribution_path.read_text(encoding="utf-8"))
+    avonet = next(source for source in attribution["sources"] if source["provider"] == "avonet")
+    avonet["credit"] = "Anonymous trait compilation"
+    avonet.pop("modifications")
+    attribution_path.write_text(json.dumps(attribution), encoding="utf-8")
+
+    assert any(
+        "AVONET attribution does not match its pinned source" in finding
+        for finding in audit_public_site(site)
+    )
+
+
+@pytest.mark.parametrize(
+    ("trait_field", "trait_value", "expected"),
+    [
+        ("source_scientific_name", "Calypte anna", "scientific identity"),
+        ("mass_g", -1.0, "AVONET mass_g is malformed"),
+        ("total_individuals", -1, "AVONET total_individuals is malformed"),
+        ("habitat_density_code", True, "AVONET habitat_density_code is malformed"),
+    ],
+)
+def test_production_audit_rejects_swapped_or_malformed_avonet_traits(
+    tmp_path: Path,
+    trait_field: str,
+    trait_value: object,
+    expected: str,
+) -> None:
+    site = _production_site(tmp_path)
+    manifest_path = site / "data/manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = manifest["species"][0]
+    profile_path = site / str(summary["profile_path"]).removeprefix("/")
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    profile["traits"][trait_field] = trait_value
+    if trait_field == "mass_g":
+        summary["trait_summary"]["mass_g"] = trait_value
+    profile_path.write_text(json.dumps(profile), encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    assert any(expected in finding for finding in audit_public_site(site))
+
+
+def test_production_audit_rejects_full_timestamp_in_compact_occurrence_evidence(
+    tmp_path: Path,
+) -> None:
+    site = _production_site(tmp_path)
+    manifest_path = site / "data/manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = manifest["species"][0]
+    profile_path = site / str(summary["profile_path"]).removeprefix("/")
+    profile = json.loads(profile_path.read_text(encoding="utf-8"))
+    full_timestamp = "2026-01-14T08:05:00-07:00"
+    summary["evidence"]["latest_licensed_occurrence_at"] = full_timestamp
+    profile["evidence"]["latest_licensed_occurrence_at"] = full_timestamp
+    profile_path.write_text(json.dumps(profile), encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    assert any(
+        "latest occurrence evidence must be day-level" in finding
+        for finding in audit_public_site(site)
+    )
 
 
 def test_production_export_requires_committed_human_media_approval(tmp_path: Path) -> None:

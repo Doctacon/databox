@@ -29,6 +29,7 @@ let activeDataRoot = SAME_ORIGIN_DATA_ROOT;
 let activeDataVersion: string | null = null;
 let activeMediaSource: PublicMediaSource = "none";
 let activeAudioSource: PublicAudioSource = "none";
+let activeTraitSource: "none" | "synthetic" | "avonet" = "none";
 let activeAudioAttribution = new Map<string, {
   call: PublicAudio;
   commonName: string | null;
@@ -39,6 +40,12 @@ const SAFE_DATA_PATH = /^\/?(?:data\/)?(?:releases\/[a-f0-9_-]+\/)?(?:manifest|a
 const BOUNDARY_TOLERANCE = 1e-9;
 const EBIRD_EOD_DATASET_KEY = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e";
 const RUFOUS_TAXON_KEY = 2476855;
+const AVONET_DATASET_DOI = "10.6084/m9.figshare.16586228.v7";
+const AVONET_DATASET_URL = "https://doi.org/10.6084/m9.figshare.16586228.v7";
+const AVONET_SOURCE_FILE_ID = 34480856;
+const AVONET_SOURCE_FILE_MD5 = "1445afdcfb6df784010c2ca034544bc8";
+const AVONET_CREDIT = "Joseph Tobias. AVONET: morphological, ecological and geographical data for all birds, version 7. Figshare. https://doi.org/10.6084/m9.figshare.16586228.v7";
+const AVONET_MODIFICATIONS = "Rufous selected exact scientific-name matches for birds in the licensed Arizona occurrence release, renamed fields for the public profile, and omitted AVONET geographical range fields.";
 const MEDIA_PROVIDERS_BY_SOURCE: Record<PublicMediaSource, readonly PublicMediaProvider[]> = {
   none: [],
   usfws: ["usfws"],
@@ -202,6 +209,86 @@ function audioAttributionFor(manifest: PublicManifest): typeof activeAudioAttrib
   ]]));
 }
 
+function nullablePlainText(value: unknown, maxLength: number): boolean {
+  return value === null || (typeof value === "string"
+    && value.length > 0 && value.length <= maxLength
+    && !/[\u0000-\u001f\u007f]/.test(value));
+}
+
+function exactObjectKeys(value: object, expected: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return keys.length === expected.length && keys.every((key) => expected.includes(key));
+}
+
+/** Validates optional compact metadata without rejecting manifests published before it existed. */
+function validCompactSpeciesSummary(species: PublicSpeciesSummary): boolean {
+  const category = species.taxonomic_category;
+  if (category !== undefined && category !== "species" && category !== "hybrid") return false;
+
+  const family = species.family;
+  if (family !== undefined && (
+    family === null || typeof family !== "object" || Array.isArray(family)
+    || !exactObjectKeys(family, ["common_name", "scientific_name"])
+    || !nullablePlainText(family.common_name, 200)
+    || !nullablePlainText(family.scientific_name, 200)
+  )) return false;
+
+  if (species.order_name !== undefined && !nullablePlainText(species.order_name, 200)) return false;
+
+  const traitSummary = species.trait_summary;
+  if (traitSummary !== undefined && (
+    traitSummary === null || typeof traitSummary !== "object" || Array.isArray(traitSummary)
+    || !exactObjectKeys(traitSummary, ["status", "mass_g", "habitat"])
+    || (traitSummary.status !== "available" && traitSummary.status !== "unavailable")
+    || (traitSummary.mass_g !== null && (typeof traitSummary.mass_g !== "number"
+      || !Number.isFinite(traitSummary.mass_g) || traitSummary.mass_g <= 0 || traitSummary.mass_g > 1_000_000))
+    || !nullablePlainText(traitSummary.habitat, 500)
+  )) return false;
+
+  const evidence = species.evidence;
+  if (evidence !== undefined && (
+    evidence === null || typeof evidence !== "object" || Array.isArray(evidence)
+    || !exactObjectKeys(evidence, ["licensed_occurrence_count", "latest_licensed_occurrence_at"])
+    || !Number.isSafeInteger(evidence.licensed_occurrence_count) || evidence.licensed_occurrence_count < 0
+    || (evidence.latest_licensed_occurrence_at !== null
+      && (typeof evidence.latest_licensed_occurrence_at !== "string"
+        || !Number.isFinite(Date.parse(evidence.latest_licensed_occurrence_at))))
+  )) return false;
+
+  return true;
+}
+
+function profileMatchesCompactSummary(
+  profile: PublicSpeciesProfile,
+  species: PublicSpeciesSummary,
+): boolean {
+  if (species.taxonomic_category === undefined
+    && species.family === undefined
+    && species.order_name === undefined
+    && species.trait_summary === undefined
+    && species.evidence === undefined) return true;
+  if (profile.traits === null || typeof profile.traits !== "object"
+    || profile.family === null || typeof profile.family !== "object"
+    || profile.evidence === null || typeof profile.evidence !== "object") return false;
+  const traitsAvailable = Object.values(profile.traits).some((value) => value !== null);
+  return (species.taxonomic_category === undefined
+      || species.taxonomic_category === profile.taxonomic_category)
+    && (species.family === undefined
+      || (species.family.common_name === profile.family.common_name
+        && species.family.scientific_name === profile.family.scientific_name))
+    && (species.order_name === undefined || species.order_name === profile.order_name)
+    && (species.trait_summary === undefined
+      || (species.trait_summary.status === (traitsAvailable ? "available" : "unavailable")
+        && species.trait_summary.mass_g === (typeof profile.traits.mass_g === "number"
+          ? profile.traits.mass_g : null)
+        && species.trait_summary.habitat === (typeof profile.traits.habitat === "string"
+          ? profile.traits.habitat : null)))
+    && (species.evidence === undefined
+      || (species.evidence.licensed_occurrence_count === profile.evidence.licensed_occurrence_count
+        && species.evidence.latest_licensed_occurrence_at
+          === profile.evidence.latest_licensed_occurrence_at));
+}
+
 function validateManifest(manifest: PublicManifest): PublicManifest {
   const expectedOccurrenceSource = manifest.release_mode === "production" ? "gbif" : "synthetic";
   const expectedDatasetKey = manifest.release_mode === "production" ? EBIRD_EOD_DATASET_KEY : null;
@@ -244,6 +331,26 @@ function validateManifest(manifest: PublicManifest): PublicManifest {
   const audioCalls = Array.isArray(manifest.species)
     ? manifest.species.flatMap((species) => species.call == null ? [] : [species.call])
     : [];
+  const hasTraitPolicy = "trait_source" in (manifest.source_policy ?? {})
+    || "trait_delivery" in (manifest.source_policy ?? {})
+    || "species_with_traits" in (manifest.counts ?? {})
+    || (Array.isArray(manifest.species)
+      && manifest.species.some((species) => species.trait_summary !== undefined));
+  const compactFields = ["taxonomic_category", "family", "order_name", "trait_summary", "evidence"] as const;
+  const hasCompactCatalogContract = Array.isArray(manifest.species)
+    && manifest.species.some((species) => compactFields.some((field) => field in species));
+  const validCompactCatalogContract = !hasCompactCatalogContract
+    || manifest.species.every((species) => compactFields.every((field) => field in species));
+  const expectedTraitSource = manifest.release_mode === "production" ? "avonet" : "synthetic";
+  const speciesWithTraits = Array.isArray(manifest.species)
+    ? manifest.species.filter((species) => species.trait_summary?.status === "available").length
+    : -1;
+  const validTraitPolicy = !hasTraitPolicy
+    || (manifest.source_policy.trait_source === expectedTraitSource
+      && manifest.source_policy.trait_delivery === "inline_static_json"
+      && Number.isSafeInteger(manifest.counts.species_with_traits)
+      && Number(manifest.counts.species_with_traits) === speciesWithTraits
+      && (manifest.release_mode !== "production" || speciesWithTraits > 0));
   if (
     manifest.schema_version !== 1
     || manifest.mode !== "public"
@@ -256,6 +363,8 @@ function validateManifest(manifest: PublicManifest): PublicManifest {
     || manifest.source_policy?.required_taxon_key !== expectedRequiredTaxon
     || !validMediaPolicy
     || !validAudioPolicy
+    || !validTraitPolicy
+    || !validCompactCatalogContract
     || manifest.license_policy?.version !== 1
     || !Number.isInteger(manifest.counts?.attribution_items)
     || !Number.isSafeInteger(manifest.counts?.media_items) || manifest.counts.media_items < 0
@@ -264,6 +373,11 @@ function validateManifest(manifest: PublicManifest): PublicManifest {
     || (hasAudioPolicy && (!Number.isSafeInteger(manifest.counts?.species_with_audio) || Number(manifest.counts.species_with_audio) < 0))
     || !Array.isArray(manifest.species)
     || manifest.species.some((species) => !isPublicSpeciesCode(species.species_code)
+      || !validCompactSpeciesSummary(species)
+      || (manifest.release_mode === "production"
+        && species.evidence?.latest_licensed_occurrence_at !== null
+        && species.evidence?.latest_licensed_occurrence_at !== undefined
+        && !/^\d{4}-\d{2}-\d{2}$/.test(species.evidence.latest_licensed_occurrence_at))
       || !Number.isSafeInteger(species.photo_count) || species.photo_count < 0
       || !("hero_photo" in species)
       || (species.photo_count === 0 && species.hero_photo !== null)
@@ -358,6 +472,7 @@ export async function getPublicManifest(signal?: AbortSignal): Promise<PublicMan
   activeDataVersion = resolution.manifest.data_version;
   activeMediaSource = resolution.manifest.source_policy.media_source;
   activeAudioSource = resolution.manifest.source_policy.audio_source ?? "none";
+  activeTraitSource = resolution.manifest.source_policy.trait_source ?? "none";
   activeAudioAttribution = audioAttributionFor(resolution.manifest);
   fallbackManifestPromise = null;
   return resolution.manifest;
@@ -374,6 +489,7 @@ async function sameReleasePagesManifest(signal?: AbortSignal): Promise<PublicMan
       activeDataRoot = SAME_ORIGIN_DATA_ROOT;
       activeMediaSource = resolution.manifest.source_policy.media_source;
       activeAudioSource = resolution.manifest.source_policy.audio_source ?? "none";
+      activeTraitSource = resolution.manifest.source_policy.trait_source ?? "none";
       activeAudioAttribution = audioAttributionFor(resolution.manifest);
       return resolution.manifest;
     }).catch((reason: unknown) => {
@@ -414,6 +530,7 @@ export async function getPublicSpecies(
   const load = async (url: string, requestSignal?: AbortSignal) => {
     const profile = await fetchJson<PublicSpeciesProfile>(url, requestSignal);
     if (profile.schema_version !== 1 || profile.species_code !== species.species_code
+      || !profileMatchesCompactSummary(profile, species)
       || !Array.isArray(profile.media)
       || profile.media.some((item) => !mediaProviders(activeMediaSource).has(item.provider))
       || profile.media.some((item) => publicCatalogPhoto(item, profile.scientific_name, "") === null)
@@ -486,9 +603,24 @@ export async function getPublicAttribution(path: string, signal?: AbortSignal): 
           && item.recording_type === expected.call.recording_type
           && item.modifications === expected.call.modifications;
       });
+    const avonetSources = Array.isArray(attribution.sources)
+      ? attribution.sources.filter((source) => source.provider === "avonet")
+      : [];
+    const validTraitSource = activeTraitSource !== "avonet"
+      || (avonetSources.length === 1
+        && avonetSources[0].url === AVONET_DATASET_URL
+        && avonetSources[0].license === "CC BY 4.0"
+        && avonetSources[0].license_url === "https://creativecommons.org/licenses/by/4.0/"
+        && avonetSources[0].credit === AVONET_CREDIT
+        && avonetSources[0].modifications === AVONET_MODIFICATIONS
+        && avonetSources[0].dataset_doi === AVONET_DATASET_DOI
+        && avonetSources[0].dataset_version === "v7"
+        && avonetSources[0].source_file_id === AVONET_SOURCE_FILE_ID
+        && avonetSources[0].source_file_md5 === AVONET_SOURCE_FILE_MD5);
     if (attribution.schema_version !== 1 || !Array.isArray(attribution.sources) || !Array.isArray(attribution.items)
       || [...mediaProviders(activeMediaSource)].some((provider) => !attributedProviders.has(provider))
       || [...audioProviders(activeAudioSource)].some((provider) => !attributedProviders.has(provider))
+      || !validTraitSource
       || !validAudioItems) {
       throw new Error("The attribution shard did not match its manifest entry.");
     }

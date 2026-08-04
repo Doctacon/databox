@@ -44,7 +44,9 @@ function summary(
   generatedAt: string,
 ): BirdCatalogSummary {
   const scientificName = profile?.scientific_name ?? species.scientific_name;
-  const hasTraits = Boolean(profile && Object.values(profile.traits).some((value) => value !== null));
+  const hasTraits = profile
+    ? Object.values(profile.traits).some((value) => value !== null)
+    : species.trait_summary?.status === "available";
   const profileHero = publicCatalogPhotos(profile?.media, scientificName, generatedAt)[0] ?? null;
   const manifestHero = publicCatalogPhoto(species.hero_photo, scientificName, generatedAt);
   const publishedCall = publicCatalogCall(profile?.call ?? species.call, scientificName, generatedAt);
@@ -52,16 +54,18 @@ function summary(
     species_code: species.species_code,
     common_name: profile?.common_name ?? species.common_name,
     scientific_name: scientificName,
-    taxonomic_category: profile?.taxonomic_category === "hybrid" ? "hybrid" : "species",
+    taxonomic_category: (profile?.taxonomic_category ?? species.taxonomic_category) === "hybrid" ? "hybrid" : "species",
     taxonomic_order: order,
-    order_name: profile?.order_name ?? null,
-    family_common_name: profile?.family.common_name ?? null,
-    family_scientific_name: profile?.family.scientific_name ?? null,
+    order_name: profile?.order_name ?? species.order_name ?? null,
+    family_common_name: profile?.family.common_name ?? species.family?.common_name ?? null,
+    family_scientific_name: profile?.family.scientific_name ?? species.family?.scientific_name ?? null,
     traits_status: hasTraits ? "available" : "unavailable",
-    mass_g: profile ? traitNumber(profile, "mass_g", "body_mass_g") : null,
-    habitat: profile ? traitText(profile, "habitat") : null,
-    recent_public_observation_count: profile?.evidence.licensed_occurrence_count ?? 0,
-    latest_public_observation_at: timestamp(profile?.evidence.latest_licensed_occurrence_at ?? null),
+    mass_g: profile ? traitNumber(profile, "mass_g", "body_mass_g") : species.trait_summary?.mass_g ?? null,
+    habitat: profile ? traitText(profile, "habitat") : species.trait_summary?.habitat ?? null,
+    recent_public_observation_count: profile?.evidence.licensed_occurrence_count
+      ?? species.evidence?.licensed_occurrence_count ?? 0,
+    latest_public_observation_at: timestamp(profile?.evidence.latest_licensed_occurrence_at
+      ?? species.evidence?.latest_licensed_occurrence_at ?? null),
     photo: profileHero ?? manifestHero ?? unavailablePhoto(scientificName, generatedAt),
     call: publishedCall ?? unavailableCall(scientificName, generatedAt),
   };
@@ -71,9 +75,11 @@ function traits(profile: PublicSpeciesProfile, generatedAt: string): BirdTraits 
   const available = Object.values(profile.traits).some((value) => value !== null);
   return {
     status: available ? "available" : "unavailable",
-    source_scientific_name: available ? profile.scientific_name : null,
-    avonet_family: profile.family.scientific_name,
-    avonet_order_name: profile.order_name,
+    source_scientific_name: available
+      ? traitText(profile, "source_scientific_name") ?? profile.scientific_name
+      : null,
+    avonet_family: traitText(profile, "avonet_family") ?? profile.family.scientific_name,
+    avonet_order_name: traitText(profile, "avonet_order_name") ?? profile.order_name,
     avibase_id: traitText(profile, "avibase_id"),
     inference: typeof profile.traits.inference === "boolean" ? profile.traits.inference : null,
     traits_inferred: traitText(profile, "traits_inferred"),
@@ -116,7 +122,7 @@ function traits(profile: PublicSpeciesProfile, generatedAt: string): BirdTraits 
       dataset_license: traitText(profile, "dataset_license"),
       source_file_id: traitNumber(profile, "source_file_id"),
       source_file_md5: traitText(profile, "source_file_md5"),
-      loaded_at: available ? generatedAt : null,
+      loaded_at: available ? traitText(profile, "loaded_at") ?? generatedAt : null,
     },
   };
 }

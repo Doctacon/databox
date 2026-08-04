@@ -154,6 +154,14 @@ def _public_output(
             "species_code": "gbif-1",
             "common_name": "Anna's Hummingbird",
             "scientific_name": "Calypte anna",
+            "taxonomic_category": "species",
+            "family": {"common_name": None, "scientific_name": "Trochilidae"},
+            "order_name": "Caprimulgiformes",
+            "traits": {},
+            "evidence": {
+                "licensed_occurrence_count": 0,
+                "latest_licensed_occurrence_at": None,
+            },
             "media": [{"provider": "usfws"}],
         }
     ]
@@ -163,6 +171,14 @@ def _public_output(
                 "species_code": "gbif-2",
                 "common_name": "Rufous Hummingbird",
                 "scientific_name": "Selasphorus rufus",
+                "taxonomic_category": "species",
+                "family": {"common_name": None, "scientific_name": "Trochilidae"},
+                "order_name": "Caprimulgiformes",
+                "traits": {},
+                "evidence": {
+                    "licensed_occurrence_count": 0,
+                    "latest_licensed_occurrence_at": None,
+                },
                 "media": rufous_media or [],
             }
         )
@@ -171,6 +187,14 @@ def _public_output(
             "species_code": "gbif-3",
             "common_name": "Elegant Trogon",
             "scientific_name": "Trogon elegans",
+            "taxonomic_category": "species",
+            "family": {"common_name": None, "scientific_name": "Trogonidae"},
+            "order_name": "Trogoniformes",
+            "traits": {},
+            "evidence": {
+                "licensed_occurrence_count": 0,
+                "latest_licensed_occurrence_at": None,
+            },
             "media": [],
         }
     )

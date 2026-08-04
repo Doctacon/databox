@@ -14,9 +14,11 @@ on:
       - "packages/databox/pyproject.toml"
       - "packages/databox-sources/pyproject.toml"
       - "packages/databox-sources/databox_sources/gbif/**"
+      - "packages/databox-sources/databox_sources/avonet/**"
       - "packages/databox-sources/databox_sources/_public_inaturalist/**"
       - "packages/databox-sources/databox_sources/usfws/**"
       - "packages/databox-sources/tests/gbif/**"
+      - "packages/databox-sources/tests/avonet/**"
       - "packages/databox-sources/tests/inaturalist/**"
       - "packages/databox-sources/tests/usfws/**"
       - "packages/databox-sources/tests/conftest.py"
@@ -25,6 +27,7 @@ on:
       - "packages/databox/databox/config/sources.py"
       - "packages/databox/databox/orchestration/definitions.py"
       - "packages/databox/databox/orchestration/domains/gbif.py"
+      - "packages/databox/databox/orchestration/domains/avonet.py"
       - "packages/databox/databox/orchestration/domains/usfws.py"
       - "packages/databox/databox/public_inaturalist_media_ingest.py"
       - "packages/databox/databox/public_export*.py"
@@ -45,6 +48,7 @@ on:
       - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
+      - "tests/test_public_avonet_model.py"
       - "tests/test_public_export*.py"
       - "tests/test_public_audio*.py"
       - "tests/test_public_release.py"
@@ -84,9 +88,11 @@ on:
       - "packages/databox/pyproject.toml"
       - "packages/databox-sources/pyproject.toml"
       - "packages/databox-sources/databox_sources/gbif/**"
+      - "packages/databox-sources/databox_sources/avonet/**"
       - "packages/databox-sources/databox_sources/_public_inaturalist/**"
       - "packages/databox-sources/databox_sources/usfws/**"
       - "packages/databox-sources/tests/gbif/**"
+      - "packages/databox-sources/tests/avonet/**"
       - "packages/databox-sources/tests/inaturalist/**"
       - "packages/databox-sources/tests/usfws/**"
       - "packages/databox-sources/tests/conftest.py"
@@ -95,6 +101,7 @@ on:
       - "packages/databox/databox/config/sources.py"
       - "packages/databox/databox/orchestration/definitions.py"
       - "packages/databox/databox/orchestration/domains/gbif.py"
+      - "packages/databox/databox/orchestration/domains/avonet.py"
       - "packages/databox/databox/orchestration/domains/usfws.py"
       - "packages/databox/databox/public_inaturalist_media_ingest.py"
       - "packages/databox/databox/public_export*.py"
@@ -115,6 +122,7 @@ on:
       - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
+      - "tests/test_public_avonet_model.py"
       - "tests/test_public_export*.py"
       - "tests/test_public_audio*.py"
       - "tests/test_public_release.py"
@@ -345,9 +353,11 @@ jobs:
         run: npm --prefix app ci
       - name: Test public exporter and release invariant
         run: >-
-          uv run pytest packages/databox-sources/tests/usfws
+          uv run pytest packages/databox-sources/tests/avonet
+          packages/databox-sources/tests/usfws
           packages/databox-sources/tests/inaturalist
           tests/test_analytics_contract_inventory.py
+          tests/test_public_avonet_model.py
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_audio_export.py tests/test_public_audio_release.py
           tests/test_public_audio_selection.py
@@ -366,6 +376,7 @@ jobs:
         working-directory: transforms/main
         run: |
           ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
+          ../../.venv/bin/sqlmesh test -k test_rufous_public_avonet_species_traits
           ../../.venv/bin/sqlmesh test -k test_rufous_public_usfws_commercial_image
           ../../.venv/bin/sqlmesh test -k test_rufous_public_inaturalist_commercial_image
       - name: Test public browser application
@@ -916,6 +927,7 @@ jobs:
       - name: Test public exporter and release invariant
         run: >-
           uv run pytest tests/test_analytics_contract_inventory.py
+          tests/test_public_avonet_model.py
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_audio_export.py tests/test_public_audio_release.py
           tests/test_public_audio_selection.py
@@ -926,9 +938,11 @@ jobs:
           tests/test_rufous_pinned_public_media.py
           tests/test_source_builders.py tests/test_source_registry.py
           -o "addopts=-v --tb=short"
-      - name: Test public occurrence publication model
+      - name: Test public occurrence and trait publication models
         working-directory: transforms/main
-        run: ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
+        run: |
+          ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
+          ../../.venv/bin/sqlmesh test -k test_rufous_public_avonet_species_traits
       - name: Test public browser application
         run: |
           npm --prefix app run typecheck
@@ -940,6 +954,7 @@ jobs:
         run: |
           uv run python scripts/load_dlt_quack.py \
             --source gbif \
+            --source avonet \
             --database data/databox.duckdb \
             --skip-sqlmesh
           bash scripts/sqlmesh_plan_rufous_public.sh

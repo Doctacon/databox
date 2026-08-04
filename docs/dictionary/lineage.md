@@ -22,8 +22,10 @@ graph LR
     n15["environmental_observations.fact_region_daily_stats"]
     n16["environmental_observations.fact_streamflow_observation"]
     n17["environmental_observations.fact_weather_observation"]
-    n18["rufous_public.gbif_eod_occurrence"]
-    n19["rufous_public.usfws_commercial_image"]
+    n18["rufous_public.avonet_species_traits"]
+    n19["rufous_public.gbif_eod_occurrence"]
+    n20["rufous_public.inaturalist_commercial_image"]
+    n21["rufous_public.usfws_commercial_image"]
     n7 --> n1
     n8 --> n1
     n11 --> n1
@@ -60,6 +62,8 @@ graph LR
     click n15 "environmental_observations/fact_region_daily_stats.md"
     click n16 "environmental_observations/fact_streamflow_observation.md"
     click n17 "environmental_observations/fact_weather_observation.md"
-    click n18 "rufous_public/gbif_eod_occurrence.md"
-    click n19 "rufous_public/usfws_commercial_image.md"
+    click n18 "rufous_public/avonet_species_traits.md"
+    click n19 "rufous_public/gbif_eod_occurrence.md"
+    click n20 "rufous_public/inaturalist_commercial_image.md"
+    click n21 "rufous_public/usfws_commercial_image.md"
 ```

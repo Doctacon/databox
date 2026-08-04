@@ -1,0 +1,63 @@
+test_rufous_public_avonet_species_traits:
+  model: rufous_public.avonet_species_traits
+  inputs:
+    raw_avonet.species_traits:
+      rows:
+        - source_scientific_name: "Cardinalis cardinalis (Linnaeus)"
+          family: "Cardinalidae"
+          order_name: "Passeriformes"
+          avibase_id: "AVIBASE-CARDINAL"
+          total_individuals: 12
+          female_individuals: 5
+          male_individuals: 6
+          unknown_sex_individuals: 1
+          complete_measures: 10
+          beak_length_culmen_mm: 18.1
+          beak_length_nares_mm: 12.2
+          beak_width_mm: 9.3
+          beak_depth_mm: 10.1
+          tarsus_length_mm: 25.0
+          wing_length_mm: 95.0
+          kipps_distance_mm: 20.0
+          secondary_length_mm: 75.0
+          hand_wing_index: 21.1
+          tail_length_mm: 90.0
+          mass_g: 44.0
+          mass_source: "Dunning"
+          mass_reference_other: "Fixture citation"
+          inference: true
+          traits_inferred: "Body Mass"
+          reference_species: "Cardinalis phoeniceus"
+          habitat: "Woodland"
+          habitat_density_code: 2
+          migration_code: 1
+          trophic_level: "Omnivore"
+          trophic_niche: "Omnivore"
+          primary_lifestyle: "Insessorial"
+          dataset_doi: "10.6084/m9.figshare.16586228.v7"
+          dataset_version: "v7"
+          dataset_license: "CC BY 4.0"
+          source_file_id: 34480856
+          source_file_md5: "1445afdcfb6df784010c2ca034544bc8"
+          source_url: "https://ndownloader.figshare.com/files/34480856"
+          loaded_at: "2026-08-04T10:00:00+00:00"
+  outputs:
+    partial: true
+    query:
+      rows:
+        - species_natural_key: "cardinalis cardinalis"
+          source_scientific_name: "Cardinalis cardinalis (Linnaeus)"
+          family: "Cardinalidae"
+          order_name: "Passeriformes"
+          avibase_id: "AVIBASE-CARDINAL"
+          mass_g: 44.0
+          habitat: "Woodland"
+          habitat_density_code: 2
+          habitat_density_label: "Semi-open"
+          migration_code: 1
+          migration_label: "Sedentary"
+          dataset_doi: "10.6084/m9.figshare.16586228.v7"
+          dataset_version: "v7"
+          dataset_license: "CC BY 4.0"
+          source_file_id: 34480856
+          source_file_md5: "1445afdcfb6df784010c2ca034544bc8"

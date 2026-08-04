@@ -184,8 +184,15 @@ def _refresh_data_version(source: Path) -> str:
 def _make_semantic_change(source: Path) -> str:
     profile_path = sorted((source / "data/species").glob("*.json"))[0]
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
-    profile["traits"] = {"test_public_trait": 1}
+    profile["traits"]["habitat"] = "Riparian woodland"
     profile_path.write_text(json.dumps(profile) + "\n", encoding="utf-8")
+    manifest_path = source / "data/manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    summary = next(
+        item for item in manifest["species"] if item["species_code"] == profile["species_code"]
+    )
+    summary["trait_summary"]["habitat"] = "Riparian woodland"
+    manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
     return _refresh_data_version(source)
 
 
