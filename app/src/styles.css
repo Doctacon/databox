@@ -216,13 +216,13 @@ summary { min-height: 44px; cursor: pointer; color: var(--teal-950); font-weight
 .location-list { padding-left: 22px; display: grid; gap: 10px; }
 .location-list li { padding-left: 5px; }
 .location-list span { display: block; color: var(--muted); font-size: .84rem; line-height: 1.5; }
-.field-map-main { display: grid; gap: 18px; }
+.field-map-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 .map-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: end; }
 .map-controls h2, .map-freshness { grid-column: 1 / -1; }
 .map-controls > div { display: grid; gap: 6px; min-width: 0; }
 .map-controls label, .map-controls select, .map-controls p { margin: 0; }
-.map-freshness, .map-result-count { color: var(--muted); }
-.map-result-count { margin: 0; font-weight: 800; }
+.map-freshness { color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .field-map-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 18px; align-items: start; }
 .field-map-rail { min-width: 0; display: grid; gap: 18px; align-content: start; }
 .map-panel, .encounter-list-panel { min-width: 0; }
