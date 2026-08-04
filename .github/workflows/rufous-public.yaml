@@ -519,6 +519,13 @@ jobs:
             --approvals config/rufous-media-visual-approvals.json \
             --targets-from-public-output app/dist
           bash scripts/sqlmesh_plan_rufous_inaturalist_media.sh
+      - name: Initialize the isolated Wikimedia media warehouse
+        if: >-
+          steps.pending-media.outputs.pending_count != '0' &&
+          env.RUFOUS_MEDIA_PROVIDER == 'wikimedia'
+        run: |
+          mkdir -p data
+          uv run python -c 'import duckdb; duckdb.connect("data/databox.duckdb").close()'
       - name: Load only the committed offline Wikimedia metadata
         if: >-
           steps.pending-media.outputs.pending_count != '0' &&

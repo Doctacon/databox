@@ -274,6 +274,8 @@ def test_explicit_media_refresh_targets_only_one_selected_provider() -> None:
     assert "scripts/load_rufous_wikimedia_media.py" in commands
     assert "--input config/rufous-wikimedia-public-media.json" in commands
     assert "--targets-from-public-output app/dist" in commands
+    assert "mkdir -p data" in commands
+    assert 'duckdb.connect("data/databox.duckdb").close()' in commands
     assert "scripts/sqlmesh_plan_rufous_inaturalist_media.sh" in commands
     assert "scripts/prepare_rufous_media.py" in commands
     assert '--provider "$RUFOUS_MEDIA_PROVIDER"' in commands
@@ -296,11 +298,20 @@ def test_explicit_media_refresh_targets_only_one_selected_provider() -> None:
     pending_index = step_names.index("Identify only newly approved unpictured provider species")
     no_op_index = step_names.index("Stop cleanly when every approved image is already live")
     inaturalist_index = step_names.index("Refresh only newly committed iNaturalist selections")
+    warehouse_index = step_names.index("Initialize the isolated Wikimedia media warehouse")
     wikimedia_index = step_names.index("Load only the committed offline Wikimedia metadata")
     prepare_index = step_names.index("Prepare only approved provider WebP candidates")
-    assert pending_index < no_op_index < inaturalist_index < wikimedia_index < prepare_index
+    assert (
+        pending_index
+        < no_op_index
+        < inaturalist_index
+        < warehouse_index
+        < wikimedia_index
+        < prepare_index
+    )
     assert steps[no_op_index]["if"] == "steps.pending-media.outputs.pending_count == '0'"
     assert "env.RUFOUS_MEDIA_PROVIDER == 'inaturalist'" in steps[inaturalist_index]["if"]
+    assert "env.RUFOUS_MEDIA_PROVIDER == 'wikimedia'" in steps[warehouse_index]["if"]
     assert "env.RUFOUS_MEDIA_PROVIDER == 'wikimedia'" in steps[wikimedia_index]["if"]
     for step in steps[prepare_index:]:
         assert step.get("if") == "steps.pending-media.outputs.pending_count != '0'"
