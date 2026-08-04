@@ -25,20 +25,27 @@ Apply these edge rules to the custom domain:
 - cache `/rufous-public/releases/*` as immutable and ignore or reject query
   strings;
 - cache `/rufous-media/v1/objects/*` as immutable and reject query strings;
+- cache `/rufous-audio/v1/objects/*` as immutable and reject query strings;
 - bypass cache for `/rufous-public/manifest.json`;
 - use a hostname-scoped WAF rule to allow only GET, HEAD, and CORS preflight
   OPTIONS, reject query strings, and block paths outside the pointer,
-  immutable-release, and exact content-addressed media namespaces. Browsers may
-  fetch known image URLs but cannot list, upload, replace, or delete objects;
+  immutable-release, and exact content-addressed media and audio namespaces.
+  Permit only `.webp` media and `.mp3`, `.wav`, `.m4a`, or `.ogg` audio.
+  Browsers may fetch known object URLs but cannot list, upload, replace, or
+  delete objects;
 - keep Cloudflare's default DDoS protection enabled. Do not turn on free Bot
   Fight Mode solely for Rufous: it applies to the entire shared
   `loughondata.com` zone and cannot be scoped or skipped;
-- a Free-plan rate limit can match the Rufous paths but not the hostname. Treat
-  that broader path-scoped rule and zone-wide Smart Tiered Cache as optional;
+- keep the single Free-plan rate limit scoped to the Rufous data hostname and
+  the pointer, immutable release, media, and audio paths. The current rule
+  blocks an IP for 10 seconds after more than 100 matching requests in 10
+  seconds;
 - apply a 90-day R2 Bucket Lock to the `rufous-public/releases/` prefix while
   leaving the mutable `rufous-public/manifest.json` pointer outside the lock;
-- apply the same or a longer lock to `rufous-media/v1/objects/`; its WebP names
-  are hashes and are never intentionally overwritten;
+- keep the content-addressed media and audio prefixes outside Bucket Lock until
+  the takedown process has been reviewed. Their names are hashes and are never
+  intentionally overwritten, while leaving them unlocked permits removal of a
+  mistaken or contested public item;
 - do not enable Cache Reserve.
 
 The publisher independently lists the exact media prefix before any mutation,
