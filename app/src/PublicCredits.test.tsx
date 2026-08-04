@@ -177,6 +177,10 @@ describe("public credits", () => {
     ["wikimedia", "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee.jpg?download=1", null],
     ["wikimedia", "https://commons.wikimedia.org/wiki/Category:Abert%27s_Towhee", null],
     ["wikimedia", "https://commons.wikimedia.org/wiki/File:Abert%2FTowhee.jpg", null],
+    ["xeno_canto", "https://xeno-canto.org/12345", "https://xeno-canto.org/12345"],
+    ["xeno_canto", "https://xeno-canto.org/12345/download", null],
+    ["inaturalist", "https://www.inaturalist.org/observations/98765", "https://www.inaturalist.org/observations/98765"],
+    ["inaturalist", "https://www.inaturalist.org/observations/98765?view=sounds", null],
     ["gbif", "https://www.gbif.org/dataset/example", "https://www.gbif.org/dataset/example"],
   ])("enforces an exact per-photo source URL for %s: %s", (provider, value, expected) => {
     expect(safeItemSourceHref(provider, value)).toBe(expected);
@@ -244,6 +248,53 @@ describe("public credits", () => {
     expect(document.querySelector('a[href^="javascript:"]')).not.toBeInTheDocument();
     expect(document.querySelector('a[href^="data:"]')).not.toBeInTheDocument();
     expect(document.querySelector('a[href^="http:"]')).not.toBeInTheDocument();
+  });
+
+  it("reports public-audio coverage and renders exact per-recording attribution", async () => {
+    const audioManifest = structuredClone(manifest);
+    audioManifest.source_policy.audio_source = "xeno_canto+inaturalist+wikimedia+usfws";
+    audioManifest.source_policy.audio_delivery = "immutable_r2";
+    audioManifest.counts.audio_items = 199;
+    audioManifest.counts.species_with_audio = 199;
+    const audioAttribution = structuredClone(attribution);
+    audioAttribution.sources.push({
+      provider: "xeno_canto",
+      title: "Xeno-canto",
+      url: "https://xeno-canto.org/",
+      license: "Per-recording Creative Commons license",
+      license_url: null,
+      credit: "Recordists are credited beside every published sound.",
+    });
+    audioAttribution.items.push({
+      attribution_id: `audio-attribution-${"ef"}${"4".repeat(22)}`,
+      kind: "audio",
+      provider: "xeno_canto",
+      provider_id: "XC12345",
+      source_url: "https://xeno-canto.org/12345",
+      creator: "Pat Recordist",
+      license: "CC BY 4.0",
+      license_url: "https://creativecommons.org/licenses/by/4.0/",
+      common_name: "Rufous Hummingbird",
+      scientific_name: "Selasphorus rufus",
+      recording_type: "call",
+      modifications: "Unmodified from the credited source recording.",
+    });
+    render(<PublicCreditsPage
+      loadManifest={vi.fn().mockResolvedValue(audioManifest)}
+      loadAttribution={vi.fn().mockResolvedValue(audioAttribution)}
+    />);
+
+    expect(await screen.findByText(/199 commercially reusable bird sounds/)).toHaveTextContent(
+      "Xeno-canto, iNaturalist, Wikimedia Commons, and USFWS",
+    );
+    expect(screen.getByText(/199 bird sounds$/)).toBeVisible();
+    expect(screen.getByText("Creator: Pat Recordist")).toBeVisible();
+    expect(screen.getByText("Recording: XC12345")).toBeVisible();
+    expect(screen.getByText("Species:")).toHaveTextContent("Selasphorus rufus");
+    expect(screen.getByText("Changes: Unmodified from the credited source recording.")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Open cited source on xeno-canto.org" })).toHaveAttribute(
+      "href", "https://xeno-canto.org/12345",
+    );
   });
 
   it.each([

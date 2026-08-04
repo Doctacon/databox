@@ -4,13 +4,15 @@ import type {
   CreatePlanInput,
   Evidence,
   LocationSuggestion,
+  Media,
   PlanSummary,
   Recommendation,
   ToolTrace,
   TripCalendarInviteStatus,
   TripPlanDetail,
 } from "../types";
-import { publicCatalogPhoto, recommendationCall, recommendationPhoto } from "./media";
+import { publicCatalogCall, publicCatalogPhoto, recommendationCall, recommendationPhoto } from "./media";
+import { validatePublicRecommendationAudio } from "../publicRecommendationAudio";
 import { queryPublicObservations } from "./observationStore";
 import {
   localDateTimeIso,
@@ -163,6 +165,10 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
     const species = speciesByCode.get(speciesCode);
     const scientificName = species?.scientific_name ?? null;
     const catalogPhoto = publicCatalogPhoto(species?.hero_photo, scientificName, manifest.generated_at);
+    const catalogCall = publicCatalogCall(species?.call, scientificName, manifest.generated_at);
+    const publishedCall = catalogCall?.status === "available"
+      ? (({ lookup_at: _lookupAt, ...call }) => call)(catalogCall)
+      : recommendationCall(scientificName);
     return {
       recommendation_id: `recommendation_${index + 1}_${speciesCode}`,
       species_code: speciesCode,
@@ -174,7 +180,7 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
       rationale_text: `${rows.length.toLocaleString()} licensed generalized occurrence${rows.length === 1 ? " is" : "s are"} available inside ${PLAN_RADIUS_MILES} miles; the nearest is ${rows[0].distanceMiles.toFixed(1)} miles away.`,
       caveats: ["Historical occurrence evidence does not guarantee current presence."],
       photo: recommendationPhoto(scientificName, catalogPhoto),
-      call: recommendationCall(scientificName),
+      call: publishedCall,
     };
   });
   const recommendationByCode = new Map(recommendations.map((row) => [row.species_code, row]));
@@ -231,7 +237,49 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
       caveats: [...photo.caveats],
     } satisfies Evidence];
   });
-  const evidence = [...occurrenceEvidence, ...photoEvidence];
+  const callEvidence: Evidence[] = [];
+  const callMedia: Media[] = [];
+  for (const [index, recommendation] of recommendations.entries()) {
+    if (recommendation.call.status !== "available") continue;
+    const audio = validatePublicRecommendationAudio(recommendation.call);
+    if (audio === null || recommendation.call.source_record_id === null) {
+      throw new Error("Published recommendation audio provenance is unavailable.");
+    }
+    const evidenceId = `call_${index + 1}_${recommendation.species_code}`;
+    callEvidence.push({
+      evidence_id: evidenceId,
+      recommendation_id: recommendation.recommendation_id,
+      source: audio.provider,
+      source_table: `published_${audio.provider}_audio`,
+      source_record_id: audio.providerId,
+      evidence_type: "recommendation_call",
+      status: "available",
+      retrieved_at: manifest.generated_at,
+      summary: {
+        provider_id: audio.providerId,
+        recording_id: audio.recordingId,
+      },
+      payload: {},
+      caveats: [...recommendation.call.caveats],
+    });
+    callMedia.push({
+      evidence_id: evidenceId,
+      recommendation_id: recommendation.recommendation_id,
+      source_record_id: audio.providerId,
+      recording_id: audio.recordingId,
+      status: "available",
+      species_name: recommendation.call.species_name,
+      recording_type: recommendation.call.recording_type,
+      quality: recommendation.call.quality,
+      recordist: recommendation.call.recordist,
+      license_text: audio.licenseCode,
+      license_url: audio.licenseUrl,
+      source_url: audio.sourceUrl,
+      audio_url: audio.audioUrl,
+      caveats: [...recommendation.call.caveats],
+    });
+  }
+  const evidence = [...occurrenceEvidence, ...photoEvidence, ...callEvidence];
   const now = new Date().toISOString();
   const toolTraces: ToolTrace[] = [
     {
@@ -299,7 +347,7 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
     recommendations,
     evidence,
     weather: null,
-    media: [],
+    media: callMedia,
     tool_traces: toolTraces,
     calendar_invite: {
       status: "not_created",

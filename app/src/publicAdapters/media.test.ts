@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { publicCatalogPhoto, publicCatalogPhotos, recommendationPhoto } from "./media";
+import { publicCatalogCall, publicCatalogPhoto, publicCatalogPhotos, recommendationPhoto } from "./media";
 
 const sha256 = `ab${"c".repeat(62)}`;
 const media = {
@@ -53,6 +53,24 @@ const wikimediaMedia = {
   title: "Abert's Towhee",
   alt_text: "An Abert's Towhee standing on open ground",
   sha256: wikimediaSha256,
+};
+
+const audioSha256 = `12${"3".repeat(62)}`;
+const xenoAudio = {
+  provider: "xeno_canto",
+  provider_id: "XC12345",
+  source_url: "https://xeno-canto.org/12345",
+  creator: "Pat Recordist",
+  license: "CC BY 4.0",
+  license_url: "https://creativecommons.org/licenses/by/4.0/",
+  url: `https://rufous-data.loughondata.com/rufous-audio/v1/objects/12/${audioSha256}.mp3`,
+  sha256: audioSha256,
+  bytes: 123_456,
+  mime_type: "audio/mpeg",
+  duration_seconds: 42.5,
+  recording_type: "call",
+  modifications: "Unmodified from the credited source recording.",
+  attribution_id: `audio-attribution-${audioSha256.slice(0, 24)}`,
 };
 
 describe("published USFWS media adapter", () => {
@@ -268,5 +286,80 @@ describe("published Wikimedia Commons media adapter", () => {
       license,
       license_url: licenseUrl,
     }, "Melozone aberti", "2026-08-04T12:00:00Z")).not.toBeNull();
+  });
+});
+
+describe("published public-audio adapter", () => {
+  it("maps a content-addressed Xeno-canto recording into the existing native player contract", () => {
+    expect(publicCatalogCall(xenoAudio, "Selasphorus rufus", "2026-08-04T12:00:00Z")).toMatchObject({
+      status: "available",
+      source_record_id: "XC12345",
+      recording_id: "12345",
+      species_name: "Selasphorus rufus",
+      recordist: "Pat Recordist",
+      source_url: "https://xeno-canto.org/12345",
+      audio_url: xenoAudio.url,
+      license_text: "CC BY 4.0",
+      selection_reason: "Xeno-canto · Unmodified from the credited source recording.",
+    });
+  });
+
+  it.each([
+    ["iNaturalist", {
+      provider: "inaturalist",
+      provider_id: "sound-67890",
+      source_url: "https://www.inaturalist.org/observations/98765",
+      license: "CC0 1.0",
+      license_url: "https://creativecommons.org/publicdomain/zero/1.0/",
+    }],
+    ["Wikimedia Commons", {
+      provider: "wikimedia",
+      provider_id: "File:Rufous_Hummingbird.ogg",
+      source_url: "https://commons.wikimedia.org/wiki/File:Rufous_Hummingbird.ogg",
+      license: "CC BY-SA 4.0",
+      license_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+    }],
+    ["USFWS", {
+      provider: "usfws",
+      provider_id: "lesser-scaup-audio",
+      source_url: "https://www.fws.gov/media/lesser-scaup-audio",
+      license: "Public Domain",
+      license_url: "https://www.fws.gov/notices",
+    }],
+  ])("accepts an exact %s recording source and commercial-safe license", (_label, identity) => {
+    expect(publicCatalogCall(
+      { ...xenoAudio, ...identity },
+      "Selasphorus rufus",
+      "2026-08-04T12:00:00Z",
+    )).not.toBeNull();
+  });
+
+  it.each([
+    ["direct provider download instead of R2", { url: "https://xeno-canto.org/12345/download" }],
+    ["wrong R2 namespace", { url: xenoAudio.url.replace("rufous-audio", "rufous-media") }],
+    ["wrong hash shard", { url: xenoAudio.url.replace("/objects/12/", "/objects/ff/") }],
+    ["hash mismatch", { sha256: "4".repeat(64) }],
+    ["MIME/extension mismatch", { mime_type: "audio/ogg" }],
+    ["source query", { source_url: "https://xeno-canto.org/12345?download=1" }],
+    ["provider ID mismatch", { provider_id: "XC54321" }],
+    ["noncommercial license", {
+      license: "CC BY-NC 4.0",
+      license_url: "https://creativecommons.org/licenses/by-nc/4.0/",
+    }],
+    ["wrong attribution identity", { attribution_id: "audio-attribution-000000000000000000000000" }],
+    ["empty creator", { creator: "" }],
+    ["oversized object", { bytes: 25 * 1024 * 1024 + 1 }],
+    ["excessive duration", { duration_seconds: 3_600.1 }],
+    ["unexpected field", { private_note: "must not enter the browser contract" }],
+  ])("rejects %s", (_label, mutation) => {
+    expect(publicCatalogCall(
+      { ...xenoAudio, ...mutation },
+      "Selasphorus rufus",
+      "2026-08-04T12:00:00Z",
+    )).toBeNull();
+  });
+
+  it("keeps a missing species attachment unavailable", () => {
+    expect(publicCatalogCall(xenoAudio, null, "2026-08-04T12:00:00Z")).toBeNull();
   });
 });

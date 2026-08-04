@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
-from databox.public_export import export_public_data
+from databox.public_export import export_public_data, public_provider_attribution_source
 from databox.public_export_audit import (
     MAX_FILE_BYTES,
     audit_deploy_context,
@@ -173,45 +173,14 @@ def _attach_synthetic_media(
         for source in attribution["sources"]
         if source.get("provider") not in {"usfws", "inaturalist", "wikimedia"}
     ]
-    provider_sources = {
-        "usfws": {
-            "provider": "usfws",
-            "title": "U.S. Fish and Wildlife Service Media Library",
-            "url": "https://www.fws.gov/search/images",
-            "license": "Per-item Public Domain or Creative Commons license",
-            "license_url": "https://www.fws.gov/notices",
-            "credit": "Individual creators are credited beside each image.",
-            "modifications": (
-                "Rufous resized, re-encoded, and stripped metadata from web display copies; "
-                "each credit links to the original USFWS media page."
-            ),
-        },
-        "inaturalist": {
-            "provider": "inaturalist",
-            "title": "iNaturalist",
-            "url": "https://www.inaturalist.org/",
-            "license": "Per-item Creative Commons license",
-            "license_url": None,
-            "credit": "Individual creators are credited on each media item.",
-            "modifications": (
-                "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
-                "copies; each credit links to the original iNaturalist photo page."
-            ),
-        },
-        "wikimedia": {
-            "provider": "wikimedia",
-            "title": "Wikimedia Commons",
-            "url": "https://commons.wikimedia.org/",
-            "license": "Per-item Public Domain or Creative Commons license",
-            "license_url": None,
-            "credit": "Individual creators are credited on each media item.",
-            "modifications": (
-                "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
-                "copies; each credit links to the original Wikimedia Commons File page."
-            ),
-        },
-    }
-    attribution["sources"].extend(provider_sources[value] for value in sorted(media_sources))
+    attribution["sources"].extend(
+        public_provider_attribution_source(
+            value,
+            includes_photos=True,
+            includes_audio=False,
+        )
+        for value in sorted(media_sources)
+    )
     attribution_path.write_text(json.dumps(attribution), encoding="utf-8")
 
 

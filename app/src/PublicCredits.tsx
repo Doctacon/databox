@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { getPublicAttribution } from "./publicData";
 import { publicManifest } from "./publicAdapters/runtime";
+import {
+  isExactPublicAudioSourceUrl,
+  publicAudioProviderLabel,
+} from "./publicAudioContracts";
 import { isExactPublicMediaSourceUrl } from "./publicMediaContracts";
 import type {
   PublicAttribution,
@@ -47,8 +51,10 @@ export function safeDoiHref(value: unknown): string | null {
 }
 
 export function safeItemSourceHref(provider: unknown, value: unknown): string | null {
+  if (provider === "xeno_canto" && !isExactPublicAudioSourceUrl(provider, value)) return null;
   if ((provider === "usfws" || provider === "inaturalist" || provider === "wikimedia")
-    && !isExactPublicMediaSourceUrl(provider, value)) return null;
+    && !isExactPublicMediaSourceUrl(provider, value)
+    && !isExactPublicAudioSourceUrl(provider, value)) return null;
   return safeAttributionHref(value);
 }
 
@@ -70,6 +76,22 @@ function mediaSourceNotice(manifest: PublicManifest): string {
       ? names.join(" and ")
       : `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
   return `Approved bird photos come from ${providers}. Rufous serves immutable display copies and retains each creator, source page, and license.`;
+}
+
+function audioSourceNotice(manifest: PublicManifest): string {
+  const source = manifest.source_policy.audio_source ?? "none";
+  if (source === "none") return "No bird sounds are included in this release.";
+  const names = source.split("+").map((provider) => publicAudioProviderLabel(
+    provider as "xeno_canto" | "inaturalist" | "wikimedia" | "usfws",
+  ));
+  const providers = names.length === 1
+    ? names[0]
+    : names.length === 2
+      ? names.join(" and ")
+      : `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
+  const itemCount = manifest.counts.audio_items ?? 0;
+  const speciesCount = manifest.counts.species_with_audio ?? 0;
+  return `${itemCount.toLocaleString()} commercially reusable bird sounds from ${providers} cover ${speciesCount.toLocaleString()} species. Rufous serves immutable copies with creator, source, license, and modification notices.`;
 }
 
 function SourceCredit({ source }: { source: PublicAttributionSource }) {
@@ -143,7 +165,8 @@ export function PublicCreditsPage({
           ? "This production snapshot uses licensed historical GBIF occurrences. It does not use the direct eBird API or eBird hotspots."
           : "This preview uses fictional bird occurrences. It is not production observation data."}</p>
         <p>{mediaSourceNotice(manifest)}</p>
-        <p className="source-status">Generated {new Date(manifest.generated_at).toLocaleString()} · Release {manifest.data_version} · {manifest.counts.observations.toLocaleString()} occurrence records</p>
+        <p>{audioSourceNotice(manifest)}</p>
+        <p className="source-status">Generated {new Date(manifest.generated_at).toLocaleString()} · Release {manifest.data_version} · {manifest.counts.observations.toLocaleString()} occurrence records · {(manifest.counts.audio_items ?? 0).toLocaleString()} bird sounds</p>
       </section>
       <section className="credits-grid" aria-label="Release-level data sources">
         {attribution.sources.map((source) => <SourceCredit key={`${source.provider}-${source.title}`} source={source} />)}
@@ -155,14 +178,20 @@ export function PublicCreditsPage({
           const licenseHref = safeAttributionHref(item.license_url);
           const doiHref = safeDoiHref(item.dataset_doi);
           return <li key={item.attribution_id}>
-            <strong>{item.dataset_title || item.creator}</strong>
+            <strong>{item.dataset_title || (item.kind === "audio" && item.common_name
+              ? `${item.common_name} sound`
+              : item.creator)}</strong>
             <span>Provider: {item.provider}</span>
+            {item.kind === "audio" && item.provider_id && <span>Recording: {item.provider_id}</span>}
+            {item.kind === "audio" && item.scientific_name && <span>Species: <em>{item.scientific_name}</em></span>}
+            {item.kind === "audio" && item.recording_type && <span>Type: {item.recording_type}</span>}
             <span>Creator: {item.creator}</span>
             {item.publisher && <span>Publisher: {item.publisher}</span>}
             {item.dataset_citation && <span>Recommended citation: {item.dataset_citation}</span>}
             <span>License: {licenseHref
               ? <a href={licenseHref} target="_blank" rel="noreferrer">{item.license}</a>
               : item.license}</span>
+            {item.kind === "audio" && item.modifications && <span>Changes: {item.modifications}</span>}
             {doiHref && <a href={doiHref} target="_blank" rel="noreferrer">Dataset DOI: {item.dataset_doi}</a>}
             {sourceHref
               ? <a href={sourceHref} target="_blank" rel="noreferrer">Open cited source on {sourceHost(sourceHref)}</a>

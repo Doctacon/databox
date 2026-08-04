@@ -2,6 +2,7 @@ import { FormEvent, KeyboardEvent, MouseEvent, ReactNode, useCallback, useEffect
 import rufousImage from "./assets/rufous.png";
 import { getBird, listBirds } from "./birdApi";
 import { ProfileCollectionControls } from "./MyBirds";
+import { publicAudioProviderFromSourceUrl, publicAudioProviderLabel } from "./publicAudioContracts";
 import { publicMediaProviderLabel } from "./publicMediaContracts";
 import type { BirdCatalogSummary, BirdProfile, CatalogCall, CatalogPhoto } from "./types";
 import { compareVisibleLabels } from "./visibleLabel";
@@ -230,6 +231,7 @@ function CatalogCallPlayer({ call, label, compact = false }: {
   const playingAudioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
+  const sourceProvider = publicAudioProviderFromSourceUrl(call.source_url);
   const stop = useCallback(() => {
     const audio = playingAudioRef.current;
     if (audio) {
@@ -286,7 +288,9 @@ function CatalogCallPlayer({ call, label, compact = false }: {
       <span>Call: {call.recordist}{call.geographic_scope ? ` · ${call.geographic_scope}` : ""}</span>
       {!compact && call.recording_type && <span>Type: {call.recording_type}{call.quality ? ` · quality ${call.quality}` : ""}</span>}
       {!compact && (call.locality || call.country) && <span>Location: {[call.locality, call.country].filter(Boolean).join(", ")}</span>}
-      {call.source_url && <a href={call.source_url} target="_blank" rel="noreferrer">Xeno-canto source</a>}
+      {call.source_url && <a href={call.source_url} target="_blank" rel="noreferrer">{sourceProvider
+        ? `${publicAudioProviderLabel(sourceProvider)} source`
+        : "Recording source"}</a>}
       {call.license_url && <a href={call.license_url} target="_blank" rel="noreferrer">{call.license_text}</a>}
       {!compact && call.selection_reason && <span>{call.selection_reason}</span>}
       {!compact && <span>Looked up: {formatDate(call.lookup_at)}</span>}

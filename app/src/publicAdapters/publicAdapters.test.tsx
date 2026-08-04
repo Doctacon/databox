@@ -10,7 +10,7 @@ import n33w113 from "../../public/data/cells/n33w113.json";
 import n34w113 from "../../public/data/cells/n34w113.json";
 import prescott from "../../public/data/places/pr.json";
 import { PhotoArea } from "../App";
-import { getBird } from "./birdApi";
+import { getBird, listBirds } from "./birdApi";
 import { createObservation, getCollectionState, listLifeList, saveWatch } from "./collectionApi";
 import { getMapSnapshot } from "./mapApi";
 import { resetPublicRuntimeForTests } from "./runtime";
@@ -73,6 +73,26 @@ function publicPhoto(index: number) {
   };
 }
 
+function publicAudio() {
+  const sha256 = `ef${"4".repeat(62)}`;
+  return {
+    provider: "xeno_canto",
+    provider_id: "XC12345",
+    source_url: "https://xeno-canto.org/12345",
+    creator: "Pat Recordist",
+    license: "CC BY 4.0",
+    license_url: "https://creativecommons.org/licenses/by/4.0/",
+    url: `https://rufous-data.loughondata.com/rufous-audio/v1/objects/ef/${sha256}.mp3`,
+    sha256,
+    bytes: 123_456,
+    mime_type: "audio/mpeg",
+    duration_seconds: 42.5,
+    recording_type: "call",
+    modifications: "Unmodified from the credited source recording.",
+    attribution_id: `audio-attribution-${sha256.slice(0, 24)}`,
+  };
+}
+
 function mockProductionFixtureFetch() {
   const productionManifest = {
     ...structuredClone(manifest),
@@ -85,6 +105,8 @@ function mockProductionFixtureFetch() {
       required_taxon_key: 2476855,
       media_source: "usfws+inaturalist",
       media_delivery: "immutable_r2",
+      audio_source: "xeno_canto",
+      audio_delivery: "immutable_r2",
     },
     counts: {
       ...manifest.counts,
@@ -92,6 +114,8 @@ function mockProductionFixtureFetch() {
       observations: 1,
       media_items: 2,
       species_with_media: 1,
+      audio_items: 1,
+      species_with_audio: 1,
     },
     species: [{
       species_code: PRODUCTION_SPECIES_CODE,
@@ -100,6 +124,7 @@ function mockProductionFixtureFetch() {
       profile_path: `/data/species/${PRODUCTION_SPECIES_CODE}.json`,
       hero_photo: publicPhoto(1),
       photo_count: 2,
+      call: publicAudio(),
     }],
     cells: [{ ...n34w113, path: "/data/cells/n34w113.json", observation_count: 1, observations: undefined }],
   };
@@ -107,6 +132,7 @@ function mockProductionFixtureFetch() {
     ...structuredClone(rufhum),
     species_code: PRODUCTION_SPECIES_CODE,
     media: [publicPhoto(1), publicPhoto(2)],
+    call: publicAudio(),
   };
   const productionCell = {
     ...structuredClone(n34w113),
@@ -211,6 +237,7 @@ describe("full public-app browser adapters", () => {
 
   it("supports production gbif taxon codes through profiles, targets, observations, and watches", async () => {
     mockProductionFixtureFetch();
+    const catalog = await listBirds();
     const profile = await getBird(PRODUCTION_SPECIES_CODE);
     const map = await getMapSnapshot();
     const [location] = await searchLocations("Prescott");
@@ -242,7 +269,17 @@ describe("full public-app browser adapters", () => {
       species_code: PRODUCTION_SPECIES_CODE,
       common_name: "Rufous Hummingbird",
       photo: { provider: "inaturalist", source_record_id: "inaturalist-5938231789" },
+      call: {
+        status: "available",
+        source_record_id: "XC12345",
+        recording_id: "12345",
+        recordist: "Pat Recordist",
+        audio_url: publicAudio().url,
+        source_url: "https://xeno-canto.org/12345",
+        license_text: "CC BY 4.0",
+      },
     });
+    expect(catalog[0].call).toMatchObject(profile.call);
     expect(profile.photos).toHaveLength(2);
     expect(profile.photos?.[1]).toMatchObject({
       provider: "usfws",
@@ -263,6 +300,16 @@ describe("full public-app browser adapters", () => {
       source_record_id: "inaturalist-5938231789",
       source_url: "https://www.inaturalist.org/photos/5938231789",
     });
+    expect(trip.recommendations[0].call).toMatchObject({
+      status: "available",
+      source_record_id: "XC12345",
+      recording_id: "12345",
+      species_name: "Selasphorus rufus",
+      recordist: "Pat Recordist",
+      source_url: "https://xeno-canto.org/12345",
+      audio_url: publicAudio().url,
+      license_text: "CC BY 4.0",
+    });
     expect(trip.evidence.filter((item) => item.evidence_type === "recommendation_photo")).toEqual([{
       evidence_id: `photo_1_${PRODUCTION_SPECIES_CODE}`,
       recommendation_id: `recommendation_1_${PRODUCTION_SPECIES_CODE}`,
@@ -274,6 +321,35 @@ describe("full public-app browser adapters", () => {
       retrieved_at: manifest.generated_at,
       summary: {},
       payload: {},
+      caveats: [],
+    }]);
+    expect(trip.evidence.filter((item) => item.evidence_type === "recommendation_call")).toEqual([{
+      evidence_id: `call_1_${PRODUCTION_SPECIES_CODE}`,
+      recommendation_id: `recommendation_1_${PRODUCTION_SPECIES_CODE}`,
+      source: "xeno_canto",
+      source_table: "published_xeno_canto_audio",
+      source_record_id: "XC12345",
+      evidence_type: "recommendation_call",
+      status: "available",
+      retrieved_at: manifest.generated_at,
+      summary: { provider_id: "XC12345", recording_id: "12345" },
+      payload: {},
+      caveats: [],
+    }]);
+    expect(trip.media).toEqual([{
+      evidence_id: `call_1_${PRODUCTION_SPECIES_CODE}`,
+      recommendation_id: `recommendation_1_${PRODUCTION_SPECIES_CODE}`,
+      source_record_id: "XC12345",
+      recording_id: "12345",
+      status: "available",
+      species_name: "Selasphorus rufus",
+      recording_type: "call",
+      quality: null,
+      recordist: "Pat Recordist",
+      license_text: "CC BY 4.0",
+      license_url: "https://creativecommons.org/licenses/by/4.0/",
+      source_url: "https://xeno-canto.org/12345",
+      audio_url: publicAudio().url,
       caveats: [],
     }]);
     render(<PhotoArea row={trip.recommendations[0]} />);

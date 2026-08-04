@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,8 @@ from databox.public_export import (
     GBIF_RUFOUS_TAXON_KEY,
     SCHEMA_VERSION,
     canonical_license,
+    public_provider_attribution_sources,
+    valid_public_audio_call,
 )
 from databox.public_restricted_marks import restricted_usfws_mark_reason
 
@@ -264,6 +267,7 @@ _MEDIA_SOURCE_PROVIDERS = {
     "inaturalist+wikimedia": frozenset({"inaturalist", "wikimedia"}),
     "usfws+inaturalist+wikimedia": frozenset({"usfws", "inaturalist", "wikimedia"}),
 }
+_AUDIO_PROVIDER_ORDER = ("xeno_canto", "inaturalist", "wikimedia", "usfws")
 _PUBLIC_MEDIA_EMAIL = re.compile(
     r"(?<![A-Za-z0-9.!#$%&'*+/=?^_`{|}~-])"
     r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@"
@@ -706,67 +710,48 @@ def audit_deploy_context(repository_root: Path) -> list[str]:
 
 def _audit_media_attribution_sources(
     sources: object,
-    advertised_providers: frozenset[str],
+    *,
+    advertised_photo_providers: frozenset[str],
+    advertised_audio_providers: frozenset[str],
 ) -> list[str]:
     if not isinstance(sources, list):
         return ["public attribution sources must be an array"]
     findings: list[str] = []
-    expected: dict[str, dict[str, object]] = {
-        "usfws": {
-            "provider": "usfws",
-            "title": "U.S. Fish and Wildlife Service Media Library",
-            "url": "https://www.fws.gov/search/images",
-            "license": "Per-item Public Domain or Creative Commons license",
-            "license_url": "https://www.fws.gov/notices",
-            "credit": "Individual creators are credited beside each image.",
-            "modifications": (
-                "Rufous resized, re-encoded, and stripped metadata from web display copies; "
-                "each credit links to the original USFWS media page."
-            ),
-        },
-        "inaturalist": {
-            "provider": "inaturalist",
-            "title": "iNaturalist",
-            "url": "https://www.inaturalist.org/",
-            "license": "Per-item Creative Commons license",
-            "license_url": None,
-            "credit": "Individual creators are credited on each media item.",
-            "modifications": (
-                "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
-                "copies; each credit links to the original iNaturalist photo page."
-            ),
-        },
-        "wikimedia": {
-            "provider": "wikimedia",
-            "title": "Wikimedia Commons",
-            "url": "https://commons.wikimedia.org/",
-            "license": "Per-item Public Domain or Creative Commons license",
-            "license_url": None,
-            "credit": "Individual creators are credited on each media item.",
-            "modifications": (
-                "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
-                "copies; each credit links to the original Wikimedia Commons File page."
-            ),
-        },
+    advertised_providers = advertised_photo_providers | advertised_audio_providers
+    expected_sources = [
+        source
+        for provider in _AUDIO_PROVIDER_ORDER
+        if provider in advertised_providers
+        for source in public_provider_attribution_sources(
+            provider,
+            includes_photos=provider in advertised_photo_providers,
+            includes_audio=provider in advertised_audio_providers,
+        )
+    ]
+    expected_by_provider = {str(source["provider"]): source for source in expected_sources}
+    known_provider_ids = {
+        provider_id
+        for provider in _AUDIO_PROVIDER_ORDER
+        for provider_id in (provider, f"{provider}_audio")
     }
-    for provider, contract in expected.items():
+    for provider, contract in expected_by_provider.items():
         matches = [
             item for item in sources if isinstance(item, dict) and item.get("provider") == provider
         ]
-        required = provider in advertised_providers
-        if required and len(matches) != 1:
+        if len(matches) != 1:
             findings.append(
                 f"public attribution must contain one {provider} media source when advertised"
             )
             continue
-        if not required and matches:
-            findings.append(f"public attribution contains unadvertised {provider} media source")
-            continue
-        if not matches:
-            continue
         source = matches[0]
-        if any(source.get(field) != value for field, value in contract.items()):
+        if source != contract:
             findings.append(f"public {provider} media attribution does not match its contract")
+    for source in sources:
+        source_provider = source.get("provider") if isinstance(source, dict) else None
+        if source_provider in known_provider_ids and source_provider not in expected_by_provider:
+            findings.append(
+                f"public attribution contains unadvertised {source_provider} media source"
+            )
     return findings
 
 
@@ -802,6 +787,7 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
     mode = manifest.get("release_mode")
     source_policy = manifest.get("source_policy")
     advertised_media_providers: frozenset[str] = frozenset()
+    advertised_audio_providers: frozenset[str] = frozenset()
     if not isinstance(source_policy, dict):
         findings.append("manifest source_policy metadata is missing")
     else:
@@ -813,6 +799,27 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
         expected_delivery = "none" if media_source == "none" else "immutable_r2"
         if source_policy.get("media_delivery") != expected_delivery:
             findings.append("manifest media delivery marker is invalid")
+        audio_source = source_policy.get("audio_source")
+        if audio_source == "none":
+            advertised_audio_providers = frozenset()
+        elif isinstance(audio_source, str):
+            audio_parts = audio_source.split("+")
+            advertised_audio_providers = frozenset(audio_parts)
+            expected_audio_parts = [
+                provider
+                for provider in _AUDIO_PROVIDER_ORDER
+                if provider in advertised_audio_providers
+            ]
+            if audio_parts != expected_audio_parts or len(audio_parts) != len(
+                advertised_audio_providers
+            ):
+                findings.append("manifest audio source marker is invalid")
+                advertised_audio_providers = frozenset()
+        else:
+            findings.append("manifest audio source marker is invalid")
+        expected_audio_delivery = "none" if audio_source == "none" else "immutable_r2"
+        if source_policy.get("audio_delivery") != expected_audio_delivery:
+            findings.append("manifest audio delivery marker is invalid")
         if source_policy.get("direct_ebird") != "excluded":
             findings.append("manifest must exclude direct eBird data")
         if mode == "production":
@@ -890,17 +897,24 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
                 findings.append(
                     "production GBIF attribution must retain the dataset accuracy notice"
                 )
-    findings.extend(_audit_media_attribution_sources(sources, advertised_media_providers))
+    findings.extend(
+        _audit_media_attribution_sources(
+            sources,
+            advertised_photo_providers=advertised_media_providers,
+            advertised_audio_providers=advertised_audio_providers,
+        )
+    )
 
     referenced: set[Path] = {manifest_path, attribution_path}
     attribution_items = attribution.get("items")
     if not isinstance(attribution_items, list):
         attribution_items = []
-    attribution_ids = {
-        str(item.get("attribution_id"))
+    attribution_by_id = {
+        str(item.get("attribution_id")): item
         for item in attribution_items
         if isinstance(item, dict) and isinstance(item.get("attribution_id"), str)
     }
+    attribution_ids = set(attribution_by_id)
     species = manifest.get("species")
     cells = manifest.get("cells")
     prefixes = manifest.get("place_prefixes")
@@ -909,6 +923,9 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
     observed_media_providers: set[str] = set()
     media_item_count = 0
     species_with_media = 0
+    audio_item_count = 0
+    species_with_audio = 0
+    observed_audio_providers: set[str] = set()
     if not isinstance(species, list) or not species:
         findings.append("manifest species index is empty or malformed")
     else:
@@ -926,6 +943,8 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
             for field in ("species_code", "common_name", "scientific_name"):
                 if item.get(field) != profile.get(field):
                     findings.append(f"species summary disagrees with profile field {field}")
+            if "call" not in item or "call" not in profile:
+                findings.append("species summary and profile must declare an optional call")
             media = profile.get("media")
             profile_media = media if isinstance(media, list) else []
             observed_media_providers.update(
@@ -940,6 +959,14 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
             expected_hero = profile_media[0] if profile_media else None
             if item.get("hero_photo") != expected_hero:
                 findings.append("species summary hero_photo disagrees with its profile")
+            profile_call = profile.get("call")
+            if item.get("call") != profile_call:
+                findings.append("species summary call disagrees with its profile")
+            if profile_call is not None:
+                audio_item_count += 1
+                species_with_audio += 1
+                if isinstance(profile_call, dict) and isinstance(profile_call.get("provider"), str):
+                    observed_audio_providers.add(profile_call["provider"])
             media_item_count += len(profile_media)
             if profile_media:
                 species_with_media += 1
@@ -950,13 +977,22 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
             ):
                 production_has_rufous = True
                 production_rufous_has_media = bool(profile_media)
-            findings.extend(_audit_species_profile(profile, path.relative_to(site_dir), mode=mode))
+            findings.extend(
+                _audit_species_profile(
+                    profile,
+                    path.relative_to(site_dir),
+                    mode=mode,
+                    attribution_by_id=attribution_by_id,
+                )
+            )
     if mode == "production" and not production_has_rufous:
         findings.append("production species index is missing Rufous Hummingbird")
     elif mode == "production" and not production_rufous_has_media:
         findings.append("production Rufous Hummingbird profile is missing reviewed public media")
     if frozenset(observed_media_providers) != advertised_media_providers:
         findings.append("manifest media source marker does not match species profiles")
+    if frozenset(observed_audio_providers) != advertised_audio_providers:
+        findings.append("manifest audio source marker does not match species profiles")
     counts = manifest.get("counts")
     if not isinstance(counts, dict):
         findings.append("manifest counts are missing")
@@ -965,6 +1001,10 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
             findings.append("manifest media_items count does not match profiles")
         if counts.get("species_with_media") != species_with_media:
             findings.append("manifest species_with_media count does not match profiles")
+        if counts.get("audio_items") != audio_item_count:
+            findings.append("manifest audio_items count does not match profiles")
+        if counts.get("species_with_audio") != species_with_audio:
+            findings.append("manifest species_with_audio count does not match profiles")
     for name, rows, path_field in (("cell", cells, "path"), ("place", prefixes, "path")):
         if not isinstance(rows, list):
             findings.append(f"manifest {name} index is malformed")
@@ -1120,7 +1160,13 @@ def _read_object(path: Path, findings: list[str]) -> dict[str, Any]:
     return value
 
 
-def _audit_species_profile(profile: dict[str, Any], relative: Path, *, mode: object) -> list[str]:
+def _audit_species_profile(
+    profile: dict[str, Any],
+    relative: Path,
+    *,
+    mode: object,
+    attribution_by_id: Mapping[str, dict[str, Any]],
+) -> list[str]:
     findings = _audit_forbidden_keys(profile, relative)
     for field in ("species_code", "common_name", "scientific_name"):
         if not isinstance(profile.get(field), str) or not profile[field].strip():
@@ -1129,6 +1175,8 @@ def _audit_species_profile(profile: dict[str, Any], relative: Path, *, mode: obj
     if not isinstance(media, list):
         findings.append(f"{relative} media must be an array")
         return findings
+    if "call" not in profile:
+        findings.append(f"{relative} must declare an optional audio call")
     seen_media_ids: set[str] = set()
     seen_source_urls: set[str] = set()
     for item in media:
@@ -1261,6 +1309,44 @@ def _audit_species_profile(profile: dict[str, Any], relative: Path, *, mode: obj
         )
         if restricted_mark is not None:
             findings.append(f"{relative} USFWS item identifies restricted mark {restricted_mark}")
+    call = profile.get("call")
+    if call is None:
+        return findings
+    if not valid_public_audio_call(
+        call,
+        species_code=(
+            profile.get("species_code") if isinstance(profile.get("species_code"), str) else None
+        ),
+        common_name=(
+            profile.get("common_name") if isinstance(profile.get("common_name"), str) else None
+        ),
+        scientific_name=(
+            profile.get("scientific_name")
+            if isinstance(profile.get("scientific_name"), str)
+            else None
+        ),
+    ):
+        findings.append(f"{relative} audio call fails the public contract")
+        return findings
+    assert isinstance(call, dict)
+    attribution_id = str(call["attribution_id"])
+    attribution = attribution_by_id.get(attribution_id)
+    expected_attribution = {
+        "attribution_id": attribution_id,
+        "kind": "audio",
+        "provider": call["provider"],
+        "provider_id": call["provider_id"],
+        "common_name": profile["common_name"],
+        "scientific_name": profile["scientific_name"],
+        "creator": call["creator"],
+        "source_url": call["source_url"],
+        "license": call["license"],
+        "license_url": call["license_url"],
+        "recording_type": call["recording_type"],
+        "modifications": call["modifications"],
+    }
+    if attribution != expected_attribution:
+        findings.append(f"{relative} audio call lacks exact item attribution")
     return findings
 
 

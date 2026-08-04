@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import App from "./App";
+import App, { CallArea } from "./App";
 import type { Evidence, Recommendation, RecommendationCall, RecommendationPhoto, TripPlanDetail } from "./types";
 
 const unavailablePhoto: RecommendationPhoto = {
@@ -145,6 +145,45 @@ afterEach(() => {
 });
 
 describe("Rufous", () => {
+  it.each([
+    ["Xeno-canto", "XC321", "321", "https://xeno-canto.org/321", "aa", "1", "mp3", "CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"],
+    ["iNaturalist", "sound-456", "sound-456", "https://www.inaturalist.org/observations/789", "bb", "2", "m4a", "CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+    ["Wikimedia Commons", "File:Mexican_Jay.ogg", "File:Mexican_Jay.ogg", "https://commons.wikimedia.org/wiki/File:Mexican_Jay.ogg", "cc", "3", "ogg", "CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"],
+    ["USFWS", "mexican-jay-call", "mexican-jay-call", "https://www.fws.gov/media/mexican-jay-call", "dd", "4", "ogg", "Public Domain", "https://www.fws.gov/notices"],
+  ])("renders pinned %s audio from R2 with its exact public attribution", (providerLabel, sourceRecordId, recordingId, sourceUrl, shard, hashTail, extension, licenseText, licenseUrl) => {
+    const audioUrl = `https://rufous-data.loughondata.com/rufous-audio/v1/objects/${shard}/${shard}${hashTail.repeat(62)}.${extension}`;
+    const row = structuredClone(detail.recommendations[0]);
+    row.call = {
+      status: "available", source_record_id: sourceRecordId, recording_id: recordingId,
+      species_name: "Aphelocoma wollweberi", geographic_scope: "Global example", recording_type: "call",
+      quality: "A", recordist: "Public Audio Fixture", locality: null, country: null,
+      source_url: sourceUrl, audio_url: audioUrl, license_text: licenseText,
+      license_url: licenseUrl, selection_reason: "Pinned public-release audio", caveats: [],
+    };
+    render(<CallArea row={row} />);
+    expect(screen.getByLabelText("Play Mexican Jay · call · Quality A")).toHaveAttribute("src", audioUrl);
+    expect(screen.getByRole("link", { name: `View call source on ${providerLabel}` })).toHaveAttribute("href", sourceUrl);
+    expect(screen.getByRole("link", { name: licenseText })).toHaveAttribute("href", licenseUrl);
+    expect(screen.getByText("Global example")).toBeVisible();
+  });
+
+  it("keeps unavailable calls silent while preserving the legacy trusted Xeno-canto path", () => {
+    const row = structuredClone(detail.recommendations[0]);
+    row.call = unavailableCall;
+    const { rerender } = render(<CallArea row={row} />);
+    expect(screen.getByText("No licensed call example is available.")).toBeVisible();
+    expect(document.querySelector("audio")).not.toBeInTheDocument();
+
+    row.call = availableCall;
+    rerender(<CallArea row={row} />);
+    expect(screen.getByLabelText("Play Mexican Jay · call · Quality A")).toHaveAttribute(
+      "src", "https://xeno-canto.org/1/download",
+    );
+    expect(screen.getByRole("link", { name: "View call source on Xeno-canto" })).toHaveAttribute(
+      "href", "https://xeno-canto.org/1",
+    );
+  });
+
   it("renders the Rufous brand and original local bird motif", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ plans: [] }));
     render(<App />);

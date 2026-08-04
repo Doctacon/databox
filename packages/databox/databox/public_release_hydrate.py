@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from databox.public_export import PublicExportError, semantic_data_version
+from databox.public_export import PublicExportError, semantic_data_version, valid_public_audio_call
 from databox.public_release import (
     IMMUTABLE_CACHE_CONTROL,
     MAX_APPLICATION_MANIFEST_BYTES,
@@ -72,8 +72,11 @@ _APPLICATION_COUNT_KEYS = frozenset(
         "attribution_items",
         "media_items",
         "species_with_media",
+        "audio_items",
+        "species_with_audio",
     }
 )
+_AUDIO_PROVIDER_ORDER = ("xeno_canto", "inaturalist", "wikimedia", "usfws")
 _ARIZONA_REGION = {
     "code": "US-AZ",
     "name": "Arizona",
@@ -115,6 +118,7 @@ class SnapshotReference:
     kind: str
     identity: str | None
     count: int | None
+    audio_call: Mapping[str, Any] | None = None
 
 
 class PublicHttpsFetcher:
@@ -475,6 +479,22 @@ def _validated_pages_snapshot_manifest(
         or source_policy.get("occurrence_source") != "gbif"
     ):
         raise PublicReleaseError("deployed Rufous Pages manifest violates the source boundary")
+    audio_source = source_policy.get("audio_source")
+    if audio_source == "none":
+        advertised_audio_providers: frozenset[str] = frozenset()
+    elif isinstance(audio_source, str):
+        audio_parts = audio_source.split("+")
+        advertised_audio_providers = frozenset(audio_parts)
+        if audio_parts != [
+            provider for provider in _AUDIO_PROVIDER_ORDER if provider in advertised_audio_providers
+        ] or len(audio_parts) != len(advertised_audio_providers):
+            raise PublicReleaseError("deployed Rufous Pages manifest has an invalid audio source")
+    else:
+        raise PublicReleaseError("deployed Rufous Pages manifest has an invalid audio source")
+    if source_policy.get("audio_delivery") != (
+        "none" if audio_source == "none" else "immutable_r2"
+    ):
+        raise PublicReleaseError("deployed Rufous Pages manifest has an invalid audio delivery")
     license_policy = value.get("license_policy")
     if (
         not isinstance(license_policy, dict)
@@ -508,18 +528,43 @@ def _validated_pages_snapshot_manifest(
     species_codes: list[str] = []
     media_items = 0
     species_with_media = 0
+    audio_items = 0
+    species_with_audio = 0
+    observed_audio_providers: set[str] = set()
     for row in raw_species:
         if not isinstance(row, dict):
             raise PublicReleaseError("deployed Rufous Pages manifest has a malformed species item")
         code = row.get("species_code")
         photo_count = row.get("photo_count")
+        call = row.get("call")
         if (
             not isinstance(code, str)
             or not _SPECIES_CODE.fullmatch(code)
             or type(photo_count) is not int
             or photo_count < 0
+            or "call" not in row
         ):
             raise PublicReleaseError("deployed Rufous Pages manifest has a malformed species item")
+        if call is not None:
+            common_name = row.get("common_name")
+            scientific_name = row.get("scientific_name")
+            if (
+                not isinstance(common_name, str)
+                or not isinstance(scientific_name, str)
+                or not valid_public_audio_call(
+                    call,
+                    species_code=code,
+                    common_name=common_name,
+                    scientific_name=scientific_name,
+                )
+            ):
+                raise PublicReleaseError(
+                    "deployed Rufous Pages manifest has a malformed species audio call"
+                )
+            assert isinstance(call, dict)
+            audio_items += 1
+            species_with_audio += 1
+            observed_audio_providers.add(str(call["provider"]))
         path = f"data/species/{code}.json"
         if row.get("profile_path") != f"/{path}" or path in seen:
             raise PublicReleaseError("deployed Rufous Pages manifest has an unsafe species path")
@@ -527,11 +572,25 @@ def _validated_pages_snapshot_manifest(
         species_codes.append(code)
         media_items += photo_count
         species_with_media += int(photo_count > 0)
-        references.append(SnapshotReference(path=path, kind="species", identity=code, count=None))
+        references.append(
+            SnapshotReference(
+                path=path,
+                kind="species",
+                identity=code,
+                count=None,
+                audio_call=call,
+            )
+        )
     if species_codes != sorted(species_codes) or (
         media_items != counts["media_items"] or species_with_media != counts["species_with_media"]
     ):
         raise PublicReleaseError("deployed Rufous Pages manifest has inconsistent species counts")
+    if (
+        audio_items != counts["audio_items"]
+        or species_with_audio != counts["species_with_audio"]
+        or frozenset(observed_audio_providers) != advertised_audio_providers
+    ):
+        raise PublicReleaseError("deployed Rufous Pages manifest has inconsistent audio counts")
 
     raw_cells = value.get("cells")
     if not isinstance(raw_cells, list):
@@ -608,6 +667,26 @@ def _validate_snapshot_object(value: Mapping[str, Any], reference: SnapshotRefer
         raise PublicReleaseError(
             f"deployed Pages object {reference.path!r} disagrees with its manifest"
         )
+    if reference.kind == "species":
+        call = value.get("call")
+        if "call" not in value or (
+            call is not None
+            and (
+                not isinstance(value.get("common_name"), str)
+                or not isinstance(value.get("scientific_name"), str)
+                or not valid_public_audio_call(
+                    call,
+                    species_code=value.get("species_code"),
+                    common_name=value.get("common_name"),
+                    scientific_name=value.get("scientific_name"),
+                )
+            )
+        ):
+            raise PublicReleaseError(f"deployed Pages object {reference.path!r} has invalid audio")
+        if call != reference.audio_call:
+            raise PublicReleaseError(
+                f"deployed Pages object {reference.path!r} audio disagrees with its manifest"
+            )
     if collection_field is not None:
         collection = value.get(collection_field)
         if not isinstance(collection, list) or len(collection) != reference.count:

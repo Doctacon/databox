@@ -12,6 +12,8 @@ export interface PublicSpeciesSummary {
   profile_path: string;
   hero_photo: PublicMedia | null;
   photo_count: number;
+  /** One audited, commercially reusable recording; absent on legacy/no-audio releases. */
+  call?: PublicAudio | null;
 }
 
 export interface PublicCellSummary {
@@ -28,6 +30,26 @@ export interface PublicPlacePrefix {
 }
 
 export type PublicMediaProvider = "usfws" | "inaturalist" | "wikimedia";
+
+export type PublicAudioProvider = "xeno_canto" | "inaturalist" | "wikimedia" | "usfws";
+
+export type PublicAudioSource =
+  | "none"
+  | "xeno_canto"
+  | "inaturalist"
+  | "wikimedia"
+  | "usfws"
+  | "xeno_canto+inaturalist"
+  | "xeno_canto+wikimedia"
+  | "xeno_canto+usfws"
+  | "inaturalist+wikimedia"
+  | "inaturalist+usfws"
+  | "wikimedia+usfws"
+  | "xeno_canto+inaturalist+wikimedia"
+  | "xeno_canto+inaturalist+usfws"
+  | "xeno_canto+wikimedia+usfws"
+  | "inaturalist+wikimedia+usfws"
+  | "xeno_canto+inaturalist+wikimedia+usfws";
 
 export type PublicMediaSource =
   | "none"
@@ -60,6 +82,9 @@ export interface PublicManifest {
     required_taxon_key: number | null;
     media_source: PublicMediaSource;
     media_delivery: "none" | "immutable_r2";
+    /** Optional only for compatibility with releases created before public audio. */
+    audio_source?: PublicAudioSource;
+    audio_delivery?: "none" | "immutable_r2";
   };
   license_policy: {
     version: 1;
@@ -73,6 +98,9 @@ export interface PublicManifest {
     attribution_items: number;
     media_items: number;
     species_with_media: number;
+    /** Optional only for compatibility with releases created before public audio. */
+    audio_items?: number;
+    species_with_audio?: number;
   };
 }
 
@@ -113,6 +141,23 @@ export interface PublicMedia {
   sha256: string;
 }
 
+export interface PublicAudio {
+  provider: PublicAudioProvider;
+  provider_id: string;
+  source_url: string;
+  creator: string;
+  license: string;
+  license_url: string;
+  url: string;
+  sha256: string;
+  bytes: number;
+  mime_type: "audio/mpeg" | "audio/ogg" | "audio/mp4" | "audio/wav";
+  duration_seconds: number;
+  recording_type: string;
+  modifications: string;
+  attribution_id: string;
+}
+
 export interface PublicSpeciesProfile {
   schema_version: 1;
   species_code: string;
@@ -127,6 +172,8 @@ export interface PublicSpeciesProfile {
     latest_licensed_occurrence_at: string | null;
   };
   media: PublicMedia[];
+  /** Must match the catalog summary when present. */
+  call?: PublicAudio | null;
 }
 
 export interface PublicObservation {
@@ -189,11 +236,17 @@ export interface PublicAttribution {
   sources: PublicAttributionSource[];
   items: Array<{
     attribution_id: string;
+    kind?: "photo" | "audio";
     provider: string;
+    provider_id?: string;
     source_url: string;
     creator: string;
     license: string;
     license_url: string;
+    common_name?: string;
+    scientific_name?: string;
+    recording_type?: string;
+    modifications?: string;
     dataset_title?: string;
     dataset_key?: string;
     publisher?: string;

@@ -103,7 +103,91 @@ function wikimediaPlan(): TripPlanDetail {
   return value;
 }
 
+type PublicAudioFixture = {
+  provider: "xeno_canto" | "inaturalist" | "wikimedia" | "usfws";
+  sourceRecordId: string;
+  recordingId: string;
+  sourceUrl: string;
+  extension: "mp3" | "m4a" | "ogg" | "wav";
+  shard: string;
+  hashTail: string;
+  licenseText: string;
+  licenseUrl: string;
+};
+
+const publicAudioFixtures: PublicAudioFixture[] = [
+  {
+    provider: "xeno_canto", sourceRecordId: "XC321", recordingId: "321",
+    sourceUrl: "https://xeno-canto.org/321", extension: "mp3", shard: "aa", hashTail: "1",
+    licenseText: "CC BY 4.0", licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+  },
+  {
+    provider: "inaturalist", sourceRecordId: "sound-456", recordingId: "sound-456",
+    sourceUrl: "https://www.inaturalist.org/observations/789", extension: "m4a", shard: "bb", hashTail: "2",
+    licenseText: "CC0 1.0", licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+  },
+  {
+    provider: "wikimedia", sourceRecordId: "File:Mexican_Jay.ogg", recordingId: "File:Mexican_Jay.ogg",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Mexican_Jay.ogg", extension: "ogg", shard: "cc", hashTail: "3",
+    licenseText: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/",
+  },
+  {
+    provider: "usfws", sourceRecordId: "mexican-jay-call", recordingId: "mexican-jay-call",
+    sourceUrl: "https://www.fws.gov/media/mexican-jay-call", extension: "ogg", shard: "dd", hashTail: "4",
+    licenseText: "Public Domain", licenseUrl: "https://www.fws.gov/notices",
+  },
+];
+
+function publicAudioPlan(fixture: PublicAudioFixture): TripPlanDetail {
+  const value = structuredClone(plan);
+  value.evidence = value.evidence.filter((item) => item.evidence_id !== "media_fixture");
+  value.media = [];
+  const audioUrl = `https://rufous-data.loughondata.com/rufous-audio/v1/objects/${fixture.shard}/${fixture.shard}${fixture.hashTail.repeat(62)}.${fixture.extension}`;
+  value.recommendations[0].call = {
+    status: "available", source_record_id: fixture.sourceRecordId, recording_id: fixture.recordingId,
+    species_name: "Aphelocoma wollweberi", geographic_scope: "Global example", recording_type: "call",
+    quality: "A", recordist: "Public Audio Fixture", locality: null, country: null,
+    source_url: fixture.sourceUrl, audio_url: audioUrl, license_text: fixture.licenseText,
+    license_url: fixture.licenseUrl, selection_reason: "Pinned public-release audio", caveats: [],
+  };
+  value.evidence.push({
+    evidence_id: "call_fixture", recommendation_id: "rec_fixture", source: fixture.provider,
+    source_table: `published_${fixture.provider}_audio`, source_record_id: fixture.sourceRecordId,
+    evidence_type: "recommendation_call", status: "available", retrieved_at: "2026-07-09T12:00:00Z",
+    summary: { provider_id: fixture.sourceRecordId, recording_id: fixture.recordingId }, payload: {}, caveats: [],
+  });
+  value.media.push({
+    evidence_id: "call_fixture", recommendation_id: "rec_fixture", source_record_id: fixture.sourceRecordId,
+    recording_id: fixture.recordingId, status: "available", species_name: "Aphelocoma wollweberi",
+    recording_type: "call", quality: "A", recordist: "Public Audio Fixture",
+    license_text: fixture.licenseText, license_url: fixture.licenseUrl, source_url: fixture.sourceUrl,
+    audio_url: audioUrl, caveats: [],
+  });
+  return value;
+}
+
 describe("Trip Planner runtime response validation", () => {
+  it.each(publicAudioFixtures)("accepts pinned $provider recommendation audio and exact R2 provenance", (fixture) => {
+    const value = publicAudioPlan(fixture);
+    const validated = validatePlanDetail(value);
+    expect(validated.recommendations[0].call.audio_url).toBe(value.recommendations[0].call.audio_url);
+    expect(validated.evidence.find((item) => item.evidence_id === "call_fixture")?.source).toBe(fixture.provider);
+  });
+
+  it("rejects a public recommendation call when its object, provider, license, evidence, or media identity drifts", () => {
+    for (const mutate of [
+      (value: TripPlanDetail) => { value.recommendations[0].call.audio_url = value.recommendations[0].call.audio_url!.replace("/objects/aa/", "/objects/ff/"); },
+      (value: TripPlanDetail) => { value.recommendations[0].call.source_record_id = "XC999"; },
+      (value: TripPlanDetail) => { value.recommendations[0].call.license_url = "https://creativecommons.org/licenses/by-sa/4.0/"; },
+      (value: TripPlanDetail) => { value.evidence.find((item) => item.evidence_id === "call_fixture")!.source_table = "published_inaturalist_audio"; },
+      (value: TripPlanDetail) => { value.media[0].audio_url = value.media[0].audio_url!.replace(/\.mp3$/, ".ogg"); },
+    ]) {
+      const value = publicAudioPlan(publicAudioFixtures[0]);
+      mutate(value);
+      expect(() => validatePlanDetail(value)).toThrow("Invalid trip planner response");
+    }
+  });
+
   it("accepts exact bounded source-labeled location, summary, and nested detail contracts", () => {
     expect(validateLocationSearch({ locations: [suggestion] })).toHaveLength(1);
     expect(validatePlanList({ plans: [summary()] })).toEqual([summary()]);

@@ -66,6 +66,23 @@ const wikimediaHero = {
   attribution_id: `wikimedia-attribution-${"2".repeat(24)}`,
 };
 
+const xenoCall = {
+  provider: "xeno_canto" as const,
+  provider_id: "XC12345",
+  source_url: "https://xeno-canto.org/12345",
+  creator: "Pat Recordist",
+  license: "CC BY 4.0",
+  license_url: "https://creativecommons.org/licenses/by/4.0/",
+  url: `https://rufous-data.loughondata.com/rufous-audio/v1/objects/ef/ef${"4".repeat(62)}.mp3`,
+  sha256: `ef${"4".repeat(62)}`,
+  bytes: 123_456,
+  mime_type: "audio/mpeg" as const,
+  duration_seconds: 42.5,
+  recording_type: "call",
+  modifications: "Unmodified from the credited source recording.",
+  attribution_id: `audio-attribution-${`ef${"4".repeat(62)}`.slice(0, 24)}`,
+};
+
 function productionManifest(
   mediaSource: PublicManifest["source_policy"]["media_source"],
   provider: "usfws" | "inaturalist" | "wikimedia" = "usfws",
@@ -194,6 +211,74 @@ describe("public static data", () => {
     ), { status: 200 })));
     const loaded = await getPublicManifest();
     await expect(getPublicSpecies(loaded.species[0])).rejects.toThrow("The bird profile did not match the public catalog.");
+  });
+
+  it("accepts one immutable commercial-safe call in both the manifest and matching profile", async () => {
+    const production = productionManifest("usfws");
+    production.source_policy.audio_source = "xeno_canto";
+    production.source_policy.audio_delivery = "immutable_r2";
+    production.species[0].call = xenoCall;
+    production.counts.audio_items = 1;
+    production.counts.species_with_audio = 1;
+    const profile = {
+      schema_version: 1,
+      species_code: "gbif-2476855",
+      common_name: "Rufous Hummingbird",
+      scientific_name: "Selasphorus rufus",
+      taxonomic_category: "species",
+      family: { common_name: "Hummingbirds", scientific_name: "Trochilidae" },
+      order_name: "Caprimulgiformes",
+      traits: {},
+      evidence: { licensed_occurrence_count: 1, latest_licensed_occurrence_at: "2026-08-01" },
+      media: [usfwsHero],
+      call: xenoCall,
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => Promise.resolve(new Response(JSON.stringify(
+      String(input).endsWith("manifest.json") ? production : profile,
+    ), { status: 200 })));
+
+    const loaded = await getPublicManifest();
+    await expect(getPublicSpecies(loaded.species[0])).resolves.toMatchObject({ call: xenoCall });
+  });
+
+  it.each([
+    ["a direct provider download URL", { url: "https://xeno-canto.org/12345/download" }],
+    ["a noncommercial license", { license: "CC BY-NC 4.0", license_url: "https://creativecommons.org/licenses/by-nc/4.0/" }],
+    ["a provider ID that disagrees with its exact source page", { provider_id: "XC99999" }],
+    ["an oversized object", { bytes: 25 * 1024 * 1024 + 1 }],
+    ["an excessive duration", { duration_seconds: 3_600.1 }],
+    ["an unexpected field", { hidden: "not part of the contract" }],
+  ])("rejects public audio with %s", async (_label, mutation) => {
+    const production = productionManifest("usfws");
+    production.source_policy.audio_source = "xeno_canto";
+    production.source_policy.audio_delivery = "immutable_r2";
+    production.species[0].call = { ...xenoCall, ...mutation } as typeof xenoCall;
+    production.counts.audio_items = 1;
+    production.counts.species_with_audio = 1;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(production), { status: 200 }));
+    await expect(getPublicManifest()).rejects.toThrow("This Rufous public data release is not supported.");
+  });
+
+  it("rejects a profile call that differs from the manifest call", async () => {
+    const production = productionManifest("usfws");
+    production.source_policy.audio_source = "xeno_canto";
+    production.source_policy.audio_delivery = "immutable_r2";
+    production.species[0].call = xenoCall;
+    production.counts.audio_items = 1;
+    production.counts.species_with_audio = 1;
+    const profile = {
+      schema_version: 1,
+      species_code: "gbif-2476855",
+      scientific_name: "Selasphorus rufus",
+      media: [usfwsHero],
+      call: { ...xenoCall, creator: "A different recordist" },
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => Promise.resolve(new Response(JSON.stringify(
+      String(input).endsWith("manifest.json") ? production : profile,
+    ), { status: 200 })));
+    const loaded = await getPublicManifest();
+    await expect(getPublicSpecies(loaded.species[0]))
+      .rejects.toThrow("The bird profile did not match the public catalog.");
   });
 
   it("requires release-level attribution for every declared photo provider", async () => {

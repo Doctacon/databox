@@ -9,6 +9,7 @@ import type {
 import {
   publicCatalogPhoto,
   publicCatalogPhotos,
+  publicCatalogCall,
   unavailableCall,
   unavailablePhoto,
 } from "./media";
@@ -46,6 +47,7 @@ function summary(
   const hasTraits = Boolean(profile && Object.values(profile.traits).some((value) => value !== null));
   const profileHero = publicCatalogPhotos(profile?.media, scientificName, generatedAt)[0] ?? null;
   const manifestHero = publicCatalogPhoto(species.hero_photo, scientificName, generatedAt);
+  const publishedCall = publicCatalogCall(profile?.call ?? species.call, scientificName, generatedAt);
   return {
     species_code: species.species_code,
     common_name: profile?.common_name ?? species.common_name,
@@ -61,7 +63,7 @@ function summary(
     recent_public_observation_count: profile?.evidence.licensed_occurrence_count ?? 0,
     latest_public_observation_at: timestamp(profile?.evidence.latest_licensed_occurrence_at ?? null),
     photo: profileHero ?? manifestHero ?? unavailablePhoto(scientificName, generatedAt),
-    call: unavailableCall(scientificName, generatedAt),
+    call: publishedCall ?? unavailableCall(scientificName, generatedAt),
   };
 }
 
@@ -173,6 +175,10 @@ export async function getBird(speciesCode: string): Promise<BirdProfile> {
     .slice(0, 10);
   const latest = observations.map((item) => timestamp(item.observed_at)).filter((item): item is string => Boolean(item)).sort().at(-1)
     ?? catalog.latest_public_observation_at;
+  const xenoCall = catalog.call.status === "available"
+    && catalog.call.source_url?.startsWith("https://xeno-canto.org/")
+    ? catalog.call
+    : null;
   return {
     ...catalog,
     photo: photos[0] ?? catalog.photo,
@@ -196,20 +202,20 @@ export async function getBird(speciesCode: string): Promise<BirdProfile> {
         : null,
     },
     xeno_canto: {
-      recording_count: 0,
+      recording_count: xenoCall ? 1 : 0,
       latest_recording_date: null,
-      representative_recording_id: null,
-      representative_recordist: null,
-      representative_recording_type: null,
-      representative_recording_quality: null,
-      representative_recording_license: null,
+      representative_recording_id: xenoCall?.recording_id ?? null,
+      representative_recordist: xenoCall?.recordist ?? null,
+      representative_recording_type: xenoCall?.recording_type ?? null,
+      representative_recording_quality: xenoCall?.quality ?? null,
+      representative_recording_license: xenoCall?.license_text ?? null,
     },
     freshness: {
       species_list_loaded_at: manifest.generated_at,
       taxonomy_loaded_at: manifest.generated_at,
       ebird_observations_loaded_at: null,
       gbif_loaded_at: manifest.source_policy.occurrence_source === "gbif" ? manifest.generated_at : null,
-      xeno_canto_loaded_at: null,
+      xeno_canto_loaded_at: xenoCall ? manifest.generated_at : null,
       catalog_freshness_at: manifest.generated_at,
     },
   };

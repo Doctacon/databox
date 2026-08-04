@@ -93,6 +93,8 @@ def test_synthetic_export_is_offline_deterministic_and_complete(tmp_path: Path) 
         "required_taxon_key": None,
         "media_source": "none",
         "media_delivery": "none",
+        "audio_source": "none",
+        "audio_delivery": "none",
     }
     assert manifest["counts"] == {
         "species": 2,
@@ -101,6 +103,8 @@ def test_synthetic_export_is_offline_deterministic_and_complete(tmp_path: Path) 
         "attribution_items": 0,
         "media_items": 0,
         "species_with_media": 0,
+        "audio_items": 0,
+        "species_with_audio": 0,
     }
     assert (output / "data/manifest.json").is_file()
     assert (output / "data/attribution.json").is_file()
@@ -656,6 +660,8 @@ def test_database_projection_is_gbif_eod_only_and_strips_personal_values(
         "required_taxon_key": 2476855,
         "media_source": "none",
         "media_delivery": "none",
+        "audio_source": "none",
+        "audio_delivery": "none",
     }
     eod_source = next(
         source

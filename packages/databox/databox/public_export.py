@@ -69,7 +69,68 @@ _PUBLIC_MEDIA_URL = re.compile(
     r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
     r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.webp$"
 )
+_PUBLIC_AUDIO_URL = re.compile(
+    r"^https://rufous-data\.loughondata\.com/rufous-audio/v1/objects/"
+    r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.(?P<extension>mp3|ogg|wav|m4a)$"
+)
+_XENO_CANTO_AUDIO_ID = re.compile(r"^XC(?P<recording_id>[1-9][0-9]{0,9})$")
+_INATURALIST_AUDIO_ID = re.compile(r"^sound-(?P<sound_id>[1-9][0-9]{0,19})$")
+_USFWS_AUDIO_ID = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$")
+_AUDIO_ATTRIBUTION_ID = re.compile(r"^audio-attribution-(?P<digest>[a-f0-9]{24})$")
+_AUDIO_MIME_EXTENSIONS = {
+    "audio/mpeg": "mp3",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "audio/mp4": "m4a",
+}
+_AUDIO_PROVIDERS = ("xeno_canto", "inaturalist", "wikimedia", "usfws")
+PUBLIC_AUDIO_SANITIZATION_NOTICE = (
+    "Audio stream copied into a metadata-free audio-only file without re-encoding; "
+    "source metadata, chapters, and non-audio streams were removed."
+)
+_PINNED_AUDIO_MANIFEST_KEYS = frozenset({"schema_version", "generated_at", "counts", "items"})
+_PINNED_AUDIO_COUNT_KEYS = frozenset({"items", "objects", "species"})
+_PINNED_AUDIO_ITEM_KEYS = frozenset(
+    {
+        "species_code",
+        "common_name",
+        "scientific_name",
+        "provider",
+        "provider_id",
+        "source_url",
+        "creator",
+        "license",
+        "license_url",
+        "original_url",
+        "url",
+        "sha256",
+        "bytes",
+        "mime_type",
+        "duration_seconds",
+        "vocalization_type",
+        "modification_notice",
+    }
+)
+_PUBLIC_AUDIO_CALL_KEYS = frozenset(
+    {
+        "provider",
+        "provider_id",
+        "source_url",
+        "creator",
+        "license",
+        "license_url",
+        "url",
+        "sha256",
+        "bytes",
+        "mime_type",
+        "duration_seconds",
+        "recording_type",
+        "modifications",
+        "attribution_id",
+    }
+)
 MAX_MEDIA_MANIFEST_BYTES = 25 * 1024 * 1024
+MAX_AUDIO_MANIFEST_BYTES = 25 * 1024 * 1024
 MAX_PUBLIC_ASSET_BYTES = 25 * 1024 * 1024
 MAX_PUBLIC_ASSET_FILES = 20_000
 
@@ -409,6 +470,348 @@ def _valid_wikimedia_file_page(value: str) -> bool:
         and not any(character in name for character in ("/", "\\"))
         and not any(ord(character) < 32 or ord(character) == 127 for character in name)
     )
+
+
+def _canonical_audio_text(value: object, *, maximum: int) -> str | None:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > maximum
+        or value.strip() != value
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+    ):
+        return None
+    return value
+
+
+def _canonical_https_url(
+    value: object,
+    *,
+    hosts: frozenset[str],
+    allow_query: bool = False,
+) -> tuple[str, str, str] | None:
+    raw = _canonical_audio_text(value, maximum=2_000)
+    if raw is None:
+        return None
+    try:
+        parsed = urlsplit(raw)
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in hosts
+        or parsed.username is not None
+        or parsed.password is not None
+        or port is not None
+        or parsed.fragment
+        or (parsed.query and not allow_query)
+        or (parsed.query and "x-amz-" in parsed.query.casefold())
+        or not parsed.path.startswith("/")
+    ):
+        return None
+    return parsed.hostname, parsed.path, parsed.query
+
+
+def _valid_audio_source_identity(provider: str, provider_id: str, source_url: str) -> bool:
+    if provider == "xeno_canto":
+        identifier = _XENO_CANTO_AUDIO_ID.fullmatch(provider_id)
+        parsed = _canonical_https_url(source_url, hosts=frozenset({"xeno-canto.org"}))
+        return bool(identifier and parsed and parsed[1] == f"/{identifier.group('recording_id')}")
+    if provider == "inaturalist":
+        return bool(
+            _INATURALIST_AUDIO_ID.fullmatch(provider_id)
+            and (
+                parsed := _canonical_https_url(source_url, hosts=frozenset({"www.inaturalist.org"}))
+            )
+            and re.fullmatch(r"/observations/[1-9][0-9]{0,19}", parsed[1])
+        )
+    if provider == "wikimedia":
+        if not provider_id.startswith("File:") or not _valid_wikimedia_file_page(source_url):
+            return False
+        try:
+            encoded = urlsplit(source_url).path.removeprefix("/wiki/File:")
+            return provider_id == "File:" + unquote(encoded, errors="strict")
+        except (UnicodeError, ValueError):
+            return False
+    if provider == "usfws":
+        identifier = _USFWS_AUDIO_ID.fullmatch(provider_id)
+        parsed = _canonical_https_url(source_url, hosts=frozenset({"www.fws.gov"}))
+        return bool(identifier and parsed and parsed[1] == f"/media/{provider_id}")
+    return False
+
+
+def _valid_original_audio_url(provider: str, value: str) -> bool:
+    contracts: dict[str, tuple[frozenset[str], re.Pattern[str]]] = {
+        "xeno_canto": (
+            frozenset({"xeno-canto.org", "www.xeno-canto.org"}),
+            re.compile(r"/(?:[1-9][0-9]{0,9}/download|sounds/uploaded/[^/]+/[^/]+)"),
+        ),
+        "inaturalist": (
+            frozenset(
+                {
+                    "static.inaturalist.org",
+                    "inaturalist-open-data.s3.amazonaws.com",
+                    "www.inaturalist.org",
+                }
+            ),
+            re.compile(r"/(?:sounds|attachments/sounds)/[^/]+"),
+        ),
+        "wikimedia": (
+            frozenset({"upload.wikimedia.org"}),
+            re.compile(r"/wikipedia/commons/(?:[^/]+/){1,4}[^/]+"),
+        ),
+        "usfws": (
+            frozenset({"www.fws.gov", "fws.gov", "digitalmedia.fws.gov"}),
+            re.compile(r"/.+"),
+        ),
+    }
+    contract = contracts.get(provider)
+    if contract is None:
+        return False
+    parsed = _canonical_https_url(value, hosts=contract[0], allow_query=True)
+    return bool(parsed and contract[1].fullmatch(parsed[1]))
+
+
+def _valid_audio_numeric_fields(value: Mapping[str, object]) -> bool:
+    size = value.get("bytes")
+    duration = value.get("duration_seconds")
+    return bool(
+        type(size) is int
+        and 0 < size <= MAX_PUBLIC_ASSET_BYTES
+        and not isinstance(duration, bool)
+        and isinstance(duration, int | float)
+        and math.isfinite(float(duration))
+        and 0 < float(duration) <= 3_600
+    )
+
+
+def valid_public_audio_call(
+    value: object,
+    *,
+    species_code: str | None = None,
+    common_name: str | None = None,
+    scientific_name: str | None = None,
+) -> bool:
+    """Return whether an audio call is the exact browser-safe public projection."""
+    if not isinstance(value, dict) or set(value) != _PUBLIC_AUDIO_CALL_KEYS:
+        return False
+    provider = _canonical_audio_text(value.get("provider"), maximum=32)
+    provider_id = _canonical_audio_text(value.get("provider_id"), maximum=512)
+    source_url = _canonical_audio_text(value.get("source_url"), maximum=2_000)
+    creator = _canonical_audio_text(value.get("creator"), maximum=500)
+    sha256 = _canonical_audio_text(value.get("sha256"), maximum=64)
+    mime_type = _canonical_audio_text(value.get("mime_type"), maximum=64)
+    recording_type = _canonical_audio_text(value.get("recording_type"), maximum=100)
+    modifications = _canonical_audio_text(value.get("modifications"), maximum=1_000)
+    attribution_id = _canonical_audio_text(value.get("attribution_id"), maximum=64)
+    license_pair = canonical_license(provider or "", value.get("license"))
+    asset_url = _canonical_audio_text(value.get("url"), maximum=2_000)
+    match = _PUBLIC_AUDIO_URL.fullmatch(asset_url) if asset_url else None
+    if (
+        provider not in _AUDIO_PROVIDERS
+        or provider_id is None
+        or source_url is None
+        or not _valid_audio_source_identity(provider, provider_id, source_url)
+        or creator is None
+        or sha256 is None
+        or _SHA256.fullmatch(sha256) is None
+        or mime_type not in _AUDIO_MIME_EXTENSIONS
+        or match is None
+        or match.group("sha") != sha256
+        or match.group("shard") != sha256[:2]
+        or match.group("extension") != _AUDIO_MIME_EXTENSIONS[mime_type]
+        or license_pair is None
+        or value.get("license") != license_pair[0]
+        or value.get("license_url") != license_pair[1]
+        or recording_type is None
+        or modifications != PUBLIC_AUDIO_SANITIZATION_NOTICE
+        or attribution_id != f"audio-attribution-{sha256[:24]}"
+        or not _valid_audio_numeric_fields(value)
+    ):
+        return False
+    return (
+        bool(species_code is None or _SPECIES_CODE.fullmatch(species_code))
+        and bool(common_name is None or _canonical_audio_text(common_name, maximum=200))
+        and bool(
+            scientific_name is None
+            or (
+                _canonical_audio_text(scientific_name, maximum=200)
+                and _SCIENTIFIC_NAME.fullmatch(scientific_name)
+            )
+        )
+    )
+
+
+def load_public_audio_manifest(path: Path) -> dict[str, JsonObject]:
+    """Validate a pinned audio manifest and return its exact catalog projection."""
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_AUDIO_MANIFEST_BYTES:
+        raise PublicExportError("public audio manifest is missing or exceeds 25 MiB")
+    try:
+        payload = json.loads(path.read_bytes())
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        raise PublicExportError("public audio manifest is not valid UTF-8 JSON") from None
+    if (
+        not isinstance(payload, dict)
+        or set(payload) != _PINNED_AUDIO_MANIFEST_KEYS
+        or payload.get("schema_version") != 1
+        or not isinstance(payload.get("generated_at"), str)
+        or not isinstance(payload.get("items"), list)
+        or not payload["items"]
+    ):
+        raise PublicExportError("public audio manifest has an invalid contract")
+    _parse_aware_datetime(payload["generated_at"], "public audio generated_at")
+    counts = payload.get("counts")
+    if (
+        not isinstance(counts, dict)
+        or set(counts) != _PINNED_AUDIO_COUNT_KEYS
+        or any(type(counts.get(field)) is not int or counts[field] < 0 for field in counts)
+    ):
+        raise PublicExportError("public audio manifest has invalid counts")
+
+    by_species: dict[str, JsonObject] = {}
+    scientific_names: set[str] = set()
+    provider_sources: set[tuple[str, str]] = set()
+    object_hashes: set[str] = set()
+    for index, raw in enumerate(payload["items"]):
+        if not isinstance(raw, dict) or set(raw) != _PINNED_AUDIO_ITEM_KEYS:
+            raise PublicExportError(f"public audio item {index} is malformed")
+        species_code = _canonical_audio_text(raw.get("species_code"), maximum=32)
+        common_name = _canonical_audio_text(raw.get("common_name"), maximum=200)
+        scientific_name = _canonical_audio_text(raw.get("scientific_name"), maximum=200)
+        provider = _canonical_audio_text(raw.get("provider"), maximum=32)
+        provider_id = _canonical_audio_text(raw.get("provider_id"), maximum=512)
+        source_url = _canonical_audio_text(raw.get("source_url"), maximum=2_000)
+        original_url = _canonical_audio_text(raw.get("original_url"), maximum=2_000)
+        sha256 = _canonical_audio_text(raw.get("sha256"), maximum=64)
+        mime_type = _canonical_audio_text(raw.get("mime_type"), maximum=64)
+        vocalization_type = _canonical_audio_text(raw.get("vocalization_type"), maximum=100)
+        modification_notice = _canonical_audio_text(raw.get("modification_notice"), maximum=1_000)
+        license_pair = canonical_license(provider or "", raw.get("license"))
+        asset_url = _canonical_audio_text(raw.get("url"), maximum=2_000)
+        match = _PUBLIC_AUDIO_URL.fullmatch(asset_url) if asset_url else None
+        if (
+            species_code is None
+            or _SPECIES_CODE.fullmatch(species_code) is None
+            or common_name is None
+            or scientific_name is None
+            or _SCIENTIFIC_NAME.fullmatch(scientific_name) is None
+            or provider not in _AUDIO_PROVIDERS
+            or provider_id is None
+            or source_url is None
+            or not _valid_audio_source_identity(provider, provider_id, source_url)
+            or original_url is None
+            or not _valid_original_audio_url(provider, original_url)
+            or _canonical_audio_text(raw.get("creator"), maximum=500) is None
+            or sha256 is None
+            or _SHA256.fullmatch(sha256) is None
+            or mime_type not in _AUDIO_MIME_EXTENSIONS
+            or match is None
+            or match.group("sha") != sha256
+            or match.group("shard") != sha256[:2]
+            or match.group("extension") != _AUDIO_MIME_EXTENSIONS[mime_type]
+            or license_pair is None
+            or raw.get("license") != license_pair[0]
+            or raw.get("license_url") != license_pair[1]
+            or vocalization_type is None
+            or modification_notice != PUBLIC_AUDIO_SANITIZATION_NOTICE
+            or not _valid_audio_numeric_fields(raw)
+        ):
+            raise PublicExportError(f"public audio item {index} fails the public contract")
+        source_identity = (provider, provider_id)
+        if (
+            species_code in by_species
+            or scientific_name.casefold() in scientific_names
+            or source_identity in provider_sources
+            or sha256 in object_hashes
+        ):
+            raise PublicExportError("public audio manifest repeats an audio identity")
+        public_call: JsonObject = {
+            "provider": provider,
+            "provider_id": provider_id,
+            "source_url": source_url,
+            "creator": raw["creator"],
+            "license": license_pair[0],
+            "license_url": license_pair[1],
+            "url": asset_url,
+            "sha256": sha256,
+            "bytes": raw["bytes"],
+            "mime_type": mime_type,
+            "duration_seconds": raw["duration_seconds"],
+            "recording_type": vocalization_type,
+            "modifications": modification_notice,
+            "attribution_id": f"audio-attribution-{sha256[:24]}",
+        }
+        if not valid_public_audio_call(
+            public_call,
+            species_code=species_code,
+            common_name=common_name,
+            scientific_name=scientific_name,
+        ):
+            raise PublicExportError(f"public audio item {index} has an invalid projection")
+        by_species[species_code] = {
+            "common_name": common_name,
+            "scientific_name": scientific_name,
+            "call": public_call,
+        }
+        scientific_names.add(scientific_name.casefold())
+        provider_sources.add(source_identity)
+        object_hashes.add(sha256)
+    if (
+        counts["items"] != len(payload["items"])
+        or counts["objects"] != len(object_hashes)
+        or counts["species"] != len(by_species)
+    ):
+        raise PublicExportError("public audio manifest counts do not match its contents")
+    return by_species
+
+
+def attach_public_audio(
+    records: PublicRecords,
+    audio_by_species_code: Mapping[str, JsonObject],
+) -> int:
+    """Attach one exact, pinned audio call and its full item attribution per species."""
+    species_by_code = {str(item.get("species_code")): item for item in records.species}
+    if len(species_by_code) != len(records.species):
+        raise PublicExportError("public species codes must be unique before attaching audio")
+    for catalog_species in records.species:
+        catalog_species["call"] = None
+    for species_code, prepared in audio_by_species_code.items():
+        species = species_by_code.get(species_code)
+        call = prepared.get("call") if isinstance(prepared, dict) else None
+        if (
+            species is None
+            or prepared.get("common_name") != species.get("common_name")
+            or prepared.get("scientific_name") != species.get("scientific_name")
+            or not valid_public_audio_call(
+                call,
+                species_code=species_code,
+                common_name=str(species.get("common_name")),
+                scientific_name=str(species.get("scientific_name")),
+            )
+        ):
+            raise PublicExportError(
+                f"public audio does not exactly match catalog species {species_code!r}"
+            )
+        assert isinstance(call, dict)
+        species["call"] = dict(call)
+        records.attribution_items.append(
+            {
+                "attribution_id": call["attribution_id"],
+                "kind": "audio",
+                "provider": call["provider"],
+                "provider_id": call["provider_id"],
+                "common_name": species["common_name"],
+                "scientific_name": species["scientific_name"],
+                "creator": call["creator"],
+                "source_url": call["source_url"],
+                "license": call["license"],
+                "license_url": call["license_url"],
+                "recording_type": call["recording_type"],
+                "modifications": call["modifications"],
+            }
+        )
+    return len(audio_by_species_code)
 
 
 def load_public_media_manifest(
@@ -1142,6 +1545,24 @@ def _media_source_marker(records: PublicRecords) -> str:
     return marker
 
 
+def _audio_source_marker(records: PublicRecords) -> str:
+    providers: set[str] = set()
+    for species in records.species:
+        call = species.get("call")
+        if call is None:
+            continue
+        if not valid_public_audio_call(
+            call,
+            species_code=str(species.get("species_code", "")),
+            common_name=str(species.get("common_name", "")),
+            scientific_name=str(species.get("scientific_name", "")),
+        ):
+            raise PublicExportError("species call fails the public audio contract")
+        assert isinstance(call, dict)
+        providers.add(str(call["provider"]))
+    return "+".join(provider for provider in _AUDIO_PROVIDERS if provider in providers) or "none"
+
+
 def build_public_assets(
     records: PublicRecords,
     *,
@@ -1165,6 +1586,15 @@ def build_public_assets(
         media = row.get("media")
         if not isinstance(media, list):
             raise PublicExportError(f"species {code!r} has malformed media")
+        call = row.get("call")
+        if call is not None and not valid_public_audio_call(
+            call,
+            species_code=code,
+            common_name=str(row.get("common_name", "")),
+            scientific_name=str(row.get("scientific_name", "")),
+        ):
+            raise PublicExportError(f"species {code!r} has malformed audio")
+        row["call"] = call
         path = f"data/species/{code}.json"
         assets[path] = {"schema_version": SCHEMA_VERSION, **row}
         species_summaries.append(
@@ -1175,6 +1605,7 @@ def build_public_assets(
                 "profile_path": f"/{path}",
                 "hero_photo": media[0] if media else None,
                 "photo_count": len(media),
+                "call": call,
             }
         )
 
@@ -1229,6 +1660,7 @@ def build_public_assets(
         place_summaries.append({"prefix": prefix, "path": f"/{path}", "count": len(rows)})
 
     media_source = _media_source_marker(records)
+    audio_source = _audio_source_marker(records)
     sources = _attribution_sources(mode, gnis_sha256, records)
     attribution_items = _dedupe_attribution(records.attribution_items)
     attribution: JsonObject = {
@@ -1261,6 +1693,8 @@ def build_public_assets(
             "required_taxon_key": None if mode == "synthetic" else GBIF_RUFOUS_TAXON_KEY,
             "media_source": media_source,
             "media_delivery": "none" if media_source == "none" else "immutable_r2",
+            "audio_source": audio_source,
+            "audio_delivery": "none" if audio_source == "none" else "immutable_r2",
         },
         "license_policy": license_policy,
         "counts": {
@@ -1272,6 +1706,8 @@ def build_public_assets(
             "species_with_media": sum(
                 1 for item in species_summaries if int(item["photo_count"]) > 0
             ),
+            "audio_items": sum(1 for item in species_summaries if item["call"] is not None),
+            "species_with_audio": sum(1 for item in species_summaries if item["call"] is not None),
         },
     }
     assets["data/manifest.json"] = manifest
@@ -1346,16 +1782,41 @@ def _attribution_sources(
 
 
 def _media_attribution_sources(records: PublicRecords) -> list[JsonObject]:
-    providers = {
-        "xeno_canto" for item in records.attribution_items if item.get("provider") == "xeno_canto"
-    }
-    providers.update(
+    photo_providers = {
         str(item.get("provider"))
         for species in records.species
         for item in species.get("media", [])
         if isinstance(item, dict)
-    )
-    provider_sources: dict[str, JsonObject] = {
+    }
+    audio_providers = {
+        str(call.get("provider"))
+        for species in records.species
+        if isinstance((call := species.get("call")), dict)
+        and call.get("provider") in _AUDIO_PROVIDERS
+    }
+    providers = photo_providers | audio_providers
+    return [
+        source
+        for provider in _AUDIO_PROVIDERS
+        if provider in providers
+        for source in public_provider_attribution_sources(
+            provider,
+            includes_photos=provider in photo_providers,
+            includes_audio=provider in audio_providers,
+        )
+    ]
+
+
+def public_provider_attribution_source(
+    provider: str,
+    *,
+    includes_photos: bool,
+    includes_audio: bool,
+) -> JsonObject:
+    """Return the primary release-level credit for one public media provider."""
+    if provider not in _AUDIO_PROVIDERS or not (includes_photos or includes_audio):
+        raise PublicExportError("public provider attribution has an invalid media scope")
+    photo_sources: dict[str, JsonObject] = {
         "inaturalist": {
             "provider": "inaturalist",
             "title": "iNaturalist",
@@ -1367,14 +1828,6 @@ def _media_attribution_sources(records: PublicRecords) -> list[JsonObject]:
                 "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
                 "copies; each credit links to the original iNaturalist photo page."
             ),
-        },
-        "xeno_canto": {
-            "provider": "xeno_canto",
-            "title": "Xeno-canto",
-            "url": "https://xeno-canto.org/",
-            "license": "Per-item Creative Commons license",
-            "license_url": None,
-            "credit": "Individual recordists are credited on each audio item.",
         },
         "usfws": {
             "provider": "usfws",
@@ -1401,7 +1854,74 @@ def _media_attribution_sources(records: PublicRecords) -> list[JsonObject]:
             ),
         },
     }
-    return [provider_sources[provider] for provider in sorted(providers & provider_sources.keys())]
+    if includes_photos:
+        source = photo_sources.get(provider)
+        if source is None:
+            raise PublicExportError("public photo provider attribution is unsupported")
+        return dict(source)
+    return _public_provider_audio_attribution_source(provider, supplemental=False)
+
+
+def _public_provider_audio_attribution_source(
+    provider: str,
+    *,
+    supplemental: bool,
+) -> JsonObject:
+    labels = {
+        "xeno_canto": ("Xeno-canto", "https://xeno-canto.org/", None, "recordists"),
+        "inaturalist": ("iNaturalist", "https://www.inaturalist.org/", None, "creators"),
+        "wikimedia": (
+            "Wikimedia Commons",
+            "https://commons.wikimedia.org/",
+            None,
+            "creators",
+        ),
+        "usfws": (
+            "U.S. Fish and Wildlife Service Media Library",
+            "https://www.fws.gov/media",
+            "https://www.fws.gov/notices",
+            "creators",
+        ),
+    }
+    label = labels.get(provider)
+    if label is None:
+        raise PublicExportError("public audio provider attribution is unsupported")
+    title, url, license_url, creator_label = label
+    return {
+        "provider": f"{provider}_audio" if supplemental else provider,
+        "title": f"{title} bird sounds",
+        "url": url,
+        "license": (
+            "Per-item Public Domain or Creative Commons license"
+            if provider in {"wikimedia", "usfws"}
+            else "Per-item Creative Commons license"
+        ),
+        "license_url": license_url,
+        "credit": f"Individual {creator_label} are credited on each audio item.",
+        "modifications": (
+            "Rufous copies the source audio stream without re-encoding into a metadata-free, "
+            "audio-only container and publishes the content-addressed result in R2; each item "
+            "links to its source and states the modification."
+        ),
+    }
+
+
+def public_provider_attribution_sources(
+    provider: str,
+    *,
+    includes_photos: bool,
+    includes_audio: bool,
+) -> list[JsonObject]:
+    """Return exact photo and audio release credits without conflating transformations."""
+    primary = public_provider_attribution_source(
+        provider,
+        includes_photos=includes_photos,
+        includes_audio=includes_audio,
+    )
+    sources = [primary]
+    if includes_photos and includes_audio:
+        sources.append(_public_provider_audio_attribution_source(provider, supplemental=True))
+    return sources
 
 
 def semantic_data_version(assets: Mapping[str, object]) -> str:
@@ -1754,6 +2274,7 @@ def export_public_data(
     gnis_sha256: str | None = None,
     media_manifest_path: Path | None = None,
     media_approvals_path: Path | None = None,
+    audio_manifest_path: Path | None = None,
     generated_at: str | None = None,
 ) -> JsonObject:
     if mode == "synthetic":
@@ -1812,6 +2333,12 @@ def export_public_data(
                 raise PublicExportError(
                     "production media must include an exact Rufous Hummingbird image"
                 )
+    if audio_manifest_path is not None:
+        attached_audio = attach_public_audio(
+            records, load_public_audio_manifest(audio_manifest_path)
+        )
+        if attached_audio == 0:
+            raise PublicExportError("public audio manifest must attach at least one catalog call")
     assets = build_public_assets(
         records,
         mode=mode,
@@ -1831,6 +2358,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--gnis-sha256")
     parser.add_argument("--media-manifest", type=Path)
     parser.add_argument("--media-approvals", type=Path)
+    parser.add_argument("--audio-manifest", type=Path)
     parser.add_argument("--generated-at")
     return parser.parse_args(argv)
 
@@ -1846,6 +2374,7 @@ def main(argv: list[str] | None = None) -> int:
             gnis_sha256=args.gnis_sha256,
             media_manifest_path=args.media_manifest,
             media_approvals_path=args.media_approvals,
+            audio_manifest_path=args.audio_manifest,
             generated_at=args.generated_at,
         )
     except (OSError, PublicExportError, duckdb.Error) as exc:

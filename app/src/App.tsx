@@ -2,6 +2,7 @@ import { FormEvent, lazy, MouseEvent, Suspense, useEffect, useMemo, useRef, useS
 import { createPlan, getPlan, listPlans } from "./api";
 import rufousImage from "./assets/rufous.png";
 import { validateAvailableCuratedPhoto } from "./curatedPhotoValidation";
+import { validatePublicRecommendationAudio } from "./publicRecommendationAudio";
 import { BirdCatalogPage, BirdProfilePage } from "./BirdPages";
 import LocationCombobox from "./LocationCombobox";
 import { MyBirdsPage } from "./MyBirds";
@@ -194,11 +195,12 @@ export function PhotoArea({ row }: { row: Recommendation }) {
   </figure>;
 }
 
-function CallArea({ row }: { row: Recommendation }) {
+export function CallArea({ row }: { row: Recommendation }) {
   const [playbackFailed, setPlaybackFailed] = useState(false);
   const call = record(row.call);
   const caveats = safeCaveats(call?.caveats);
   const status = text(call?.status);
+  const publicAudio = validatePublicRecommendationAudio(row.call);
   const recordingId = canonicalRecordingId(call?.recording_id);
   const sourceRecordId = canonicalSourceRecordingId(call?.source_record_id);
   const source = safeXenoCantoUrl(call?.source_url, "source");
@@ -216,11 +218,20 @@ function CallArea({ row }: { row: Recommendation }) {
   );
   const idsMatch = sourceMatches && audioMatches;
   const identityMatches = mediaSpeciesMatches(row, call?.species_name);
-  const metadataTrusted = Boolean(call && identityMatches && idsConsistent);
-  const sourceUrl = sourceMatches && metadataTrusted ? source!.href : null;
-  const audioUrl = audioMatches && metadataTrusted ? audio!.href : null;
+  const publicMetadataTrusted = Boolean(publicAudio && identityMatches);
+  const legacyMetadataTrusted = Boolean(call && identityMatches && idsConsistent);
+  const metadataTrusted = publicMetadataTrusted || legacyMetadataTrusted;
+  const sourceUrl = publicMetadataTrusted
+    ? publicAudio!.sourceUrl
+    : sourceMatches && legacyMetadataTrusted ? source!.href : null;
+  const audioUrl = publicMetadataTrusted
+    ? publicAudio!.audioUrl
+    : audioMatches && legacyMetadataTrusted ? audio!.href : null;
   const licenseText = text(call?.license_text);
-  const license = safeLicense(call?.license_url, licenseText, true);
+  const license = publicMetadataTrusted
+    ? { href: publicAudio!.licenseUrl, code: publicAudio!.licenseCode }
+    : safeLicense(call?.license_url, licenseText, true);
+  const sourceProviderLabel = publicMetadataTrusted ? publicAudio!.providerLabel : "Xeno-canto";
   const scopeValue = text(call?.geographic_scope);
   const scope = scopeValue === "Arizona"
     ? "Arizona recording"
@@ -230,7 +241,7 @@ function CallArea({ row }: { row: Recommendation }) {
   const recordist = text(call?.recordist);
   const available = Boolean(
     metadataTrusted && caveats.valid && status === "available"
-    && idsMatch && audioUrl && sourceUrl && license && recordist && scope,
+    && (publicMetadataTrusted || idsMatch) && audioUrl && sourceUrl && license && recordist && scope,
   );
   const context = [birdName(row), recordingType, quality ? `Quality ${quality}` : null]
     .filter(Boolean).join(" · ");
@@ -250,8 +261,8 @@ function CallArea({ row }: { row: Recommendation }) {
           ? <span>License: <a href={license.href} target="_blank" rel="noreferrer">{license.code}</a></span>
           : (licenseText || status === "available") && <span>License: unavailable</span>}
         {sourceUrl
-          ? <a href={sourceUrl} target="_blank" rel="noreferrer">View call source on Xeno-canto</a>
-          : status === "available" && <span className="empty">Xeno-canto source page unavailable.</span>}
+          ? <a href={sourceUrl} target="_blank" rel="noreferrer">View call source on {sourceProviderLabel}</a>
+          : status === "available" && <span className="empty">{sourceProviderLabel} source page unavailable.</span>}
         {caveats.values.map((caveat) => <span className="caveat" key={caveat}>{caveat}</span>)}
       </> : call && <span className="caveat">Call metadata did not match this recommendation.</span>}
     </div>

@@ -1,5 +1,8 @@
 import type {
   PublicAttribution,
+  PublicAudio,
+  PublicAudioProvider,
+  PublicAudioSource,
   PublicBounds,
   PublicCell,
   PublicManifest,
@@ -11,7 +14,7 @@ import type {
   PublicSpeciesProfile,
   PublicSpeciesSummary,
 } from "./publicTypes";
-import { publicCatalogPhoto } from "./publicAdapters/media";
+import { publicCatalogCall, publicCatalogPhoto } from "./publicAdapters/media";
 import { isPublicSpeciesCode } from "./publicSpeciesCode";
 import arizonaBoundariesRaw from "./assets/arizona-boundaries.geojson?raw";
 
@@ -25,6 +28,12 @@ const MAX_RELEASE_BYTES = 256 * 1024 * 1024;
 let activeDataRoot = SAME_ORIGIN_DATA_ROOT;
 let activeDataVersion: string | null = null;
 let activeMediaSource: PublicMediaSource = "none";
+let activeAudioSource: PublicAudioSource = "none";
+let activeAudioAttribution = new Map<string, {
+  call: PublicAudio;
+  commonName: string | null;
+  scientificName: string | null;
+}>();
 let fallbackManifestPromise: Promise<PublicManifest> | null = null;
 const SAFE_DATA_PATH = /^\/?(?:data\/)?(?:releases\/[a-f0-9_-]+\/)?(?:manifest|attribution|catalog|species\/[a-z0-9_-]+|cells\/[a-z0-9_-]+|places\/[a-z0-9_]+)\.json$/i;
 const BOUNDARY_TOLERANCE = 1e-9;
@@ -44,6 +53,13 @@ const MEDIA_SOURCES = Object.freeze(Object.keys(MEDIA_PROVIDERS_BY_SOURCE) as Pu
 const NONEMPTY_MEDIA_SOURCES: ReadonlySet<PublicMediaSource> = new Set(
   MEDIA_SOURCES.filter((source) => source !== "none"),
 );
+const AUDIO_PROVIDER_ORDER = ["xeno_canto", "inaturalist", "wikimedia", "usfws"] as const;
+const AUDIO_SOURCES = [
+  "none",
+  ...Array.from({ length: 15 }, (_, index) => AUDIO_PROVIDER_ORDER
+    .filter((_, providerIndex) => Boolean((index + 1) & (1 << providerIndex)))
+    .join("+")),
+] as PublicAudioSource[];
 
 export const ARIZONA_STATE_RING = (JSON.parse(arizonaBoundariesRaw) as {
   features: Array<{
@@ -159,12 +175,50 @@ function recognizedMediaSource(value: unknown): PublicMediaSource | null {
     : null;
 }
 
+function recognizedAudioSource(value: unknown): PublicAudioSource | null {
+  return typeof value === "string" && AUDIO_SOURCES.includes(value as PublicAudioSource)
+    ? value as PublicAudioSource
+    : null;
+}
+
+function audioProviders(source: PublicAudioSource): ReadonlySet<PublicAudioProvider> {
+  return new Set(source === "none" ? [] : source.split("+") as PublicAudioProvider[]);
+}
+
+const PUBLIC_AUDIO_FIELDS: readonly (keyof PublicAudio)[] = [
+  "provider", "provider_id", "source_url", "creator", "license", "license_url", "url", "sha256",
+  "bytes", "mime_type", "duration_seconds", "recording_type", "modifications", "attribution_id",
+];
+
+function samePublicAudio(left: PublicAudio | null | undefined, right: PublicAudio | null | undefined): boolean {
+  if (left == null || right == null) return left == null && right == null;
+  return PUBLIC_AUDIO_FIELDS.every((field) => left[field] === right[field]);
+}
+
+function audioAttributionFor(manifest: PublicManifest): typeof activeAudioAttribution {
+  return new Map(manifest.species.flatMap((species) => species.call == null ? [] : [[
+    species.call.attribution_id,
+    { call: species.call, commonName: species.common_name, scientificName: species.scientific_name },
+  ]]));
+}
+
 function validateManifest(manifest: PublicManifest): PublicManifest {
   const expectedOccurrenceSource = manifest.release_mode === "production" ? "gbif" : "synthetic";
   const expectedDatasetKey = manifest.release_mode === "production" ? EBIRD_EOD_DATASET_KEY : null;
   const expectedCoverage = manifest.release_mode === "production" ? "bounded_sample" : "fictional_fixture";
   const expectedRequiredTaxon = manifest.release_mode === "production" ? RUFOUS_TAXON_KEY : null;
   const mediaSource = recognizedMediaSource(manifest.source_policy?.media_source);
+  const hasAudioPolicy = "audio_source" in (manifest.source_policy ?? {})
+    || "audio_delivery" in (manifest.source_policy ?? {})
+    || "audio_items" in (manifest.counts ?? {})
+    || "species_with_audio" in (manifest.counts ?? {})
+    || (Array.isArray(manifest.species) && manifest.species.some((species) => species.call != null));
+  const audioSource = hasAudioPolicy
+    ? recognizedAudioSource(manifest.source_policy?.audio_source)
+    : "none";
+  const validAudioPolicy = !hasAudioPolicy
+    || (audioSource !== null
+      && manifest.source_policy.audio_delivery === (audioSource === "none" ? "none" : "immutable_r2"));
   const validMediaPolicy = manifest.release_mode === "production"
     ? mediaSource !== null && NONEMPTY_MEDIA_SOURCES.has(mediaSource)
       && manifest.source_policy?.media_delivery === "immutable_r2"
@@ -180,6 +234,16 @@ function validateManifest(manifest: PublicManifest): PublicManifest {
   const speciesWithMedia = Array.isArray(manifest.species)
     ? manifest.species.filter((species) => species.photo_count > 0).length
     : -1;
+  const allowedAudioProviders: ReadonlySet<string> = audioSource
+    ? audioProviders(audioSource)
+    : new Set<string>();
+  const audioItems = Array.isArray(manifest.species)
+    ? manifest.species.filter((species) => species.call != null).length
+    : -1;
+  const speciesWithAudio = audioItems;
+  const audioCalls = Array.isArray(manifest.species)
+    ? manifest.species.flatMap((species) => species.call == null ? [] : [species.call])
+    : [];
   if (
     manifest.schema_version !== 1
     || manifest.mode !== "public"
@@ -191,21 +255,32 @@ function validateManifest(manifest: PublicManifest): PublicManifest {
     || manifest.source_policy?.coverage !== expectedCoverage
     || manifest.source_policy?.required_taxon_key !== expectedRequiredTaxon
     || !validMediaPolicy
+    || !validAudioPolicy
     || manifest.license_policy?.version !== 1
     || !Number.isInteger(manifest.counts?.attribution_items)
     || !Number.isSafeInteger(manifest.counts?.media_items) || manifest.counts.media_items < 0
     || !Number.isSafeInteger(manifest.counts?.species_with_media) || manifest.counts.species_with_media < 0
+    || (hasAudioPolicy && (!Number.isSafeInteger(manifest.counts?.audio_items) || Number(manifest.counts.audio_items) < 0))
+    || (hasAudioPolicy && (!Number.isSafeInteger(manifest.counts?.species_with_audio) || Number(manifest.counts.species_with_audio) < 0))
     || !Array.isArray(manifest.species)
     || manifest.species.some((species) => !isPublicSpeciesCode(species.species_code)
       || !Number.isSafeInteger(species.photo_count) || species.photo_count < 0
       || !("hero_photo" in species)
       || (species.photo_count === 0 && species.hero_photo !== null)
       || (species.photo_count > 0 && species.hero_photo === null)
-      || (species.hero_photo !== null && !allowedMediaProviders.has(species.hero_photo.provider)))
+      || (species.hero_photo !== null && !allowedMediaProviders.has(species.hero_photo.provider))
+      || (species.call != null && (!allowedAudioProviders.has(species.call.provider)
+        || publicCatalogCall(species.call, species.scientific_name, manifest.generated_at) === null)))
     || manifest.counts?.media_items !== mediaItems
     || manifest.counts?.species_with_media !== speciesWithMedia
     || (mediaSource === "none" && (mediaItems !== 0 || speciesWithMedia !== 0))
     || (mediaSource !== "none" && (mediaItems === 0 || speciesWithMedia === 0))
+    || (hasAudioPolicy && manifest.counts?.audio_items !== audioItems)
+    || (hasAudioPolicy && manifest.counts?.species_with_audio !== speciesWithAudio)
+    || (audioSource === "none" && audioItems !== 0)
+    || (audioSource !== null && audioSource !== "none" && audioItems === 0)
+    || new Set(audioCalls.map((call) => call.attribution_id)).size !== audioItems
+    || new Set(audioCalls.map((call) => `${call.provider}|${call.provider_id}`)).size !== audioItems
   ) {
     throw new Error("This Rufous public data release is not supported.");
   }
@@ -282,6 +357,8 @@ export async function getPublicManifest(signal?: AbortSignal): Promise<PublicMan
   activeDataRoot = resolution.dataRoot;
   activeDataVersion = resolution.manifest.data_version;
   activeMediaSource = resolution.manifest.source_policy.media_source;
+  activeAudioSource = resolution.manifest.source_policy.audio_source ?? "none";
+  activeAudioAttribution = audioAttributionFor(resolution.manifest);
   fallbackManifestPromise = null;
   return resolution.manifest;
 }
@@ -296,6 +373,8 @@ async function sameReleasePagesManifest(signal?: AbortSignal): Promise<PublicMan
       }
       activeDataRoot = SAME_ORIGIN_DATA_ROOT;
       activeMediaSource = resolution.manifest.source_policy.media_source;
+      activeAudioSource = resolution.manifest.source_policy.audio_source ?? "none";
+      activeAudioAttribution = audioAttributionFor(resolution.manifest);
       return resolution.manifest;
     }).catch((reason: unknown) => {
       if (fallbackManifestPromise === pending) fallbackManifestPromise = null;
@@ -341,7 +420,10 @@ export async function getPublicSpecies(
       || profile.media.length !== species.photo_count
       || (species.hero_photo === null
         ? profile.media.length !== 0
-        : profile.media[0]?.media_id !== species.hero_photo.media_id)) {
+        : profile.media[0]?.media_id !== species.hero_photo.media_id)
+      || (profile.call != null && (!audioProviders(activeAudioSource).has(profile.call.provider)
+        || publicCatalogCall(profile.call, profile.scientific_name, "") === null))
+      || !samePublicAudio(profile.call, species.call)) {
       throw new Error("The bird profile did not match the public catalog.");
     }
     return profile;
@@ -386,8 +468,28 @@ export async function getPublicAttribution(path: string, signal?: AbortSignal): 
     const attributedProviders = Array.isArray(attribution.sources)
       ? new Set(attribution.sources.map((source) => source.provider))
       : new Set<string>();
+    const audioItems = Array.isArray(attribution.items)
+      ? attribution.items.filter((item) => item.kind === "audio")
+      : [];
+    const validAudioItems = audioItems.length === activeAudioAttribution.size
+      && audioItems.every((item) => {
+        const expected = activeAudioAttribution.get(item.attribution_id);
+        return expected !== undefined
+          && item.provider === expected.call.provider
+          && item.provider_id === expected.call.provider_id
+          && item.source_url === expected.call.source_url
+          && item.creator === expected.call.creator
+          && item.license === expected.call.license
+          && item.license_url === expected.call.license_url
+          && item.common_name === expected.commonName
+          && item.scientific_name === expected.scientificName
+          && item.recording_type === expected.call.recording_type
+          && item.modifications === expected.call.modifications;
+      });
     if (attribution.schema_version !== 1 || !Array.isArray(attribution.sources) || !Array.isArray(attribution.items)
-      || [...mediaProviders(activeMediaSource)].some((provider) => !attributedProviders.has(provider))) {
+      || [...mediaProviders(activeMediaSource)].some((provider) => !attributedProviders.has(provider))
+      || [...audioProviders(activeAudioSource)].some((provider) => !attributedProviders.has(provider))
+      || !validAudioItems) {
       throw new Error("The attribution shard did not match its manifest entry.");
     }
     return attribution;

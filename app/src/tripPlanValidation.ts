@@ -1,4 +1,5 @@
 import { curatedPhotoKeys, validateAvailableCuratedPhoto } from "./curatedPhotoValidation";
+import { validatePublicRecommendationAudio } from "./publicRecommendationAudio";
 import type {
   Evidence,
   LocationSuggestion,
@@ -196,7 +197,7 @@ function call(value: unknown): RecommendationCall {
   const row = exact(value, callKeys);
   if ((row.status !== "available" && row.status !== "unavailable")
     || (row.geographic_scope !== null && row.geographic_scope !== "Arizona" && row.geographic_scope !== "Global example")) invalid();
-  for (const [key, max] of Object.entries({ source_record_id: 128, recording_id: 128, species_name: 300, recording_type: 300, quality: 64, recordist: 500, locality: 500, country: 200, source_url: 2048, audio_url: 2048, license_text: 500, license_url: 2048, selection_reason: 1000 })) {
+  for (const [key, max] of Object.entries({ source_record_id: 512, recording_id: 512, species_name: 300, recording_type: 300, quality: 64, recordist: 500, locality: 500, country: 200, source_url: 2048, audio_url: 2048, license_text: 500, license_url: 2048, selection_reason: 1000 })) {
     if (!string(row[key], max, true, true)) invalid();
   }
   return { ...(row as unknown as RecommendationCall), caveats: caveats(row.caveats) };
@@ -216,7 +217,7 @@ function evidence(value: unknown): Evidence {
   const row = exact(value, ["evidence_id", "recommendation_id", "source", "source_table", "source_record_id", "evidence_type", "status", "retrieved_at", "summary", "payload", "caveats"]);
   if (!identifier(row.evidence_id) || !identifier(row.recommendation_id, true)
     || !string(row.source, 128) || !string(row.source_table, 256, true, true)
-    || !string(row.source_record_id, 500, true, true) || !string(row.evidence_type, 128)
+    || !string(row.source_record_id, 512, true, true) || !string(row.evidence_type, 128)
     || !string(row.status, 64) || !timestamp(row.retrieved_at, true)) invalid();
   return { ...(row as unknown as Evidence), summary: boundedJsonObject(row.summary), payload: boundedJsonObject(row.payload), caveats: caveats(row.caveats) };
 }
@@ -225,7 +226,7 @@ function media(value: unknown): Media {
   const row = exact(value, ["evidence_id", "recommendation_id", "source_record_id", "recording_id", "status", "species_name", "recording_type", "quality", "recordist", "license_text", "license_url", "source_url", "audio_url", "caveats"]);
   if (!identifier(row.evidence_id) || !identifier(row.recommendation_id, true) || !string(row.status, 64)
     || !string(row.license_text, 500, false, true)) invalid();
-  for (const [key, max] of Object.entries({ source_record_id: 128, recording_id: 128, species_name: 300, recording_type: 300, quality: 64, recordist: 500, license_url: 2048, source_url: 2048, audio_url: 2048 })) {
+  for (const [key, max] of Object.entries({ source_record_id: 512, recording_id: 512, species_name: 300, recording_type: 300, quality: 64, recordist: 500, license_url: 2048, source_url: 2048, audio_url: 2048 })) {
     if (!string(row[key], max, true, true)) invalid();
   }
   return { ...(row as unknown as Media), caveats: caveats(row.caveats) };
@@ -329,15 +330,23 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
     || (weather !== null && (weather.recommendation_id !== null || weather.evidence_type !== "weather_elevation_context"
       || !equivalent(weather, weatherEvidence[0])))) invalid();
 
-  const mediaEvidence = evidenceRows.filter((item) => item.source === "xeno_canto" && item.status === "available");
+  const publicAudioSources = new Set(["xeno_canto", "inaturalist", "wikimedia", "usfws"]);
+  const mediaEvidence = evidenceRows.filter((item) => item.status === "available"
+    && publicAudioSources.has(item.source)
+    && (item.evidence_type === "recommendation_call"
+      || (item.source === "xeno_canto" && item.evidence_type === "media_context")));
   if (mediaRows.length !== mediaEvidence.length
     || !unique(mediaEvidence.map((item) => item.evidence_id))) invalid();
   const mediaByEvidence = new Map(mediaRows.map((item) => [item.evidence_id, item]));
   for (const item of mediaEvidence) {
     const linked = mediaByEvidence.get(item.evidence_id);
     if (!linked || linked.recommendation_id !== item.recommendation_id
-      || linked.source_record_id !== item.source_record_id
-      || linked.recording_id !== recordingIdFromEvidence(item)) invalid();
+      || linked.source_record_id !== item.source_record_id) invalid();
+    if (item.source === "xeno_canto") {
+      if (linked.recording_id !== recordingIdFromEvidence(item)) invalid();
+    } else if (item.source_table !== `published_${item.source}_audio`
+      || item.summary.provider_id !== item.source_record_id
+      || linked.recording_id !== item.summary.recording_id) invalid();
   }
 
   const enrichmentByRecommendation = new Map<string, Evidence>();
@@ -346,7 +355,7 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
       || (item.evidence_type === "recommendation_photo"
         ? item.source !== "inaturalist" && item.source !== "curated_photo"
           && item.source !== "usfws" && item.source !== "wikimedia"
-        : item.source !== "xeno_canto")) invalid();
+        : !publicAudioSources.has(item.source))) invalid();
     const key = `${item.recommendation_id}|${item.evidence_type}`;
     if (enrichmentByRecommendation.has(key)) invalid();
     enrichmentByRecommendation.set(key, item);
@@ -363,14 +372,40 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
       || !equivalent(item.photo.caveats, linkedPhoto.caveats)) invalid();
     if (item.call.status === "unavailable") {
       if (!allNull(item.call, callKeys.filter((key) => key !== "status" && key !== "caveats"))) invalid();
-    } else if (!linkedCall || linkedCall.status !== "available"
-      || item.call.source_record_id !== linkedCall.source_record_id
-      || item.call.recording_id !== recordingIdFromEvidence(linkedCall)
-      || !exactSpecies(item, item.call.species_name)
-      || item.call.geographic_scope === null || item.call.recordist === null
-      || item.call.source_url === null || item.call.audio_url === null
-      || item.call.license_text === null || item.call.license_url === null
-      || !equivalent(item.call.caveats, linkedCall.caveats)) invalid();
+    } else {
+      const publicAudio = validatePublicRecommendationAudio(item.call);
+      const linkedMedia = linkedCall ? mediaByEvidence.get(linkedCall.evidence_id) : undefined;
+      if (!linkedCall || linkedCall.status !== "available"
+        || !linkedMedia
+        || item.call.source_record_id !== linkedCall.source_record_id
+        || !exactSpecies(item, item.call.species_name)
+        || item.call.geographic_scope === null || item.call.recordist === null
+        || item.call.source_url === null || item.call.audio_url === null
+        || item.call.license_text === null || item.call.license_url === null
+        || !equivalent(item.call.caveats, linkedCall.caveats)) invalid();
+      if (publicAudio === null) {
+        if (item.call.audio_url.startsWith("https://rufous-data.loughondata.com/rufous-audio/")
+          || linkedCall.source !== "xeno_canto"
+          || item.call.recording_id !== recordingIdFromEvidence(linkedCall)) invalid();
+      } else if (
+        linkedCall.source !== publicAudio.provider
+        || linkedCall.source_table !== `published_${publicAudio.provider}_audio`
+        || linkedCall.summary.provider_id !== publicAudio.providerId
+        || linkedCall.summary.recording_id !== publicAudio.recordingId
+        || linkedMedia.status !== "available"
+        || linkedMedia.source_record_id !== item.call.source_record_id
+        || linkedMedia.recording_id !== item.call.recording_id
+        || linkedMedia.species_name !== item.call.species_name
+        || linkedMedia.recording_type !== item.call.recording_type
+        || linkedMedia.quality !== item.call.quality
+        || linkedMedia.recordist !== item.call.recordist
+        || linkedMedia.license_text !== item.call.license_text
+        || linkedMedia.license_url !== item.call.license_url
+        || linkedMedia.source_url !== item.call.source_url
+        || linkedMedia.audio_url !== item.call.audio_url
+        || !equivalent(linkedMedia.caveats, item.call.caveats)
+      ) invalid();
+    }
   }
 
   for (const group of ["recently_reported", "gbif_context"]) {

@@ -4,9 +4,26 @@ import {
   isExactPublicMediaSourceUrl,
   publicMediaLicenseUrl,
 } from "../publicMediaContracts";
-import type { PublicMediaProvider } from "../publicTypes";
+import {
+  isExactPublicAudioSourceUrl,
+  publicAudioLicenseUrl,
+  publicAudioProviderIdMatchesSource,
+  publicAudioProviderLabel,
+} from "../publicAudioContracts";
+import type { PublicAudioProvider, PublicMediaProvider } from "../publicTypes";
 
 const PUBLIC_MEDIA_URL = /^https:\/\/rufous-data\.loughondata\.com\/rufous-media\/v1\/objects\/([0-9a-f]{2})\/([0-9a-f]{64})\.webp$/;
+const PUBLIC_AUDIO_URL = /^https:\/\/rufous-data\.loughondata\.com\/rufous-audio\/v1\/objects\/([0-9a-f]{2})\/([0-9a-f]{64})\.(mp3|ogg|m4a|wav)$/;
+const PUBLIC_AUDIO_MIME_BY_EXTENSION = new Map([
+  ["mp3", "audio/mpeg"],
+  ["ogg", "audio/ogg"],
+  ["m4a", "audio/mp4"],
+  ["wav", "audio/wav"],
+]);
+const PUBLIC_AUDIO_KEYS = new Set([
+  "provider", "provider_id", "source_url", "creator", "license", "license_url", "url",
+  "sha256", "bytes", "mime_type", "duration_seconds", "recording_type", "modifications", "attribution_id",
+]);
 const WIKIMEDIA_MEDIA_ID = /^wikimedia-[0-9a-f]{24}$/;
 const WIKIMEDIA_ATTRIBUTION_ID = /^wikimedia-attribution-[0-9a-f]{24}$/;
 function plainText(value: unknown, maximum: number): value is string {
@@ -111,6 +128,63 @@ export function publicCatalogPhotos(
     }
   }
   return photos;
+}
+
+/** Fail-closed conversion from one pinned public-audio object into the existing player contract. */
+export function publicCatalogCall(
+  value: unknown,
+  scientificName: string | null,
+  generatedAt: string,
+): CatalogCall | null {
+  if (!value || typeof value !== "object" || Array.isArray(value) || scientificName === null) return null;
+  const audio = value as Record<string, unknown>;
+  const keys = Object.keys(audio);
+  const provider: PublicAudioProvider | null = audio.provider === "xeno_canto"
+    || audio.provider === "inaturalist"
+    || audio.provider === "wikimedia"
+    || audio.provider === "usfws"
+    ? audio.provider
+    : null;
+  const objectMatch = typeof audio.url === "string" ? PUBLIC_AUDIO_URL.exec(audio.url) : null;
+  if (
+    keys.length !== PUBLIC_AUDIO_KEYS.size || keys.some((key) => !PUBLIC_AUDIO_KEYS.has(key))
+    || provider === null
+    || !plainText(audio.provider_id, 512)
+    || !isExactPublicAudioSourceUrl(provider, audio.source_url)
+    || !publicAudioProviderIdMatchesSource(provider, audio.provider_id, audio.source_url)
+    || publicAudioLicenseUrl(provider, audio.license) !== audio.license_url
+    || !objectMatch || audio.sha256 !== objectMatch[2] || objectMatch[1] !== objectMatch[2].slice(0, 2)
+    || PUBLIC_AUDIO_MIME_BY_EXTENSION.get(objectMatch[3]) !== audio.mime_type
+    || !Number.isSafeInteger(audio.bytes) || Number(audio.bytes) < 1 || Number(audio.bytes) > 25 * 1024 * 1024
+    || typeof audio.duration_seconds !== "number" || !Number.isFinite(audio.duration_seconds)
+    || audio.duration_seconds <= 0 || audio.duration_seconds > 3_600
+    || !plainText(audio.creator, 500) || !plainText(audio.recording_type, 100)
+    || !plainText(audio.modifications, 1_000)
+    || audio.attribution_id !== `audio-attribution-${String(audio.sha256).slice(0, 24)}`
+  ) return null;
+  const providerLabel = publicAudioProviderLabel(provider);
+  const recordingId = provider === "xeno_canto"
+    ? String(audio.provider_id).slice(2)
+    : String(audio.provider_id);
+  return {
+    status: "available",
+    source_record_id: String(audio.provider_id),
+    recording_id: recordingId,
+    species_name: scientificName,
+    geographic_scope: "Global example",
+    recording_type: String(audio.recording_type),
+    quality: null,
+    recordist: String(audio.creator),
+    locality: null,
+    country: null,
+    source_url: String(audio.source_url),
+    audio_url: String(audio.url),
+    license_text: String(audio.license),
+    license_url: String(audio.license_url),
+    selection_reason: `${providerLabel} · ${String(audio.modifications)}`,
+    caveats: [],
+    lookup_at: generatedAt,
+  };
 }
 
 export function unavailablePhoto(

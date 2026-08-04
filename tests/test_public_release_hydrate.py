@@ -168,7 +168,11 @@ def _pages_fixture(
 ) -> dict[str, bytes | list[bytes]]:
     assets: dict[str, object] = {
         "data/attribution.json": {"schema_version": 1, "items": []},
-        "data/species/gbif-1.json": {"schema_version": 1, "species_code": "gbif-1"},
+        "data/species/gbif-1.json": {
+            "schema_version": 1,
+            "species_code": "gbif-1",
+            "call": None,
+        },
         f"data/cells/{cell_id}.json": {
             "schema_version": 1,
             "cell_id": cell_id,
@@ -196,6 +200,7 @@ def _pages_fixture(
                 "species_code": "gbif-1",
                 "profile_path": "/data/species/gbif-1.json",
                 "photo_count": 0,
+                "call": None,
             }
         ],
         "cells": [
@@ -213,7 +218,12 @@ def _pages_fixture(
             }
         ],
         "attribution_path": "/data/attribution.json",
-        "source_policy": {"direct_ebird": "excluded", "occurrence_source": "gbif"},
+        "source_policy": {
+            "direct_ebird": "excluded",
+            "occurrence_source": "gbif",
+            "audio_source": "none",
+            "audio_delivery": "none",
+        },
         "license_policy": {"version": 1},
         "counts": {
             "species": 1,
@@ -222,6 +232,8 @@ def _pages_fixture(
             "attribution_items": 0,
             "media_items": 0,
             "species_with_media": 0,
+            "audio_items": 0,
+            "species_with_audio": 0,
         },
     }
     assets["data/manifest.json"] = manifest

@@ -211,6 +211,47 @@ def test_media_refresh_is_manual_only_and_pushes_never_route_to_it(tmp_path: Pat
     assert _route_push(tmp_path, script, mixed, app_mixed) == "full"
 
 
+def test_audio_refresh_is_manual_and_any_audio_pin_change_does_not_deploy(
+    tmp_path: Path,
+) -> None:
+    workflow = _workflow()
+    script = _route_script(workflow)
+    _git(tmp_path, "init", "--quiet")
+
+    initial = _commit(
+        tmp_path,
+        {
+            "config/rufous-public-audio-selection.json": "initial\n",
+            "config/rufous-pinned-public-audio.json": "initial\n",
+            "packages/databox/databox/public_audio_release.py": "initial\n",
+        },
+        "initial",
+    )
+    selection_only = _commit(
+        tmp_path,
+        {"config/rufous-public-audio-selection.json": "reviewed selection\n"},
+        "review audio selection",
+    )
+    pin_only = _commit(
+        tmp_path,
+        {"config/rufous-pinned-public-audio.json": "reviewed pin\n"},
+        "pin reviewed audio",
+    )
+    implementation = _commit(
+        tmp_path,
+        {
+            "packages/databox/databox/public_audio_release.py": "implementation\n",
+            "config/rufous-pinned-public-audio.json": "implementation pin\n",
+        },
+        "implement audio release",
+    )
+
+    assert _route_dispatch(tmp_path, script, "audio-refresh") == "audio"
+    assert _route_push(tmp_path, script, initial, selection_only) == "none"
+    assert _route_push(tmp_path, script, selection_only, pin_only) == "none"
+    assert _route_push(tmp_path, script, pin_only, implementation) == "none"
+
+
 def test_pages_job_cannot_publish_or_rebuild_r2_data() -> None:
     workflow = _workflow()
     pages = workflow["jobs"]["pages"]
@@ -250,6 +291,7 @@ def test_pages_job_cannot_publish_or_rebuild_r2_data() -> None:
     assert not [token for token in forbidden if token in pages_configuration]
     assert "needs.route.outputs.release_mode == 'full'" in production_readiness["if"]
     assert "needs.route.outputs.release_mode == 'media'" in production_readiness["if"]
+    assert "needs.route.outputs.release_mode == 'audio'" in production_readiness["if"]
 
 
 def test_explicit_media_refresh_targets_only_one_selected_provider() -> None:
@@ -370,6 +412,154 @@ def test_automatic_full_release_reuses_pinned_media_without_provider_work() -> N
         "upload.wikimedia.org",
     )
     assert not [token for token in forbidden if token in production_commands]
+
+
+def test_explicit_audio_refresh_separates_untrusted_media_from_r2_credentials() -> None:
+    workflow = _workflow()
+    dispatch_options = workflow["on"]["workflow_dispatch"]["inputs"]["release_mode"]["options"]
+    prepare = workflow["jobs"]["audio_prepare"]
+    upload = workflow["jobs"]["audio_delta"]
+    prepare_steps = prepare["steps"]
+    upload_steps = upload["steps"]
+    prepare_names = [step.get("name", "") for step in prepare_steps]
+    upload_names = [step.get("name", "") for step in upload_steps]
+    prepare_commands = "\n".join(step.get("run", "") for step in prepare_steps)
+    upload_commands = "\n".join(step.get("run", "") for step in upload_steps)
+
+    assert "audio-refresh" in dispatch_options
+    for job in (prepare, upload):
+        assert "needs.route.outputs.release_mode == 'audio'" in job["if"]
+        assert "github.event_name == 'workflow_dispatch'" in job["if"]
+        assert "github.event_name == 'push'" not in job["if"]
+        assert "inputs.release_mode == 'audio-refresh'" in job["if"]
+    assert "needs.audio_prepare.result == 'success'" in upload["if"]
+    assert "Verify this revision is still the main branch head" in prepare_names
+    assert "Verify this revision is still the main branch head" in upload_names
+    assert "tests/test_public_audio_export.py" in prepare_commands
+    assert "tests/test_public_audio_release.py" in prepare_commands
+    assert "tests/test_public_audio_selection.py" in prepare_commands
+    assert "tests/test_rufous_public_workflow.py" in prepare_commands
+    assert (
+        "python -m databox.public_audio_release acquire "
+        "--selection config/rufous-public-audio-selection.json "
+        "--output build/rufous-public-audio"
+    ) in " ".join(prepare_commands.split())
+    toolchain_step = prepare_steps[
+        prepare_names.index("Build the checksum-pinned FFmpeg sanitizer")
+    ]
+    assert prepare["runs-on"] == "ubuntu-24.04"
+    assert "https://ffmpeg.org/releases/ffmpeg-7.1.1.tar.xz" in toolchain_step["run"]
+    assert (
+        "733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1"
+        in (toolchain_step["run"])
+    )
+    assert "sha256sum --check --strict" in toolchain_step["run"]
+    assert "--disable-autodetect" in toolchain_step["run"]
+    assert "setup-ffmpeg" not in json.dumps(prepare_steps)
+    cache_save_step = next(
+        step for step in prepare_steps if "actions/cache/save@" in step.get("uses", "")
+    )
+    cache_restore_step = next(
+        step for step in upload_steps if "actions/cache/restore@" in step.get("uses", "")
+    )
+    cache_key = "rufous-public-audio-${{ hashFiles('config/rufous-pinned-public-audio.json') }}"
+    assert cache_save_step["with"] == {
+        "path": "build/rufous-public-audio",
+        "key": cache_key,
+    }
+    assert cache_restore_step["with"] == {
+        "path": "build/rufous-public-audio",
+        "key": cache_key,
+        "fail-on-cache-miss": "true",
+    }
+    assert "restore-keys" not in cache_restore_step["with"]
+    assert "actions/upload-artifact@" not in json.dumps(prepare_steps)
+    assert "actions/download-artifact@" not in json.dumps(upload_steps)
+    assert "secrets." not in json.dumps(prepare_steps)
+
+    assert "databox.public_audio_release acquire" not in upload_commands
+    assert "databox.public_audio_release ensure-r2" not in upload_commands
+    assert (
+        "python -m databox.public_audio_release publish-preverified-r2 "
+        "--source build/rufous-public-audio "
+        "--selection config/rufous-public-audio-selection.json"
+    ) in " ".join(upload_commands.split())
+    upload_step = upload_steps[
+        upload_names.index("Upload pinned bytes without provider or media-parser access")
+    ]
+    assert upload_step["env"] == {
+        "RUFOUS_R2_ACCOUNT_ID": "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}",
+        "RUFOUS_R2_ACCESS_KEY_ID": (
+            "${{ secrets.RUF_R2_ACCESS_KEY_ID }}"  # secret-scan: allow
+        ),
+        "RUFOUS_R2_SECRET_ACCESS_KEY": (
+            "${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}"  # secret-scan: allow
+        ),
+    }
+    assert "publish-preverified-r2" in upload_step["run"]
+    assert "verify" not in upload_step["run"]
+
+    forbidden = (
+        "wrangler",
+        "pages deploy",
+        "publish_rufous_public.py",
+        "export_rufous_public.py",
+        "hydrate_rufous_public.py",
+        "load_dlt_quack.py",
+        "sqlmesh_plan_rufous",
+        "app/dist",
+    )
+    combined_commands = f"{prepare_commands}\n{upload_commands}"
+    assert not [token for token in forbidden if token in combined_commands]
+
+
+def test_automatic_releases_verify_audio_without_contacting_sources() -> None:
+    workflow = _workflow()
+    production = workflow["jobs"]["production"]
+    steps = production["steps"]
+    commands = "\n".join(step.get("run", "") for step in steps)
+
+    assert "databox.public_audio_release verify-pin" in commands
+    assert "databox.public_audio_release verify-r2" in commands
+    assert "config/rufous-public-audio-selection.json" in commands
+    assert "config/rufous-pinned-public-audio.json" in commands
+    assert "--audio-manifest config/rufous-pinned-public-audio.json" in commands
+    assert "tests/test_public_audio_export.py" in commands
+    assert "tests/test_public_audio_release.py" in commands
+    assert "databox.public_audio_release ensure-r2" not in commands
+
+    step_names = [step.get("name", "") for step in steps]
+    verify_r2 = steps[step_names.index("Verify every pinned immutable audio object exists in R2")]
+    assert verify_r2["env"] == {
+        "RUFOUS_R2_ACCOUNT_ID": "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}",
+        "RUFOUS_R2_ACCESS_KEY_ID": (
+            "${{ secrets.RUF_R2_ACCESS_KEY_ID }}"  # secret-scan: allow
+        ),
+        "RUFOUS_R2_SECRET_ACCESS_KEY": (
+            "${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}"  # secret-scan: allow
+        ),
+    }
+    assert step_names.index(
+        "Verify every pinned immutable audio object exists in R2"
+    ) < step_names.index("Deploy immutable static Pages release")
+
+    for job_name in ("synthetic", "pages", "production"):
+        automatic_commands = "\n".join(
+            step.get("run", "") for step in workflow["jobs"][job_name]["steps"]
+        )
+        assert "ensure-r2" not in automatic_commands
+
+    workflow_paths = workflow["on"]["push"]["paths"]
+    pull_request_paths = workflow["on"]["pull_request"]["paths"]
+    required_paths = (
+        "config/rufous-public-audio-selection.json",
+        "config/rufous-pinned-public-audio.json",
+        "packages/databox/databox/public_audio*.py",
+        "tests/test_public_audio*.py",
+    )
+    for path in required_paths:
+        assert path in workflow_paths
+        assert path in pull_request_paths
 
 
 def test_only_manual_media_refresh_can_contact_media_providers() -> None:

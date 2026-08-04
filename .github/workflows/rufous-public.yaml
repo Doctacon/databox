@@ -7,6 +7,8 @@ on:
       - "app/**"
       - "config/rufous-media-visual-approvals.json"
       - "config/rufous-pinned-public-media.json"
+      - "config/rufous-pinned-public-audio.json"
+      - "config/rufous-public-audio-selection.json"
       - "config/rufous-wikimedia-public-media.json"
       - "pyproject.toml"
       - "packages/databox/pyproject.toml"
@@ -26,6 +28,7 @@ on:
       - "packages/databox/databox/orchestration/domains/usfws.py"
       - "packages/databox/databox/public_inaturalist_media_ingest.py"
       - "packages/databox/databox/public_export*.py"
+      - "packages/databox/databox/public_audio*.py"
       - "packages/databox/databox/public_media*.py"
       - "packages/databox/databox/public_restricted_marks.py"
       - "packages/databox/databox/public_release.py"
@@ -43,6 +46,7 @@ on:
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
       - "tests/test_public_export*.py"
+      - "tests/test_public_audio*.py"
       - "tests/test_public_release.py"
       - "tests/test_public_release_hydrate.py"
       - "tests/test_rufous_public_workflow.py"
@@ -73,6 +77,8 @@ on:
       - "app/**"
       - "config/rufous-media-visual-approvals.json"
       - "config/rufous-pinned-public-media.json"
+      - "config/rufous-pinned-public-audio.json"
+      - "config/rufous-public-audio-selection.json"
       - "config/rufous-wikimedia-public-media.json"
       - "pyproject.toml"
       - "packages/databox/pyproject.toml"
@@ -92,6 +98,7 @@ on:
       - "packages/databox/databox/orchestration/domains/usfws.py"
       - "packages/databox/databox/public_inaturalist_media_ingest.py"
       - "packages/databox/databox/public_export*.py"
+      - "packages/databox/databox/public_audio*.py"
       - "packages/databox/databox/public_media*.py"
       - "packages/databox/databox/public_restricted_marks.py"
       - "packages/databox/databox/public_release.py"
@@ -109,6 +116,7 @@ on:
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
       - "tests/test_public_export*.py"
+      - "tests/test_public_audio*.py"
       - "tests/test_public_release.py"
       - "tests/test_public_release_hydrate.py"
       - "tests/test_rufous_public_workflow.py"
@@ -145,6 +153,7 @@ on:
         options:
           - full
           - media-refresh
+          - audio-refresh
           - pages-only
       media_provider:
         description: Explicit provider for a manual media refresh
@@ -202,6 +211,8 @@ jobs:
               release_mode=pages
             elif [[ "$DISPATCH_MODE" == "media-refresh" ]]; then
               release_mode=media
+            elif [[ "$DISPATCH_MODE" == "audio-refresh" ]]; then
+              release_mode=audio
             else
               release_mode=full
             fi
@@ -213,12 +224,19 @@ jobs:
               && git cat-file -e "$HEAD_SHA^{commit}"; then
               changed_count=0
               app_only=true
+              audio_maintenance_change=false
               media_maintenance_change=false
               while IFS= read -r -d '' path; do
                 changed_count=$((changed_count + 1))
                 if [[ "$path" != app/* ]]; then
                   app_only=false
                 fi
+                case "$path" in
+                  config/rufous-pinned-public-audio.json|\
+                  config/rufous-public-audio-selection.json)
+                    audio_maintenance_change=true
+                    ;;
+                esac
                 case "$path" in
                   config/rufous-media-visual-approvals.json|\
                   config/rufous-pinned-public-media.json|\
@@ -227,7 +245,9 @@ jobs:
                     ;;
                 esac
               done < <(git diff --no-renames --name-only --diff-filter=ACMRD -z "$BEFORE_SHA" "$HEAD_SHA")
-              if [[ "$changed_count" -gt 0 && "$media_maintenance_change" == "true" ]]; then
+              if [[ "$changed_count" -gt 0 && "$audio_maintenance_change" == "true" ]]; then
+                release_mode=none
+              elif [[ "$changed_count" -gt 0 && "$media_maintenance_change" == "true" ]]; then
                 release_mode=none
               elif [[ "$changed_count" -gt 0 && "$app_only" == "true" ]]; then
                 release_mode=pages
@@ -274,9 +294,11 @@ jobs:
     name: Check R2 release configuration
     needs: [readiness, route]
     if: >-
-      needs.readiness.outputs.pages_ready == 'true' &&
+      (needs.readiness.outputs.pages_ready == 'true' ||
+       needs.route.outputs.release_mode == 'audio') &&
       (needs.route.outputs.release_mode == 'full' ||
-       needs.route.outputs.release_mode == 'media') &&
+       needs.route.outputs.release_mode == 'media' ||
+       needs.route.outputs.release_mode == 'audio') &&
       (github.event_name == 'schedule' ||
        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
@@ -284,6 +306,7 @@ jobs:
     outputs:
       production_ready: ${{ steps.ready.outputs.production_ready }}
     env:
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
     steps:
@@ -292,7 +315,7 @@ jobs:
         shell: bash
         run: |
           production_ready=true
-          for name in RUFOUS_R2_BUCKET R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
+          for name in RUFOUS_R2_BUCKET CF_ACCOUNT R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
             if [[ -z "${!name}" ]]; then
               production_ready=false
             fi
@@ -324,6 +347,8 @@ jobs:
           packages/databox-sources/tests/inaturalist
           tests/test_analytics_contract_inventory.py
           tests/test_public_export.py tests/test_public_export_audit.py
+          tests/test_public_audio_export.py tests/test_public_audio_release.py
+          tests/test_public_audio_selection.py
           tests/test_public_release.py tests/test_public_media.py
           tests/test_public_release_hydrate.py
           tests/test_rufous_public_workflow.py
@@ -691,6 +716,149 @@ jobs:
           --publication-attempt "$GITHUB_RUN_ATTEMPT"
           --source-revision "$GITHUB_SHA"
 
+  audio_prepare:
+    name: Prepare reviewed bird audio without cloud credentials
+    needs: [production_readiness, route]
+    if: >-
+      needs.production_readiness.outputs.production_ready == 'true' &&
+      needs.route.outputs.release_mode == 'audio' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.release_mode == 'audio-refresh'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Build the checksum-pinned FFmpeg sanitizer
+        shell: bash
+        run: |
+          archive="$RUNNER_TEMP/ffmpeg-7.1.1.tar.xz"
+          source_root="$RUNNER_TEMP/ffmpeg-7.1.1"
+          install_root="$RUNNER_TEMP/rufous-ffmpeg"
+          curl --fail --silent --show-error --location \
+            --output "$archive" \
+            https://ffmpeg.org/releases/ffmpeg-7.1.1.tar.xz
+          echo "733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1  $archive" \
+            | sha256sum --check --strict
+          tar --extract --file "$archive" --directory "$RUNNER_TEMP"
+          cd "$source_root"
+          ./configure \
+            --prefix="$install_root" \
+            --disable-autodetect \
+            --disable-debug \
+            --disable-doc \
+            --disable-ffplay \
+            --disable-network \
+            --disable-shared \
+            --disable-x86asm \
+            --enable-static
+          make --jobs=2 ffmpeg ffprobe
+          make install
+          echo "$install_root/bin" >> "$GITHUB_PATH"
+      - name: Verify the pinned audio sanitizer toolchain
+        shell: bash
+        run: |
+          ffmpeg_version="$(ffmpeg -version | sed -n '1s/^ffmpeg version \([^ ]*\).*/\1/p')"
+          ffprobe_version="$(ffprobe -version | sed -n '1s/^ffprobe version \([^ ]*\).*/\1/p')"
+          if [[ "$ffmpeg_version" != "7.1.1" && "$ffmpeg_version" != "7.1.1-static" ]]; then
+            echo "Refusing an unpinned FFmpeg toolchain." >&2
+            exit 1
+          fi
+          if [[ "$ffprobe_version" != "7.1.1" && "$ffprobe_version" != "7.1.1-static" ]]; then
+            echo "Refusing an unpinned FFmpeg toolchain." >&2
+            exit 1
+          fi
+      - name: Install focused audio release dependencies
+        run: uv sync --all-extras --dev --locked
+      - name: Test the bounded public audio release path
+        run: >-
+          uv run pytest
+          tests/test_public_audio_export.py
+          tests/test_public_audio_release.py
+          tests/test_public_audio_selection.py
+          tests/test_rufous_public_workflow.py
+          -o "addopts=-v --tb=short"
+      - name: Verify this revision is still the main branch head
+        shell: bash
+        run: |
+          read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
+          if [[ ! "$main_sha" =~ ^[0-9a-f]{40}$ || "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "Refusing to publish audio for a superseded main revision." >&2
+            exit 1
+          fi
+      - name: Reproduce every reviewed object without cloud credentials
+        run: >-
+          uv run --package databox --locked
+          python -m databox.public_audio_release acquire
+          --selection config/rufous-public-audio-selection.json
+          --output build/rufous-public-audio
+      - name: Verify the complete prepared package without cloud credentials
+        run: >-
+          uv run --package databox --locked
+          python -m databox.public_audio_release verify
+          --selection config/rufous-public-audio-selection.json
+          --source build/rufous-public-audio
+      - name: Cache the verified package for the isolated upload job
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: build/rufous-public-audio
+          key: rufous-public-audio-${{ hashFiles('config/rufous-pinned-public-audio.json') }}
+
+  audio_delta:
+    name: Upload preverified immutable bird audio
+    needs: [production_readiness, route, audio_prepare]
+    if: >-
+      needs.production_readiness.outputs.production_ready == 'true' &&
+      needs.audio_prepare.result == 'success' &&
+      needs.route.outputs.release_mode == 'audio' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.release_mode == 'audio-refresh'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install focused audio upload dependencies
+        run: uv sync --package databox --extra r2 --locked
+      - name: Verify this revision is still the main branch head
+        shell: bash
+        run: |
+          read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
+          if [[ ! "$main_sha" =~ ^[0-9a-f]{40}$ || "$main_sha" != "$GITHUB_SHA" ]]; then
+            echo "Refusing to publish audio for a superseded main revision." >&2
+            exit 1
+          fi
+      - name: Restore only the exactly pinned verified audio package
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: build/rufous-public-audio
+          key: rufous-public-audio-${{ hashFiles('config/rufous-pinned-public-audio.json') }}
+          fail-on-cache-miss: true
+      - name: Reverify the cached package without cloud credentials
+        run: >-
+          uv run --package databox --locked
+          python -m databox.public_audio_release verify
+          --selection config/rufous-public-audio-selection.json
+          --source build/rufous-public-audio
+      - name: Upload pinned bytes without provider or media-parser access
+        env:
+          RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
+          RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
+        run: >-
+          uv run --package databox --extra r2 --locked
+          python -m databox.public_audio_release publish-preverified-r2
+          --source build/rufous-public-audio
+          --selection config/rufous-public-audio-selection.json
+
   production:
     name: Build and deploy production R2-backed release
     needs: [production_readiness, route]
@@ -729,6 +897,8 @@ jobs:
         run: >-
           uv run pytest tests/test_analytics_contract_inventory.py
           tests/test_public_export.py tests/test_public_export_audit.py
+          tests/test_public_audio_export.py tests/test_public_audio_release.py
+          tests/test_public_audio_selection.py
           tests/test_public_release.py tests/test_public_media.py
           tests/test_rufous_public_workflow.py
           tests/test_public_media_approval.py
@@ -758,6 +928,22 @@ jobs:
           uv run python scripts/verify_rufous_media_approvals.py
           --manifest config/rufous-pinned-public-media.json
           --approvals config/rufous-media-visual-approvals.json
+      - name: Verify the pinned immutable audio catalog without provider contact
+        run: >-
+          uv run --package databox --locked
+          python -m databox.public_audio_release verify-pin
+          --selection config/rufous-public-audio-selection.json
+          --verify-manifest config/rufous-pinned-public-audio.json
+      - name: Verify every pinned immutable audio object exists in R2
+        env:
+          RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
+          RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
+        run: >-
+          uv run --package databox --extra r2 --locked
+          python -m databox.public_audio_release verify-r2
+          --selection config/rufous-public-audio-selection.json
+          --verify-manifest config/rufous-pinned-public-audio.json
       - name: Download official Arizona GNIS archive
         run: >-
           curl --fail --silent --show-error --location
@@ -783,6 +969,7 @@ jobs:
           --gnis-sha256 "$RUF_GNIS_SHA256"
           --media-manifest config/rufous-pinned-public-media.json
           --media-approvals config/rufous-media-visual-approvals.json
+          --audio-manifest config/rufous-pinned-public-audio.json
           --output build/rufous-public-data
       - name: Build static public app
         env:

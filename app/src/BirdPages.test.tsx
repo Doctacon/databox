@@ -511,6 +511,12 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(screen.getByText("Call: Recordist 102 · Arizona")).toBeVisible();
     expect(screen.getByText("Type: call · quality A")).toBeVisible();
     expect(screen.getByText("Location: Fixture Park, United States")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Xeno-canto source" })).toHaveAttribute(
+      "href", "https://xeno-canto.org/1102",
+    );
+    expect(screen.getByRole("link", { name: "CC BY-NC-SA 4.0" })).toHaveAttribute(
+      "href", "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    );
     expect(screen.getByText("Exact species call ranked by type and quality")).toBeVisible();
     expect(screen.getAllByText(/Looked up:/)).toHaveLength(2);
     expect(document.querySelector(".catalog-call-profile audio")).toHaveAttribute("preload", "none");
