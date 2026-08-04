@@ -1,4 +1,4 @@
-"""Human, species-scoped selection policy for Rufous's prepared USFWS media.
+"""Human, species-scoped selection policy for Rufous's prepared bird media.
 
 Preparation proves that an object is well formed, licensed, bounded, and tied
 to reviewed metadata.  It cannot prove what the pixels depict.  Production
@@ -43,6 +43,7 @@ _SCIENTIFIC_NAME = re.compile(r"^[A-Z][A-Za-z-]+ [a-z][A-Za-z-]+(?: [A-Za-z-]+)?
 _USFWS_MEDIA_PAGE = re.compile(
     r"^https://www\.fws\.gov/media/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$"
 )
+_INATURALIST_MEDIA_PAGE = re.compile(r"^https://www\.inaturalist\.org/photos/[1-9][0-9]*$")
 _PUBLIC_MEDIA_URL = re.compile(
     r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
     r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.webp$"
@@ -322,9 +323,8 @@ def _parse_decision_row(
         raise MediaApprovalError(
             f"visual {expected} decision {index} has an invalid scientific name"
         )
-    source_pages = _strict_sorted_strings(
+    source_pages = _strict_media_source_pages(
         row.get("source_page_urls"),
-        pattern=_USFWS_MEDIA_PAGE,
         label=f"visual {expected} decision {index} source_page_urls",
     )
     if row.get("decision") != expected:
@@ -404,9 +404,8 @@ def _parse_excluded_candidates(value: object, *, label: str) -> tuple[ExcludedCa
         if sha256 <= previous_hash:
             raise MediaApprovalError(f"{label} must be uniquely sorted by SHA-256")
         previous_hash = sha256
-        pages = _strict_sorted_strings(
+        pages = _strict_media_source_pages(
             row.get("source_page_urls"),
-            pattern=_USFWS_MEDIA_PAGE,
             label=f"{label} item {index} source_page_urls",
         )
         parsed.append(ExcludedCandidate(sha256=sha256, source_page_urls=pages))
@@ -440,6 +439,7 @@ def load_manifest_provenance(path: Path) -> dict[tuple[str, str], MediaCandidate
         sha256 = item.get("sha256")
         scientific_name = item.get("scientific_name")
         source_page_url = item.get("source_page_url")
+        provider = item.get("provider", "usfws")
         url = item.get("url")
         match = _PUBLIC_MEDIA_URL.fullmatch(url) if isinstance(url, str) else None
         if (
@@ -448,7 +448,7 @@ def load_manifest_provenance(path: Path) -> dict[tuple[str, str], MediaCandidate
             or not isinstance(scientific_name, str)
             or not _SCIENTIFIC_NAME.fullmatch(scientific_name)
             or not isinstance(source_page_url, str)
-            or not _USFWS_MEDIA_PAGE.fullmatch(source_page_url)
+            or not _valid_source_page(provider, source_page_url)
             or match is None
             or match.group("sha") != sha256
             or match.group("shard") != sha256[:2]
@@ -487,6 +487,14 @@ def load_manifest_provenance(path: Path) -> dict[tuple[str, str], MediaCandidate
     }
 
 
+def _valid_source_page(provider: object, source_page_url: str) -> bool:
+    if provider == "usfws":
+        return _USFWS_MEDIA_PAGE.fullmatch(source_page_url) is not None
+    if provider == "inaturalist":
+        return _INATURALIST_MEDIA_PAGE.fullmatch(source_page_url) is not None
+    return False
+
+
 def require_visual_approvals(manifest_path: Path, approval_path: Path) -> ApprovedMediaPlan:
     """Require one selection or explicit no-safe-image exclusion per species."""
     candidates = load_manifest_provenance(manifest_path)
@@ -507,6 +515,13 @@ def require_visual_approvals(manifest_path: Path, approval_path: Path) -> Approv
             f"{len(missing_species)} represented species lack a committed human image "
             "selection or no-safe-image exclusion; first missing species: "
             f"{missing_species[0]}"
+        )
+    absent_selections = sorted(set(selection_by_species) - set(candidates_by_species))
+    if absent_selections:
+        selected = selection_by_species[absent_selections[0]]
+        raise MediaApprovalError(
+            "committed selected media is absent from the current prepared manifest for "
+            f"{selected.scientific_name}"
         )
 
     current_selections: list[VisualSelection] = []
@@ -813,9 +828,8 @@ def _load_local_decisions(
             raise MediaApprovalError(f"local review decision {index} has invalid SHA-256")
         if not isinstance(scientific_name, str) or not _SCIENTIFIC_NAME.fullmatch(scientific_name):
             raise MediaApprovalError(f"local review decision {index} has invalid species")
-        pages = _strict_sorted_strings(
+        pages = _strict_media_source_pages(
             row.get("source_page_urls"),
-            pattern=_USFWS_MEDIA_PAGE,
             label=f"local review decision {index} source_page_urls",
         )
         if decision == "selected":
@@ -959,6 +973,30 @@ def _strict_sorted_strings(
         or value != sorted(set(value))
     ):
         raise MediaApprovalError(f"{label} must be a nonempty unique sorted list")
+    return tuple(value)
+
+
+def _strict_media_source_pages(value: object, *, label: str) -> tuple[str, ...]:
+    if (
+        not isinstance(value, list)
+        or not value
+        or len(value) > MAX_APPROVALS
+        or any(not isinstance(item, str) for item in value)
+        or value != sorted(set(value))
+    ):
+        raise MediaApprovalError(f"{label} must be a nonempty unique sorted list")
+    providers = {
+        "usfws"
+        if _USFWS_MEDIA_PAGE.fullmatch(item)
+        else "inaturalist"
+        if _INATURALIST_MEDIA_PAGE.fullmatch(item)
+        else "invalid"
+        for item in value
+    }
+    if "invalid" in providers or len(providers) != 1:
+        raise MediaApprovalError(
+            f"{label} must identify exact pages from one reviewed media provider"
+        )
     return tuple(value)
 
 

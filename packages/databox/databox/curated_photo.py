@@ -39,6 +39,7 @@ PhotoProvider = Literal["inaturalist", "curated_photo"]
 PhotoStatus = Literal["available", "unavailable"]
 
 _FILE_EXTENSIONS = frozenset({"jpg", "jpeg", "png", "webp"})
+_PUBLIC_LICENSE_CODES = frozenset({"CC0 1.0", "CC BY 4.0", "CC BY-SA 4.0"})
 _INAT_PHOTO_PATH = re.compile(
     r"^/photos/([1-9][0-9]*)/(square|small|medium|large|original)\.([A-Za-z0-9]+)$"
 )
@@ -271,7 +272,11 @@ def curated_photo_result_is_safe(result: CuratedPhotoResult, scientific_name: ob
     ):
         return False
     license_info = parse_creative_commons_license(result.license_url, allow_audio_nd=False)
-    if license_info is None or result.license_code != license_info[0]:
+    if (
+        license_info is None
+        or result.license_code != license_info[0]
+        or result.license_code not in _PUBLIC_LICENSE_CODES
+    ):
         return False
     photo_id = _positive_id(result.identity.get("photo_id"))
     taxon_id = _positive_id(result.identity.get("taxon_id"))
@@ -539,7 +544,7 @@ def _inaturalist_license(value: object) -> tuple[str, str] | None:
     slug = raw.casefold().removeprefix("cc-")
     if slug == "cc0" or raw.casefold() == "cc0":
         return "CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"
-    if slug not in {"by", "by-sa", "by-nc", "by-nc-sa"}:
+    if slug not in {"by", "by-sa"}:
         return None
     return f"CC {slug.upper()} 4.0", f"https://creativecommons.org/licenses/{slug}/4.0/"
 

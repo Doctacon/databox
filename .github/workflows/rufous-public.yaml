@@ -10,8 +10,10 @@ on:
       - "packages/databox/pyproject.toml"
       - "packages/databox-sources/pyproject.toml"
       - "packages/databox-sources/databox_sources/gbif/**"
+      - "packages/databox-sources/databox_sources/_public_inaturalist/**"
       - "packages/databox-sources/databox_sources/usfws/**"
       - "packages/databox-sources/tests/gbif/**"
+      - "packages/databox-sources/tests/inaturalist/**"
       - "packages/databox-sources/tests/usfws/**"
       - "packages/databox-sources/tests/conftest.py"
       - "packages/databox-sources/tests/test_vcr_sanitization.py"
@@ -20,6 +22,7 @@ on:
       - "packages/databox/databox/orchestration/definitions.py"
       - "packages/databox/databox/orchestration/domains/gbif.py"
       - "packages/databox/databox/orchestration/domains/usfws.py"
+      - "packages/databox/databox/public_inaturalist_media_ingest.py"
       - "packages/databox/databox/public_export*.py"
       - "packages/databox/databox/public_media*.py"
       - "packages/databox/databox/public_restricted_marks.py"
@@ -32,6 +35,7 @@ on:
       - "scripts/verify_rufous_media_approvals.py"
       - "scripts/sqlmesh_plan_rufous_public.sh"
       - "scripts/sqlmesh_plan_rufous_media.sh"
+      - "scripts/sqlmesh_plan_rufous_inaturalist_media.sh"
       - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
@@ -40,6 +44,7 @@ on:
       - "tests/test_public_release_hydrate.py"
       - "tests/test_rufous_public_workflow.py"
       - "tests/test_public_media*.py"
+      - "tests/test_public_inaturalist_media_ingest.py"
       - "tests/test_settings.py"
       - "tests/test_source_builders.py"
       - "tests/test_source_registry.py"
@@ -67,8 +72,10 @@ on:
       - "packages/databox/pyproject.toml"
       - "packages/databox-sources/pyproject.toml"
       - "packages/databox-sources/databox_sources/gbif/**"
+      - "packages/databox-sources/databox_sources/_public_inaturalist/**"
       - "packages/databox-sources/databox_sources/usfws/**"
       - "packages/databox-sources/tests/gbif/**"
+      - "packages/databox-sources/tests/inaturalist/**"
       - "packages/databox-sources/tests/usfws/**"
       - "packages/databox-sources/tests/conftest.py"
       - "packages/databox-sources/tests/test_vcr_sanitization.py"
@@ -77,6 +84,7 @@ on:
       - "packages/databox/databox/orchestration/definitions.py"
       - "packages/databox/databox/orchestration/domains/gbif.py"
       - "packages/databox/databox/orchestration/domains/usfws.py"
+      - "packages/databox/databox/public_inaturalist_media_ingest.py"
       - "packages/databox/databox/public_export*.py"
       - "packages/databox/databox/public_media*.py"
       - "packages/databox/databox/public_restricted_marks.py"
@@ -89,6 +97,7 @@ on:
       - "scripts/verify_rufous_media_approvals.py"
       - "scripts/sqlmesh_plan_rufous_public.sh"
       - "scripts/sqlmesh_plan_rufous_media.sh"
+      - "scripts/sqlmesh_plan_rufous_inaturalist_media.sh"
       - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
@@ -97,6 +106,7 @@ on:
       - "tests/test_public_release_hydrate.py"
       - "tests/test_rufous_public_workflow.py"
       - "tests/test_public_media*.py"
+      - "tests/test_public_inaturalist_media_ingest.py"
       - "tests/test_settings.py"
       - "tests/test_source_builders.py"
       - "tests/test_source_registry.py"
@@ -281,12 +291,14 @@ jobs:
       - name: Test public exporter and release invariant
         run: >-
           uv run pytest packages/databox-sources/tests/usfws
+          packages/databox-sources/tests/inaturalist
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_release.py tests/test_public_media.py
           tests/test_public_release_hydrate.py
           tests/test_rufous_public_workflow.py
           tests/test_public_media_approval.py
-          tests/test_public_media_ingest.py tests/test_public_media_release.py
+          tests/test_public_media_ingest.py tests/test_public_inaturalist_media_ingest.py
+          tests/test_public_media_release.py
           tests/test_public_media_review.py
           tests/test_source_builders.py tests/test_source_registry.py
           -o "addopts=-v --tb=short"
@@ -295,6 +307,7 @@ jobs:
         run: |
           ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
           ../../.venv/bin/sqlmesh test -k test_rufous_public_usfws_commercial_image
+          ../../.venv/bin/sqlmesh test -k test_rufous_public_inaturalist_commercial_image
       - name: Test public browser application
         run: |
           npm --prefix app run typecheck
@@ -434,12 +447,14 @@ jobs:
       - name: Test public exporter and release invariant
         run: >-
           uv run pytest packages/databox-sources/tests/usfws
+          packages/databox-sources/tests/inaturalist
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_release.py tests/test_public_media.py
           tests/test_public_release_hydrate.py
           tests/test_rufous_public_workflow.py
           tests/test_public_media_approval.py
-          tests/test_public_media_ingest.py tests/test_public_media_release.py
+          tests/test_public_media_ingest.py tests/test_public_inaturalist_media_ingest.py
+          tests/test_public_media_release.py
           tests/test_public_media_review.py
           tests/test_source_builders.py tests/test_source_registry.py
           -o "addopts=-v --tb=short"
@@ -448,6 +463,7 @@ jobs:
         run: |
           ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
           ../../.venv/bin/sqlmesh test -k test_rufous_public_usfws_commercial_image
+          ../../.venv/bin/sqlmesh test -k test_rufous_public_inaturalist_commercial_image
       - name: Test public browser application
         run: |
           npm --prefix app run typecheck
@@ -468,6 +484,12 @@ jobs:
             --database data/databox.duckdb \
             --max-images-per-target 500
           bash scripts/sqlmesh_plan_rufous_media.sh
+      - name: Refresh and model strict iNaturalist fallback metadata
+        run: |
+          uv run python -m databox.public_inaturalist_media_ingest \
+            --database data/databox.duckdb \
+            --approvals config/rufous-media-visual-approvals.json
+          bash scripts/sqlmesh_plan_rufous_inaturalist_media.sh
       - name: Prepare bounded immutable WebP media
         run: >-
           uv run python scripts/prepare_rufous_media.py

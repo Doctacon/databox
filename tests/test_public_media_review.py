@@ -244,6 +244,70 @@ def test_review_build_includes_committed_selection_for_replacement_review(tmp_pa
     assert (output / "objects" / digest[:2] / f"{digest}.webp").is_file()
 
 
+def test_review_can_show_only_species_without_a_current_selection(tmp_path: Path) -> None:
+    source, digest, item = _source(tmp_path)
+    second_buffer = io.BytesIO()
+    Image.new("RGB", (8, 6), (30, 90, 140)).save(second_buffer, format="WEBP", quality=85, method=6)
+    second_image = second_buffer.getvalue()
+    second_digest = hashlib.sha256(second_image).hexdigest()
+    second_path = source / "objects" / second_digest[:2] / f"{second_digest}.webp"
+    second_path.parent.mkdir(parents=True)
+    second_path.write_bytes(second_image)
+    second_item = {
+        **item,
+        "species_code": "mexjay",
+        "common_name": "Mexican Jay",
+        "scientific_name": "Aphelocoma wollweberi",
+        "media_id": "usfws-" + "c" * 24,
+        "source_page_url": "https://www.fws.gov/media/mexican-jay-review",
+        "source_image_url": "https://www.fws.gov/sites/default/files/mexican-jay.jpg",
+        "title": "Mexican Jay perched",
+        "caption": "A live Mexican Jay perched on a branch.",
+        "alt_text": "A live Mexican Jay perched on a branch.",
+        "sha256": second_digest,
+        "url": (
+            "https://rufous-data.loughondata.com/rufous-media/v1/objects/"
+            f"{second_digest[:2]}/{second_digest}.webp"
+        ),
+        "attribution_id": "usfws-attribution-" + "d" * 24,
+    }
+    manifest_path = source / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["items"].append(second_item)
+    manifest["counts"] = {"items": 2, "objects": 2, "species": 2}
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    approvals_payload = _approved_ledger(digest, item)
+    approvals_payload["species_exclusions"] = [
+        {
+            "scientific_name": "Aphelocoma wollweberi",
+            "decision": "no_safe_image",
+            "reason": "user_content_policy",
+            "reviewed_at": "2026-08-03",
+            "reviewed_by": "Test Human",
+            "candidates": [
+                {
+                    "sha256": "0" * 64,
+                    "source_page_urls": ["https://www.fws.gov/media/old-mexican-jay-candidate"],
+                }
+            ],
+        }
+    ]
+
+    payload = build_local_media_review(
+        source,
+        _approvals(tmp_path, approvals_payload),
+        tmp_path / "review",
+        local_review_only=True,
+        only_missing_species=True,
+    )
+
+    assert payload["counts"]["species"] == 1
+    assert payload["counts"]["candidates"] == 1
+    assert payload["objects"][0]["scientific_name"] == "Aphelocoma wollweberi"
+    assert payload["committed_species_exclusions"] == []
+
+
 def test_review_defaults_to_one_deterministic_recommendation_per_species(
     tmp_path: Path,
 ) -> None:

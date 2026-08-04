@@ -32,6 +32,7 @@ from databox.public_media_approval import SELECTION_REASON, canonical_approval_j
     [
         ("inaturalist", "CC0 1.0", "CC0 1.0"),
         ("inaturalist", "https://creativecommons.org/licenses/by/4.0/", "CC BY 4.0"),
+        ("inaturalist", "CC BY-SA 4.0", "CC BY-SA 4.0"),
         ("xeno_canto", "CC BY-SA 2.5", "CC BY-SA 2.5"),
         ("gbif", "http://creativecommons.org/publicdomain/zero/1.0/legalcode", "CC0 1.0"),
         ("gbif", "http://creativecommons.org/licenses/by/4.0/legalcode", "CC BY 4.0"),
@@ -58,6 +59,8 @@ def test_license_allowlist_accepts_only_normalized_public_families(
     [
         ("inaturalist", "CC BY-NC 4.0"),
         ("inaturalist", "CC BY-ND 4.0"),
+        ("inaturalist", "CC BY 3.0"),
+        ("inaturalist", "CC BY-SA 3.0"),
         ("xeno_canto", "CC BY-NC-SA 4.0"),
         ("xeno_canto", "CC BY-ND 4.0"),
         ("gbif", "CC BY-SA 4.0"),
@@ -112,6 +115,31 @@ def test_synthetic_export_is_offline_deterministic_and_complete(tmp_path: Path) 
 
     second = export_public_data(mode="synthetic", output_dir=output)
     assert second["data_version"] == manifest["data_version"]
+
+
+def test_manifest_and_attribution_represent_mixed_public_media_providers() -> None:
+    records = public_export.synthetic_records()
+    records.species[0]["media"] = [{"provider": "usfws"}]
+    records.species[1]["media"] = [{"provider": "inaturalist"}]
+
+    assets = build_public_assets(records, mode="synthetic", gnis_sha256=None)
+
+    assert assets["data/manifest.json"]["source_policy"]["media_source"] == ("usfws+inaturalist")
+    assert assets["data/manifest.json"]["source_policy"]["media_delivery"] == "immutable_r2"
+    assert {source["provider"] for source in assets["data/attribution.json"]["sources"]} == {
+        "synthetic",
+        "us_census_tigerweb",
+        "usfws",
+        "inaturalist",
+    }
+
+
+def test_manifest_rejects_an_unreviewed_media_provider() -> None:
+    records = public_export.synthetic_records()
+    records.species[0]["media"] = [{"provider": "wikimedia"}]
+
+    with pytest.raises(PublicExportError, match="unsupported public provider"):
+        build_public_assets(records, mode="synthetic", gnis_sha256=None)
 
 
 def _gnis_file(tmp_path: Path) -> tuple[Path, str]:
@@ -386,6 +414,28 @@ def _media_approvals(tmp_path: Path, manifest_path: Path) -> Path:
     return path
 
 
+def _inaturalist_media_manifest(tmp_path: Path) -> Path:
+    path = _media_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    item = payload["items"][0]
+    item.update(
+        {
+            "provider": "inaturalist",
+            "media_id": "inaturalist-123456789",
+            "source_page_url": "https://www.inaturalist.org/photos/123456789",
+            "source_image_url": (
+                "https://inaturalist-open-data.s3.amazonaws.com/photos/123456789/large.jpg"
+            ),
+            "creator": "Jane Naturalist",
+            "license": "CC BY-SA 4.0",
+            "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+            "attribution_id": "inaturalist-attribution-123456789",
+        }
+    )
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
 def test_media_manifest_exports_only_audited_public_fields(tmp_path: Path) -> None:
     path = _media_manifest(tmp_path)
 
@@ -398,6 +448,50 @@ def test_media_manifest_exports_only_audited_public_fields(tmp_path: Path) -> No
     assert items[0]["url"].endswith(".webp")
     assert "source_image_url" not in items[0]
     assert "hero_score" not in items[0]
+
+
+def test_inaturalist_media_manifest_exports_deterministic_photo_identity(
+    tmp_path: Path,
+) -> None:
+    path = _inaturalist_media_manifest(tmp_path)
+
+    items = load_public_media_manifest(path)["selasphorus rufus"]
+
+    assert len(items) == 1
+    item = items[0]
+    assert item["provider"] == "inaturalist"
+    assert item["media_id"] == "inaturalist-123456789"
+    assert item["source_url"] == "https://www.inaturalist.org/photos/123456789"
+    assert item["creator"] == "Jane Naturalist"
+    assert item["license"] == "CC BY-SA 4.0"
+    assert item["license_url"] == "https://creativecommons.org/licenses/by-sa/4.0/"
+    assert item["attribution_id"] == "inaturalist-attribution-123456789"
+    assert "source_image_url" not in item
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("source_page_url", "https://www.inaturalist.org/photos/0"),
+        ("source_page_url", "https://www.inaturalist.org/photos/123456789/"),
+        ("source_page_url", "https://www.inaturalist.org/photos/123456789?size=large"),
+        ("media_id", "inaturalist-987654321"),
+        ("attribution_id", "inaturalist-attribution-987654321"),
+        ("license", "CC BY 3.0"),
+    ],
+)
+def test_inaturalist_media_manifest_fails_closed_on_nonexact_photo_contract(
+    tmp_path: Path,
+    field: str,
+    value: str,
+) -> None:
+    path = _inaturalist_media_manifest(tmp_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["items"][0][field] = value
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(PublicExportError, match="fails the public contract"):
+        load_public_media_manifest(path)
 
 
 def test_selected_public_projection_contains_only_one_image_per_species(

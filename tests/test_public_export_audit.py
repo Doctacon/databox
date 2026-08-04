@@ -40,30 +40,48 @@ def _synthetic_site(tmp_path: Path) -> Path:
     return site
 
 
-def _attach_synthetic_usfws_media(site: Path, **overrides: object) -> None:
+def _attach_synthetic_media(
+    site: Path,
+    provider: str,
+    *,
+    summary_index: int = 0,
+    **overrides: object,
+) -> None:
     manifest_path = site / "data/manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    summary = manifest["species"][0]
+    summary = manifest["species"][summary_index]
     profile_path = site / str(summary["profile_path"]).removeprefix("/")
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
-    digest = "d" * 64
+    digest = ("d" if provider == "usfws" else "e") * 64
     media: dict[str, object] = {
         "kind": "photo",
-        "provider": "usfws",
-        "media_id": "usfws-" + "a" * 24,
+        "provider": provider,
+        "media_id": ("usfws-" + "a" * 24 if provider == "usfws" else "inaturalist-123456789"),
         "url": (
             "https://rufous-data.loughondata.com/rufous-media/v1/objects/"
             f"{digest[:2]}/{digest}.webp"
         ),
-        "source_url": "https://www.fws.gov/media/annas-hummingbird",
-        "creator": "Jane Birder/USFWS",
-        "license": "Public Domain",
-        "license_url": "https://www.fws.gov/notices",
-        "attribution_id": "usfws-attribution-" + "b" * 24,
+        "source_url": (
+            "https://www.fws.gov/media/annas-hummingbird"
+            if provider == "usfws"
+            else "https://www.inaturalist.org/photos/123456789"
+        ),
+        "creator": "Jane Birder/USFWS" if provider == "usfws" else "Jane Naturalist",
+        "license": "Public Domain" if provider == "usfws" else "CC BY 4.0",
+        "license_url": (
+            "https://www.fws.gov/notices"
+            if provider == "usfws"
+            else "https://creativecommons.org/licenses/by/4.0/"
+        ),
+        "attribution_id": (
+            "usfws-attribution-" + "b" * 24
+            if provider == "usfws"
+            else "inaturalist-attribution-123456789"
+        ),
         "scientific_name": profile["scientific_name"],
-        "title": "Anna's Hummingbird at flowers",
-        "caption": "An adult hummingbird feeds at desert flowers.",
-        "alt_text": "An Anna's Hummingbird feeding at red flowers.",
+        "title": f"{profile['common_name']} at flowers",
+        "caption": "An adult bird feeds at desert flowers.",
+        "alt_text": f"A {profile['common_name']} feeding at red flowers.",
         "width": 650,
         "height": 433,
         "mime_type": "image/webp",
@@ -73,12 +91,80 @@ def _attach_synthetic_usfws_media(site: Path, **overrides: object) -> None:
     profile["media"] = [media]
     summary["hero_photo"] = media
     summary["photo_count"] = 1
-    manifest["counts"]["media_items"] = 1
-    manifest["counts"]["species_with_media"] = 1
-    manifest["source_policy"]["media_source"] = "usfws"
+    media_sources = {
+        str(item["hero_photo"]["provider"])
+        for item in manifest["species"]
+        if isinstance(item.get("hero_photo"), dict)
+    }
+    source_markers = {
+        frozenset({"usfws"}): "usfws",
+        frozenset({"inaturalist"}): "inaturalist",
+        frozenset({"usfws", "inaturalist"}): "usfws+inaturalist",
+    }
+    manifest["counts"]["media_items"] = sum(
+        int(item["photo_count"]) for item in manifest["species"]
+    )
+    manifest["counts"]["species_with_media"] = sum(
+        int(item["photo_count"]) > 0 for item in manifest["species"]
+    )
+    manifest["source_policy"]["media_source"] = source_markers[frozenset(media_sources)]
     manifest["source_policy"]["media_delivery"] = "immutable_r2"
     profile_path.write_text(json.dumps(profile), encoding="utf-8")
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    attribution_path = site / "data/attribution.json"
+    attribution = json.loads(attribution_path.read_text(encoding="utf-8"))
+    attribution["sources"] = [
+        source
+        for source in attribution["sources"]
+        if source.get("provider") not in {"usfws", "inaturalist"}
+    ]
+    provider_sources = {
+        "usfws": {
+            "provider": "usfws",
+            "title": "U.S. Fish and Wildlife Service Media Library",
+            "url": "https://www.fws.gov/search/images",
+            "license": "Per-item Public Domain or Creative Commons license",
+            "license_url": "https://www.fws.gov/notices",
+            "credit": "Individual creators are credited beside each image.",
+            "modifications": (
+                "Rufous resized, re-encoded, and stripped metadata from web display copies; "
+                "each credit links to the original USFWS media page."
+            ),
+        },
+        "inaturalist": {
+            "provider": "inaturalist",
+            "title": "iNaturalist",
+            "url": "https://www.inaturalist.org/",
+            "license": "Per-item Creative Commons license",
+            "license_url": None,
+            "credit": "Individual creators are credited on each media item.",
+            "modifications": (
+                "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
+                "copies; each credit links to the original iNaturalist photo page."
+            ),
+        },
+    }
+    attribution["sources"].extend(provider_sources[value] for value in sorted(media_sources))
+    attribution_path.write_text(json.dumps(attribution), encoding="utf-8")
+
+
+def _attach_synthetic_usfws_media(site: Path, **overrides: object) -> None:
+    _attach_synthetic_media(site, "usfws", **overrides)
+
+
+def _attach_synthetic_inaturalist_media(
+    site: Path,
+    *,
+    summary_index: int = 0,
+    **overrides: object,
+) -> None:
+    _attach_synthetic_media(
+        site,
+        "inaturalist",
+        summary_index=summary_index,
+        **overrides,
+    )
 
 
 def test_synthetic_contract_passes_cost_privacy_audit(tmp_path: Path) -> None:
@@ -96,6 +182,64 @@ def test_audit_accepts_ordinary_usfws_bird_media(tmp_path: Path) -> None:
     _attach_synthetic_usfws_media(site)
 
     assert audit_public_site(site) == []
+
+
+def test_audit_accepts_exact_commercial_inaturalist_bird_media(tmp_path: Path) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_inaturalist_media(site)
+
+    assert audit_public_site(site) == []
+
+
+def test_audit_accepts_mixed_usfws_and_inaturalist_media_sources(tmp_path: Path) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_usfws_media(site)
+    _attach_synthetic_inaturalist_media(site, summary_index=1)
+
+    assert audit_public_site(site) == []
+
+
+@pytest.mark.parametrize(
+    ("override", "expected"),
+    [
+        ({"license": "CC BY-NC 4.0"}, "media license is not allowed for inaturalist"),
+        (
+            {"source_url": "https://www.inaturalist.org/photos/123456789/"},
+            "source_url is not an official media page",
+        ),
+        ({"media_id": "inaturalist-987654321"}, "identifiers do not match"),
+        (
+            {"attribution_id": "inaturalist-attribution-987654321"},
+            "identifiers do not match",
+        ),
+    ],
+)
+def test_audit_rejects_noncommercial_or_nondeterministic_inaturalist_media(
+    tmp_path: Path,
+    override: dict[str, object],
+    expected: str,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_inaturalist_media(site, **override)
+
+    assert any(expected in finding for finding in audit_public_site(site))
+
+
+def test_audit_rejects_media_source_marker_or_provider_attribution_drift(
+    tmp_path: Path,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_inaturalist_media(site)
+    manifest_path = site / "data/manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["source_policy"]["media_source"] = "usfws"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    findings = audit_public_site(site)
+
+    assert any("marker does not match species profiles" in finding for finding in findings)
+    assert any("unadvertised inaturalist media source" in finding for finding in findings)
+    assert any("one usfws media source" in finding for finding in findings)
 
 
 def test_audit_accepts_ordinary_names_dates_dimensions_and_public_source_url(

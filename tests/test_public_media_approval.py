@@ -38,6 +38,17 @@ def _item(
     }
 
 
+def _inaturalist_item(
+    payload: bytes,
+    scientific_name: str,
+    photo_id: int,
+) -> dict[str, str]:
+    item = _item(payload, scientific_name, "unused-usfws-slug")
+    item["provider"] = "inaturalist"
+    item["source_page_url"] = f"https://www.inaturalist.org/photos/{photo_id}"
+    return item
+
+
 def _manifest(tmp_path: Path, items: list[dict[str, str]]) -> Path:
     payload = {
         "schema_version": 1,
@@ -136,6 +147,69 @@ def test_exactly_one_current_selection_per_species_passes(tmp_path: Path) -> Non
     }
 
 
+def test_mixed_provider_provenance_accepts_exact_inaturalist_photo_pages(
+    tmp_path: Path,
+) -> None:
+    rufous = _item(b"rufous", "Selasphorus rufus", "rufous-one")
+    wigeon = _inaturalist_item(b"wigeon", "Mareca americana", 2498155)
+    manifest = _manifest(tmp_path, [rufous, wigeon])
+    selections = [_selection(rufous), _selection(wigeon)]
+    selections.sort(key=lambda row: (str(row["scientific_name"]).casefold(), str(row["sha256"])))
+    approvals = _ledger(tmp_path, selections=selections)
+
+    plan = require_visual_approvals(manifest, approvals)
+
+    assert plan.summary.selected_species == 2
+    assert plan.selected_sha256_by_species == {
+        "mareca americana": wigeon["sha256"],
+        "selasphorus rufus": rufous["sha256"],
+    }
+
+
+@pytest.mark.parametrize(
+    ("provider", "source_page_url"),
+    [
+        ("inaturalist", "https://inaturalist.org/photos/2498155"),
+        ("inaturalist", "https://www.inaturalist.org/photos/2498155/"),
+        ("inaturalist", "https://www.inaturalist.org/photos/2498155?download=1"),
+        ("inaturalist", "https://www.inaturalist.org/observations/2498155"),
+        ("inaturalist", "https://www.inaturalist.org.evil.example/photos/2498155"),
+        ("usfws", "https://www.inaturalist.org/photos/2498155"),
+        ("wikimedia", "https://www.inaturalist.org/photos/2498155"),
+    ],
+)
+def test_manifest_provenance_rejects_inaturalist_impostors(
+    tmp_path: Path,
+    provider: str,
+    source_page_url: str,
+) -> None:
+    item = _inaturalist_item(b"wigeon", "Mareca americana", 2498155)
+    item["provider"] = provider
+    item["source_page_url"] = source_page_url
+    manifest = _manifest(tmp_path, [item])
+
+    with pytest.raises(MediaApprovalError, match="invalid provenance"):
+        require_visual_approvals(manifest, _ledger(tmp_path))
+
+
+def test_one_candidate_cannot_mix_provider_source_pages(tmp_path: Path) -> None:
+    shared_usfws = _item(b"same pixels", "Mareca americana", "american-wigeon")
+    shared_inaturalist = {
+        **shared_usfws,
+        "provider": "inaturalist",
+        "source_page_url": "https://www.inaturalist.org/photos/2498155",
+    }
+    manifest = _manifest(tmp_path, [shared_usfws, shared_inaturalist])
+    selection = _selection(shared_usfws)
+    selection["source_page_urls"] = sorted(
+        [shared_usfws["source_page_url"], shared_inaturalist["source_page_url"]]
+    )
+    approvals = _ledger(tmp_path, selections=[selection])
+
+    with pytest.raises(MediaApprovalError, match="one reviewed media provider"):
+        require_visual_approvals(manifest, approvals)
+
+
 def test_unselected_candidates_do_not_block_or_enter_the_plan(tmp_path: Path) -> None:
     chosen = _item(b"chosen", "Selasphorus rufus", "rufous-chosen")
     ignored = _item(b"ignored", "Selasphorus rufus", "rufous-ignored")
@@ -156,6 +230,18 @@ def test_a_represented_species_without_a_selection_fails_closed(tmp_path: Path) 
     approvals = _ledger(tmp_path, selections=[_selection(rufous)])
 
     with pytest.raises(MediaApprovalError, match="1 represented species"):
+        require_visual_approvals(manifest, approvals)
+
+
+def test_committed_selection_absent_from_current_manifest_fails_closed(
+    tmp_path: Path,
+) -> None:
+    rufous = _item(b"rufous", "Selasphorus rufus", "rufous-one")
+    anna = _item(b"anna", "Calypte anna", "anna-one")
+    manifest = _manifest(tmp_path, [anna])
+    approvals = _ledger(tmp_path, selections=[_selection(anna), _selection(rufous)])
+
+    with pytest.raises(MediaApprovalError, match="committed selected media is absent"):
         require_visual_approvals(manifest, approvals)
 
 

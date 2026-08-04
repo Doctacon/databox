@@ -50,10 +50,15 @@ _SHA256 = re.compile(r"^[a-f0-9]{64}$")
 _PLACE_KEY = re.compile(r"[^a-z0-9]+")
 _MEDIA_ID = re.compile(r"^usfws-[a-f0-9]{24}$")
 _MEDIA_ATTRIBUTION_ID = re.compile(r"^usfws-attribution-[a-f0-9]{24}$")
+_INATURALIST_MEDIA_ID = re.compile(r"^inaturalist-(?P<photo_id>[1-9][0-9]*)$")
+_INATURALIST_ATTRIBUTION_ID = re.compile(r"^inaturalist-attribution-(?P<photo_id>[1-9][0-9]*)$")
 _SCIENTIFIC_NAME = re.compile(r"^[A-Z][A-Za-z-]+ [a-z][A-Za-z-]+(?: [A-Za-z-]+)?$")
 _SPECIES_BINOMIAL = re.compile(r"^[A-Z][A-Za-z-]+ [a-z][A-Za-z-]+$")
 _USFWS_MEDIA_PAGE = re.compile(
     r"^https://www\.fws\.gov/media/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$"
+)
+_INATURALIST_PHOTO_PAGE = re.compile(
+    r"^https://www\.inaturalist\.org/photos/(?P<photo_id>[1-9][0-9]*)$"
 )
 _PUBLIC_MEDIA_URL = re.compile(
     r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
@@ -62,6 +67,13 @@ _PUBLIC_MEDIA_URL = re.compile(
 MAX_MEDIA_MANIFEST_BYTES = 25 * 1024 * 1024
 MAX_PUBLIC_ASSET_BYTES = 25 * 1024 * 1024
 MAX_PUBLIC_ASSET_FILES = 20_000
+
+_MEDIA_SOURCE_MARKERS = {
+    frozenset(): "none",
+    frozenset({"usfws"}): "usfws",
+    frozenset({"inaturalist"}): "inaturalist",
+    frozenset({"usfws", "inaturalist"}): "usfws+inaturalist",
+}
 
 _PUBLIC_MANIFEST_KEYS = frozenset(
     {
@@ -303,23 +315,52 @@ def _parse_aware_datetime(value: str, label: str) -> datetime:
     return parsed
 
 
+def _valid_public_media_identity(
+    provider: str | None,
+    media_id: str | None,
+    attribution_id: str | None,
+    source_url: str | None,
+) -> bool:
+    if provider == "usfws":
+        return bool(
+            media_id
+            and _MEDIA_ID.fullmatch(media_id)
+            and attribution_id
+            and _MEDIA_ATTRIBUTION_ID.fullmatch(attribution_id)
+            and source_url
+            and _USFWS_MEDIA_PAGE.fullmatch(source_url)
+        )
+    if provider != "inaturalist" or not media_id or not attribution_id or not source_url:
+        return False
+    media_match = _INATURALIST_MEDIA_ID.fullmatch(media_id)
+    attribution_match = _INATURALIST_ATTRIBUTION_ID.fullmatch(attribution_id)
+    source_match = _INATURALIST_PHOTO_PAGE.fullmatch(source_url)
+    return bool(
+        media_match
+        and attribution_match
+        and source_match
+        and media_match.group("photo_id") == source_match.group("photo_id")
+        and attribution_match.group("photo_id") == source_match.group("photo_id")
+    )
+
+
 def load_public_media_manifest(
     path: Path,
     *,
     selected_sha256_by_species: Mapping[str, str] | None = None,
     excluded_species: frozenset[str] = frozenset(),
 ) -> dict[str, list[JsonObject]]:
-    """Revalidate prepared USFWS media and return only the public projection.
+    """Revalidate prepared public media and return only the browser projection.
 
     The preparation manifest contains operational fields such as the upstream
     image URL and ranking score.  Neither crosses into the browser contract.
     """
     if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_MEDIA_MANIFEST_BYTES:
-        raise PublicExportError("USFWS media manifest is missing or exceeds 25 MiB")
+        raise PublicExportError("public media manifest is missing or exceeds 25 MiB")
     try:
         payload = json.loads(path.read_bytes())
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        raise PublicExportError("USFWS media manifest is not valid UTF-8 JSON") from None
+        raise PublicExportError("public media manifest is not valid UTF-8 JSON") from None
     if (
         not isinstance(payload, dict)
         or payload.get("schema_version") != 1
@@ -327,7 +368,7 @@ def load_public_media_manifest(
         or not isinstance(payload.get("items"), list)
         or not payload["items"]
     ):
-        raise PublicExportError("USFWS media manifest has an invalid contract")
+        raise PublicExportError("public media manifest has an invalid contract")
 
     ranked: dict[str, list[tuple[float, JsonObject]]] = defaultdict(list)
     identifiers: set[str] = set()
@@ -336,7 +377,8 @@ def load_public_media_manifest(
     manifest_species: set[str] = set()
     for index, raw in enumerate(payload["items"]):
         if not isinstance(raw, dict):
-            raise PublicExportError(f"USFWS media item {index} is malformed")
+            raise PublicExportError(f"public media item {index} is malformed")
+        provider = _text(raw.get("provider"), maximum=32) if "provider" in raw else "usfws"
         media_id = _text(raw.get("media_id"), maximum=64)
         attribution_id = _text(raw.get("attribution_id"), maximum=64)
         scientific_name = _text(raw.get("scientific_name"), maximum=200)
@@ -348,7 +390,7 @@ def load_public_media_manifest(
         source_url = _text(raw.get("source_page_url"), maximum=2_000)
         url = _text(raw.get("url"), maximum=2_000)
         sha256 = _text(raw.get("sha256"), maximum=64)
-        license_pair = canonical_license("usfws", raw.get("license"))
+        license_pair = canonical_license(provider or "", raw.get("license"))
         license_url = _text(raw.get("license_url"), maximum=2_000)
         match = _PUBLIC_MEDIA_URL.fullmatch(url) if url else None
         width = raw.get("width")
@@ -360,10 +402,7 @@ def load_public_media_manifest(
             if isinstance(value, str)
         }
         if (
-            not media_id
-            or not _MEDIA_ID.fullmatch(media_id)
-            or not attribution_id
-            or not _MEDIA_ATTRIBUTION_ID.fullmatch(attribution_id)
+            not _valid_public_media_identity(provider, media_id, attribution_id, source_url)
             or media_id in identifiers
             or not scientific_name
             or not _SCIENTIFIC_NAME.fullmatch(scientific_name)
@@ -372,8 +411,6 @@ def load_public_media_manifest(
             or creator.casefold() in identity_texts
             or not title
             or not alt_text
-            or not source_url
-            or not _USFWS_MEDIA_PAGE.fullmatch(source_url)
             or not sha256
             or not _SHA256.fullmatch(sha256)
             or match is None
@@ -390,10 +427,14 @@ def load_public_media_manifest(
             or not isinstance(score, int | float)
             or not math.isfinite(float(score))
         ):
-            raise PublicExportError(f"USFWS media item {index} fails the public contract")
-        source_identity = (scientific_name.casefold(), source_url)
+            raise PublicExportError(f"public media item {index} fails the public contract")
+        assert provider is not None
+        assert media_id is not None
+        assert attribution_id is not None
+        assert source_url is not None
+        source_identity = (scientific_name.casefold(), f"{provider}:{source_url}")
         if source_identity in source_identities:
-            raise PublicExportError("USFWS media manifest repeats a species source page")
+            raise PublicExportError("public media manifest repeats a species source page")
         identifiers.add(media_id)
         source_identities.add(source_identity)
         object_hashes.add(sha256)
@@ -401,7 +442,7 @@ def load_public_media_manifest(
         manifest_species.add(species_key)
         public_item: JsonObject = {
             "kind": "photo",
-            "provider": "usfws",
+            "provider": provider,
             "media_id": media_id,
             "url": url,
             "source_url": source_url,
@@ -431,18 +472,18 @@ def load_public_media_manifest(
         or counts.get("objects") != len(object_hashes)
         or counts.get("species") != len(manifest_species)
     ):
-        raise PublicExportError("USFWS media manifest counts do not match its contents")
+        raise PublicExportError("public media manifest counts do not match its contents")
     if selected_sha256_by_species is not None:
         if (
             set(selected_sha256_by_species).intersection(excluded_species)
             or set(selected_sha256_by_species).union(excluded_species) != manifest_species
         ):
             raise PublicExportError(
-                "USFWS media selections and exclusions do not cover exactly the manifest species"
+                "public media selections and exclusions do not cover exactly the manifest species"
             )
         missing = sorted(set(selected_sha256_by_species) - set(ranked))
         if missing:
-            raise PublicExportError(f"USFWS selected media is absent for species {missing[0]}")
+            raise PublicExportError(f"selected public media is absent for species {missing[0]}")
     public_by_species: dict[str, list[JsonObject]] = {}
     for scientific_name, items in sorted(ranked.items()):
         ordered = [
@@ -481,7 +522,17 @@ def attach_public_media(
         len(items) for key, items in media_by_scientific_name.items() if key not in matched_keys
     )
     if unmatched:
-        records.rejected["usfws_unmatched_species"] += unmatched
+        unmatched_by_provider: Counter[str] = Counter()
+        for key, items in media_by_scientific_name.items():
+            if key in matched_keys:
+                continue
+            unmatched_by_provider.update(
+                str(item.get("provider"))
+                for item in items
+                if item.get("provider") in {"usfws", "inaturalist"}
+            )
+        for provider, count in unmatched_by_provider.items():
+            records.rejected[f"{provider}_unmatched_species"] += count
     return attached
 
 
@@ -1004,6 +1055,25 @@ def _dedupe_places(items: list[JsonObject]) -> list[JsonObject]:
     )
 
 
+def _media_source_marker(records: PublicRecords) -> str:
+    providers: set[str] = set()
+    for species in records.species:
+        media = species.get("media")
+        if not isinstance(media, list):
+            raise PublicExportError("species media must be an array")
+        for item in media:
+            if not isinstance(item, dict) or item.get("provider") not in {
+                "usfws",
+                "inaturalist",
+            }:
+                raise PublicExportError("species media has an unsupported public provider")
+            providers.add(str(item["provider"]))
+    marker = _MEDIA_SOURCE_MARKERS.get(frozenset(providers))
+    if marker is None:  # pragma: no cover - bounded above, retained as a fail-closed invariant
+        raise PublicExportError("species media provider combination is unsupported")
+    return marker
+
+
 def build_public_assets(
     records: PublicRecords,
     *,
@@ -1090,6 +1160,7 @@ def build_public_assets(
         assets[path] = {"schema_version": SCHEMA_VERSION, "prefix": prefix, "places": rows}
         place_summaries.append({"prefix": prefix, "path": f"/{path}", "count": len(rows)})
 
+    media_source = _media_source_marker(records)
     sources = _attribution_sources(mode, gnis_sha256, records)
     attribution_items = _dedupe_attribution(records.attribution_items)
     attribution: JsonObject = {
@@ -1120,12 +1191,8 @@ def build_public_assets(
             "gbif_dataset_key": (None if mode == "synthetic" else GBIF_EBIRD_EOD_DATASET_KEY),
             "coverage": "fictional_fixture" if mode == "synthetic" else "bounded_sample",
             "required_taxon_key": None if mode == "synthetic" else GBIF_RUFOUS_TAXON_KEY,
-            "media_source": (
-                "usfws" if any(item["photo_count"] for item in species_summaries) else "none"
-            ),
-            "media_delivery": (
-                "immutable_r2" if any(item["photo_count"] for item in species_summaries) else "none"
-            ),
+            "media_source": media_source,
+            "media_delivery": "none" if media_source == "none" else "immutable_r2",
         },
         "license_policy": license_policy,
         "counts": {
@@ -1171,6 +1238,7 @@ def _attribution_sources(
                 "credit": "Generated solely for offline tests and previews.",
             },
             census_boundary,
+            *_media_attribution_sources(records),
         ]
     if not gnis_sha256 or not _SHA256.fullmatch(gnis_sha256):
         raise PublicExportError("production attribution requires the pinned GNIS SHA-256")
@@ -1205,7 +1273,14 @@ def _attribution_sources(
         },
         census_boundary,
     ]
-    providers = {str(item.get("provider")) for item in records.attribution_items}
+    sources.extend(_media_attribution_sources(records))
+    return sources
+
+
+def _media_attribution_sources(records: PublicRecords) -> list[JsonObject]:
+    providers = {
+        "xeno_canto" for item in records.attribution_items if item.get("provider") == "xeno_canto"
+    }
     providers.update(
         str(item.get("provider"))
         for species in records.species
@@ -1220,6 +1295,10 @@ def _attribution_sources(
             "license": "Per-item Creative Commons license",
             "license_url": None,
             "credit": "Individual creators are credited on each media item.",
+            "modifications": (
+                "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
+                "copies; each credit links to the original iNaturalist photo page."
+            ),
         },
         "xeno_canto": {
             "provider": "xeno_canto",
@@ -1242,10 +1321,7 @@ def _attribution_sources(
             ),
         },
     }
-    sources.extend(
-        provider_sources[provider] for provider in sorted(providers & provider_sources.keys())
-    )
-    return sources
+    return [provider_sources[provider] for provider in sorted(providers & provider_sources.keys())]
 
 
 def semantic_data_version(assets: Mapping[str, object]) -> str:
@@ -1568,7 +1644,7 @@ def export_public_data(
             try:
                 media_plan = require_visual_approvals(media_manifest_path, media_approvals_path)
             except MediaApprovalError as exc:
-                raise PublicExportError(f"USFWS media visual approval failed: {exc}") from None
+                raise PublicExportError(f"public media visual approval failed: {exc}") from None
             selected_media = media_plan.selected_sha256_by_species
             excluded_media = media_plan.excluded_species
         attached = attach_public_media(

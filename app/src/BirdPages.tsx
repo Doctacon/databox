@@ -140,6 +140,13 @@ function photoKey(photo: CatalogPhoto): string {
   return `${photo.source_record_id || "photo"}|${photo.display_url || "unavailable"}`;
 }
 
+function galleryProviderLabel(photos: CatalogPhoto[]): string {
+  const providers = new Set(photos.map((photo) => photo.provider));
+  if (providers.has("usfws") && providers.has("inaturalist")) return "USFWS and iNaturalist";
+  if (providers.has("inaturalist")) return "iNaturalist";
+  return "USFWS";
+}
+
 function GalleryThumbnail({
   photo, label, index, selected, onSelect,
 }: {
@@ -191,7 +198,7 @@ export function SpeciesPhotoGallery({
     {availablePhotos.length > 1 && <section className="catalog-gallery-browser" aria-labelledby="catalog-gallery-heading">
       <div className="catalog-gallery-heading-row">
         <h3 id="catalog-gallery-heading">More photos</h3>
-        <span>{availablePhotos.length.toLocaleString()} validated USFWS photos</span>
+        <span>{availablePhotos.length.toLocaleString()} validated {galleryProviderLabel(availablePhotos)} photos</span>
       </div>
       <ul className="catalog-gallery-thumbnails">
         {availablePhotos.slice(0, visibleCount).map((candidate, index) => <GalleryThumbnail

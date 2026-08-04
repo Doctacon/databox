@@ -152,3 +152,29 @@ def test_pages_job_cannot_publish_or_rebuild_r2_data() -> None:
     assert not [token for token in forbidden if token in serialized]
     assert not [token for token in forbidden if token in pages_configuration]
     assert "needs.route.outputs.release_mode == 'full'" in production_readiness["if"]
+
+
+def test_full_release_builds_strict_inaturalist_fallback_before_combined_media() -> None:
+    workflow = _workflow()
+    production_steps = workflow["jobs"]["production"]["steps"]
+    step_names = [step.get("name", "") for step in production_steps]
+    usfws_index = step_names.index("Refresh and model the public USFWS media metadata")
+    inaturalist_index = step_names.index("Refresh and model strict iNaturalist fallback metadata")
+    prepare_index = step_names.index("Prepare bounded immutable WebP media")
+
+    assert usfws_index < inaturalist_index < prepare_index
+    inaturalist_step = production_steps[inaturalist_index]
+    commands = inaturalist_step["run"]
+    assert "databox.public_inaturalist_media_ingest" in commands
+    assert "--approvals config/rufous-media-visual-approvals.json" in commands
+    assert "scripts/sqlmesh_plan_rufous_inaturalist_media.sh" in commands
+    assert "env" not in inaturalist_step
+
+    synthetic_commands = "\n".join(
+        step.get("run", "") for step in workflow["jobs"]["synthetic"]["steps"]
+    )
+    production_commands = "\n".join(step.get("run", "") for step in production_steps)
+    for commands in (synthetic_commands, production_commands):
+        assert "packages/databox-sources/tests/inaturalist" in commands
+        assert "tests/test_public_inaturalist_media_ingest.py" in commands
+        assert "test_rufous_public_inaturalist_commercial_image" in commands

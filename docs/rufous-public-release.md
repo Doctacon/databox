@@ -23,6 +23,7 @@ source contracts are deliberately explicit:
 | --- | --- | --- |
 | GBIF eBird EOD bounded sample | Re-fetch the reviewed snapshot and deduplicate/model in DuckDB | Publish only the sanitized modeled result when its semantic hash changes |
 | USFWS bird media | Rebuild one complete bounded metadata snapshot for the public catalog; validate in SQLMesh; reuse verified derivatives | Create each content-addressed WebP once under the shared immutable media prefix |
+| iNaturalist bird media | Query only catalog species that still lack a selected USFWS image; load a bounded, strict-license candidate snapshot through dlt and validate it in DuckDB/SQLMesh | Publish only a human-selected derivative with exact photo provenance; otherwise retain the silhouette |
 | Arizona GNIS | Full pinned snapshot; a changed upstream file requires reviewed URL/hash updates | Publish only the derived prefix shards when their semantic hash changes |
 | Browser observations and watches | Device-local, user-controlled records | Never upload |
 
@@ -43,12 +44,18 @@ projection contains only:
 - `attribution.json`
 
 Approved bird images use a separate shared namespace instead of being copied
-inside every JSON release. DuckDB and SQLMesh select eligible records; the
-offline builder downloads the reviewed USFWS image, verifies that its
-model and HTTP media types are allowlisted hints, independently identifies the
-bytes as a still JPEG, PNG, or WebP with reviewed dimensions, strips metadata,
-creates a WebP no larger than 650×650 and 1 MiB, and hashes the final bytes. The
-internal preparation manifest records the decoded source media type so a
+inside every JSON release. Source priority is deliberately simple: keep the
+existing selected USFWS image first, consider iNaturalist only for an uncovered
+species, and retain the neutral silhouette when no safe candidate is selected.
+The current ledger's 167 USFWS selections are not reopened or replaced by the
+fallback refresh.
+
+DuckDB and SQLMesh select eligible records; the offline builder downloads the
+reviewed USFWS or iNaturalist source image, verifies that its model and HTTP media
+types are allowlisted hints, independently identifies the bytes as a still JPEG,
+PNG, or WebP with reviewed dimensions, strips metadata, creates a WebP no larger
+than 650×650 and 1 MiB, and hashes the final bytes. The internal preparation
+manifest records the provider and decoded source media type so a
 metadata-versus-bytes normalization remains auditable. A public profile
 references only:
 
@@ -65,7 +72,7 @@ Preparation is not publication selection. The committed
 `config/rufous-media-visual-approvals.json` ledger must select exactly one final
 WebP for every eligible species represented by the prepared manifest. Each selection
 records the reviewer, review date, exact scientific name, final SHA-256, and
-canonical USFWS source-page set, plus an explicit attestation that the pixels
+canonical provider source-page set, plus an explicit attestation that the pixels
 show a live bird without a human or migration map. A changed derivative gets a
 new hash and a new review; a known hash used with new provenance also blocks
 until that provenance is reviewed. Other prepared candidates are implicit
@@ -228,6 +235,27 @@ uv run python scripts/prepare_rufous_media.py \
   --output-dir build/rufous-media
 ```
 
+After the USFWS model is available, the fallback target list is computed as the
+public catalog minus species with an exact committed USFWS selection. This
+preserves all 167 existing USFWS selections and currently sends only the 40
+uncovered species through the iNaturalist source. A prior USFWS `no_safe_image`
+exclusion does not suppress a separately licensed iNaturalist candidate. An
+existing iNaturalist selection also remains a refresh target so its source
+metadata and image bytes cannot disappear from a later release. The
+iNaturalist source is an offline dlt snapshot into the transient DuckDB—not a
+browser request and not a replacement for the pipeline. It resolves an exact
+active taxon, inspects at most 20 curated photos per target, and records the
+run, every target outcome, and each eligible candidate for SQLMesh validation.
+
+The fallback source accepts only an exact positive iNaturalist photo identity,
+an exact `https://www.inaturalist.org/photos/<photo-id>` source page, and the
+matching original object under
+`https://inaturalist-open-data.s3.amazonaws.com/photos/<photo-id>/`. Its license
+allowlist is intentionally narrower than USFWS: CC0 1.0, CC BY 4.0, or CC BY-SA
+4.0 only. NC, ND, older versions, all-rights-reserved, a bare Public Domain
+label, missing attribution, or mismatched page/object identities fail closed.
+Discovering a candidate does not publish it.
+
 That preparation remains usable for a local refresh even when nothing is
 selected. To produce a deterministic list without granting a selection:
 
@@ -278,10 +306,17 @@ uv run python scripts/build_rufous_media_review.py \
   --approvals config/rufous-media-visual-approvals.json \
   --recommendations /path/to/curated-local-recommendations.json \
   --output /tmp/rufous-media-LOCAL-REVIEW-ONLY \
+  --only-missing-species \
   --local-review-only
 python -m http.server 4174 --bind 127.0.0.1 \
   --directory /tmp/rufous-media-LOCAL-REVIEW-ONLY
 ```
+
+`--only-missing-species` removes every species with a current committed
+selection from this local gallery. It is the normal fallback-review mode: the
+167 selected USFWS species stay untouched while the reviewer sees only newly
+prepared candidates for the 40 gaps. Omit the flag only when intentionally
+auditing or replacing existing selections. Neither mode edits the ledger.
 
 When `--recommendations` is omitted, the gallery opens on one deterministic
 recommendation per species, ranked by the prepared hero score and then stable
@@ -350,6 +385,14 @@ safe USFWS image URL, credible creator, usable dimensions and MIME type, and an
 explicitly commercial-use-compatible license. The preparation step independently
 repeats those gates before downloading bytes.
 
+`rufous_public.inaturalist_commercial_image` independently selects only the
+latest complete fallback snapshot and repeats the exact taxon, photo-ID,
+original-object, creator, dimensions, MIME, and strict 4.0-or-CC0 license gates.
+The common preparer tags each row with its reviewed provider before downloading
+and preserves provider-specific source attribution in the internal manifest.
+It creates the same bounded, content-addressed WebP contract for both sources;
+the provider never changes the public object-store permissions.
+
 Production also requires the official Arizona GNIS text extract and its independently
 pinned SHA-256. The workflow's reviewed, committed source metadata points to USGS's
 `DomesticNames_AZ_Text.zip`; CI extracts `Text/DomesticNames_AZ.txt` and verifies
@@ -402,6 +445,11 @@ The monthly schedule never follows an unreviewed mutable GNIS URL.
   NC, ND, all-rights-reserved, missing, malformed, or ambiguous terms are
   rejected. Public Domain links to the USFWS notices page; Creative Commons
   terms link to their canonical license page.
+- iNaturalist fallback media accepts only CC0 1.0, CC BY 4.0, or CC BY-SA 4.0.
+  NC, ND, older Creative Commons versions, all-rights-reserved, missing,
+  malformed, ambiguous, and bare Public Domain labels are rejected. The
+  canonical photo page and original-object URL must contain the same positive
+  photo ID.
 - USFWS logos and seals, Federal and Junior Duck Stamp imagery, Wildlife and
   Sport Fish Restoration symbols, and Blue Goose refuge marks are excluded
   under the [USFWS notices](https://www.fws.gov/notices) and
@@ -412,9 +460,9 @@ The monthly schedule never follows an unreviewed mutable GNIS URL.
   human review of the one selected hash for each represented species, recorded
   in the committed selection ledger. Every other prepared candidate is excluded.
 - Every photo requires exact scientific identity, credible creator credit, a
-  canonical USFWS source page, alt text, dimensions, MIME type, derivative hash,
-  and immutable public URL. The upstream image URL and internal ranking score
-  never enter browser JSON.
+  canonical source page for its reviewed provider, alt text, dimensions, MIME
+  type, derivative hash, and immutable public URL. The upstream image URL and
+  internal ranking score never enter browser JSON.
 - Production must contain a selected Rufous Hummingbird photo. Species without
   an eligible image retain the built-in silhouette and all non-media behavior.
 - Missing creator/provider credit, source URL, license, attribution, Arizona
@@ -428,8 +476,8 @@ or Functions discovery paths, and workflow runners. It permits only the standard
 
 Both synthetic pull-request builds and production builds run focused SQLMesh
 unit tests for `rufous_public.gbif_eod_occurrence` and
-`rufous_public.usfws_commercial_image` before any release artifact can be built
-or deployed.
+the USFWS and iNaturalist commercial-image models before any release artifact
+can be built or deployed.
 
 ## Deployment controls
 
@@ -441,12 +489,16 @@ would add provider load without making this snapshot fresher.
 
 The production sequence is fail-closed:
 
-1. Run GBIF and USFWS dlt snapshots into a temporary DuckDB and build both
-   public SQLMesh models.
+1. Run GBIF and USFWS dlt snapshots into a temporary DuckDB, derive only the
+   still-uncovered species, run their bounded iNaturalist fallback snapshot
+   through the same dlt → DuckDB path, and build all public SQLMesh models.
 2. Prepare immutable display images and require exactly one current, provenance-
    bound human selection for every eligible represented species, or an exact
    human-confirmed no-safe-image exclusion. Unselected and excluded candidates
-   do not block and are absent from both JSON and media publication.
+   do not block and are absent from both JSON and media publication. Every
+   committed positive selection must still be present in the current prepared
+   manifest; if an upstream source disappears, the refresh fails and the prior
+   release remains live rather than silently losing an image.
 3. Export the sanitized JSON projection with complete per-image attribution.
 4. Build the full browser application and its independent Pages fallback; audit
    the resulting bundle before any object-store mutation.

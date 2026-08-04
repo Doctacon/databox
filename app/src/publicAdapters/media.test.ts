@@ -22,6 +22,22 @@ const media = {
   sha256,
 };
 
+const inaturalistSha256 = `cd${"e".repeat(62)}`;
+const inaturalistMedia = {
+  ...media,
+  provider: "inaturalist",
+  media_id: "inaturalist-5938231789",
+  url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/cd/${inaturalistSha256}.webp`,
+  source_url: "https://www.inaturalist.org/photos/5938231789",
+  creator: "Pat Photographer",
+  license: "CC BY 4.0",
+  license_url: "https://creativecommons.org/licenses/by/4.0/",
+  attribution_id: "inaturalist-attribution-5938231789",
+  title: "Rufous Hummingbird",
+  caption: null,
+  sha256: inaturalistSha256,
+};
+
 describe("published USFWS media adapter", () => {
   it("maps an exact content-addressed public photo into catalog presentation data", () => {
     expect(publicCatalogPhoto(media, "Selasphorus rufus", "2026-08-03T12:00:00Z")).toMatchObject({
@@ -115,5 +131,68 @@ describe("published USFWS media adapter", () => {
       "Selasphorus rufus",
       "2026-08-03T12:00:00Z",
     )).toBeNull();
+  });
+});
+
+describe("published iNaturalist media adapter", () => {
+  it("maps a strictly attributed, exact-species R2 display copy", () => {
+    const photo = publicCatalogPhoto(inaturalistMedia, "Selasphorus rufus", "2026-08-03T12:00:00Z");
+    expect(photo).toMatchObject({
+      status: "available",
+      provider: "inaturalist",
+      source_record_id: "inaturalist-5938231789",
+      display_url: inaturalistMedia.url,
+      source_url: "https://www.inaturalist.org/photos/5938231789",
+      creator: "Pat Photographer",
+      publisher: null,
+      license_text: "CC BY 4.0",
+      selection_reason: "Validated iNaturalist public-release photo",
+    });
+    expect(recommendationPhoto("Selasphorus rufus", photo)).toMatchObject({
+      status: "available",
+      provider: "inaturalist",
+      source_record_id: "inaturalist-5938231789",
+    });
+  });
+
+  it.each([
+    ["non-canonical source host", { source_url: "https://inaturalist.org/photos/5938231789" }],
+    ["source query", { source_url: "https://www.inaturalist.org/photos/5938231789?size=large" }],
+    ["source fragment", { source_url: "https://www.inaturalist.org/photos/5938231789#photo" }],
+    ["leading-zero photo id", {
+      source_url: "https://www.inaturalist.org/photos/05938231789",
+      media_id: "inaturalist-05938231789",
+      attribution_id: "inaturalist-attribution-05938231789",
+    }],
+    ["mismatched media id", { media_id: "inaturalist-5938231788" }],
+    ["mismatched attribution id", { attribution_id: "inaturalist-attribution-5938231788" }],
+    ["older CC BY version", {
+      license: "CC BY 3.0",
+      license_url: "https://creativecommons.org/licenses/by/3.0/",
+    }],
+    ["noncommercial license", {
+      license: "CC BY-NC 4.0",
+      license_url: "https://creativecommons.org/licenses/by-nc/4.0/",
+    }],
+    ["incomplete creator credit", { creator: "" }],
+    ["scientific-name mismatch", { scientific_name: "Selasphorus sasin" }],
+  ])("rejects %s", (_label, change) => {
+    expect(publicCatalogPhoto(
+      { ...inaturalistMedia, ...change },
+      "Selasphorus rufus",
+      "2026-08-03T12:00:00Z",
+    )).toBeNull();
+  });
+
+  it.each([
+    ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+    ["CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"],
+    ["CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"],
+  ])("accepts the reviewed %s license", (license, licenseUrl) => {
+    expect(publicCatalogPhoto({
+      ...inaturalistMedia,
+      license,
+      license_url: licenseUrl,
+    }, "Selasphorus rufus", "2026-08-03T12:00:00Z")).not.toBeNull();
   });
 });

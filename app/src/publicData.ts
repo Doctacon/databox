@@ -3,12 +3,14 @@ import type {
   PublicBounds,
   PublicCell,
   PublicManifest,
+  PublicMediaSource,
   PublicPlace,
   PublicPlaceShard,
   PublicReleasePointer,
   PublicSpeciesProfile,
   PublicSpeciesSummary,
 } from "./publicTypes";
+import { publicCatalogPhoto } from "./publicAdapters/media";
 import { isPublicSpeciesCode } from "./publicSpeciesCode";
 import arizonaBoundariesRaw from "./assets/arizona-boundaries.geojson?raw";
 
@@ -21,11 +23,14 @@ const REMOTE_TIMEOUT_MS = 3_000;
 const MAX_RELEASE_BYTES = 256 * 1024 * 1024;
 let activeDataRoot = SAME_ORIGIN_DATA_ROOT;
 let activeDataVersion: string | null = null;
+let activeMediaSource: PublicMediaSource = "none";
 let fallbackManifestPromise: Promise<PublicManifest> | null = null;
 const SAFE_DATA_PATH = /^\/?(?:data\/)?(?:releases\/[a-f0-9_-]+\/)?(?:manifest|attribution|catalog|species\/[a-z0-9_-]+|cells\/[a-z0-9_-]+|places\/[a-z0-9_]+)\.json$/i;
 const BOUNDARY_TOLERANCE = 1e-9;
 const EBIRD_EOD_DATASET_KEY = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e";
 const RUFOUS_TAXON_KEY = 2476855;
+const MEDIA_SOURCES: readonly PublicMediaSource[] = ["none", "usfws", "inaturalist", "usfws+inaturalist"];
+const NONEMPTY_MEDIA_SOURCES: ReadonlySet<PublicMediaSource> = new Set(["usfws", "inaturalist", "usfws+inaturalist"]);
 
 export const ARIZONA_STATE_RING = (JSON.parse(arizonaBoundariesRaw) as {
   features: Array<{
@@ -131,17 +136,34 @@ export function normalizedPrefix(value: string): string | null {
   return normalized.length === 1 ? `${normalized}_` : normalized.slice(0, 2);
 }
 
+function mediaProviders(source: PublicMediaSource): ReadonlySet<"usfws" | "inaturalist"> {
+  if (source === "usfws") return new Set(["usfws"]);
+  if (source === "inaturalist") return new Set(["inaturalist"]);
+  if (source === "usfws+inaturalist") return new Set(["usfws", "inaturalist"]);
+  return new Set();
+}
+
+function recognizedMediaSource(value: unknown): PublicMediaSource | null {
+  return typeof value === "string" && MEDIA_SOURCES.includes(value as PublicMediaSource)
+    ? value as PublicMediaSource
+    : null;
+}
+
 function validateManifest(manifest: PublicManifest): PublicManifest {
   const expectedOccurrenceSource = manifest.release_mode === "production" ? "gbif" : "synthetic";
   const expectedDatasetKey = manifest.release_mode === "production" ? EBIRD_EOD_DATASET_KEY : null;
   const expectedCoverage = manifest.release_mode === "production" ? "bounded_sample" : "fictional_fixture";
   const expectedRequiredTaxon = manifest.release_mode === "production" ? RUFOUS_TAXON_KEY : null;
+  const mediaSource = recognizedMediaSource(manifest.source_policy?.media_source);
   const validMediaPolicy = manifest.release_mode === "production"
-    ? manifest.source_policy?.media_source === "usfws"
+    ? mediaSource !== null && NONEMPTY_MEDIA_SOURCES.has(mediaSource)
       && manifest.source_policy?.media_delivery === "immutable_r2"
     : (manifest.source_policy?.media_source === "none" && manifest.source_policy?.media_delivery === "none")
-      || (manifest.source_policy?.media_source === "usfws"
+      || (mediaSource !== null && NONEMPTY_MEDIA_SOURCES.has(mediaSource)
         && manifest.source_policy?.media_delivery === "immutable_r2");
+  const allowedMediaProviders: ReadonlySet<string> = mediaSource
+    ? mediaProviders(mediaSource)
+    : new Set<string>();
   const mediaItems = Array.isArray(manifest.species)
     ? manifest.species.reduce((total, species) => total + species.photo_count, 0)
     : -1;
@@ -168,9 +190,12 @@ function validateManifest(manifest: PublicManifest): PublicManifest {
       || !Number.isSafeInteger(species.photo_count) || species.photo_count < 0
       || !("hero_photo" in species)
       || (species.photo_count === 0 && species.hero_photo !== null)
-      || (species.photo_count > 0 && species.hero_photo === null))
+      || (species.photo_count > 0 && species.hero_photo === null)
+      || (species.hero_photo !== null && !allowedMediaProviders.has(species.hero_photo.provider)))
     || manifest.counts?.media_items !== mediaItems
     || manifest.counts?.species_with_media !== speciesWithMedia
+    || (mediaSource === "none" && (mediaItems !== 0 || speciesWithMedia !== 0))
+    || (mediaSource !== "none" && (mediaItems === 0 || speciesWithMedia === 0))
   ) {
     throw new Error("This Rufous public data release is not supported.");
   }
@@ -246,6 +271,7 @@ export async function getPublicManifest(signal?: AbortSignal): Promise<PublicMan
   // Swap only after the complete pointer + immutable manifest chain has passed validation.
   activeDataRoot = resolution.dataRoot;
   activeDataVersion = resolution.manifest.data_version;
+  activeMediaSource = resolution.manifest.source_policy.media_source;
   fallbackManifestPromise = null;
   return resolution.manifest;
 }
@@ -259,6 +285,7 @@ async function sameReleasePagesManifest(signal?: AbortSignal): Promise<PublicMan
         throw new Error("The published data shard is unavailable and the bundled fallback is a different release.");
       }
       activeDataRoot = SAME_ORIGIN_DATA_ROOT;
+      activeMediaSource = resolution.manifest.source_policy.media_source;
       return resolution.manifest;
     }).catch((reason: unknown) => {
       if (fallbackManifestPromise === pending) fallbackManifestPromise = null;
@@ -299,6 +326,8 @@ export async function getPublicSpecies(
     const profile = await fetchJson<PublicSpeciesProfile>(url, requestSignal);
     if (profile.schema_version !== 1 || profile.species_code !== species.species_code
       || !Array.isArray(profile.media)
+      || profile.media.some((item) => !mediaProviders(activeMediaSource).has(item.provider))
+      || profile.media.some((item) => publicCatalogPhoto(item, profile.scientific_name, "") === null)
       || profile.media.length !== species.photo_count
       || (species.hero_photo === null
         ? profile.media.length !== 0
@@ -344,7 +373,11 @@ export async function getPublicAttribution(path: string, signal?: AbortSignal): 
   const primary = safePath(path, "root");
   const load = async (url: string, requestSignal?: AbortSignal) => {
     const attribution = await fetchJson<PublicAttribution>(url, requestSignal);
-    if (attribution.schema_version !== 1 || !Array.isArray(attribution.sources) || !Array.isArray(attribution.items)) {
+    const attributedProviders = Array.isArray(attribution.sources)
+      ? new Set(attribution.sources.map((source) => source.provider))
+      : new Set<string>();
+    if (attribution.schema_version !== 1 || !Array.isArray(attribution.sources) || !Array.isArray(attribution.items)
+      || [...mediaProviders(activeMediaSource)].some((provider) => !attributedProviders.has(provider))) {
       throw new Error("The attribution shard did not match its manifest entry.");
     }
     return attribution;

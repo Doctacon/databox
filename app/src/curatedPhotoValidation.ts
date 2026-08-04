@@ -35,6 +35,12 @@ const USFWS_LICENSES = new Map([
   ),
 ]);
 
+const PUBLIC_INATURALIST_LICENSES = new Map([
+  ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+  ["CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"],
+  ["CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"],
+]);
+
 function boundedPlainText(value: unknown, maximum: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maximum
     && value.trim() === value && value.replace(/\s+/g, " ") === value
@@ -86,6 +92,23 @@ function validUsfws(row: PhotoRecord): ValidatedCuratedPhoto | null {
   };
 }
 
+function validPublishedInaturalist(row: PhotoRecord): ValidatedCuratedPhoto | null {
+  const display = strictProviderUrl(row.display_url, "rufous-data.loughondata.com");
+  const source = strictProviderUrl(row.source_url, "www.inaturalist.org");
+  if (!display || !source) return null;
+  const image = /^\/rufous-media\/v1\/objects\/([0-9a-f]{2})\/([0-9a-f]{64})\.webp$/.exec(display.pathname);
+  const sourceMatch = /^\/photos\/([1-9][0-9]*)$/.exec(source.pathname);
+  if (!image || image[1] !== image[2].slice(0, 2) || !sourceMatch
+    || row.source_record_id !== `inaturalist-${sourceMatch[1]}`) return null;
+  return {
+    displayUrl: display.href,
+    sourceUrl: source.href,
+    providerLabel: "iNaturalist",
+    licenseUrl: row.license_url as string,
+    licenseCode: row.license_code as string,
+  };
+}
+
 export function validateAvailableCuratedPhoto(
   row: PhotoRecord,
   scientificName: string | null,
@@ -102,6 +125,17 @@ export function validateAvailableCuratedPhoto(
       || Number(row.original_width) < 1 || Number(row.original_width) > 650
       || Number(row.original_height) < 1 || Number(row.original_height) > 650) return null;
     return validUsfws(row);
+  }
+  if (row.provider === "inaturalist"
+    && row.selection_reason === "Validated iNaturalist public-release photo") {
+    if (!boundedPublicText(row.creator, 500)
+      || row.rights_holder !== null || row.publisher !== null || row.format !== "image/webp"
+      || typeof row.license_code !== "string" || row.license_text !== row.license_code
+      || PUBLIC_INATURALIST_LICENSES.get(row.license_code) !== row.license_url
+      || !Number.isSafeInteger(row.original_width) || !Number.isSafeInteger(row.original_height)
+      || Number(row.original_width) < 1 || Number(row.original_width) > 650
+      || Number(row.original_height) < 1 || Number(row.original_height) > 650) return null;
+    return validPublishedInaturalist(row);
   }
   if (!boundedPlainText(row.creator, 500) || !boundedPlainText(row.selection_reason, 500)
     || row.rights_holder !== null || row.publisher !== null || row.format !== null

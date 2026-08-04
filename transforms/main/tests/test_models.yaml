@@ -1780,6 +1780,179 @@ test_rufous_public_usfws_zero_record_complete_snapshot:
     query:
       rows: []
 
+test_rufous_public_inaturalist_commercial_image:
+  model: rufous_public.inaturalist_commercial_image
+  inputs:
+    raw_inaturalist.photo_discovery_runs:
+      rows:
+        - run_id: "selected-complete"
+          status: "complete"
+          target_species_count: 1
+          exact_species_count: 1
+          species_with_candidates: 1
+          curated_photos_inspected: 3
+          eligible_candidate_count: 3
+          request_count: 2
+          max_curated_photos: 20
+          request_max_attempts: 3
+          started_at: "2026-08-02 09:59:00"
+          completed_at: "2026-08-02 10:00:00"
+          _loaded_at: "2026-08-02 10:00:00"
+        - run_id: "newer-malformed"
+          status: "complete"
+          target_species_count: 1
+          exact_species_count: 1
+          species_with_candidates: 1
+          curated_photos_inspected: 1
+          eligible_candidate_count: 1
+          request_count: 2
+          max_curated_photos: 20
+          request_max_attempts: 3
+          started_at: "2026-08-03 09:59:00"
+          completed_at: "2026-08-03 10:00:00"
+          _loaded_at: "2026-08-03 10:00:00"
+    raw_inaturalist.photo_species_results:
+      rows:
+        - run_id: "selected-complete"
+          species_code: "gbif-2476855"
+          target_common_name: "Rufous Hummingbird"
+          target_scientific_name: "Selasphorus rufus"
+          taxon_id: 4993
+          identity_status: "exact_active_species"
+          curated_photo_count: 5
+          curated_photos_inspected: 3
+          eligible_candidate_count: 3
+          rejection_counts_json: "{}"
+          _loaded_at: "2026-08-02 10:00:00"
+        - run_id: "newer-malformed"
+          species_code: "gbif-2476855"
+          target_common_name: "Rufous Hummingbird"
+          target_scientific_name: "Selasphorus rufus"
+          taxon_id: 4993
+          identity_status: "exact_active_species"
+          curated_photo_count: 5
+          curated_photos_inspected: 1
+          eligible_candidate_count: 1
+          rejection_counts_json: "{}"
+          _loaded_at: "2026-08-03 10:00:00"
+    raw_inaturalist.photo_candidates:
+      rows:
+        - run_id: "selected-complete"
+          species_code: "gbif-2476855"
+          target_common_name: "Rufous Hummingbird"
+          target_scientific_name: "Selasphorus rufus"
+          taxon_id: 4993
+          photo_id: 101
+          curated_position: 1
+          source_page_url: "https://www.inaturalist.org/photos/101"
+          source_image_original_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/101/original.jpg"
+          source_image_large_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/101/large.jpg"
+          creator: "Pat Photographer"
+          license_code: "CC BY 4.0"
+          license_url: "https://creativecommons.org/licenses/by/4.0/"
+          original_width: 1600
+          original_height: 1200
+          _loaded_at: "2026-08-02 10:00:00"
+        - run_id: "newer-malformed"
+          species_code: "gbif-2476855"
+          target_common_name: "Rufous Hummingbird"
+          target_scientific_name: "Selasphorus rufus"
+          taxon_id: 4993
+          photo_id: 201
+          curated_position: 1
+          source_page_url: "https://www.inaturalist.org/photos/999"
+          source_image_original_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/201/original.jpg"
+          source_image_large_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/201/large.jpg"
+          creator: "Unsafe Candidate"
+          license_code: "CC BY 4.0"
+          license_url: "https://creativecommons.org/licenses/by/4.0/"
+          original_width: 1600
+          original_height: 1200
+          _loaded_at: "2026-08-03 10:00:00"
+        - run_id: "selected-complete"
+          species_code: "gbif-2476855"
+          target_common_name: "Rufous Hummingbird"
+          target_scientific_name: "Selasphorus rufus"
+          taxon_id: 4993
+          photo_id: 102
+          curated_position: 2
+          source_page_url: "https://www.inaturalist.org/photos/102"
+          source_image_original_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/102/original.png"
+          source_image_large_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/102/large.png"
+          creator: "Casey Contributor"
+          license_code: "CC0 1.0"
+          license_url: "https://creativecommons.org/publicdomain/zero/1.0/"
+          original_width: 1800
+          original_height: 1200
+          _loaded_at: "2026-08-02 10:00:00"
+        - run_id: "selected-complete"
+          species_code: "gbif-2476855"
+          target_common_name: "Rufous Hummingbird"
+          target_scientific_name: "Selasphorus rufus"
+          taxon_id: 4993
+          photo_id: 103
+          curated_position: 3
+          source_page_url: "https://www.inaturalist.org/photos/103"
+          source_image_original_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/103/original.WEBP"
+          source_image_large_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/103/large.WEBP"
+          creator: "Sam Sharealike"
+          license_code: "CC BY-SA 4.0"
+          license_url: "https://creativecommons.org/licenses/by-sa/4.0/"
+          original_width: 1600
+          original_height: 1000
+          _loaded_at: "2026-08-02 10:00:00"
+  outputs:
+    query:
+      rows:
+        - species_code: "gbif-2476855"
+          common_name: "Rufous Hummingbird"
+          scientific_name: "Selasphorus rufus"
+          source_page_url: "https://www.inaturalist.org/photos/101"
+          source_image_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/101/original.jpg"
+          creator: "Pat Photographer"
+          license: "CC BY 4.0"
+          title: "Rufous Hummingbird photograph"
+          caption: "Curated iNaturalist taxon photograph of Rufous Hummingbird by Pat Photographer."
+          alt_text: "Rufous Hummingbird photographed by Pat Photographer"
+          source_published_at: null
+          source_width: 1600
+          source_height: 1200
+          mime_type: "image/jpeg"
+          discovery_method: "inaturalist_exact_active_species_curated_taxon_photo"
+          loaded_at: "2026-08-02 10:00:00"
+        - species_code: "gbif-2476855"
+          common_name: "Rufous Hummingbird"
+          scientific_name: "Selasphorus rufus"
+          source_page_url: "https://www.inaturalist.org/photos/102"
+          source_image_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/102/original.png"
+          creator: "Casey Contributor"
+          license: "CC0 1.0"
+          title: "Rufous Hummingbird photograph"
+          caption: "Curated iNaturalist taxon photograph of Rufous Hummingbird by Casey Contributor."
+          alt_text: "Rufous Hummingbird photographed by Casey Contributor"
+          source_published_at: null
+          source_width: 1800
+          source_height: 1200
+          mime_type: "image/png"
+          discovery_method: "inaturalist_exact_active_species_curated_taxon_photo"
+          loaded_at: "2026-08-02 10:00:00"
+        - species_code: "gbif-2476855"
+          common_name: "Rufous Hummingbird"
+          scientific_name: "Selasphorus rufus"
+          source_page_url: "https://www.inaturalist.org/photos/103"
+          source_image_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/103/original.WEBP"
+          creator: "Sam Sharealike"
+          license: "CC BY-SA 4.0"
+          title: "Rufous Hummingbird photograph"
+          caption: "Curated iNaturalist taxon photograph of Rufous Hummingbird by Sam Sharealike."
+          alt_text: "Rufous Hummingbird photographed by Sam Sharealike"
+          source_published_at: null
+          source_width: 1600
+          source_height: 1000
+          mime_type: "image/webp"
+          discovery_method: "inaturalist_exact_active_species_curated_taxon_photo"
+          loaded_at: "2026-08-02 10:00:00"
+
 test_fact_bird_occurrence_blank_name_fallbacks:
   model: environmental_observations.fact_bird_occurrence
   inputs:

@@ -27,6 +27,8 @@ export interface PublicPlacePrefix {
   count: number;
 }
 
+export type PublicMediaSource = "none" | "usfws" | "inaturalist" | "usfws+inaturalist";
+
 export interface PublicManifest {
   schema_version: 1;
   mode: "public";
@@ -48,7 +50,7 @@ export interface PublicManifest {
     gbif_dataset_key: string | null;
     coverage: "fictional_fixture" | "bounded_sample";
     required_taxon_key: number | null;
-    media_source: "none" | "usfws";
+    media_source: PublicMediaSource;
     media_delivery: "none" | "immutable_r2";
   };
   license_policy: {
@@ -85,7 +87,7 @@ export interface PublicReleasePointer {
 
 export interface PublicMedia {
   kind: "photo";
-  provider: "usfws";
+  provider: "usfws" | "inaturalist";
   media_id: string;
   url: string;
   source_url: string;

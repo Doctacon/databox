@@ -45,16 +45,23 @@ const PRODUCTION_SPECIES_CODE = "gbif-2476855";
 function publicPhoto(index: number) {
   const prefix = index === 1 ? "ab" : "cd";
   const sha256 = `${prefix}${String(index).repeat(62)}`;
+  const inaturalist = index === 1;
   return {
     kind: "photo",
-    provider: "usfws",
-    media_id: `usfws-rufous-${index}`,
+    provider: inaturalist ? "inaturalist" : "usfws",
+    media_id: inaturalist ? "inaturalist-5938231789" : `usfws-rufous-${index}`,
     url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/${prefix}/${sha256}.webp`,
-    source_url: `https://www.fws.gov/media/rufous-hummingbird-${index}`,
-    creator: `USFWS Photographer ${index}`,
-    license: "Public Domain",
-    license_url: "https://www.fws.gov/notices",
-    attribution_id: `usfws-attribution-${index}`,
+    source_url: inaturalist
+      ? "https://www.inaturalist.org/photos/5938231789"
+      : `https://www.fws.gov/media/rufous-hummingbird-${index}`,
+    creator: inaturalist ? "Pat Photographer" : `USFWS Photographer ${index}`,
+    license: inaturalist ? "CC BY 4.0" : "Public Domain",
+    license_url: inaturalist
+      ? "https://creativecommons.org/licenses/by/4.0/"
+      : "https://www.fws.gov/notices",
+    attribution_id: inaturalist
+      ? "inaturalist-attribution-5938231789"
+      : `usfws-attribution-${index}`,
     scientific_name: "Selasphorus rufus",
     title: `Rufous Hummingbird ${index}`,
     caption: index === 1 ? "Perched on a twig." : null,
@@ -76,7 +83,7 @@ function mockProductionFixtureFetch() {
       gbif_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
       coverage: "bounded_sample",
       required_taxon_key: 2476855,
-      media_source: "usfws",
+      media_source: "usfws+inaturalist",
       media_delivery: "immutable_r2",
     },
     counts: {
@@ -234,7 +241,7 @@ describe("full public-app browser adapters", () => {
     expect(profile).toMatchObject({
       species_code: PRODUCTION_SPECIES_CODE,
       common_name: "Rufous Hummingbird",
-      photo: { provider: "usfws", source_record_id: "usfws-rufous-1" },
+      photo: { provider: "inaturalist", source_record_id: "inaturalist-5938231789" },
     });
     expect(profile.photos).toHaveLength(2);
     expect(profile.photos?.[1]).toMatchObject({
@@ -244,24 +251,24 @@ describe("full public-app browser adapters", () => {
     expect(map.photos).toMatchObject([{
       species_code: PRODUCTION_SPECIES_CODE,
       photo: {
-        provider: "usfws",
-        source_record_id: "usfws-rufous-1",
-        source_url: "https://www.fws.gov/media/rufous-hummingbird-1",
+        provider: "inaturalist",
+        source_record_id: "inaturalist-5938231789",
+        source_url: "https://www.inaturalist.org/photos/5938231789",
       },
     }]);
     expect(trip.recommendations[0].photo).toMatchObject({
       status: "available",
-      provider: "usfws",
+      provider: "inaturalist",
       species_name: "Selasphorus rufus",
-      source_record_id: "usfws-rufous-1",
-      source_url: "https://www.fws.gov/media/rufous-hummingbird-1",
+      source_record_id: "inaturalist-5938231789",
+      source_url: "https://www.inaturalist.org/photos/5938231789",
     });
     expect(trip.evidence.filter((item) => item.evidence_type === "recommendation_photo")).toEqual([{
       evidence_id: `photo_1_${PRODUCTION_SPECIES_CODE}`,
       recommendation_id: `recommendation_1_${PRODUCTION_SPECIES_CODE}`,
-      source: "usfws",
-      source_table: "published_usfws_media",
-      source_record_id: "usfws-rufous-1",
+      source: "inaturalist",
+      source_table: "published_inaturalist_media",
+      source_record_id: "inaturalist-5938231789",
       evidence_type: "recommendation_photo",
       status: "available",
       retrieved_at: manifest.generated_at,
@@ -273,11 +280,11 @@ describe("full public-app browser adapters", () => {
     expect(screen.getByRole("img", { name: "Rufous Hummingbird (Selasphorus rufus)" })).toHaveAttribute(
       "src", publicPhoto(1).url,
     );
-    expect(screen.getByRole("link", { name: "View photo source on USFWS" })).toHaveAttribute(
-      "href", "https://www.fws.gov/media/rufous-hummingbird-1",
+    expect(screen.getByRole("link", { name: "View photo source on iNaturalist" })).toHaveAttribute(
+      "href", "https://www.inaturalist.org/photos/5938231789",
     );
-    expect(screen.getByRole("link", { name: "Public Domain" })).toHaveAttribute(
-      "href", "https://www.fws.gov/notices",
+    expect(screen.getByRole("link", { name: "CC BY 4.0" })).toHaveAttribute(
+      "href", "https://creativecommons.org/licenses/by/4.0/",
     );
     expect(target).toMatchObject({ species_code: PRODUCTION_SPECIES_CODE });
     expect(target.candidates).toHaveLength(1);

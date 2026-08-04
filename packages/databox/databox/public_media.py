@@ -1,4 +1,4 @@
-"""Prepare licensed USFWS images for Rufous's immutable public-media release.
+"""Prepare licensed bird images for Rufous's immutable public-media release.
 
 The database model is the licensing and identity gate.  This module reads that
 model without modifying it, independently revalidates every row, downloads and
@@ -37,7 +37,10 @@ import databox.public_restricted_marks as restricted_marks
 
 SCHEMA_VERSION = 1
 MODE = "rufous-media-preparation"
-SOURCE_TABLE = "rufous_public.usfws_commercial_image"
+SOURCE_TABLES = (
+    ("usfws", "rufous_public", "usfws_commercial_image", True),
+    ("inaturalist", "rufous_public", "inaturalist_commercial_image", False),
+)
 PUBLIC_BASE_URL = "https://rufous-data.loughondata.com/rufous-media/v1"
 USER_AGENT = (
     "RufousMediaBuilder/1.0 "
@@ -81,6 +84,12 @@ _SAFE_MEDIA_SLUG = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$")
 _SCIENTIFIC_BINOMIAL = re.compile(r"^[A-Z][A-Za-z-]{1,79} [a-z][A-Za-z-]{1,79}$")
 _SHA256 = re.compile(r"^[a-f0-9]{64}$")
 _FWS_HOSTS = frozenset({"fws.gov", "www.fws.gov"})
+_INATURALIST_PHOTO_PAGE = re.compile(r"^/photos/(?P<photo_id>[1-9][0-9]*)$")
+_INATURALIST_IMAGE_PATH = re.compile(
+    r"^/photos/(?P<photo_id>[1-9][0-9]*)/original\.(?:jpg|jpeg|png|webp)$",
+    re.IGNORECASE,
+)
+_MEDIA_PROVIDERS = frozenset({"usfws", "inaturalist"})
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _RETRY_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
 _UNAVAILABLE_REASONS = frozenset(
@@ -118,11 +127,12 @@ class UnavailableSourceError(PublicMediaError):
 
     def __init__(self, reason: str) -> None:
         self.reason = _validate_unavailable_reason(reason)
-        super().__init__(f"USFWS image failed after bounded retries: {self.reason}")
+        super().__init__(f"source image failed after bounded retries: {self.reason}")
 
 
 @dataclass(frozen=True)
 class SourceImageRow:
+    provider: str
     species_code: str
     common_name: str
     scientific_name: str
@@ -143,7 +153,10 @@ class SourceImageRow:
 
     @classmethod
     def from_values(cls, values: Mapping[str, object]) -> SourceImageRow:
-        license_name, license_url = normalize_license(values.get("license"))
+        provider = _required_text(values.get("provider", "usfws"), "provider", 32)
+        if provider not in _MEDIA_PROVIDERS:
+            raise PublicMediaError("media provider is not reviewed")
+        license_name, license_url = normalize_license(values.get("license"), provider=provider)
         width = _positive_int(values.get("source_width"), "source_width")
         height = _positive_int(values.get("source_height"), "source_height")
         if width * height > MAX_SOURCE_PIXELS:
@@ -151,11 +164,16 @@ class SourceImageRow:
 
         source_mime_type, _ = _normalize_source_mime(values.get("mime_type"))
         row = cls(
+            provider=provider,
             species_code=_required_text(values.get("species_code"), "species_code", 64),
             common_name=_required_text(values.get("common_name"), "common_name", 200),
             scientific_name=_required_text(values.get("scientific_name"), "scientific_name", 200),
-            source_page_url=validate_source_page_url(values.get("source_page_url")),
-            source_image_url=validate_source_image_url(values.get("source_image_url")),
+            source_page_url=validate_source_page_url(
+                values.get("source_page_url"), provider=provider
+            ),
+            source_image_url=validate_source_image_url(
+                values.get("source_image_url"), provider=provider
+            ),
             creator=_required_text(values.get("creator"), "creator", 300),
             license=license_name,
             license_url=license_url,
@@ -209,19 +227,29 @@ class SourceImageRow:
             or row.creator.casefold() in weak_creator_values
         ):
             raise PublicMediaError("creator is not a credible attribution")
-        restricted_mark = restricted_marks.restricted_usfws_mark_reason(
-            (
-                row.title,
-                row.caption,
-                row.alt_text,
-                row.source_page_url,
-                row.source_image_url,
+        if row.provider == "inaturalist":
+            page_match = _INATURALIST_PHOTO_PAGE.fullmatch(urlsplit(row.source_page_url).path)
+            image_match = _INATURALIST_IMAGE_PATH.fullmatch(urlsplit(row.source_image_url).path)
+            if (
+                page_match is None
+                or image_match is None
+                or page_match.group("photo_id") != image_match.group("photo_id")
+            ):
+                raise PublicMediaError("iNaturalist source URLs identify different photos")
+        if row.provider == "usfws":
+            restricted_mark = restricted_marks.restricted_usfws_mark_reason(
+                (
+                    row.title,
+                    row.caption,
+                    row.alt_text,
+                    row.source_page_url,
+                    row.source_image_url,
+                )
             )
-        )
-        if restricted_mark is not None:
-            raise PublicMediaError(
-                f"USFWS media metadata identifies restricted mark: {restricted_mark}"
-            )
+            if restricted_mark is not None:
+                raise PublicMediaError(
+                    f"USFWS media metadata identifies restricted mark: {restricted_mark}"
+                )
         return row
 
     def semantic_key(self) -> tuple[object, ...]:
@@ -312,12 +340,14 @@ class _ValidatedOutput:
         return self.kind, self.preparer_fingerprint, self.cache_identity
 
 
-def normalize_license(value: object) -> tuple[str, str]:
+def normalize_license(value: object, *, provider: str = "usfws") -> tuple[str, str]:
     """Normalize the deliberately narrow commercial-reuse license allowlist."""
+    if provider not in _MEDIA_PROVIDERS:
+        raise PublicMediaError("media provider is not reviewed")
     raw = _required_text(value, "license", 100)
     if any(ord(character) < 32 or ord(character) == 127 for character in raw):
         raise PublicMediaError("media license contains control characters")
-    if raw.casefold() == "public domain":
+    if raw.casefold() == "public domain" and provider == "usfws":
         return "Public Domain", "https://www.fws.gov/notices"
 
     family: str
@@ -376,13 +406,30 @@ def normalize_license(value: object) -> tuple[str, str]:
         if version != "1.0":
             raise PublicMediaError("only the defined CC0 1.0 license is eligible")
         return "CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"
+    if provider == "inaturalist" and version != "4.0":
+        raise PublicMediaError("iNaturalist media must use the reviewed 4.0 license family")
     if version not in _CC_VERSIONS:
         raise PublicMediaError("Creative Commons license version is not allowed")
     code = "CC BY-SA" if family == "by-sa" else "CC BY"
     return f"{code} {version}", f"https://creativecommons.org/licenses/{family}/{version}/"
 
 
-def validate_source_page_url(value: object) -> str:
+def validate_source_page_url(value: object, *, provider: str = "usfws") -> str:
+    if provider == "inaturalist":
+        raw, parsed = _validated_https_url(
+            value,
+            "source_page_url",
+            hosts=frozenset({"www.inaturalist.org"}),
+        )
+        if (
+            parsed.query
+            or parsed.fragment
+            or _INATURALIST_PHOTO_PAGE.fullmatch(parsed.path) is None
+        ):
+            raise PublicMediaError("iNaturalist source_page_url must identify one exact photo")
+        return raw
+    if provider != "usfws":
+        raise PublicMediaError("media provider is not reviewed")
     raw, parsed = _validated_fws_url(value, "source_page_url")
     if parsed.query or parsed.fragment:
         raise PublicMediaError("source_page_url must not contain a query or fragment")
@@ -392,7 +439,24 @@ def validate_source_page_url(value: object) -> str:
     return raw
 
 
-def validate_source_image_url(value: object) -> str:
+def validate_source_image_url(value: object, *, provider: str = "usfws") -> str:
+    if provider == "inaturalist":
+        raw, parsed = _validated_https_url(
+            value,
+            "source_image_url",
+            hosts=frozenset({"inaturalist-open-data.s3.amazonaws.com"}),
+        )
+        if (
+            parsed.query
+            or parsed.fragment
+            or _INATURALIST_IMAGE_PATH.fullmatch(parsed.path) is None
+        ):
+            raise PublicMediaError(
+                "iNaturalist source_image_url must be one exact original photo object"
+            )
+        return raw
+    if provider != "usfws":
+        raise PublicMediaError("media provider is not reviewed")
     raw, parsed = _validated_fws_url(value, "source_image_url")
     if parsed.fragment or (parsed.query and _DRUPAL_IMAGE_QUERY.fullmatch(parsed.query) is None):
         raise PublicMediaError("source_image_url has an unsafe query or fragment")
@@ -501,13 +565,14 @@ def prepare_public_media(
                         source, response_mime_type = _download_image(
                             active_client,
                             row.source_image_url,
+                            provider=row.provider,
                             expected_mime_type=row.source_mime_type,
                             sleeper=sleeper,
                         )
                     except UnavailableSourceError as exc:
                         if len(unavailable_by_source) >= MAX_UNAVAILABLE_SOURCE_OBJECTS:
                             raise PublicMediaError(
-                                "unavailable USFWS source-object limit exceeded"
+                                "unavailable source-object limit exceeded"
                             ) from exc
                         unavailable_by_source[source_key] = exc.reason
                         unavailable_rows.append((row, exc.reason))
@@ -601,44 +666,61 @@ def prepare_public_media(
 
 def _read_source_rows(database: Path) -> list[SourceImageRow]:
     expected = list(SOURCE_COLUMNS)
+    raw_rows: list[tuple[str, tuple[object, ...]]] = []
+    total_eligible_rows = 0
     try:
         with duckdb.connect(str(database), read_only=True) as connection:
-            actual = [
-                row[0]
-                for row in connection.execute(
-                    """
+            for provider, schema_name, table_name, required in SOURCE_TABLES:
+                exists = connection.execute(
+                    """SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = ? AND table_name = ?""",
+                    [schema_name, table_name],
+                ).fetchone()
+                if exists is None:
+                    if required:
+                        raise PublicMediaError(
+                            f"{schema_name}.{table_name} is missing from the reviewed media models"
+                        )
+                    continue
+                actual = [
+                    row[0]
+                    for row in connection.execute(
+                        """
                     SELECT column_name
                     FROM information_schema.columns
-                    WHERE table_schema = 'rufous_public'
-                      AND table_name = 'usfws_commercial_image'
+                    WHERE table_schema = ? AND table_name = ?
                     ORDER BY ordinal_position
-                    """
-                ).fetchall()
-            ]
-            if actual != expected:
-                raise PublicMediaError(
-                    "rufous_public.usfws_commercial_image does not have the exact reviewed schema"
-                )
-            raw_count = connection.execute(f"SELECT COUNT(*) FROM {SOURCE_TABLE}").fetchone()
-            if raw_count is None or isinstance(raw_count[0], bool):
-                raise PublicMediaError("could not count the reviewed USFWS media model")
-            eligible_rows = int(raw_count[0])
-            if eligible_rows > MAX_ELIGIBLE_ROWS:
-                raise PublicMediaError("eligible media exceeds the reviewed row limit")
-            quoted = ", ".join(f'"{column}"' for column in SOURCE_COLUMNS)
-            cursor = connection.execute(f"SELECT {quoted} FROM {SOURCE_TABLE}")
-            raw_rows = cursor.fetchall()
+                    """,
+                        [schema_name, table_name],
+                    ).fetchall()
+                ]
+                if actual != expected:
+                    raise PublicMediaError(
+                        f"{schema_name}.{table_name} does not have the exact reviewed schema"
+                    )
+                qualified = f'"{schema_name}"."{table_name}"'
+                raw_count = connection.execute(f"SELECT COUNT(*) FROM {qualified}").fetchone()
+                if raw_count is None or isinstance(raw_count[0], bool):
+                    raise PublicMediaError(f"could not count the reviewed {provider} media model")
+                total_eligible_rows += int(raw_count[0])
+                if total_eligible_rows > MAX_ELIGIBLE_ROWS:
+                    raise PublicMediaError("eligible media exceeds the reviewed row limit")
+                quoted = ", ".join(f'"{column}"' for column in SOURCE_COLUMNS)
+                cursor = connection.execute(f"SELECT {quoted} FROM {qualified}")
+                raw_rows.extend((provider, tuple(row)) for row in cursor.fetchall())
     except PublicMediaError:
         raise
     except duckdb.Error as exc:
-        raise PublicMediaError("could not read the reviewed USFWS media model") from exc
+        raise PublicMediaError("could not read the reviewed media models") from exc
 
     if not raw_rows:
-        raise PublicMediaError("the reviewed USFWS media model is empty")
+        raise PublicMediaError("the reviewed media models are empty")
 
     distinct: dict[tuple[object, ...], SourceImageRow] = {}
-    for raw_row in raw_rows:
+    for provider, raw_row in raw_rows:
         values = dict(zip(SOURCE_COLUMNS, raw_row, strict=True))
+        values["provider"] = provider
         row = SourceImageRow.from_values(values)
         previous = distinct.get(row.semantic_key())
         if previous is None or row.loaded_at > previous.loaded_at:
@@ -650,16 +732,17 @@ def _download_image(
     client: httpx.Client,
     source_url: str,
     *,
+    provider: str = "usfws",
     expected_mime_type: str,
     sleeper: Callable[[float], None],
 ) -> tuple[bytes, str]:
-    validate_source_image_url(source_url)
+    validate_source_image_url(source_url, provider=provider)
     last_error: Exception | None = None
     for attempt in range(MAX_ATTEMPTS):
         current_url = source_url
         try:
             for redirect_count in range(MAX_REDIRECTS + 1):
-                validate_source_image_url(current_url)
+                validate_source_image_url(current_url, provider=provider)
                 with client.stream(
                     "GET",
                     current_url,
@@ -671,18 +754,18 @@ def _download_image(
                 ) as response:
                     if response.status_code in _REDIRECT_STATUSES:
                         if redirect_count >= MAX_REDIRECTS:
-                            raise PublicMediaError("USFWS image exceeded the redirect limit")
+                            raise PublicMediaError("source image exceeded the redirect limit")
                         location = response.headers.get("location")
                         if not location:
-                            raise PublicMediaError("USFWS image redirect omitted Location")
+                            raise PublicMediaError("source image redirect omitted Location")
                         current_url = validate_source_image_url(
-                            urljoin(str(response.url), location)
+                            urljoin(str(response.url), location), provider=provider
                         )
                         continue
                     if response.status_code in _RETRY_STATUSES:
                         raise _RetryableDownloadError(f"retryable_http_{response.status_code}")
                     if response.status_code != 200:
-                        raise PublicMediaError(f"USFWS image returned HTTP {response.status_code}")
+                        raise PublicMediaError(f"source image returned HTTP {response.status_code}")
 
                     raw_response_mime = (
                         response.headers.get("content-type", "").split(";", 1)[0].strip()
@@ -701,22 +784,22 @@ def _download_image(
                             declared_length = int(length)
                         except ValueError as exc:
                             raise PublicMediaError(
-                                "USFWS image returned malformed Content-Length"
+                                "source image returned malformed Content-Length"
                             ) from exc
                         if declared_length < 0 or declared_length > MAX_DOWNLOAD_BYTES:
-                            raise PublicMediaError("USFWS image exceeds the download-size limit")
+                            raise PublicMediaError("source image exceeds the download-size limit")
 
                     payload = bytearray()
                     for chunk in response.iter_bytes():
                         payload.extend(chunk)
                         if len(payload) > MAX_DOWNLOAD_BYTES:
-                            raise PublicMediaError("USFWS image exceeds the download-size limit")
+                            raise PublicMediaError("source image exceeds the download-size limit")
                     if not payload:
                         raise _RetryableDownloadError("truncated_response_body")
                     if length is not None and len(payload) != declared_length:
                         raise _RetryableDownloadError("truncated_response_body")
                     return bytes(payload), response_mime
-            raise PublicMediaError("USFWS image redirect handling failed")
+            raise PublicMediaError("source image redirect handling failed")
         except (httpx.TimeoutException, httpx.TransportError, _RetryableDownloadError) as exc:
             last_error = exc
             if attempt + 1 < MAX_ATTEMPTS:
@@ -843,8 +926,13 @@ def _manifest_item(
     attribution_payload = "\x1f".join(
         (row.creator, row.license, row.license_url, row.source_page_url)
     ).encode("utf-8")
+    attribution_id = (
+        f"inaturalist-attribution-{_inaturalist_photo_id(row)}"
+        if row.provider == "inaturalist"
+        else "usfws-attribution-" + hashlib.sha256(attribution_payload).hexdigest()[:24]
+    )
     item: dict[str, object] = {
-        "provider": "usfws",
+        "provider": row.provider,
         "species_code": row.species_code,
         "common_name": row.common_name,
         "scientific_name": row.scientific_name,
@@ -864,9 +952,7 @@ def _manifest_item(
         "sha256": prepared.sha256,
         "object_path": prepared.relative_path,
         "url": prepared.public_url,
-        "attribution_id": (
-            "usfws-attribution-" + hashlib.sha256(attribution_payload).hexdigest()[:24]
-        ),
+        "attribution_id": attribution_id,
         "hero_score": _hero_score(row),
         "source_width": row.source_width,
         "source_height": row.source_height,
@@ -882,7 +968,7 @@ def _manifest_item(
 
 def _manifest_unavailable_item(row: SourceImageRow, reason: str) -> dict[str, object]:
     item: dict[str, object] = {
-        "provider": "usfws",
+        "provider": row.provider,
         "species_code": row.species_code,
         "common_name": row.common_name,
         "scientific_name": row.scientific_name,
@@ -909,10 +995,21 @@ def _manifest_unavailable_item(row: SourceImageRow, reason: str) -> dict[str, ob
 
 
 def _media_id(row: SourceImageRow) -> str:
+    if row.provider == "inaturalist":
+        return f"inaturalist-{_inaturalist_photo_id(row)}"
     semantic_payload = json.dumps(
         row.semantic_key(), ensure_ascii=False, separators=(",", ":")
     ).encode("utf-8")
     return "usfws-" + hashlib.sha256(semantic_payload).hexdigest()[:24]
+
+
+def _inaturalist_photo_id(row: SourceImageRow) -> str:
+    if row.provider != "inaturalist":
+        raise PublicMediaError("iNaturalist photo identity requested for another provider")
+    match = _INATURALIST_PHOTO_PAGE.fullmatch(urlsplit(row.source_page_url).path)
+    if match is None:  # pragma: no cover - SourceImageRow already validates this.
+        raise PublicMediaError("iNaturalist source page lost its exact photo identity")
+    return match.group("photo_id")
 
 
 def _manifest_item_sort_key(item: dict[str, object]) -> tuple[str, int, str]:
@@ -1136,6 +1233,7 @@ def _load_cache(
             column: raw_item.get("source_mime_type" if column == "mime_type" else column)
             for column in SOURCE_COLUMNS
         }
+        source_values["provider"] = raw_item.get("provider")
         row = SourceImageRow.from_values(source_values)
         if row.semantic_key() in cached_semantic_keys:
             raise PublicMediaError("existing media cache repeats one semantic row")
@@ -1205,6 +1303,7 @@ def _load_cache(
             column: raw_item.get("source_mime_type" if column == "mime_type" else column)
             for column in SOURCE_COLUMNS
         }
+        source_values["provider"] = raw_item.get("provider")
         row = SourceImageRow.from_values(source_values)
         reason = _validate_unavailable_reason(raw_item.get("reason"))
         expected_item = _manifest_unavailable_item(row, reason)
@@ -1536,6 +1635,21 @@ def _source_row_sort_key(row: SourceImageRow) -> tuple[str, ...]:
 
 
 def _validated_fws_url(value: object, field: str) -> tuple[str, SplitResult]:
+    return _validated_https_url(
+        value,
+        field,
+        hosts=_FWS_HOSTS,
+        origin_description="an exact HTTPS fws.gov origin",
+    )
+
+
+def _validated_https_url(
+    value: object,
+    field: str,
+    *,
+    hosts: frozenset[str],
+    origin_description: str = "an exact reviewed HTTPS origin",
+) -> tuple[str, SplitResult]:
     raw = _required_text(value, field, 2_000)
     if any(ord(character) < 32 or ord(character) == 127 for character in raw):
         raise PublicMediaError(f"{field} contains control characters")
@@ -1546,13 +1660,13 @@ def _validated_fws_url(value: object, field: str) -> tuple[str, SplitResult]:
         raise PublicMediaError(f"{field} is malformed") from exc
     if (
         parsed.scheme != "https"
-        or parsed.hostname not in _FWS_HOSTS
+        or parsed.hostname not in hosts
         or parsed.username is not None
         or parsed.password is not None
         or port is not None
         or not parsed.path.startswith("/")
     ):
-        raise PublicMediaError(f"{field} must use an exact HTTPS fws.gov origin")
+        raise PublicMediaError(f"{field} must use {origin_description}")
     return raw, parsed
 
 

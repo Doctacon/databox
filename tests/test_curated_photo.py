@@ -170,6 +170,8 @@ def test_non_binomial_makes_no_request() -> None:
     "candidate",
     [
         photo(1, license_code="cc-by-nd"),
+        photo(1, license_code="cc-by-nc"),
+        photo(1, license_code="cc-by-nc-sa"),
         photo(1, attribution="<script></script>"),
         photo(1, host="evil.example"),
         photo(1, license_code=None),

@@ -4,6 +4,7 @@ import {
   PublicCreditsPage,
   safeAttributionHref,
   safeDoiHref,
+  safeItemSourceHref,
 } from "./PublicCredits";
 import type { PublicAttribution, PublicManifest } from "./publicTypes";
 import styles from "./styles.css?raw";
@@ -29,7 +30,7 @@ const manifest: PublicManifest = {
     gbif_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
     coverage: "bounded_sample",
     required_taxon_key: 2476855,
-    media_source: "usfws",
+    media_source: "usfws+inaturalist",
     media_delivery: "immutable_r2",
   },
   license_policy: {
@@ -41,9 +42,9 @@ const manifest: PublicManifest = {
     species: 12,
     observations: 3000,
     places: 500,
-    attribution_items: 1,
-    media_items: 0,
-    species_with_media: 0,
+    attribution_items: 2,
+    media_items: 1,
+    species_with_media: 1,
   },
 };
 
@@ -69,19 +70,37 @@ const attribution: PublicAttribution = {
       license_url: null,
       credit: `U.S. Geological Survey; pinned snapshot SHA-256 ${"b".repeat(64)}`,
     },
+    {
+      provider: "inaturalist",
+      title: "iNaturalist",
+      url: "https://www.inaturalist.org/",
+      license: "Per-item Creative Commons license",
+      license_url: null,
+      credit: "Individual creators are credited on each media item.",
+    },
   ],
-  items: [{
-    attribution_id: "gbif-eod-citation",
-    provider: "gbif",
-    source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
-    creator: "Cornell Lab of Ornithology",
-    license: "CC BY 4.0",
-    license_url: "https://creativecommons.org/licenses/by/4.0/",
-    dataset_title: "EOD – eBird Observation Dataset",
-    publisher: "Cornell Lab of Ornithology",
-    dataset_citation: "Cornell Lab of Ornithology. EOD – eBird Observation Dataset.",
-    dataset_doi: "10.15468/aomfnb",
-  }],
+  items: [
+    {
+      attribution_id: "gbif-eod-citation",
+      provider: "gbif",
+      source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
+      creator: "Cornell Lab of Ornithology",
+      license: "CC BY 4.0",
+      license_url: "https://creativecommons.org/licenses/by/4.0/",
+      dataset_title: "EOD – eBird Observation Dataset",
+      publisher: "Cornell Lab of Ornithology",
+      dataset_citation: "Cornell Lab of Ornithology. EOD – eBird Observation Dataset.",
+      dataset_doi: "10.15468/aomfnb",
+    },
+    {
+      attribution_id: "inaturalist-attribution-5938231789",
+      provider: "inaturalist",
+      source_url: "https://www.inaturalist.org/photos/5938231789",
+      creator: "Pat Photographer",
+      license: "CC BY-SA 4.0",
+      license_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+    },
+  ],
 };
 
 afterEach(cleanup);
@@ -101,6 +120,7 @@ describe("public credits", () => {
 
     expect(await screen.findByRole("heading", { name: "Credits and data sources", level: 1 })).toBeVisible();
     expect(screen.getByText(/licensed historical GBIF occurrences/)).toBeVisible();
+    expect(screen.getByText(/U\.S\. Fish and Wildlife Service and iNaturalist creators/)).toBeVisible();
     const eod = screen.getByRole("heading", { name: "EOD – eBird Observation Dataset", level: 2 }).closest("article");
     expect(eod).not.toBeNull();
     expect(within(eod!).getByText("gbif_ebird_eod")).toBeVisible();
@@ -124,6 +144,14 @@ describe("public credits", () => {
       "href",
       "https://doi.org/10.15468/aomfnb",
     );
+    const inaturalist = screen.getByRole("heading", { name: "iNaturalist", level: 2 }).closest("article");
+    expect(inaturalist).not.toBeNull();
+    expect(within(inaturalist!).getByText("Individual creators are credited on each media item.")).toBeVisible();
+    expect(screen.getByText("Creator: Pat Photographer")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Open cited source on inaturalist.org" })).toHaveAttribute(
+      "href",
+      "https://www.inaturalist.org/photos/5938231789",
+    );
     expect(loadAttribution).toHaveBeenCalledWith("/data/attribution.json", expect.any(AbortSignal));
   });
 
@@ -138,6 +166,16 @@ describe("public credits", () => {
     ["https://www.gbif.org/dataset/1?view=table", "https://www.gbif.org/dataset/1?view=table"],
   ])("validates an external attribution URL before linking: %s", (value, expected) => {
     expect(safeAttributionHref(value)).toBe(expected);
+  });
+
+  it.each([
+    ["inaturalist", "https://www.inaturalist.org/photos/5938231789", "https://www.inaturalist.org/photos/5938231789"],
+    ["inaturalist", "https://www.inaturalist.org/photos/5938231789?size=large", null],
+    ["inaturalist", "https://inaturalist.org/photos/5938231789", null],
+    ["inaturalist", "https://www.inaturalist.org/photos/0", null],
+    ["gbif", "https://www.gbif.org/dataset/example", "https://www.gbif.org/dataset/example"],
+  ])("enforces an exact per-photo source URL for %s: %s", (provider, value, expected) => {
+    expect(safeItemSourceHref(provider, value)).toBe(expected);
   });
 
   it("keeps unsafe persisted URLs inert while preserving their attribution text", async () => {

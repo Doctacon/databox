@@ -47,6 +47,23 @@ function usfwsPhoto(index: number): CatalogPhoto {
   };
 }
 
+function publishedInaturalistPhoto(id: number): CatalogPhoto {
+  const photo = usfwsPhoto(id);
+  return {
+    ...photo,
+    source_record_id: `inaturalist-${id}`,
+    source_url: `https://www.inaturalist.org/photos/${id}`,
+    creator: `iNaturalist Photographer ${id}`,
+    publisher: null,
+    license_text: "CC BY 4.0",
+    license_url: "https://creativecommons.org/licenses/by/4.0/",
+    selection_reason: "Validated iNaturalist public-release photo",
+    provider: "inaturalist",
+    license_code: "CC BY 4.0",
+    attribution_id: `inaturalist-attribution-${id}`,
+  };
+}
+
 function bird(index: number): BirdCatalogSummary {
   return {
     species_code: `bird${index.toString().padStart(3, "0")}`,
@@ -368,6 +385,18 @@ describe("Arizona bird catalog and modeled profiles", () => {
       expect(image).toHaveAttribute("loading", "lazy");
       expect(image).toHaveAttribute("decoding", "async");
     }
+  });
+
+  it("labels a mixed public-release gallery without implying every photo came from USFWS", () => {
+    const photos = [usfwsPhoto(1), publishedInaturalistPhoto(42)];
+    render(<SpeciesPhotoGallery photo={photos[0]} photos={photos} label="Rufous Hummingbird" />);
+
+    expect(screen.getByText("2 validated USFWS and iNaturalist photos")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "View Rufous photo 42" }));
+    expect(screen.getByRole("link", { name: "iNaturalist source" })).toHaveAttribute(
+      "href",
+      "https://www.inaturalist.org/photos/42",
+    );
   });
 
   it("keeps credits visible when a USFWS hero fails and preserves the no-photo state", () => {

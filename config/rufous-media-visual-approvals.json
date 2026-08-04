@@ -52,11 +52,33 @@
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Aeronautes saxatalis",
+      "sha256": "c9bcc56f3f8a90624be6b84f628b0405e63f1ff937e0aa0ba83bca4086939265",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/481377938"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Agelaius phoeniceus",
       "sha256": "19c11b813fd6a38c414f25a23d1a3c17e9a660b7d3b48246afd11f71952b402f",
       "source_page_urls": [
         "https://www.fws.gov/media/turnbull-nwr-red-winged-blackbird-2"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Aix galericulata",
+      "sha256": "4496f30695f486e6c9325a2d4c0e197df30ea732f3d4faa2a56b83df514ae396",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/171955255"
       ]
     },
     {
@@ -145,6 +167,17 @@
       "sha256": "a48e2ef7ea2bee2380c4e021d428f8f6689ce740c7a06b3b1d8feb647ec5033c",
       "source_page_urls": [
         "https://www.fws.gov/media/american-pipit-0"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Aphelocoma woodhouseii",
+      "sha256": "14ec5dad6f37d616845447af2d1d2b977d951935bf3460f85c0080a608a47396",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/12836522"
       ]
     },
     {
@@ -559,6 +592,17 @@
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Colaptes chrysoides",
+      "sha256": "4b9f9223fc6d0bd44a6d75201180e2a404c6b119a931fd4e9157705d223845b8",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/13589854"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Columba livia",
       "sha256": "a69e79948092d031dab0e5f201adbe11d7ae345588adc57ef6738041da704e91",
@@ -581,6 +625,17 @@
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Columbina talpacoti",
+      "sha256": "a8002ad1ae546bb01d9025fa7cb17d73aa844da0c92017bed65e67e372d72cb4",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/4973792"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Corvus brachyrhynchos",
       "sha256": "a926dbd38b85eea7152e70b9bfa6b62aedff6bb1f0ed73e0dd7eda22b4824727",
@@ -597,6 +652,17 @@
       "sha256": "7384f42687f9b86202118c36b23bead320f18e69a0eabf62a0b51e79ffd0d52a",
       "source_page_urls": [
         "https://www.fws.gov/media/leucistic-raven"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Corvus cryptoleucus",
+      "sha256": "a43795271e64240ffa75080855bd6a1f315a67f2b55a3efd18cbc3bf9ed40d9e",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/363280"
       ]
     },
     {
@@ -658,11 +724,33 @@
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Empidonax wrightii",
+      "sha256": "72afa78fae4d8f9f267e7c2df207ff2e712d5fd0912006f8e4fd3f29442dde8e",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/22245252"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Eremophila alpestris",
       "sha256": "d412e0209fc7a7e6405adc6e4a77818c180c7daf617fcc2b9c38a35bcd6bca31",
       "source_page_urls": [
         "https://www.fws.gov/media/horned-lark-sagebrush-seedskadee-refuge"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Eugenes fulgens",
+      "sha256": "dd8ac264c17e5a639e122422e71c359ae05292927431d0c063203db5f4d29218",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/207906115"
       ]
     },
     {
@@ -957,6 +1045,17 @@
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Leuconotopicus arizonae",
+      "sha256": "6a17de55b1278d91859afe8446df34f1ca310faf675b3cd8f095998d581427ff",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/174729721"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Leuconotopicus villosus",
       "sha256": "b26ce2161d3fd73255be8924001401555f2e4e6055c24783ea1a3b11a1c02245",
@@ -1013,11 +1112,33 @@
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Mareca strepera",
+      "sha256": "ae9b4ac2a2dd8afb42d3f15b8b1782a57c1665a1b15d57cf2eb78ab5332bd072",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/103688575"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Megaceryle alcyon",
       "sha256": "7c84f3326665ce93b273d430fb298944c74ddc931a47f99c14f0dbe04e3337d3",
       "source_page_urls": [
         "https://www.fws.gov/media/kingfisher-great-meadowsjpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Megascops kennicottii",
+      "sha256": "88ee9df40e74d72faf9c3a0968355d29084144c3aa46914369d3278f5fc140fe",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/21657750"
       ]
     },
     {
@@ -1128,6 +1249,17 @@
       "sha256": "ef838c4b1057a85af4252a2888d218ef2fe7fe8daa31dbe4dd2bef0c5d2aaaac",
       "source_page_urls": [
         "https://www.fws.gov/media/townsends-solitaire-0"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Myioborus pictus",
+      "sha256": "675126634fc9aab08de55b16d2a0bb4743235bd073cfadf7da5dda125dd4bbe0",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/94542544"
       ]
     },
     {
@@ -1337,6 +1469,17 @@
       "sha256": "a8e4deb63ee416e3a21305c38db3627ae324b571a1e1ac37859243bc5e698126",
       "source_page_urls": [
         "https://www.fws.gov/media/pied-billed-grebe-11"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Poecile sclateri",
+      "sha256": "d269c95304c7a157eca1e89c153f20ace1db9bbf189b155082920ba64b66123f",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/4022816"
       ]
     },
     {
@@ -1586,6 +1729,17 @@
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Spatula cyanoptera",
+      "sha256": "fcd0488f0d739241ba241cd70b2cfa0a68c0256d0b633bd21ad206d6ed9e4900",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/76239204"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Sphyrapicus nuchalis",
       "sha256": "d187afc87ce7a3318aa3a009ef262b993d0f9eed6face9b2013463dd78bf216f",
@@ -1657,6 +1811,28 @@
       "sha256": "cf937b5c320f1575716ac3cc2b5d16b6c708750ef9a42a0bdaa4477c10d2c0fe",
       "source_page_urls": [
         "https://www.fws.gov/media/chipping-sparrow-6"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Streptopelia decaocto",
+      "sha256": "06570a640023844b875624b241d81d72ae8c7c36119e868ea470654af0a83345",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/168148070"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-03",
+      "reviewed_by": "Connor Lough",
+      "scientific_name": "Sturnella lilianae",
+      "sha256": "7b3e9c591498594b6b4d6be292b66515724a49c7c76f0193ec5dbcb30c798546",
+      "source_page_urls": [
+        "https://www.inaturalist.org/photos/10000950"
       ]
     },
     {

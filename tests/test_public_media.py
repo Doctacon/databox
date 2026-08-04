@@ -46,6 +46,27 @@ CREATE TABLE rufous_public.usfws_commercial_image (
 )
 """
 
+_CREATE_INATURALIST_TABLE = """
+CREATE TABLE rufous_public.inaturalist_commercial_image (
+    species_code VARCHAR,
+    common_name VARCHAR,
+    scientific_name VARCHAR,
+    source_page_url VARCHAR,
+    source_image_url VARCHAR,
+    creator VARCHAR,
+    license VARCHAR,
+    title VARCHAR,
+    caption VARCHAR,
+    alt_text VARCHAR,
+    source_published_at TIMESTAMPTZ,
+    source_width BIGINT,
+    source_height BIGINT,
+    mime_type VARCHAR,
+    discovery_method VARCHAR,
+    loaded_at TIMESTAMPTZ
+)
+"""
+
 
 def _row(**overrides: object) -> dict[str, object]:
     row: dict[str, object] = {
@@ -70,6 +91,31 @@ def _row(**overrides: object) -> dict[str, object]:
     return row
 
 
+def _inaturalist_row(**overrides: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "species_code": "amewig",
+        "common_name": "American Wigeon",
+        "scientific_name": "Mareca americana",
+        "source_page_url": "https://www.inaturalist.org/photos/2498155",
+        "source_image_url": (
+            "https://inaturalist-open-data.s3.amazonaws.com/photos/2498155/original.jpg"
+        ),
+        "creator": "Jane Naturalist",
+        "license": "CC BY 4.0",
+        "title": "American Wigeon on open water",
+        "caption": "A live American Wigeon resting on open water.",
+        "alt_text": "A live American Wigeon resting on open water",
+        "source_published_at": datetime(2024, 7, 1, tzinfo=UTC),
+        "source_width": 900,
+        "source_height": 600,
+        "mime_type": "image/jpeg",
+        "discovery_method": "inaturalist_exact_taxon",
+        "loaded_at": datetime(2026, 8, 3, 12, 31, tzinfo=UTC),
+    }
+    row.update(overrides)
+    return row
+
+
 def _database(tmp_path: Path, rows: list[dict[str, object]]) -> Path:
     path = tmp_path / "media.duckdb"
     with duckdb.connect(str(path)) as connection:
@@ -78,12 +124,36 @@ def _database(tmp_path: Path, rows: list[dict[str, object]]) -> Path:
     return path
 
 
-def _insert_rows(connection: duckdb.DuckDBPyConnection, rows: list[dict[str, object]]) -> None:
+def _mixed_database(
+    tmp_path: Path,
+    *,
+    usfws_rows: list[dict[str, object]],
+    inaturalist_rows: list[dict[str, object]],
+) -> Path:
+    path = tmp_path / "mixed-media.duckdb"
+    with duckdb.connect(str(path)) as connection:
+        connection.execute(_CREATE_TABLE)
+        connection.execute(_CREATE_INATURALIST_TABLE)
+        _insert_rows(connection, usfws_rows)
+        _insert_rows(
+            connection,
+            inaturalist_rows,
+            table="rufous_public.inaturalist_commercial_image",
+        )
+    return path
+
+
+def _insert_rows(
+    connection: duckdb.DuckDBPyConnection,
+    rows: list[dict[str, object]],
+    *,
+    table: str = "rufous_public.usfws_commercial_image",
+) -> None:
     placeholders = ", ".join("?" for _ in public_media.SOURCE_COLUMNS)
     columns = ", ".join(public_media.SOURCE_COLUMNS)
     for row in rows:
         connection.execute(
-            f"INSERT INTO rufous_public.usfws_commercial_image ({columns}) VALUES ({placeholders})",
+            f"INSERT INTO {table} ({columns}) VALUES ({placeholders})",
             [row[column] for column in public_media.SOURCE_COLUMNS],
         )
 
@@ -197,6 +267,53 @@ def test_license_allowlist_fails_closed(raw: object) -> None:
         normalize_license(raw)
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected", "url"),
+    [
+        (
+            "CC0 1.0",
+            "CC0 1.0",
+            "https://creativecommons.org/publicdomain/zero/1.0/",
+        ),
+        (
+            "CC BY 4.0",
+            "CC BY 4.0",
+            "https://creativecommons.org/licenses/by/4.0/",
+        ),
+        (
+            "https://creativecommons.org/licenses/by-sa/4.0/",
+            "CC BY-SA 4.0",
+            "https://creativecommons.org/licenses/by-sa/4.0/",
+        ),
+    ],
+)
+def test_inaturalist_license_allowlist_is_strictly_commercial_and_current(
+    raw: str,
+    expected: str,
+    url: str,
+) -> None:
+    assert normalize_license(raw, provider="inaturalist") == (expected, url)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        None,
+        "",
+        "Public Domain",
+        "CC BY 3.0",
+        "CC BY-SA 2.5",
+        "CC BY-NC 4.0",
+        "CC BY-ND 4.0",
+        "CC BY-NC-SA 4.0",
+        "All Rights Reserved",
+    ],
+)
+def test_inaturalist_license_allowlist_fails_closed(raw: object) -> None:
+    with pytest.raises(PublicMediaError):
+        normalize_license(raw, provider="inaturalist")
+
+
 def test_source_urls_require_exact_safe_fws_origins() -> None:
     assert (
         validate_source_page_url("https://www.fws.gov/media/rufous-hummingbird-5")
@@ -238,6 +355,127 @@ def test_source_urls_require_exact_safe_fws_origins() -> None:
     for value in unsafe_images:
         with pytest.raises(PublicMediaError):
             validate_source_image_url(value)
+
+
+def test_inaturalist_source_urls_require_one_exact_matching_photo() -> None:
+    page_url = "https://www.inaturalist.org/photos/2498155"
+    image_url = "https://inaturalist-open-data.s3.amazonaws.com/photos/2498155/original.jpg"
+    assert validate_source_page_url(page_url, provider="inaturalist") == page_url
+    assert validate_source_image_url(image_url, provider="inaturalist") == image_url
+
+    row = public_media.SourceImageRow.from_values({**_inaturalist_row(), "provider": "inaturalist"})
+    assert row.provider == "inaturalist"
+    assert row.source_page_url == page_url
+    assert row.source_image_url == image_url
+
+    unsafe_pages = [
+        "http://www.inaturalist.org/photos/2498155",
+        "https://inaturalist.org/photos/2498155",
+        "https://www.inaturalist.org/photos/0",
+        "https://www.inaturalist.org/photos/2498155/",
+        "https://www.inaturalist.org/photos/2498155?download=1",
+        "https://www.inaturalist.org/observations/2498155",
+        "https://www.inaturalist.org.evil.example/photos/2498155",
+    ]
+    unsafe_images = [
+        "https://inaturalist-open-data.s3.amazonaws.com/photos/2498155/large.jpg",
+        "https://inaturalist-open-data.s3.amazonaws.com/photos/2498155/original.svg",
+        "https://inaturalist-open-data.s3.amazonaws.com/photos/0/original.jpg",
+        "https://inaturalist-open-data.s3.amazonaws.com/photos/2498155/original.jpg?x=1",
+        "https://evil.example/photos/2498155/original.jpg",
+    ]
+    for value in unsafe_pages:
+        with pytest.raises(PublicMediaError):
+            validate_source_page_url(value, provider="inaturalist")
+    for value in unsafe_images:
+        with pytest.raises(PublicMediaError):
+            validate_source_image_url(value, provider="inaturalist")
+
+    with pytest.raises(PublicMediaError, match="different photos"):
+        public_media.SourceImageRow.from_values(
+            {
+                **_inaturalist_row(
+                    source_image_url=(
+                        "https://inaturalist-open-data.s3.amazonaws.com/photos/2498156/original.jpg"
+                    )
+                ),
+                "provider": "inaturalist",
+            }
+        )
+
+
+def test_unknown_media_provider_fails_closed() -> None:
+    with pytest.raises(PublicMediaError, match="provider is not reviewed"):
+        public_media.SourceImageRow.from_values({**_inaturalist_row(), "provider": "wikimedia"})
+    with pytest.raises(PublicMediaError, match="provider is not reviewed"):
+        normalize_license("CC BY 4.0", provider="wikimedia")
+
+
+def test_mixed_provider_preparation_preserves_provenance_and_content_addressing(
+    tmp_path: Path,
+) -> None:
+    database = _mixed_database(
+        tmp_path,
+        usfws_rows=[_row()],
+        inaturalist_rows=[_inaturalist_row()],
+    )
+    usfws_source = _png(color=(179, 83, 41))
+    inaturalist_source = _jpeg()
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if request.url.host == "www.fws.gov":
+            return httpx.Response(
+                200,
+                headers={"content-type": "image/png"},
+                content=usfws_source,
+            )
+        if request.url.host == "inaturalist-open-data.s3.amazonaws.com":
+            return httpx.Response(
+                200,
+                headers={"content-type": "image/jpeg"},
+                content=inaturalist_source,
+            )
+        raise AssertionError(f"unexpected media origin: {request.url}")
+
+    output = tmp_path / "prepared"
+    with _client(handler) as client:
+        result = prepare_public_media(database, output, client=client)
+
+    assert result.items == 2
+    assert result.species == 2
+    assert len(calls) == 2
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    by_provider = {item["provider"]: item for item in manifest["items"]}
+    assert set(by_provider) == {"inaturalist", "usfws"}
+
+    inaturalist = by_provider["inaturalist"]
+    assert inaturalist["media_id"] == "inaturalist-2498155"
+    assert inaturalist["attribution_id"] == "inaturalist-attribution-2498155"
+    assert inaturalist["source_page_url"] == "https://www.inaturalist.org/photos/2498155"
+    assert inaturalist["source_image_url"] == (
+        "https://inaturalist-open-data.s3.amazonaws.com/photos/2498155/original.jpg"
+    )
+    assert inaturalist["license"] == "CC BY 4.0"
+    assert inaturalist["license_url"] == "https://creativecommons.org/licenses/by/4.0/"
+
+    usfws = by_provider["usfws"]
+    # Adding another provider must not churn the long-lived USFWS identity
+    # contract or invalidate existing immutable releases.
+    assert usfws["media_id"] == "usfws-6571ccf424cccd1168ebe3d0"
+    assert usfws["attribution_id"].startswith("usfws-attribution-")
+    assert usfws["license"] == "Public Domain"
+    assert usfws["license_url"] == "https://www.fws.gov/notices"
+
+    for item in by_provider.values():
+        expected_path = f"objects/{item['sha256'][:2]}/{item['sha256']}.webp"
+        assert item["object_path"] == expected_path
+        assert item["url"] == f"{PUBLIC_BASE_URL}/{expected_path}"
+        payload = (output / expected_path).read_bytes()
+        assert hashlib.sha256(payload).hexdigest() == item["sha256"]
+        with Image.open(BytesIO(payload)) as image:
+            assert image.format == "WEBP"
 
 
 @pytest.mark.parametrize(

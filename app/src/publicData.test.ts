@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  getPublicAttribution,
   getPublicManifest,
+  getPublicSpecies,
   normalizedPrefix,
   parseArizonaCoordinates,
   searchPublicPlaces,
@@ -23,6 +25,70 @@ const manifest: PublicManifest = {
   license_policy: { version: 1, allowed: {}, rejected_counts: {} },
   counts: { species: 0, observations: 0, places: 2, attribution_items: 0, media_items: 0, species_with_media: 0 },
 };
+
+const usfwsHero = {
+  kind: "photo" as const,
+  provider: "usfws" as const,
+  media_id: "usfws-rufous-fixture",
+  url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/ab/ab${"c".repeat(62)}.webp`,
+  source_url: "https://www.fws.gov/media/rufous-hummingbird",
+  creator: "USFWS Photographer",
+  license: "Public Domain",
+  license_url: "https://www.fws.gov/notices",
+  attribution_id: "usfws-attribution-fixture",
+  scientific_name: "Selasphorus rufus",
+  title: "Rufous Hummingbird",
+  caption: null,
+  alt_text: "A Rufous Hummingbird",
+  width: 650,
+  height: 488,
+  mime_type: "image/webp" as const,
+  sha256: `ab${"c".repeat(62)}`,
+};
+const inaturalistHero = {
+  ...usfwsHero,
+  provider: "inaturalist" as const,
+  media_id: "inaturalist-5938231789",
+  source_url: "https://www.inaturalist.org/photos/5938231789",
+  creator: "Pat Photographer",
+  license: "CC BY 4.0",
+  license_url: "https://creativecommons.org/licenses/by/4.0/",
+  attribution_id: "inaturalist-attribution-5938231789",
+};
+
+function productionManifest(
+  mediaSource: "none" | "usfws" | "inaturalist" | "usfws+inaturalist",
+  provider: "usfws" | "inaturalist" = "usfws",
+): PublicManifest {
+  const withMedia = mediaSource !== "none";
+  return {
+    ...structuredClone(manifest),
+    release_mode: "production",
+    source_policy: {
+      direct_ebird: "excluded",
+      occurrence_source: "gbif",
+      gbif_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e",
+      coverage: "bounded_sample",
+      required_taxon_key: 2476855,
+      media_source: mediaSource,
+      media_delivery: withMedia ? "immutable_r2" : "none",
+    },
+    species: withMedia ? [{
+      species_code: "gbif-2476855",
+      common_name: "Rufous Hummingbird",
+      scientific_name: "Selasphorus rufus",
+      profile_path: "/data/species/gbif-2476855.json",
+      hero_photo: provider === "usfws" ? usfwsHero : inaturalistHero,
+      photo_count: 1,
+    }] : [],
+    counts: {
+      ...manifest.counts,
+      species: withMedia ? 1 : 0,
+      media_items: withMedia ? 1 : 0,
+      species_with_media: withMedia ? 1 : 0,
+    },
+  };
+}
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -73,5 +139,65 @@ describe("public static data", () => {
   ])("rejects %s", async (_label, invalidManifest) => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(invalidManifest), { status: 200 }));
     await expect(getPublicManifest()).rejects.toThrow("This Rufous public data release is not supported.");
+  });
+
+  it.each([
+    ["USFWS", productionManifest("usfws")],
+    ["iNaturalist", productionManifest("inaturalist", "inaturalist")],
+    ["mixed USFWS and iNaturalist", productionManifest("usfws+inaturalist", "inaturalist")],
+  ])("accepts the reviewed %s immutable media policy", async (_label, validManifest) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(validManifest), { status: 200 }));
+    await expect(getPublicManifest()).resolves.toMatchObject({
+      source_policy: validManifest.source_policy,
+    });
+  });
+
+  it("does not allow a production release to claim no media", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(productionManifest("none")), { status: 200 }));
+    await expect(getPublicManifest()).rejects.toThrow("This Rufous public data release is not supported.");
+  });
+
+  it("rejects profile media from a provider outside the declared release policy", async () => {
+    const production = productionManifest("usfws");
+    const profile = {
+      schema_version: 1,
+      species_code: "gbif-2476855",
+      common_name: "Rufous Hummingbird",
+      scientific_name: "Selasphorus rufus",
+      taxonomic_category: "species",
+      family: { common_name: "Hummingbirds", scientific_name: "Trochilidae" },
+      order_name: "Caprimulgiformes",
+      traits: {},
+      evidence: { licensed_occurrence_count: 1, latest_licensed_occurrence_at: "2026-08-01" },
+      media: [inaturalistHero],
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => Promise.resolve(new Response(JSON.stringify(
+      String(input).endsWith("manifest.json") ? production : profile,
+    ), { status: 200 })));
+    const loaded = await getPublicManifest();
+    await expect(getPublicSpecies(loaded.species[0])).rejects.toThrow("The bird profile did not match the public catalog.");
+  });
+
+  it("requires release-level attribution for every declared photo provider", async () => {
+    const production = productionManifest("usfws+inaturalist", "inaturalist");
+    const incompleteAttribution = {
+      schema_version: 1,
+      generated_at: "2026-08-03T12:00:00Z",
+      sources: [{
+        provider: "usfws",
+        title: "U.S. Fish and Wildlife Service Media Library",
+        url: "https://www.fws.gov/search/images",
+        license: "Per-item Public Domain or Creative Commons license",
+        license_url: "https://www.fws.gov/notices",
+        credit: "Individual creators are credited beside each image.",
+      }],
+      items: [],
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => Promise.resolve(new Response(JSON.stringify(
+      String(input).endsWith("manifest.json") ? production : incompleteAttribution,
+    ), { status: 200 })));
+    await getPublicManifest();
+    await expect(getPublicAttribution("/data/attribution.json"))
+      .rejects.toThrow("The attribution shard did not match its manifest entry.");
   });
 });

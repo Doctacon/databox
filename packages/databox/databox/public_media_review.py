@@ -59,6 +59,7 @@ def build_local_media_review(
     *,
     local_review_only: bool,
     recommendations_path: Path | None = None,
+    only_missing_species: bool = False,
 ) -> dict[str, object]:
     """Build a marked review gallery without granting a production selection."""
     if not local_review_only:
@@ -89,6 +90,23 @@ def build_local_media_review(
         raise MediaReviewError("local review candidate list is malformed")
     if not isinstance(committed_species_exclusions, list):
         raise MediaReviewError("local review species-exclusion list is malformed")
+    if only_missing_species:
+        already_selected = {
+            candidate.get("scientific_name")
+            for candidate in raw_candidates
+            if isinstance(candidate, dict) and candidate.get("decision") == "selected"
+        }
+        filtered_candidates: list[object] = [
+            candidate
+            for candidate in raw_candidates
+            if isinstance(candidate, dict)
+            and candidate.get("scientific_name") not in already_selected
+        ]
+        raw_candidates = filtered_candidates
+        # Existing exclusions attest only to the exact candidates from an
+        # earlier provider snapshot. They must not count as a decision for a
+        # newly discovered fallback candidate.
+        committed_species_exclusions = []
     objects_by_hash = {item.sha256: item for item in scanned_objects}
     attribution_by_candidate: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for species_items in public_media.values():
@@ -504,6 +522,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--recommendations", type=Path)
     parser.add_argument("--local-review-only", action="store_true")
+    parser.add_argument("--only-missing-species", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -516,6 +535,7 @@ def main(argv: list[str] | None = None) -> int:
             args.output,
             local_review_only=args.local_review_only,
             recommendations_path=args.recommendations,
+            only_missing_species=args.only_missing_species,
         )
     except (MediaReviewError, OSError) as exc:
         print(f"Rufous local media review build failed: {exc}")

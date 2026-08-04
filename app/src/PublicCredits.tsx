@@ -45,8 +45,27 @@ export function safeDoiHref(value: unknown): string | null {
   return `https://doi.org/${doi}`;
 }
 
+export function safeItemSourceHref(provider: unknown, value: unknown): string | null {
+  if (provider === "inaturalist"
+    && (typeof value !== "string" || !/^https:\/\/www\.inaturalist\.org\/photos\/[1-9][0-9]*$/.test(value))) {
+    return null;
+  }
+  return safeAttributionHref(value);
+}
+
 function sourceHost(href: string): string {
   return new URL(href).hostname.replace(/^www\./, "");
+}
+
+function mediaSourceNotice(manifest: PublicManifest): string {
+  const source = manifest.source_policy.media_source;
+  if (source === "none") return "No bird photos are included in this release.";
+  const provider = source === "usfws"
+    ? "the U.S. Fish and Wildlife Service"
+    : source === "inaturalist"
+      ? "iNaturalist creators"
+      : "the U.S. Fish and Wildlife Service and iNaturalist creators";
+  return `Approved bird photos come from ${provider}. Rufous serves immutable display copies and retains each creator, source page, and license.`;
 }
 
 function SourceCredit({ source }: { source: PublicAttributionSource }) {
@@ -119,6 +138,7 @@ export function PublicCreditsPage({
         <p>{manifest.release_mode === "production"
           ? "This production snapshot uses licensed historical GBIF occurrences. It does not use the direct eBird API or eBird hotspots."
           : "This preview uses fictional bird occurrences. It is not production observation data."}</p>
+        <p>{mediaSourceNotice(manifest)}</p>
         <p className="source-status">Generated {new Date(manifest.generated_at).toLocaleString()} · Release {manifest.data_version} · {manifest.counts.observations.toLocaleString()} occurrence records</p>
       </section>
       <section className="credits-grid" aria-label="Release-level data sources">
@@ -127,7 +147,7 @@ export function PublicCreditsPage({
       {attribution.items.length > 0 && <section className="panel credit-items" aria-labelledby="credit-items-heading">
         <h2 id="credit-items-heading">Dataset, occurrence, and media citations</h2>
         <ul>{attribution.items.map((item) => {
-          const sourceHref = safeAttributionHref(item.source_url);
+          const sourceHref = safeItemSourceHref(item.provider, item.source_url);
           const licenseHref = safeAttributionHref(item.license_url);
           const doiHref = safeDoiHref(item.dataset_doi);
           return <li key={item.attribution_id}>
