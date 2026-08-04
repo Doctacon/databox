@@ -138,6 +138,21 @@ function usfwsPhoto(): CatalogPhoto {
   };
 }
 
+function wikimediaPhoto(): CatalogPhoto {
+  return {
+    ...usfwsPhoto(),
+    source_record_id: `wikimedia-${"1".repeat(24)}`,
+    source_url: "https://commons.wikimedia.org/wiki/File:Arizona_bird.jpg",
+    creator: "Commons Photographer",
+    publisher: null,
+    provider: "wikimedia",
+    license_text: "CC BY 4.0",
+    license_code: "CC BY 4.0",
+    license_url: "https://creativecommons.org/licenses/by/4.0/",
+    selection_reason: "Validated Wikimedia Commons public-release photo",
+  };
+}
+
 function tripEvidence(
   evidenceId: string,
   source: "ebird" | "gbif",
@@ -374,6 +389,16 @@ describe("Rufous Field Map", () => {
     );
     expect(screen.getByRole("link", { name: "Public Domain license" })).toHaveAttribute(
       "href", "https://www.fws.gov/notices",
+    );
+  });
+
+  it("labels published Wikimedia Commons encounter thumbnails and source links", () => {
+    const photo = wikimediaPhoto();
+    render(<><EncounterThumbnail photo={photo} name="Alpha 2" /><EncounterPhotoLinks photo={photo} /></>);
+    expect(screen.getByText("Photo: Commons Photographer · CC BY 4.0 · Wikimedia Commons")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Wikimedia Commons photo source" })).toHaveAttribute(
+      "href",
+      "https://commons.wikimedia.org/wiki/File:Arizona_bird.jpg",
     );
   });
 

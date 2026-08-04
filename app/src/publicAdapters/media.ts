@@ -1,28 +1,14 @@
 import type { CatalogCall, CatalogPhoto, RecommendationCall, RecommendationPhoto } from "../types";
+import {
+  inaturalistPhotoId,
+  isExactPublicMediaSourceUrl,
+  publicMediaLicenseUrl,
+} from "../publicMediaContracts";
+import type { PublicMediaProvider } from "../publicTypes";
 
 const PUBLIC_MEDIA_URL = /^https:\/\/rufous-data\.loughondata\.com\/rufous-media\/v1\/objects\/([0-9a-f]{2})\/([0-9a-f]{64})\.webp$/;
-const USFWS_SOURCE_URL = /^https:\/\/www\.fws\.gov\/media\/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$/;
-const INATURALIST_SOURCE_URL = /^https:\/\/www\.inaturalist\.org\/photos\/([1-9][0-9]*)$/;
-const PUBLIC_DOMAIN_URL = "https://www.fws.gov/notices";
-const USFWS_PHOTO_LICENSES = new Map([
-  ["Public Domain", PUBLIC_DOMAIN_URL],
-  ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
-  ["CC BY 1.0", "https://creativecommons.org/licenses/by/1.0/"],
-  ["CC BY 2.0", "https://creativecommons.org/licenses/by/2.0/"],
-  ["CC BY 2.5", "https://creativecommons.org/licenses/by/2.5/"],
-  ["CC BY 3.0", "https://creativecommons.org/licenses/by/3.0/"],
-  ["CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"],
-  ["CC BY-SA 1.0", "https://creativecommons.org/licenses/by-sa/1.0/"],
-  ["CC BY-SA 2.0", "https://creativecommons.org/licenses/by-sa/2.0/"],
-  ["CC BY-SA 2.5", "https://creativecommons.org/licenses/by-sa/2.5/"],
-  ["CC BY-SA 3.0", "https://creativecommons.org/licenses/by-sa/3.0/"],
-  ["CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"],
-]);
-const INATURALIST_PHOTO_LICENSES = new Map([
-  ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
-  ["CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"],
-  ["CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"],
-]);
+const WIKIMEDIA_MEDIA_ID = /^wikimedia-[0-9a-f]{24}$/;
+const WIKIMEDIA_ATTRIBUTION_ID = /^wikimedia-attribution-[0-9a-f]{24}$/;
 function plainText(value: unknown, maximum: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maximum
     && value.trim() === value && !/[<>\u0000-\u001f\u007f]/.test(value);
@@ -30,6 +16,26 @@ function plainText(value: unknown, maximum: number): value is string {
 
 function nullablePlainText(value: unknown, maximum: number): value is string | null {
   return value === null || plainText(value, maximum);
+}
+
+function validProviderContract(
+  media: Record<string, unknown>,
+  provider: PublicMediaProvider | null,
+): boolean {
+  if (provider === null || typeof media.license !== "string"
+    || publicMediaLicenseUrl(provider, media.license) !== media.license_url) return false;
+  if (provider === "usfws") return isExactPublicMediaSourceUrl(provider, media.source_url);
+  if (provider === "inaturalist") {
+    const photoId = inaturalistPhotoId(media.source_url);
+    return photoId !== null
+      && media.media_id === `inaturalist-${photoId}`
+      && media.attribution_id === `inaturalist-attribution-${photoId}`;
+  }
+  return isExactPublicMediaSourceUrl(provider, media.source_url)
+    && typeof media.media_id === "string"
+    && WIKIMEDIA_MEDIA_ID.test(media.media_id)
+    && typeof media.attribution_id === "string"
+    && WIKIMEDIA_ATTRIBUTION_ID.test(media.attribution_id);
 }
 
 /** Fail-closed conversion from the published media contract into existing catalog UI data. */
@@ -41,24 +47,12 @@ export function publicCatalogPhoto(
   if (!value || typeof value !== "object" || Array.isArray(value) || scientificName === null) return null;
   const media = value as Record<string, unknown>;
   const imageMatch = typeof media.url === "string" ? PUBLIC_MEDIA_URL.exec(media.url) : null;
-  const provider = media.provider === "usfws" || media.provider === "inaturalist"
+  const provider: PublicMediaProvider | null = media.provider === "usfws"
+    || media.provider === "inaturalist"
+    || media.provider === "wikimedia"
     ? media.provider
     : null;
-  const inaturalistSource = typeof media.source_url === "string"
-    ? INATURALIST_SOURCE_URL.exec(media.source_url)
-    : null;
-  const inaturalistPhotoId = inaturalistSource?.[1] ?? null;
-  const providerContractValid = provider === "usfws"
-    ? typeof media.source_url === "string"
-      && USFWS_SOURCE_URL.test(media.source_url)
-      && typeof media.license === "string"
-      && USFWS_PHOTO_LICENSES.get(media.license) === media.license_url
-    : provider === "inaturalist"
-      && inaturalistPhotoId !== null
-      && media.media_id === `inaturalist-${inaturalistPhotoId}`
-      && media.attribution_id === `inaturalist-attribution-${inaturalistPhotoId}`
-      && typeof media.license === "string"
-      && INATURALIST_PHOTO_LICENSES.get(media.license) === media.license_url;
+  const providerContractValid = validProviderContract(media, provider);
   if (
     media.kind !== "photo" || !providerContractValid
     || !plainText(media.media_id, 256) || !plainText(media.attribution_id, 256)
@@ -70,7 +64,6 @@ export function publicCatalogPhoto(
     || !Number.isSafeInteger(media.width) || Number(media.width) < 1 || Number(media.width) > 650
     || !Number.isSafeInteger(media.height) || Number(media.height) < 1 || Number(media.height) > 650
   ) return null;
-  const isUsfws = provider === "usfws";
   return {
     status: "available",
     source_record_id: media.media_id,
@@ -79,13 +72,15 @@ export function publicCatalogPhoto(
     source_url: media.source_url,
     creator: media.creator,
     rights_holder: null,
-    publisher: isUsfws ? "U.S. Fish and Wildlife Service" : null,
+    publisher: provider === "usfws" ? "U.S. Fish and Wildlife Service" : null,
     format: media.mime_type,
     license_text: media.license,
     license_url: media.license_url,
-    selection_reason: isUsfws
+    selection_reason: provider === "usfws"
       ? "Validated USFWS public-release photo"
-      : "Validated iNaturalist public-release photo",
+      : provider === "inaturalist"
+        ? "Validated iNaturalist public-release photo"
+        : "Validated Wikimedia Commons public-release photo",
     provider,
     license_code: media.license,
     original_width: media.width,

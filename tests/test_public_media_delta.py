@@ -1,4 +1,4 @@
-"""Fail-closed active-snapshot tests for the iNaturalist media delta."""
+"""Fail-closed active-snapshot tests for reviewed provider media deltas."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from pathlib import Path
 import databox.public_media_delta as media_delta
 import pytest
 from databox.public_export import (
+    ALLOWED_LICENSES,
     PublicExportError,
     PublicRecords,
     build_public_assets,
@@ -24,10 +25,16 @@ from databox.public_media_approval import (
     canonical_approval_json,
     empty_approval_ledger,
 )
-from databox.public_media_delta import PublicMediaDeltaError, compose_public_media_delta
+from databox.public_media_delta import (
+    PublicMediaDeltaError,
+    compose_public_media_delta,
+    load_pending_public_media_selections,
+)
 from PIL import Image
 
 TARGET_NAMES = tuple(f"Avis species{chr(ord('a') + index)}" for index in range(16))
+NEW_TARGET_NAME = "Avis speciesq"
+CATALOG_NAMES = (*TARGET_NAMES, NEW_TARGET_NAME)
 BASE_NAME = "Selasphorus rufus"
 GENERATED_AT = "2026-08-03T12:00:00Z"
 
@@ -75,7 +82,7 @@ def _base_assets() -> dict[str, dict[str, object]]:
             "scientific_name": scientific_name,
             "media": [],
         }
-        for index, scientific_name in enumerate(TARGET_NAMES)
+        for index, scientific_name in enumerate(CATALOG_NAMES)
     )
     records = PublicRecords(
         species=species,
@@ -123,28 +130,44 @@ def _webp(index: int) -> bytes:
     return output.getvalue()
 
 
-def _prepared_media(root: Path) -> tuple[Path, list[dict[str, object]]]:
-    prepared = root / "inaturalist-prepared"
+def _prepared_media(
+    root: Path,
+    *,
+    names: tuple[str, ...] = TARGET_NAMES,
+    directory_name: str = "inaturalist-prepared",
+    provider: str = "inaturalist",
+) -> tuple[Path, list[dict[str, object]]]:
+    prepared = root / directory_name
     items: list[dict[str, object]] = []
-    for index, scientific_name in enumerate(TARGET_NAMES, start=1):
+    for scientific_name in names:
+        index = CATALOG_NAMES.index(scientific_name) + 1
         payload = _webp(index)
         digest = hashlib.sha256(payload).hexdigest()
         photo_id = 10_000 + index
         object_path = prepared / "objects" / digest[:2] / f"{digest}.webp"
         object_path.parent.mkdir(parents=True, exist_ok=True)
         object_path.write_bytes(payload)
+        if provider == "inaturalist":
+            media_id = f"inaturalist-{photo_id}"
+            attribution_id = f"inaturalist-attribution-{photo_id}"
+            source_page_url = f"https://www.inaturalist.org/photos/{photo_id}"
+        else:
+            token = f"{index:024x}"
+            media_id = f"wikimedia-{token}"
+            attribution_id = f"wikimedia-attribution-{token}"
+            source_page_url = f"https://commons.wikimedia.org/wiki/File:Test_Bird_{index}.jpg"
         items.append(
             {
-                "provider": "inaturalist",
-                "media_id": f"inaturalist-{photo_id}",
-                "attribution_id": f"inaturalist-attribution-{photo_id}",
+                "provider": provider,
+                "media_id": media_id,
+                "attribution_id": attribution_id,
                 "scientific_name": scientific_name,
                 "common_name": f"Test Bird {index}",
                 "creator": f"Test Photographer {index}",
                 "title": f"Wild bird portrait {index}",
                 "caption": "Reviewed live bird photograph.",
                 "alt_text": f"A live Test Bird {index} outdoors.",
-                "source_page_url": f"https://www.inaturalist.org/photos/{photo_id}",
+                "source_page_url": source_page_url,
                 "url": _public_url(digest),
                 "sha256": digest,
                 "license": "CC BY 4.0",
@@ -162,7 +185,7 @@ def _prepared_media(root: Path) -> tuple[Path, list[dict[str, object]]]:
         "counts": {
             "items": len(items),
             "objects": len({item["sha256"] for item in items}),
-            "species": len(TARGET_NAMES),
+            "species": len(names),
         },
         "items": items,
     }
@@ -170,7 +193,12 @@ def _prepared_media(root: Path) -> tuple[Path, list[dict[str, object]]]:
     return prepared, items
 
 
-def _approval_ledger(root: Path, items: list[dict[str, object]]) -> Path:
+def _approval_ledger(
+    root: Path,
+    items: list[dict[str, object]],
+    *,
+    filename: str = "approvals.json",
+) -> Path:
     ledger = empty_approval_ledger()
     selections = [
         {
@@ -199,7 +227,7 @@ def _approval_ledger(root: Path, items: list[dict[str, object]]) -> Path:
         selections,
         key=lambda item: (str(item["scientific_name"]).casefold(), str(item["sha256"])),
     )
-    path = root / "approvals.json"
+    path = root / filename
     path.write_bytes(canonical_approval_json(ledger))
     return path
 
@@ -249,6 +277,12 @@ def test_composes_only_selected_inaturalist_delta_without_touching_active_site(
     tmp_path: Path,
 ) -> None:
     site, prepared, approvals, before = _fixture(tmp_path)
+    legacy = copy.deepcopy(before)
+    legacy_allowed = legacy["data/manifest.json"]["license_policy"]["allowed"]
+    assert isinstance(legacy_allowed, dict)
+    legacy_allowed.pop("wikimedia")
+    _rewrite_site(site, legacy)
+    before = legacy
     output = tmp_path / "delta"
 
     result = compose_public_media_delta(
@@ -268,6 +302,9 @@ def test_composes_only_selected_inaturalist_delta_without_touching_active_site(
     assert after["data/manifest.json"]["source_policy"]["media_source"] == ("usfws+inaturalist")
     assert after["data/manifest.json"]["counts"]["media_items"] == 17
     assert after["data/manifest.json"]["counts"]["species_with_media"] == 17
+    assert after["data/manifest.json"]["license_policy"]["allowed"] == {
+        provider: sorted(values) for provider, values in ALLOWED_LICENSES.items()
+    }
     assert {source["provider"] for source in after["data/attribution.json"]["sources"]} >= {
         "usfws",
         "inaturalist",
@@ -285,11 +322,10 @@ def test_composes_only_selected_inaturalist_delta_without_touching_active_site(
         assert profile["media"][0]["provider"] == "inaturalist"
 
 
-def test_exact_delta_is_idempotent(tmp_path: Path) -> None:
+def test_exact_live_delta_is_not_reprocessed(tmp_path: Path) -> None:
     site, prepared, approvals, _before = _fixture(tmp_path)
     first = tmp_path / "first"
-    second = tmp_path / "second"
-    first_result = compose_public_media_delta(
+    compose_public_media_delta(
         active_root=site,
         prepared_media_dir=prepared,
         approval_path=approvals,
@@ -297,17 +333,213 @@ def test_exact_delta_is_idempotent(tmp_path: Path) -> None:
         generated_at="2026-08-03T13:00:00Z",
     )
 
-    second_result = compose_public_media_delta(
+    with pytest.raises(PublicMediaDeltaError, match="no pending iNaturalist selections"):
+        compose_public_media_delta(
+            active_root=first,
+            prepared_media_dir=prepared,
+            approval_path=approvals,
+            output_dir=tmp_path / "second",
+            generated_at="2026-08-03T14:00:00Z",
+        )
+
+
+def test_adds_only_one_new_pending_selection_to_existing_inaturalist_snapshot(
+    tmp_path: Path,
+) -> None:
+    site, initial_prepared, initial_approvals, _before = _fixture(tmp_path)
+    first = tmp_path / "first"
+    compose_public_media_delta(
+        active_root=site,
+        prepared_media_dir=initial_prepared,
+        approval_path=initial_approvals,
+        output_dir=first,
+        generated_at="2026-08-03T13:00:00Z",
+    )
+    before = load_public_assets(first)
+    initial_manifest = json.loads((initial_prepared / "manifest.json").read_text(encoding="utf-8"))
+    initial_items = initial_manifest["items"]
+    assert isinstance(initial_items, list)
+    pending_prepared, pending_items = _prepared_media(
+        tmp_path,
+        names=(NEW_TARGET_NAME,),
+        directory_name="new-inaturalist-prepared",
+    )
+    full_approvals = _approval_ledger(
+        tmp_path,
+        [*initial_items, *pending_items],
+        filename="full-approvals.json",
+    )
+
+    result = compose_public_media_delta(
         active_root=first,
-        prepared_media_dir=prepared,
-        approval_path=approvals,
-        output_dir=second,
+        prepared_media_dir=pending_prepared,
+        approval_path=full_approvals,
+        output_dir=tmp_path / "second",
         generated_at="2026-08-03T14:00:00Z",
     )
 
-    assert second_result.added_species == 0
-    assert second_result.reused_species == 16
-    assert second_result.data_version == first_result.data_version
+    assert result.selected_species == 1
+    assert result.selected_objects == 1
+    assert result.added_species == 1
+    assert result.reused_species == 0
+    after = load_public_assets(result.output_root)
+    for scientific_name in TARGET_NAMES:
+        before_summary, before_profile = _binding_for_name(before, scientific_name)
+        after_summary, after_profile = _binding_for_name(after, scientific_name)
+        assert after_summary == before_summary
+        assert after_profile == before_profile
+    new_summary, new_profile = _binding_for_name(after, NEW_TARGET_NAME)
+    assert new_summary["photo_count"] == 1
+    assert new_profile["media"] == [new_summary["hero_photo"]]
+    assert new_profile["media"][0]["provider"] == "inaturalist"
+
+
+def test_adds_only_pending_wikimedia_selection_to_mixed_active_snapshot(
+    tmp_path: Path,
+) -> None:
+    site, initial_prepared, initial_approvals, _before = _fixture(tmp_path)
+    first = tmp_path / "first"
+    compose_public_media_delta(
+        active_root=site,
+        prepared_media_dir=initial_prepared,
+        approval_path=initial_approvals,
+        output_dir=first,
+    )
+    initial_items = json.loads((initial_prepared / "manifest.json").read_text(encoding="utf-8"))[
+        "items"
+    ]
+    wikimedia_prepared, wikimedia_items = _prepared_media(
+        tmp_path,
+        names=(NEW_TARGET_NAME,),
+        directory_name="wikimedia-prepared",
+        provider="wikimedia",
+    )
+    approvals = _approval_ledger(
+        tmp_path,
+        [*initial_items, *wikimedia_items],
+        filename="all-provider-approvals.json",
+    )
+    legacy = load_public_assets(first)
+    legacy_allowed = legacy["data/manifest.json"]["license_policy"]["allowed"]
+    assert isinstance(legacy_allowed, dict)
+    legacy_allowed.pop("wikimedia")
+    _rewrite_site(first, legacy)
+
+    pending = load_pending_public_media_selections(
+        first,
+        approvals,
+        provider="wikimedia",
+    )
+    assert [selection.scientific_name for selection in pending] == [NEW_TARGET_NAME]
+
+    result = compose_public_media_delta(
+        active_root=first,
+        prepared_media_dir=wikimedia_prepared,
+        approval_path=approvals,
+        output_dir=tmp_path / "wikimedia-delta",
+        provider="wikimedia",
+        generated_at="2026-08-03T14:00:00Z",
+    )
+
+    assert result.added_species == result.selected_species == result.selected_objects == 1
+    after = load_public_assets(result.output_root)
+    manifest = after["data/manifest.json"]
+    assert manifest["source_policy"]["media_source"] == ("usfws+inaturalist+wikimedia")
+    assert manifest["counts"]["species_with_media"] == 18
+    assert manifest["license_policy"]["allowed"] == {
+        provider: sorted(values) for provider, values in ALLOWED_LICENSES.items()
+    }
+    summary, profile = _binding_for_name(after, NEW_TARGET_NAME)
+    assert profile["media"] == [summary["hero_photo"]]
+    assert profile["media"][0]["provider"] == "wikimedia"
+    assert {source["provider"] for source in after["data/attribution.json"]["sources"]} >= {
+        "usfws",
+        "inaturalist",
+        "wikimedia",
+    }
+    assert (
+        load_pending_public_media_selections(
+            result.output_root,
+            approvals,
+            provider="wikimedia",
+        )
+        == ()
+    )
+
+
+def test_wikimedia_delta_rejects_any_broader_legacy_license_policy(
+    tmp_path: Path,
+) -> None:
+    site, initial_prepared, initial_approvals, _before = _fixture(tmp_path)
+    first = tmp_path / "first"
+    compose_public_media_delta(
+        active_root=site,
+        prepared_media_dir=initial_prepared,
+        approval_path=initial_approvals,
+        output_dir=first,
+    )
+    initial_items = json.loads((initial_prepared / "manifest.json").read_text(encoding="utf-8"))[
+        "items"
+    ]
+    _wikimedia_prepared, wikimedia_items = _prepared_media(
+        tmp_path,
+        names=(NEW_TARGET_NAME,),
+        directory_name="wikimedia-prepared",
+        provider="wikimedia",
+    )
+    approvals = _approval_ledger(
+        tmp_path,
+        [*initial_items, *wikimedia_items],
+        filename="all-provider-approvals.json",
+    )
+    changed = load_public_assets(first)
+    allowed = changed["data/manifest.json"]["license_policy"]["allowed"]
+    assert isinstance(allowed, dict)
+    allowed.pop("wikimedia")
+    usfws = allowed["usfws"]
+    assert isinstance(usfws, list)
+    usfws.append("CC BY-NC 4.0")
+    _rewrite_site(first, changed)
+
+    with pytest.raises(PublicMediaDeltaError, match="exact pre-Wikimedia policy"):
+        load_pending_public_media_selections(first, approvals, provider="wikimedia")
+
+
+def test_rejects_prepared_manifest_that_repeats_already_live_species(
+    tmp_path: Path,
+) -> None:
+    site, initial_prepared, initial_approvals, _before = _fixture(tmp_path)
+    first = tmp_path / "first"
+    compose_public_media_delta(
+        active_root=site,
+        prepared_media_dir=initial_prepared,
+        approval_path=initial_approvals,
+        output_dir=first,
+    )
+    initial_manifest = json.loads((initial_prepared / "manifest.json").read_text(encoding="utf-8"))
+    initial_items = initial_manifest["items"]
+    assert isinstance(initial_items, list)
+    repeated_prepared, repeated_items = _prepared_media(
+        tmp_path,
+        names=(TARGET_NAMES[0], NEW_TARGET_NAME),
+        directory_name="repeated-inaturalist-prepared",
+    )
+    full_approvals = _approval_ledger(
+        tmp_path,
+        [*initial_items, repeated_items[-1]],
+        filename="full-approvals.json",
+    )
+
+    with pytest.raises(
+        PublicMediaDeltaError,
+        match="exactly the pending species; unexpected already-live",
+    ):
+        compose_public_media_delta(
+            active_root=first,
+            prepared_media_dir=repeated_prepared,
+            approval_path=full_approvals,
+            output_dir=tmp_path / "second",
+        )
 
 
 def test_rejects_active_usfws_selection_drift(tmp_path: Path) -> None:
@@ -327,6 +559,40 @@ def test_rejects_active_usfws_selection_drift(tmp_path: Path) -> None:
             prepared_media_dir=prepared,
             approval_path=approvals,
             output_dir=tmp_path / "delta",
+        )
+
+
+@pytest.mark.parametrize("field", ["sha256", "source_url"])
+def test_rejects_active_inaturalist_selection_drift(tmp_path: Path, field: str) -> None:
+    site, prepared, approvals, _assets = _fixture(tmp_path)
+    first = tmp_path / "first"
+    compose_public_media_delta(
+        active_root=site,
+        prepared_media_dir=prepared,
+        approval_path=approvals,
+        output_dir=first,
+    )
+    changed = copy.deepcopy(load_public_assets(first))
+    summary, profile = _binding_for_name(changed, TARGET_NAMES[0])
+    media = profile["media"]
+    assert isinstance(media, list) and isinstance(media[0], dict)
+    if field == "sha256":
+        media[0]["sha256"] = "3" * 64
+        media[0]["url"] = _public_url("3" * 64)
+    else:
+        media[0]["source_url"] = "https://www.inaturalist.org/photos/999999"
+    summary["hero_photo"] = copy.deepcopy(media[0])
+    _rewrite_site(first, changed)
+
+    with pytest.raises(
+        PublicMediaDeltaError,
+        match="active iNaturalist image drifted from its committed selection",
+    ):
+        compose_public_media_delta(
+            active_root=first,
+            prepared_media_dir=prepared,
+            approval_path=approvals,
+            output_dir=tmp_path / "second",
         )
 
 
@@ -360,7 +626,7 @@ def test_refuses_to_replace_an_existing_target_image(tmp_path: Path) -> None:
     changed["data/manifest.json"]["counts"]["species_with_media"] = 2
     _rewrite_site(site, changed)
 
-    with pytest.raises(PublicMediaDeltaError, match="refusing to replace"):
+    with pytest.raises(PublicMediaDeltaError, match="USFWS species do not exactly match"):
         compose_public_media_delta(
             active_root=site,
             prepared_media_dir=prepared,
@@ -381,7 +647,7 @@ def test_rejects_an_absent_target_species(tmp_path: Path) -> None:
     manifest["counts"]["species"] -= 1
     _rewrite_site(site, changed)
 
-    with pytest.raises(PublicMediaDeltaError, match="target species is absent"):
+    with pytest.raises(PublicMediaDeltaError, match="species is absent"):
         compose_public_media_delta(
             active_root=site,
             prepared_media_dir=prepared,

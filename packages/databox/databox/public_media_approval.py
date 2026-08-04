@@ -24,6 +24,7 @@ from collections import defaultdict
 from dataclasses import asdict, dataclass, replace
 from datetime import date
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 APPROVAL_SCHEMA_VERSION = 2
 APPROVAL_MODE = "rufous-media-human-species-selections"
@@ -44,11 +45,14 @@ _USFWS_MEDIA_PAGE = re.compile(
     r"^https://www\.fws\.gov/media/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$"
 )
 _INATURALIST_MEDIA_PAGE = re.compile(r"^https://www\.inaturalist\.org/photos/[1-9][0-9]*$")
+_WIKIMEDIA_MEDIA_PAGE = re.compile(
+    r"^https://commons\.wikimedia\.org/wiki/File:[^/?#\x00-\x20\x7f]+$"
+)
 _PUBLIC_MEDIA_URL = re.compile(
     r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
     r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.webp$"
 )
-_MEDIA_PROVIDERS = frozenset({"usfws", "inaturalist"})
+_MEDIA_PROVIDERS = frozenset({"usfws", "inaturalist", "wikimedia"})
 _REVIEWER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._@+'-]{1,99}$")
 _LEDGER_KEYS = {
     "schema_version",
@@ -509,7 +513,37 @@ def _valid_source_page(provider: object, source_page_url: str) -> bool:
         return _USFWS_MEDIA_PAGE.fullmatch(source_page_url) is not None
     if provider == "inaturalist":
         return _INATURALIST_MEDIA_PAGE.fullmatch(source_page_url) is not None
+    if provider == "wikimedia":
+        return _valid_wikimedia_file_page(source_page_url)
     return False
+
+
+def _valid_wikimedia_file_page(value: str) -> bool:
+    if len(value) > 2_000 or _WIKIMEDIA_MEDIA_PAGE.fullmatch(value) is None:
+        return False
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+        encoded_name = parsed.path.removeprefix("/wiki/File:")
+        if re.search(r"%(?![0-9A-Fa-f]{2})", encoded_name):
+            return False
+        name = unquote(encoded_name, errors="strict")
+    except (UnicodeError, ValueError):
+        return False
+    return bool(
+        parsed.scheme == "https"
+        and parsed.hostname == "commons.wikimedia.org"
+        and parsed.username is None
+        and parsed.password is None
+        and port is None
+        and not parsed.query
+        and not parsed.fragment
+        and 0 < len(name) <= 500
+        and name.strip() == name
+        and name not in {".", ".."}
+        and not any(character in name for character in ("/", "\\"))
+        and not any(ord(character) < 32 or ord(character) == 127 for character in name)
+    )
 
 
 def require_visual_approvals(
@@ -520,9 +554,10 @@ def require_visual_approvals(
 ) -> ApprovedMediaPlan:
     """Require one selection or explicit no-safe-image exclusion per species.
 
-    A provider-scoped manifest uses only decisions tied to that provider and
-    permits the complete ledger to retain decisions for other releases.  The
-    unscoped production gate keeps its stricter whole-manifest behavior.
+    A provider-scoped manifest may contain a reviewed subset of decisions tied
+    to that provider, which supports bounded immutable media deltas.  Every
+    represented species must still have an exact current selection or exclusion.
+    The unscoped production gate keeps its stricter whole-manifest behavior.
     """
     candidates = load_manifest_provenance(manifest_path, provider=provider)
     complete_ledger = _load_visual_decisions(approval_path)
@@ -547,7 +582,7 @@ def require_visual_approvals(
             f"{missing_species[0]}"
         )
     absent_selections = sorted(set(selection_by_species) - set(candidates_by_species))
-    if absent_selections:
+    if absent_selections and provider is None:
         selected = selection_by_species[absent_selections[0]]
         raise MediaApprovalError(
             "committed selected media is absent from the current prepared manifest for "
@@ -656,6 +691,8 @@ def _pages_provider(source_page_urls: tuple[str, ...]) -> str:
         return "usfws"
     if _INATURALIST_MEDIA_PAGE.fullmatch(first):
         return "inaturalist"
+    if _valid_wikimedia_file_page(first):
+        return "wikimedia"
     raise MediaApprovalError("media decision contains an unreviewed provider")
 
 
@@ -1056,6 +1093,8 @@ def _strict_media_source_pages(value: object, *, label: str) -> tuple[str, ...]:
         if _USFWS_MEDIA_PAGE.fullmatch(item)
         else "inaturalist"
         if _INATURALIST_MEDIA_PAGE.fullmatch(item)
+        else "wikimedia"
+        if _valid_wikimedia_file_page(item)
         else "invalid"
         for item in value
     }

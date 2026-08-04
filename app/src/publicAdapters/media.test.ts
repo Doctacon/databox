@@ -38,6 +38,23 @@ const inaturalistMedia = {
   sha256: inaturalistSha256,
 };
 
+const wikimediaSha256 = `ef${"0".repeat(62)}`;
+const wikimediaMedia = {
+  ...media,
+  provider: "wikimedia",
+  media_id: `wikimedia-${"1".repeat(24)}`,
+  url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/ef/${wikimediaSha256}.webp`,
+  source_url: "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee.jpg",
+  creator: "Commons Photographer",
+  license: "CC BY-SA 4.0",
+  license_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+  attribution_id: `wikimedia-attribution-${"2".repeat(24)}`,
+  scientific_name: "Melozone aberti",
+  title: "Abert's Towhee",
+  alt_text: "An Abert's Towhee standing on open ground",
+  sha256: wikimediaSha256,
+};
+
 describe("published USFWS media adapter", () => {
   it("maps an exact content-addressed public photo into catalog presentation data", () => {
     expect(publicCatalogPhoto(media, "Selasphorus rufus", "2026-08-03T12:00:00Z")).toMatchObject({
@@ -194,5 +211,62 @@ describe("published iNaturalist media adapter", () => {
       license,
       license_url: licenseUrl,
     }, "Selasphorus rufus", "2026-08-03T12:00:00Z")).not.toBeNull();
+  });
+});
+
+describe("published Wikimedia Commons media adapter", () => {
+  it("maps a reviewed Commons File page to an immutable display copy", () => {
+    const photo = publicCatalogPhoto(wikimediaMedia, "Melozone aberti", "2026-08-04T12:00:00Z");
+    expect(photo).toMatchObject({
+      status: "available",
+      provider: "wikimedia",
+      source_record_id: wikimediaMedia.media_id,
+      display_url: wikimediaMedia.url,
+      source_url: wikimediaMedia.source_url,
+      creator: "Commons Photographer",
+      publisher: null,
+      license_text: "CC BY-SA 4.0",
+      selection_reason: "Validated Wikimedia Commons public-release photo",
+    });
+    expect(recommendationPhoto("Melozone aberti", photo)).toMatchObject({
+      provider: "wikimedia",
+      source_record_id: wikimediaMedia.media_id,
+    });
+  });
+
+  it.each([
+    ["wrong source host", { source_url: "https://commons.wikimedia.org.evil.example/wiki/File:Abert%27s_Towhee.jpg" }],
+    ["category instead of File page", { source_url: "https://commons.wikimedia.org/wiki/Category:Abert%27s_Towhee" }],
+    ["source query", { source_url: `${wikimediaMedia.source_url}?download=1` }],
+    ["encoded path separator", { source_url: "https://commons.wikimedia.org/wiki/File:Abert%2FTowhee.jpg" }],
+    ["malformed media id", { media_id: "wikimedia-123" }],
+    ["malformed attribution id", { attribution_id: "wikimedia-attribution-123" }],
+    ["noncommercial license", {
+      license: "CC BY-NC 4.0",
+      license_url: "https://creativecommons.org/licenses/by-nc/4.0/",
+    }],
+    ["wrong public-domain URL", {
+      license: "Public Domain",
+      license_url: "https://creativecommons.org/publicdomain/mark/1.0/",
+    }],
+  ])("rejects %s", (_label, change) => {
+    expect(publicCatalogPhoto(
+      { ...wikimediaMedia, ...change },
+      "Melozone aberti",
+      "2026-08-04T12:00:00Z",
+    )).toBeNull();
+  });
+
+  it.each([
+    ["Public Domain", "https://commons.wikimedia.org/wiki/Commons:Copyright_tags/General_public_domain"],
+    ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+    ["CC BY 2.0", "https://creativecommons.org/licenses/by/2.0/"],
+    ["CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"],
+  ])("accepts reviewed %s terms", (license, licenseUrl) => {
+    expect(publicCatalogPhoto({
+      ...wikimediaMedia,
+      license,
+      license_url: licenseUrl,
+    }, "Melozone aberti", "2026-08-04T12:00:00Z")).not.toBeNull();
   });
 });

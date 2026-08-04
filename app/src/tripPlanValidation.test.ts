@@ -81,6 +81,28 @@ function usfwsPlan(): TripPlanDetail {
   return value;
 }
 
+function wikimediaPlan(): TripPlanDetail {
+  const value = structuredClone(plan);
+  const sha256 = `ef${"0".repeat(62)}`;
+  const sourceRecordId = `wikimedia-${"1".repeat(24)}`;
+  value.recommendations[0].photo = {
+    status: "available", source_record_id: sourceRecordId, species_name: "Aphelocoma wollweberi",
+    display_url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/ef/${sha256}.webp`,
+    source_url: "https://commons.wikimedia.org/wiki/File:Mexican_Jay.jpg", creator: "Commons Photographer",
+    rights_holder: null, publisher: null, format: "image/webp",
+    license_text: "CC BY-SA 4.0", license_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+    selection_reason: "Validated Wikimedia Commons public-release photo", provider: "wikimedia",
+    license_code: "CC BY-SA 4.0", original_width: 650, original_height: 488, caveats: [],
+  };
+  value.evidence.push({
+    evidence_id: "photo_wikimedia_fixture", recommendation_id: "rec_fixture", source: "wikimedia",
+    source_table: "published_wikimedia_media", source_record_id: sourceRecordId,
+    evidence_type: "recommendation_photo", status: "available", retrieved_at: "2026-07-09T12:00:00Z",
+    summary: {}, payload: {}, caveats: [],
+  });
+  return value;
+}
+
 describe("Trip Planner runtime response validation", () => {
   it("accepts exact bounded source-labeled location, summary, and nested detail contracts", () => {
     expect(validateLocationSearch({ locations: [suggestion] })).toHaveLength(1);
@@ -88,6 +110,7 @@ describe("Trip Planner runtime response validation", () => {
     expect(validatePlanDetail(plan)).toEqual(plan);
     expect(validatePlanDetail(inaturalistPlan()).recommendations[0].photo.provider).toBe("inaturalist");
     expect(validatePlanDetail(usfwsPlan()).recommendations[0].photo.provider).toBe("usfws");
+    expect(validatePlanDetail(wikimediaPlan()).recommendations[0].photo.provider).toBe("wikimedia");
   });
 
   it("requires exact matching USFWS recommendation-photo evidence source and identity", () => {
@@ -120,6 +143,21 @@ describe("Trip Planner runtime response validation", () => {
     const value = inaturalistPlan();
     mutate(value);
     expect(() => validatePlanDetail(value)).toThrow("Invalid trip planner response");
+  });
+
+  it("requires exact matching Wikimedia recommendation-photo provenance", () => {
+    expect(validatePlanDetail(wikimediaPlan()).recommendations[0].photo.source_url)
+      .toBe("https://commons.wikimedia.org/wiki/File:Mexican_Jay.jpg");
+    for (const mutate of [
+      (value: TripPlanDetail) => { value.evidence.find((item) => item.evidence_id === "photo_wikimedia_fixture")!.source = "curated_photo"; },
+      (value: TripPlanDetail) => { value.recommendations[0].photo.source_url += "?download=1"; },
+      (value: TripPlanDetail) => { value.recommendations[0].photo.source_record_id = "wikimedia-123"; },
+      (value: TripPlanDetail) => { value.recommendations[0].photo.license_text = value.recommendations[0].photo.license_code = "CC BY-NC 4.0"; value.recommendations[0].photo.license_url = "https://creativecommons.org/licenses/by-nc/4.0/"; },
+    ]) {
+      const value = wikimediaPlan();
+      mutate(value);
+      expect(() => validatePlanDetail(value)).toThrow("Invalid trip planner response");
+    }
   });
 
   it.each([

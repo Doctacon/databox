@@ -45,6 +45,7 @@ MODE = "rufous-media-preparation"
 SOURCE_TABLES = (
     ("usfws", "rufous_public", "usfws_commercial_image", True),
     ("inaturalist", "rufous_public", "inaturalist_commercial_image", False),
+    ("wikimedia", "rufous_public", "wikimedia_commercial_image", False),
 )
 PUBLIC_BASE_URL = "https://rufous-data.loughondata.com/rufous-media/v1"
 USER_AGENT = (
@@ -94,7 +95,18 @@ _INATURALIST_IMAGE_PATH = re.compile(
     r"^/photos/(?P<photo_id>[1-9][0-9]*)/original\.(?:jpg|jpeg|png|webp)$",
     re.IGNORECASE,
 )
-_MEDIA_PROVIDERS = frozenset({"usfws", "inaturalist"})
+_WIKIMEDIA_FILE_PATH = re.compile(r"^/wiki/File:(?P<filename>[^/]+)$")
+_WIKIMEDIA_ORIGINAL_IMAGE_PATH = re.compile(
+    r"^/wikipedia/commons/[a-f0-9]/[a-f0-9]{2}/(?P<filename>[^/]+)$",
+    re.IGNORECASE,
+)
+_WIKIMEDIA_THUMB_IMAGE_PATH = re.compile(
+    r"^/wikipedia/commons/thumb/[a-f0-9]/[a-f0-9]{2}/(?P<filename>[^/]+)/"
+    r"[1-9][0-9]{1,4}px-(?P<thumbnail>[^/]+)$",
+    re.IGNORECASE,
+)
+_MALFORMED_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
+_MEDIA_PROVIDERS = frozenset({"usfws", "inaturalist", "wikimedia"})
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _RETRY_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
 _UNAVAILABLE_REASONS = frozenset(
@@ -241,6 +253,11 @@ class SourceImageRow:
                 or page_match.group("photo_id") != image_match.group("photo_id")
             ):
                 raise PublicMediaError("iNaturalist source URLs identify different photos")
+        if row.provider == "wikimedia":
+            page_name = _wikimedia_page_filename(row.source_page_url)
+            image_name = _wikimedia_image_filename(row.source_image_url)
+            if page_name != image_name:
+                raise PublicMediaError("Wikimedia source URLs identify different files")
         if row.provider == "usfws":
             restricted_mark = restricted_marks.restricted_usfws_mark_reason(
                 (
@@ -352,8 +369,14 @@ def normalize_license(value: object, *, provider: str = "usfws") -> tuple[str, s
     raw = _required_text(value, "license", 100)
     if any(ord(character) < 32 or ord(character) == 127 for character in raw):
         raise PublicMediaError("media license contains control characters")
-    if raw.casefold() == "public domain" and provider == "usfws":
-        return "Public Domain", "https://www.fws.gov/notices"
+    if raw.casefold() == "public domain":
+        if provider == "usfws":
+            return "Public Domain", "https://www.fws.gov/notices"
+        if provider == "wikimedia":
+            return (
+                "Public Domain",
+                "https://commons.wikimedia.org/wiki/Commons:Copyright_tags/General_public_domain",
+            )
 
     family: str
     version: str
@@ -433,6 +456,18 @@ def validate_source_page_url(value: object, *, provider: str = "usfws") -> str:
         ):
             raise PublicMediaError("iNaturalist source_page_url must identify one exact photo")
         return raw
+    if provider == "wikimedia":
+        raw, parsed = _validated_https_url(
+            value,
+            "source_page_url",
+            hosts=frozenset({"commons.wikimedia.org"}),
+        )
+        if parsed.query or parsed.fragment or _WIKIMEDIA_FILE_PATH.fullmatch(parsed.path) is None:
+            raise PublicMediaError(
+                "Wikimedia source_page_url must identify one exact Commons File page"
+            )
+        _wikimedia_page_filename(raw)
+        return raw
     if provider != "usfws":
         raise PublicMediaError("media provider is not reviewed")
     raw, parsed = _validated_fws_url(value, "source_page_url")
@@ -460,6 +495,27 @@ def validate_source_image_url(value: object, *, provider: str = "usfws") -> str:
                 "iNaturalist source_image_url must be one exact original photo object"
             )
         return raw
+    if provider == "wikimedia":
+        raw, parsed = _validated_https_url(
+            value,
+            "source_image_url",
+            hosts=frozenset({"upload.wikimedia.org"}),
+        )
+        if (
+            parsed.query
+            or parsed.fragment
+            or (
+                _WIKIMEDIA_ORIGINAL_IMAGE_PATH.fullmatch(parsed.path) is None
+                and _WIKIMEDIA_THUMB_IMAGE_PATH.fullmatch(parsed.path) is None
+            )
+        ):
+            raise PublicMediaError(
+                "Wikimedia source_image_url must be one exact Commons image object"
+            )
+        filename = _wikimedia_image_filename(raw)
+        if Path(filename).suffix.casefold() not in {".jpg", ".jpeg", ".png", ".webp"}:
+            raise PublicMediaError("Wikimedia source_image_url has an unsupported image suffix")
+        return raw
     if provider != "usfws":
         raise PublicMediaError("media provider is not reviewed")
     raw, parsed = _validated_fws_url(value, "source_image_url")
@@ -481,6 +537,48 @@ def validate_source_image_url(value: object, *, provider: str = "usfws") -> str:
     if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
         raise PublicMediaError("source_image_url has an unsupported image suffix")
     return raw
+
+
+def _wikimedia_page_filename(source_url: str) -> str:
+    match = _WIKIMEDIA_FILE_PATH.fullmatch(urlsplit(source_url).path)
+    if match is None:  # pragma: no cover - validated by the public entry point.
+        raise PublicMediaError("Wikimedia source page lost its exact file identity")
+    return _safe_wikimedia_filename(match.group("filename"))
+
+
+def _wikimedia_image_filename(source_url: str) -> str:
+    path = urlsplit(source_url).path
+    original_match = _WIKIMEDIA_ORIGINAL_IMAGE_PATH.fullmatch(path)
+    if original_match is not None:
+        return _safe_wikimedia_filename(original_match.group("filename"))
+    thumb_match = _WIKIMEDIA_THUMB_IMAGE_PATH.fullmatch(path)
+    if thumb_match is None:  # pragma: no cover - validated by the public entry point.
+        raise PublicMediaError("Wikimedia source image lost its exact file identity")
+    filename = _safe_wikimedia_filename(thumb_match.group("filename"))
+    thumbnail = _safe_wikimedia_filename(thumb_match.group("thumbnail"))
+    if thumbnail != filename:
+        raise PublicMediaError("Wikimedia thumbnail URL identifies a different file")
+    return filename
+
+
+def _safe_wikimedia_filename(value: str) -> str:
+    if _MALFORMED_PERCENT_ESCAPE.search(value) is not None:
+        raise PublicMediaError("Wikimedia file URL contains malformed escaping")
+    try:
+        decoded = unquote(value, errors="strict")
+    except UnicodeError as exc:
+        raise PublicMediaError("Wikimedia file URL contains malformed escaping") from exc
+    if (
+        not decoded
+        or len(decoded) > 500
+        or decoded.strip() != decoded
+        or "/" in decoded
+        or "\\" in decoded
+        or decoded in {".", ".."}
+        or any(ord(character) < 32 or ord(character) == 127 for character in decoded)
+    ):
+        raise PublicMediaError("Wikimedia file URL contains an unsafe file name")
+    return decoded.replace(" ", "_")
 
 
 def prepare_public_media(
@@ -806,7 +904,10 @@ def _download_image(
     expected_mime_type: str,
     sleeper: Callable[[float], None],
 ) -> tuple[bytes, str]:
-    validate_source_image_url(source_url, provider=provider)
+    source_url = validate_source_image_url(source_url, provider=provider)
+    reviewed_wikimedia_filename = (
+        _wikimedia_image_filename(source_url) if provider == "wikimedia" else None
+    )
     last_error: Exception | None = None
     for attempt in range(MAX_ATTEMPTS):
         current_url = source_url
@@ -828,9 +929,18 @@ def _download_image(
                         location = response.headers.get("location")
                         if not location:
                             raise PublicMediaError("source image redirect omitted Location")
-                        current_url = validate_source_image_url(
+                        redirect_url = validate_source_image_url(
                             urljoin(str(response.url), location), provider=provider
                         )
+                        if (
+                            reviewed_wikimedia_filename is not None
+                            and _wikimedia_image_filename(redirect_url)
+                            != reviewed_wikimedia_filename
+                        ):
+                            raise PublicMediaError(
+                                "Wikimedia redirect changed the reviewed file identity"
+                            )
+                        current_url = redirect_url
                         continue
                     if response.status_code in _RETRY_STATUSES:
                         raise _RetryableDownloadError(f"retryable_http_{response.status_code}")
@@ -999,7 +1109,7 @@ def _manifest_item(
     attribution_id = (
         f"inaturalist-attribution-{_inaturalist_photo_id(row)}"
         if row.provider == "inaturalist"
-        else "usfws-attribution-" + hashlib.sha256(attribution_payload).hexdigest()[:24]
+        else f"{row.provider}-attribution-" + hashlib.sha256(attribution_payload).hexdigest()[:24]
     )
     item: dict[str, object] = {
         "provider": row.provider,
@@ -1070,7 +1180,7 @@ def _media_id(row: SourceImageRow) -> str:
     semantic_payload = json.dumps(
         row.semantic_key(), ensure_ascii=False, separators=(",", ":")
     ).encode("utf-8")
-    return "usfws-" + hashlib.sha256(semantic_payload).hexdigest()[:24]
+    return f"{row.provider}-" + hashlib.sha256(semantic_payload).hexdigest()[:24]
 
 
 def _inaturalist_photo_id(row: SourceImageRow) -> str:

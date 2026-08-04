@@ -72,6 +72,27 @@ CREATE TABLE rufous_public.inaturalist_commercial_image (
 )
 """
 
+_CREATE_WIKIMEDIA_TABLE = """
+CREATE TABLE rufous_public.wikimedia_commercial_image (
+    species_code VARCHAR,
+    common_name VARCHAR,
+    scientific_name VARCHAR,
+    source_page_url VARCHAR,
+    source_image_url VARCHAR,
+    creator VARCHAR,
+    license VARCHAR,
+    title VARCHAR,
+    caption VARCHAR,
+    alt_text VARCHAR,
+    source_published_at TIMESTAMPTZ,
+    source_width BIGINT,
+    source_height BIGINT,
+    mime_type VARCHAR,
+    discovery_method VARCHAR,
+    loaded_at TIMESTAMPTZ
+)
+"""
+
 
 def _row(**overrides: object) -> dict[str, object]:
     row: dict[str, object] = {
@@ -116,6 +137,35 @@ def _inaturalist_row(**overrides: object) -> dict[str, object]:
         "mime_type": "image/jpeg",
         "discovery_method": "inaturalist_exact_taxon",
         "loaded_at": datetime(2026, 8, 3, 12, 31, tzinfo=UTC),
+    }
+    row.update(overrides)
+    return row
+
+
+def _wikimedia_row(**overrides: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "species_code": "eletrg",
+        "common_name": "Elegant Trogon",
+        "scientific_name": "Trogon elegans",
+        "source_page_url": (
+            "https://commons.wikimedia.org/wiki/File:Elegant_Trogon_(Trogon_elegans).jpg"
+        ),
+        "source_image_url": (
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/"
+            "Elegant_Trogon_%28Trogon_elegans%29.jpg/"
+            "960px-Elegant_Trogon_%28Trogon_elegans%29.jpg"
+        ),
+        "creator": "Example Commons Photographer",
+        "license": "CC BY-SA 4.0",
+        "title": "Elegant Trogon photograph",
+        "caption": "A live Elegant Trogon perched on a branch.",
+        "alt_text": "Elegant Trogon perched on a branch",
+        "source_published_at": datetime(2024, 7, 2, tzinfo=UTC),
+        "source_width": 960,
+        "source_height": 640,
+        "mime_type": "image/jpeg",
+        "discovery_method": "wikimedia_commons_curated_file",
+        "loaded_at": datetime(2026, 8, 4, 14, tzinfo=UTC),
     }
     row.update(overrides)
     return row
@@ -415,9 +465,96 @@ def test_inaturalist_source_urls_require_one_exact_matching_photo() -> None:
 
 def test_unknown_media_provider_fails_closed() -> None:
     with pytest.raises(PublicMediaError, match="provider is not reviewed"):
-        public_media.SourceImageRow.from_values({**_inaturalist_row(), "provider": "wikimedia"})
+        public_media.SourceImageRow.from_values(
+            {**_inaturalist_row(), "provider": "wikimedia_commons"}
+        )
     with pytest.raises(PublicMediaError, match="provider is not reviewed"):
-        normalize_license("CC BY 4.0", provider="wikimedia")
+        normalize_license("CC BY 4.0", provider="wikimedia_commons")
+
+
+def test_wikimedia_provider_uses_exact_commons_files_and_commercial_licenses(
+    tmp_path: Path,
+) -> None:
+    row = public_media.SourceImageRow.from_values({**_wikimedia_row(), "provider": "wikimedia"})
+    assert row.provider == "wikimedia"
+    assert row.license == "CC BY-SA 4.0"
+    assert normalize_license("Public Domain", provider="wikimedia") == (
+        "Public Domain",
+        "https://commons.wikimedia.org/wiki/Commons:Copyright_tags/General_public_domain",
+    )
+
+    for unsafe in (
+        "https://commons.wikimedia.org/wiki/Category:Trogon_elegans",
+        "https://commons.wikimedia.org/wiki/File:Trogon_elegans.jpg?download=1",
+        "https://commons.wikimedia.org/wiki/File:folder%2Fbird.jpg",
+        "https://commons.wikimedia.org.evil.example/wiki/File:Trogon_elegans.jpg",
+    ):
+        with pytest.raises(PublicMediaError):
+            validate_source_page_url(unsafe, provider="wikimedia")
+    for unsafe in (
+        "https://upload.wikimedia.org/wikipedia/commons/a/ab/Trogon_elegans.svg",
+        "https://upload.wikimedia.org/wikipedia/commons/a/ab/Trogon_elegans.jpg?x=1",
+        (
+            "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/"
+            "Trogon_elegans.jpg/960px-Other_bird.jpg"
+        ),
+        "https://commons.wikimedia.org/wiki/File:Trogon_elegans.jpg",
+    ):
+        with pytest.raises(PublicMediaError):
+            validate_source_image_url(unsafe, provider="wikimedia")
+    with pytest.raises(PublicMediaError, match="different files"):
+        public_media.SourceImageRow.from_values(
+            {
+                **_wikimedia_row(
+                    source_image_url=(
+                        "https://upload.wikimedia.org/wikipedia/commons/a/ab/Other_bird.jpg"
+                    )
+                ),
+                "provider": "wikimedia",
+            }
+        )
+
+    database = tmp_path / "wikimedia.duckdb"
+    with duckdb.connect(str(database)) as connection:
+        connection.execute("CREATE SCHEMA rufous_public")
+        connection.execute(_CREATE_WIKIMEDIA_TABLE)
+        _insert_rows(
+            connection,
+            [_wikimedia_row()],
+            table="rufous_public.wikimedia_commercial_image",
+        )
+    with _client(
+        lambda _request: httpx.Response(
+            200,
+            headers={"content-type": "image/jpeg"},
+            content=_jpeg(width=960, height=640),
+        )
+    ) as client:
+        result = prepare_public_media(
+            database,
+            tmp_path / "wikimedia-prepared",
+            provider="wikimedia",
+            client=client,
+        )
+    item = json.loads(result.manifest_path.read_text())["items"][0]
+    assert item["provider"] == "wikimedia"
+    assert item["media_id"].startswith("wikimedia-")
+    assert item["attribution_id"].startswith("wikimedia-attribution-")
+
+
+@pytest.mark.parametrize("malformed_escape", ["%", "%2", "%GG"])
+def test_wikimedia_file_urls_reject_malformed_percent_escapes(
+    malformed_escape: str,
+) -> None:
+    page_url = f"https://commons.wikimedia.org/wiki/File:Elegant{malformed_escape}_Trogon.jpg"
+    image_url = (
+        f"https://upload.wikimedia.org/wikipedia/commons/a/ab/Elegant{malformed_escape}_Trogon.jpg"
+    )
+
+    with pytest.raises(PublicMediaError, match="malformed escaping"):
+        validate_source_page_url(page_url, provider="wikimedia")
+    with pytest.raises(PublicMediaError, match="malformed escaping"):
+        validate_source_image_url(image_url, provider="wikimedia")
 
 
 def test_mixed_provider_preparation_preserves_provenance_and_content_addressing(
@@ -624,9 +761,11 @@ def test_explicit_provider_scope_fails_closed_for_unknown_or_missing_model(
     database = _database(tmp_path, [_row()])
 
     with pytest.raises(PublicMediaError, match="provider is not reviewed"):
-        prepare_public_media(database, tmp_path / "unknown", provider="wikimedia")
+        prepare_public_media(database, tmp_path / "unknown", provider="wikimedia_commons")
     with pytest.raises(PublicMediaError, match="inaturalist_commercial_image is missing"):
         prepare_public_media(database, tmp_path / "missing", provider="inaturalist")
+    with pytest.raises(PublicMediaError, match="wikimedia_commercial_image is missing"):
+        prepare_public_media(database, tmp_path / "missing-wikimedia", provider="wikimedia")
 
 
 def test_prepare_cli_forwards_explicit_provider_scope(
@@ -1216,6 +1355,35 @@ def test_unsafe_redirect_is_rejected_before_following(tmp_path: Path) -> None:
             prepare_public_media(database, tmp_path / "prepared", client=client)
     assert calls == 1
     assert not (tmp_path / "prepared").exists()
+
+
+def test_wikimedia_redirect_cannot_change_reviewed_file_identity(tmp_path: Path) -> None:
+    database = tmp_path / "wikimedia-redirect.duckdb"
+    with duckdb.connect(str(database)) as connection:
+        connection.execute("CREATE SCHEMA rufous_public")
+        connection.execute(_CREATE_WIKIMEDIA_TABLE)
+        _insert_rows(
+            connection,
+            [_wikimedia_row()],
+            table="rufous_public.wikimedia_commercial_image",
+        )
+    calls: list[str] = []
+    substituted_url = "https://upload.wikimedia.org/wikipedia/commons/a/ab/Other_bird.jpg"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        return httpx.Response(302, headers={"location": substituted_url})
+
+    with _client(handler) as client:
+        with pytest.raises(PublicMediaError, match="changed the reviewed file identity"):
+            prepare_public_media(
+                database,
+                tmp_path / "wikimedia-redirect-prepared",
+                provider="wikimedia",
+                client=client,
+            )
+    assert calls == [_wikimedia_row()["source_image_url"]]
+    assert not (tmp_path / "wikimedia-redirect-prepared").exists()
 
 
 def test_oversized_download_is_rejected_without_allocating_it(tmp_path: Path) -> None:

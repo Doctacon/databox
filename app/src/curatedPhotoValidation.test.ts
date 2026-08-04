@@ -34,6 +34,17 @@ const publishedInaturalistPhoto = {
   license_code: "CC BY-SA 4.0", original_width: 650, original_height: 488, caveats: [],
 };
 
+const wikimediaHash = `ef${"0".repeat(62)}`;
+const publishedWikimediaPhoto = {
+  status: "available", source_record_id: `wikimedia-${"1".repeat(24)}`, species_name: "Melozone aberti",
+  display_url: `https://rufous-data.loughondata.com/rufous-media/v1/objects/ef/${wikimediaHash}.webp`,
+  source_url: "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee.jpg", creator: "Commons Photographer",
+  rights_holder: null, publisher: null, format: "image/webp",
+  license_text: "CC BY 2.5", license_url: "https://creativecommons.org/licenses/by/2.5/",
+  selection_reason: "Validated Wikimedia Commons public-release photo", provider: "wikimedia",
+  license_code: "CC BY 2.5", original_width: 650, original_height: 488, caveats: [],
+};
+
 describe("curated iNaturalist photo validation", () => {
   it("accepts an exact safe provider result", () => {
     expect(validateAvailableCuratedPhoto(photo, "Trogon elegans")).toMatchObject({
@@ -110,6 +121,36 @@ describe("published iNaturalist recommendation photo validation", () => {
     expect(validateAvailableCuratedPhoto(
       { ...publishedInaturalistPhoto, ...change },
       "Selasphorus rufus",
+    )).toBeNull();
+  });
+});
+
+describe("published Wikimedia Commons recommendation photo validation", () => {
+  it("accepts the immutable copy tied to one exact Commons File page", () => {
+    expect(validateAvailableCuratedPhoto(publishedWikimediaPhoto, "Melozone aberti")).toMatchObject({
+      providerLabel: "Wikimedia Commons",
+      sourceUrl: publishedWikimediaPhoto.source_url,
+      displayUrl: publishedWikimediaPhoto.display_url,
+      licenseCode: "CC BY 2.5",
+    });
+  });
+
+  it.each([
+    ["live Commons image", { display_url: "https://upload.wikimedia.org/wikipedia/commons/a/ab/Bird.jpg" }],
+    ["malformed source record", { source_record_id: "wikimedia-123" }],
+    ["category source", { source_url: "https://commons.wikimedia.org/wiki/Category:Melozone_aberti" }],
+    ["source fragment", { source_url: `${publishedWikimediaPhoto.source_url}#file` }],
+    ["publisher claim", { publisher: "Wikimedia Foundation" }],
+    ["oversized derivative", { original_width: 651 }],
+    ["noncommercial license", {
+      license_text: "CC BY-NC 4.0",
+      license_code: "CC BY-NC 4.0",
+      license_url: "https://creativecommons.org/licenses/by-nc/4.0/",
+    }],
+  ])("rejects %s", (_name, change) => {
+    expect(validateAvailableCuratedPhoto(
+      { ...publishedWikimediaPhoto, ...change },
+      "Melozone aberti",
     )).toBeNull();
   });
 });

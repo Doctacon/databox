@@ -22,8 +22,9 @@ source contracts are deliberately explicit:
 | Input | Current refresh contract | R2 behavior |
 | --- | --- | --- |
 | GBIF eBird EOD bounded sample | Re-fetch the reviewed snapshot and deduplicate/model in DuckDB | Publish only the sanitized modeled result when its semantic hash changes |
-| USFWS bird media | Rebuild one complete bounded metadata snapshot for the public catalog; validate in SQLMesh; reuse verified derivatives | Create each content-addressed WebP once under the shared immutable media prefix |
-| iNaturalist bird media | Query only catalog species that still lack a selected USFWS image; load a bounded, strict-license candidate snapshot through dlt and validate it in DuckDB/SQLMesh | Publish only a human-selected derivative with exact photo provenance; otherwise retain the silhouette |
+| USFWS bird media | No automatic refresh; reuse the committed, audited metadata pin for the 167 selected immutable objects | Never re-fetch or re-upload an existing image during app or data deployment |
+| iNaturalist bird media | No automatic refresh; reuse the committed, audited metadata pin for the 16 selected immutable objects | Contact iNaturalist only during an explicit manual media refresh for newly approved, currently unpictured species |
+| Wikimedia Commons gap-fill media | One-time, offline curated metadata input for the 24 approved gap-fill species; never queried by a push, schedule, or normal deploy | Publish each reviewed content-addressed WebP once, then reuse its pinned immutable object |
 | Arizona GNIS | Full pinned snapshot; a changed upstream file requires reviewed URL/hash updates | Publish only the derived prefix shards when their semantic hash changes |
 | Browser observations and watches | Device-local, user-controlled records | Never upload |
 
@@ -44,27 +45,35 @@ projection contains only:
 - `attribution.json`
 
 Approved bird images use a separate shared namespace instead of being copied
-inside every JSON release. Source priority is deliberately simple: keep the
-existing selected USFWS image first, consider iNaturalist only for an uncovered
-species, and retain the neutral silhouette when no safe candidate is selected.
-The current ledger's 167 USFWS selections are not reopened or replaced by the
-fallback refresh.
+inside every JSON release. All 207 catalog species have a pinned selection:
+167 USFWS, 16 iNaturalist, and 24 Wikimedia Commons. They are recorded in
+`config/rufous-pinned-public-media.json`. That file
+contains only audited public metadata and immutable R2 URLs; it contains no
+provider image URL or image bytes. Automatic app deployments and scheduled data
+refreshes consume the pin; they never call USFWS, iNaturalist, or Wikimedia
+Commons, prepare WebPs, or publish media objects. Species without a pinned
+selection retain the neutral silhouette.
 
-Adding already-reviewed iNaturalist fallback images uses the dedicated
-`media-delta` release scope. That scope hydrates the active, hash-verified
-production snapshot, carries its existing USFWS media forward unchanged, and
-derives targets only from committed iNaturalist selections. It still runs those
-new records through dlt, DuckDB, SQLMesh, image preparation, approval checks,
-and the complete public-release audit, but it does not call USFWS, refresh GBIF,
-download GNIS, or run the full exporter. Only the selected iNaturalist WebPs are
-considered for the immutable media upload; Pages is deployed before the new R2
-data pointer is activated. A main-branch push is routed to this narrow scope
-only when every changed path belongs to its reviewed implementation allowlist;
-mixed or unrelated changes fail closed to the full release. The scheduled
-monthly release remains the explicit complete source refresh.
+Adding an image for an unpictured species uses the manual-only `media-refresh`
+release scope. It is never selected by a push or schedule. That explicit
+maintenance path may hydrate the active JSON release, computes the exact set of
+newly approved blank profiles, and stops before provider or deployment work when
+that set is empty. When it is nonempty, the iNaturalist path contacts
+iNaturalist only for that set, while the Wikimedia path loads only its committed
+offline metadata. Both paths rebuild and verify the exact selected WebPs,
+publish only their missing immutable objects, and activate the resulting JSON
+release. Existing USFWS and iNaturalist selections are never refresh targets,
+and the approved Wikimedia batch is not retrieved again after its immutable
+objects are present. Image replacement requires a separate reviewed contract
+and is intentionally refused. The committed pin and
+approval ledger must be updated together before the manual release. Ordinary
+Pages deployments are R2-only shells: they remove the checked-in synthetic data
+fixture and do not hydrate the active snapshot.
+If R2 is unavailable, public data features report unavailable instead of
+silently falling back to fictional or stale bundled data.
 
 DuckDB and SQLMesh select eligible records; the offline builder downloads the
-reviewed USFWS or iNaturalist source image, verifies that its model and HTTP media
+reviewed USFWS, iNaturalist, or Wikimedia Commons source image, verifies that its model and HTTP media
 types are allowlisted hints, independently identifies the bytes as a still JPEG,
 PNG, or WebP with reviewed dimensions, strips metadata, creates a WebP no larger
 than 650×650 and 1 MiB, and hashes the final bytes. The internal preparation
@@ -223,8 +232,10 @@ SQLMesh first builds `rufous_public.gbif_eod_occurrence`, whose sole warehouse
 dependency is `raw_gbif.occurrences`; it does not need the private eBird,
 Xeno-canto, NOAA, or application models to exist.
 
-The media refresh then derives exact target species from that public model and
-runs the normal dlt → Quack/DuckDB path. The USFWS source calls the official
+Media discovery is an explicit local or manually dispatched maintenance task;
+it is not part of an automatic production deploy. When a reviewer deliberately
+looks for a new image, the maintenance path derives exact target species from
+the public model and runs the normal dlt → Quack/DuckDB path. The USFWS source calls the official
 image search used by <https://www.fws.gov/search/images>, fetches canonical
 `/media/<slug>` pages with bounded concurrency and retries, and records raw
 metadata without deciding whether it may be published. It is an offline
@@ -235,8 +246,8 @@ their values as compact JSON arrays and, for every nonempty response, requires
 the returned facet count to equal the declared result total. This prevents a
 silently ignored filter from turning a targeted refresh into a crawl of the
 full USFWS catalog. Because the target list is derived from the reviewed public
-model, this source is invoked only by the explicit release script; it is not
-exposed as an unconfigured Dagster job.
+model, this source is invoked only by the explicit maintenance script; it is not
+exposed as an unconfigured Dagster job and is never invoked by a push or schedule.
 
 ```bash
 uv run python scripts/load_rufous_usfws_media.py \
@@ -248,14 +259,19 @@ uv run python scripts/prepare_rufous_media.py \
   --output-dir build/rufous-media
 ```
 
-After the USFWS model is available, the fallback target list is computed as the
-public catalog minus species with an exact committed USFWS selection. This
-preserves all 167 existing USFWS selections and currently sends only the 40
-uncovered species through the iNaturalist source. A prior USFWS `no_safe_image`
-exclusion does not suppress a separately licensed iNaturalist candidate. An
-existing iNaturalist selection also remains a refresh target so its source
-metadata and image bytes cannot disappear from a later release. The
-iNaturalist source is an offline dlt snapshot into the transient DuckDB—not a
+During explicit local media discovery, the fallback target list is the public
+catalog minus every exact committed selection, regardless of provider. This
+preserves the 167 USFWS and 16 iNaturalist selections without retrieving their
+metadata or bytes again. The completed first fallback pass covered the 40
+species that lacked a USFWS selection and added 16 images. The final 24 species
+now have one approved, commercially reusable Wikimedia Commons image recorded
+in `config/rufous-pinned-public-media.json`; they remain unpictured in the
+active public release only until the explicit one-time Wikimedia media refresh
+publishes those immutable objects and activates the JSON delta.
+A prior USFWS `no_safe_image` exclusion does not suppress a
+separately licensed candidate. The manual release path independently removes
+exact active iNaturalist selections from its target set and refuses replacement.
+The iNaturalist source is an offline dlt snapshot into the transient DuckDB—not a
 browser request and not a replacement for the pipeline. It resolves an exact
 active taxon, inspects at most 20 curated photos per target, and records the
 run, every target outcome, and each eligible candidate for SQLMesh validation.
@@ -268,6 +284,28 @@ allowlist is intentionally narrower than USFWS: CC0 1.0, CC BY 4.0, or CC BY-SA
 4.0 only. NC, ND, older versions, all-rights-reserved, a bare Public Domain
 label, missing attribution, or mismatched page/object identities fail closed.
 Discovering a candidate does not publish it.
+
+The Wikimedia gap fill is deliberately a one-time offline input rather than a
+new recurring scraper. Each of its 24 rows records one exact Commons `File:`
+page, one exact `upload.wikimedia.org` image object, creator, commercial-use
+license, source dimensions, and the matching production GBIF species identity.
+The loader has no network client and transactionally replaces only
+`rufous_public.wikimedia_commercial_image` in a transient DuckDB. Normal deploys
+never execute it or contact Wikimedia:
+
+```bash
+uv run python scripts/load_rufous_wikimedia_media.py \
+  --database data/databox.duckdb \
+  --input config/rufous-wikimedia-public-media.json
+uv run python scripts/prepare_rufous_media.py \
+  --database-path data/databox.duckdb \
+  --output-dir build/rufous-wikimedia-media \
+  --provider wikimedia
+```
+
+The resulting WebPs pass through the same local human review, committed
+selection ledger, additive R2 publication, and pinned-manifest gates as every
+other image. No automated job may infer an approval from the curated metadata.
 
 That preparation remains usable for a local refresh even when nothing is
 selected. To produce a deterministic list without granting a selection:
@@ -326,10 +364,11 @@ python -m http.server 4174 --bind 127.0.0.1 \
 ```
 
 `--only-missing-species` removes every species with a current committed
-selection from this local gallery. It is the normal fallback-review mode: the
-167 selected USFWS species stay untouched while the reviewer sees only newly
-prepared candidates for the 40 gaps. Omit the flag only when intentionally
-auditing or replacing existing selections. Neither mode edits the ledger.
+selection from this local gallery. It is the normal fallback-review mode: all
+current selections stay untouched while the reviewer sees only newly prepared
+candidates for any future gaps. Omit the flag only for a separate,
+deliberate audit; the production add-only release contract still refuses image
+replacement. Neither mode edits the ledger.
 
 When `--recommendations` is omitted, the gallery opens on one deterministic
 recommendation per species, ranked by the prepared hero score and then stable
@@ -373,11 +412,12 @@ human reviewer's identity added explicitly:
 
 ```bash
 uv run python scripts/verify_rufous_media_approvals.py \
-  --manifest build/rufous-media/manifest.json \
+  --manifest build/rufous-wikimedia-media/manifest.json \
   --approvals config/rufous-media-visual-approvals.json \
   --import-local-decisions /path/to/rufous-local-review-decisions-NOT-YET-COMMITTED.json \
   --write-updated-ledger /tmp/rufous-media-visual-decisions.json \
-  --reviewed-by "Human reviewer name"
+  --reviewed-by "Human reviewer name" \
+  --provider wikimedia
 ```
 
 The import is bound to the exact prepared-manifest SHA-256 and exact candidate
@@ -386,11 +426,34 @@ partial review remains safely non-publishable. Review the diff before replacing
 the committed ledger. The production release audit rejects the local marker if
 any review bundle is copied into a deployable site.
 
+For a reviewed additive provider batch, compose a separate candidate for the
+provider-free immutable pin. This command requires the exact updated human
+ledger, retains every existing pinned item unchanged, selects only the reviewed
+provider hashes, normalizes ranking out of the pin, and omits upstream image
+object URLs:
+
+```bash
+uv run python scripts/compose_rufous_media_pin.py \
+  --base config/rufous-pinned-public-media.json \
+  --prepared build/rufous-wikimedia-media/manifest.json \
+  --approvals /tmp/rufous-media-visual-decisions.json \
+  --provider wikimedia \
+  --output /tmp/rufous-pinned-public-media.json
+```
+
+Review both diffs before replacing either committed file. A later explicit
+`media-refresh` dispatch chooses `media_provider: wikimedia`; it revalidates the
+active production catalog, prepares only that selected batch, proves those
+exact public projections are already in the committed pin, publishes the
+content-addressed objects, and activates the JSON delta last. Ordinary pushes,
+full releases, and scheduled releases continue to use only the committed pin
+and never contact Wikimedia.
+
 Run the same command without `--write-review-candidates` to verify the finished
-ledger. Production export and media publication both require that verification.
-The scheduled workflow places it immediately after local preparation and before
-any R2 or Pages mutation, so a newly discovered or changed image can stop a
-release but cannot publish itself.
+ledger. Manual media publication and every production export both require that
+verification. The automatic workflow verifies the committed pinned manifest;
+it does not rediscover candidates. A newly discovered or changed image therefore
+cannot publish itself and cannot affect an unrelated app or data deployment.
 
 `rufous_public.usfws_commercial_image` selects only the latest complete
 snapshot. It requires an exact scientific-name tag, canonical USFWS media page,
@@ -417,7 +480,7 @@ uv run python scripts/export_rufous_public.py \
   --database data/databox.duckdb \
   --gnis data/DomesticNames_AZ.txt \
   --gnis-sha256 "$RUF_GNIS_SHA256" \
-  --media-manifest build/rufous-media/manifest.json \
+  --media-manifest config/rufous-pinned-public-media.json \
   --media-approvals config/rufous-media-visual-approvals.json \
   --output build/rufous-public-data
 ```
@@ -463,6 +526,11 @@ The monthly schedule never follows an unreviewed mutable GNIS URL.
   malformed, ambiguous, and bare Public Domain labels are rejected. The
   canonical photo page and original-object URL must contain the same positive
   photo ID.
+- Wikimedia Commons media accepts only exact per-file Public Domain, CC0,
+  CC BY, or CC BY-SA terms. Each credit links to the authoritative Commons
+  `File:` page; NC, ND, all-rights-reserved, missing, or malformed terms fail
+  closed. Rufous records that its display copy was resized, re-encoded, and
+  stripped of metadata.
 - USFWS logos and seals, Federal and Junior Duck Stamp imagery, Wildlife and
   Sport Fish Restoration symbols, and Blue Goose refuge marks are excluded
   under the [USFWS notices](https://www.fws.gov/notices) and
@@ -487,10 +555,10 @@ Cloudflare bindings, known metered browser services, repository-level Wrangler
 or Functions discovery paths, and workflow runners. It permits only the standard
 `ubuntu-latest` GitHub-hosted runner.
 
-Both synthetic pull-request builds and production builds run focused SQLMesh
-unit tests for `rufous_public.gbif_eod_occurrence` and
-the USFWS and iNaturalist commercial-image models before any release artifact
-can be built or deployed.
+Synthetic pull-request builds continue to test the provider adapters and media
+models with credentialless fixtures. Automatic production builds run the GBIF
+publication model and verify the committed media pin against the human approval
+ledger; they do not execute a live media source or the offline Wikimedia loader.
 
 ## Deployment controls
 
@@ -500,33 +568,24 @@ preview on pull requests. A relevant push to `main`, a manual dispatch from
 allowlisted EOD dataset is an annual release, so a six-hour occurrence crawl
 would add provider load without making this snapshot fresher.
 
-The production sequence is fail-closed:
+The automatic production sequence is fail-closed:
 
-1. Run GBIF and USFWS dlt snapshots into a temporary DuckDB, derive only the
-   still-uncovered species, run their bounded iNaturalist fallback snapshot
-   through the same dlt → DuckDB path, and build all public SQLMesh models.
-2. Prepare immutable display images and require exactly one current, provenance-
-   bound human selection for every eligible represented species, or an exact
-   human-confirmed no-safe-image exclusion. Unselected and excluded candidates
-   do not block and are absent from both JSON and media publication. Every
-   committed positive selection must still be present in the current prepared
-   manifest; if an upstream source disappears, the refresh fails and the prior
-   release remains live rather than silently losing an image.
-3. Export the sanitized JSON projection with complete per-image attribution.
-4. Build the full browser application and its independent Pages fallback; audit
-   the resulting bundle before any object-store mutation.
-5. Require the checked-out commit to remain the current `main` head, then
-   preflight both the immutable media namespace and atomic JSON publisher.
-6. Recheck `main`, measure the existing media prefix, enforce the new-upload and
-   cumulative storage budgets, then create and byte-verify missing
-   content-addressed media. Orphaned media is harmless if a later step fails
-   because no active JSON release references it, and its bytes still count
-   against the cumulative gate.
-7. Deploy the already-audited Pages directory atomically so the compatible app
-   and complete same-release fallback exist first.
-8. Recheck the `main` head, conditionally upload and fully read, hash, and verify
-   every immutable R2 object plus its actual cache/content metadata, then
-   CAS-write and verify the no-cache pointer last.
+1. Run only the licensed GBIF occurrence snapshot through dlt, DuckDB, and the
+   public SQLMesh occurrence model; verify the pinned GNIS archive.
+2. Verify `config/rufous-pinned-public-media.json` against every committed human
+   selection. All 207 selected hashes, species identities, source pages,
+   licenses, credits, and immutable R2 URLs must match exactly.
+3. Export the sanitized JSON projection and refuse to continue if the refreshed
+   catalog would drop even one pinned approved media species.
+4. Build the browser application, delete the bundled synthetic `/data` fixture,
+   and audit the resulting R2-only shell independently from the generated data.
+5. Require the checked-out commit to remain the current `main` head and preflight
+   the atomic JSON publisher. No automatic step calls a media provider, prepares
+   an image, lists the media namespace, or publishes a media object.
+6. Deploy the shell on non-scheduled releases. Scheduled data-only refreshes do
+   not redeploy Pages.
+7. Recheck the `main` head, conditionally upload and verify the immutable JSON
+   release, then CAS-write and verify the no-cache pointer last.
 
 An unchanged exporter `data_version` re-verifies the active R2 release without
 creating another one. Data-schema changes must remain backward compatible with

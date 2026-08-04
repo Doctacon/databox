@@ -27,7 +27,15 @@ export interface PublicPlacePrefix {
   count: number;
 }
 
-export type PublicMediaSource = "none" | "usfws" | "inaturalist" | "usfws+inaturalist";
+export type PublicMediaProvider = "usfws" | "inaturalist" | "wikimedia";
+
+export type PublicMediaSource =
+  | "none"
+  | PublicMediaProvider
+  | "usfws+inaturalist"
+  | "usfws+wikimedia"
+  | "inaturalist+wikimedia"
+  | "usfws+inaturalist+wikimedia";
 
 export interface PublicManifest {
   schema_version: 1;
@@ -87,7 +95,7 @@ export interface PublicReleasePointer {
 
 export interface PublicMedia {
   kind: "photo";
-  provider: "usfws" | "inaturalist";
+  provider: PublicMediaProvider;
   media_id: string;
   url: string;
   source_url: string;

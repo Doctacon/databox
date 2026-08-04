@@ -1,9 +1,9 @@
-"""Compose a selected iNaturalist media delta over the active Rufous snapshot.
+"""Compose one reviewed provider's media delta over the active Rufous snapshot.
 
-This path deliberately does not rebuild, download, or otherwise touch USFWS
+This path deliberately does not rebuild, download, or otherwise touch existing
 media.  It treats the hydrated production JSON as an immutable, verified base,
-proves that every existing USFWS photo still matches the committed human
-selection ledger, and adds only the provider-scoped iNaturalist selections.
+proves that every live photo still matches the committed human selection
+ledger, and adds only newly selected species from one explicit provider.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from databox.public_export import (
+    ALLOWED_LICENSES,
     JsonObject,
     PublicExportError,
     load_public_assets,
@@ -27,20 +28,45 @@ from databox.public_export import (
     write_public_assets,
 )
 from databox.public_media_approval import (
+    DISQUALIFYING_REJECTION_REASONS,
     MediaApprovalError,
+    MediaCandidate,
     VisualSelection,
+    load_manifest_provenance,
     load_visual_approvals,
-    require_visual_approvals,
+    load_visual_rejections,
 )
 from databox.public_media_release import scan_prepared_media
 from databox.public_release import PublicReleaseError
-
-EXPECTED_INATURALIST_SELECTIONS = 16
 
 _USFWS_MEDIA_PAGE = re.compile(
     r"^https://www\.fws\.gov/media/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$"
 )
 _INATURALIST_MEDIA_PAGE = re.compile(r"^https://www\.inaturalist\.org/photos/[1-9][0-9]*$")
+_WIKIMEDIA_MEDIA_PAGE = re.compile(
+    r"^https://commons\.wikimedia\.org/wiki/File:[^/?#\x00-\x20\x7f]+$"
+)
+_DELTA_PROVIDERS = frozenset({"inaturalist", "wikimedia"})
+_IMAGE_PROVIDERS = frozenset({"usfws", *_DELTA_PROVIDERS})
+_PROVIDER_LABEL = {
+    "usfws": "USFWS",
+    "inaturalist": "iNaturalist",
+    "wikimedia": "Wikimedia",
+}
+_MEDIA_SOURCE_MARKERS = {
+    frozenset({"usfws"}): "usfws",
+    frozenset({"usfws", "inaturalist"}): "usfws+inaturalist",
+    frozenset({"usfws", "wikimedia"}): "usfws+wikimedia",
+    frozenset({"usfws", "inaturalist", "wikimedia"}): ("usfws+inaturalist+wikimedia"),
+}
+_CURRENT_LICENSE_ALLOWLIST = {
+    provider: sorted(values) for provider, values in ALLOWED_LICENSES.items()
+}
+_PRE_WIKIMEDIA_LICENSE_ALLOWLIST = {
+    provider: values
+    for provider, values in _CURRENT_LICENSE_ALLOWLIST.items()
+    if provider != "wikimedia"
+}
 
 _USFWS_ATTRIBUTION_SOURCE: JsonObject = {
     "provider": "usfws",
@@ -68,6 +94,25 @@ _INATURALIST_ATTRIBUTION_SOURCE: JsonObject = {
     ),
 }
 
+_WIKIMEDIA_ATTRIBUTION_SOURCE: JsonObject = {
+    "provider": "wikimedia",
+    "title": "Wikimedia Commons",
+    "url": "https://commons.wikimedia.org/",
+    "license": "Per-item Public Domain or Creative Commons license",
+    "license_url": None,
+    "credit": "Individual creators are credited on each media item.",
+    "modifications": (
+        "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
+        "copies; each credit links to the original Wikimedia Commons File page."
+    ),
+}
+
+_ATTRIBUTION_SOURCE_BY_PROVIDER = {
+    "usfws": _USFWS_ATTRIBUTION_SOURCE,
+    "inaturalist": _INATURALIST_ATTRIBUTION_SOURCE,
+    "wikimedia": _WIKIMEDIA_ATTRIBUTION_SOURCE,
+}
+
 
 class PublicMediaDeltaError(RuntimeError):
     """The active snapshot cannot safely accept the reviewed media delta."""
@@ -90,19 +135,53 @@ class _SpeciesBinding:
     profile_path: str
 
 
+@dataclass(frozen=True)
+class _PendingMediaState:
+    assets: dict[str, JsonObject]
+    bindings: dict[str, _SpeciesBinding]
+    active_providers: frozenset[str]
+    pending: dict[str, VisualSelection]
+
+
+def load_pending_public_media_selections(
+    active_root: Path,
+    approval_path: Path,
+    *,
+    provider: str,
+) -> tuple[VisualSelection, ...]:
+    """Return only committed, not-yet-live selections for one explicit provider.
+
+    Loading the count is itself a release gate: the active snapshot, its source
+    marker, every live image, and the complete approval ledger are validated
+    before a provider can be contacted.
+    """
+    try:
+        state = _pending_media_state(
+            load_public_assets(active_root),
+            approval_path=approval_path,
+            provider=provider,
+        )
+    except PublicMediaDeltaError:
+        raise
+    except (MediaApprovalError, PublicExportError) as exc:
+        raise PublicMediaDeltaError(str(exc)) from exc
+    return tuple(state.pending[key] for key in sorted(state.pending))
+
+
 def compose_public_media_delta(
     *,
     active_root: Path,
     prepared_media_dir: Path,
     approval_path: Path,
     output_dir: Path,
+    provider: str = "inaturalist",
     generated_at: str | None = None,
 ) -> PublicMediaDeltaResult:
-    """Add exactly the reviewed iNaturalist selections to active public JSON.
+    """Add exactly the reviewed provider selections to active public JSON.
 
     The prepared directory remains unchanged so the same provider-scoped input
-    can subsequently be passed to the immutable media publisher.  Only its 16
-    selected local WebP objects are decoded and hash-verified here.
+    can subsequently be passed to the immutable media publisher.  Only objects
+    for selections that are not already live are decoded and hash-verified.
     """
     try:
         return _compose_public_media_delta(
@@ -110,6 +189,7 @@ def compose_public_media_delta(
             prepared_media_dir=prepared_media_dir,
             approval_path=approval_path,
             output_dir=output_dir,
+            provider=provider,
             generated_at=generated_at,
         )
     except PublicMediaDeltaError:
@@ -124,73 +204,51 @@ def _compose_public_media_delta(
     prepared_media_dir: Path,
     approval_path: Path,
     output_dir: Path,
+    provider: str,
     generated_at: str | None,
 ) -> PublicMediaDeltaResult:
-    active_assets = load_public_assets(active_root)
-    manifest = active_assets["data/manifest.json"]
-    if manifest.get("release_mode") != "production":
-        raise PublicMediaDeltaError("active Rufous snapshot must be a production release")
+    state = _pending_media_state(
+        load_public_assets(active_root),
+        approval_path=approval_path,
+        provider=provider,
+    )
+    active_assets = state.assets
+    pending = state.pending
+    if not pending:
+        label = _PROVIDER_LABEL[provider]
+        raise PublicMediaDeltaError(
+            f"no pending {label} selections; every committed selection is already live"
+        )
 
     prepared_manifest = prepared_media_dir / "manifest.json"
-    approval_plan = require_visual_approvals(
-        prepared_manifest,
-        approval_path,
-        provider="inaturalist",
+    candidates = load_manifest_provenance(prepared_manifest, provider=provider)
+    _validate_pending_prepared_selections(
+        candidates,
+        pending,
+        approval_path=approval_path,
+        provider=provider,
     )
-    if (
-        approval_plan.summary.manifest_species != EXPECTED_INATURALIST_SELECTIONS
-        or len(approval_plan.selections) != EXPECTED_INATURALIST_SELECTIONS
-        or approval_plan.species_exclusions
-    ):
-        raise PublicMediaDeltaError(
-            "iNaturalist delta must contain exactly 16 human-selected species and no exclusions"
-        )
+    selected_sha256_by_species = {
+        species_key: selection.sha256 for species_key, selection in pending.items()
+    }
+    selected_sha256s = frozenset(selected_sha256_by_species.values())
     scanned_objects = scan_prepared_media(
         prepared_media_dir,
-        selected_sha256s=approval_plan.selected_sha256s,
+        selected_sha256s=selected_sha256s,
     )
-    if {item.sha256 for item in scanned_objects} != approval_plan.selected_sha256s:
-        raise PublicMediaDeltaError("selected iNaturalist prepared objects failed exact validation")
+    if {item.sha256 for item in scanned_objects} != selected_sha256s:
+        raise PublicMediaDeltaError(f"selected {provider} prepared objects failed exact validation")
 
     selected_media = load_public_media_manifest(
         prepared_manifest,
-        selected_sha256_by_species=approval_plan.selected_sha256_by_species,
-        excluded_species=approval_plan.excluded_species,
+        selected_sha256_by_species=selected_sha256_by_species,
     )
-    if set(selected_media) != set(approval_plan.selected_sha256_by_species) or any(
+    if set(selected_media) != set(pending) or any(
         len(items) != 1 for items in selected_media.values()
     ):
-        raise PublicMediaDeltaError("iNaturalist public projection is not exactly one per species")
-
-    bindings, active_providers = _validate_active_species(active_assets)
-    targets = set(selected_media)
-    missing_targets = sorted(targets - set(bindings))
-    if missing_targets:
         raise PublicMediaDeltaError(
-            f"iNaturalist target species is absent from the active snapshot: {missing_targets[0]}"
+            f"pending {provider} public projection is not exactly one per species"
         )
-    _validate_target_media_state(active_assets, bindings, selected_media)
-
-    selections = load_visual_approvals(approval_path)
-    usfws_selections, ledger_inaturalist = _partition_selections(selections)
-    if set(ledger_inaturalist) != set(approval_plan.selected_sha256_by_species):
-        raise PublicMediaDeltaError(
-            "provider-scoped iNaturalist selections do not match the committed ledger"
-        )
-    _validate_active_usfws(active_assets, bindings, usfws_selections)
-    _validate_active_media_source(manifest, active_providers)
-
-    # A mixed active snapshot is accepted only as an exact idempotent retry of
-    # this complete delta.  Partial or foreign iNaturalist state fails closed.
-    active_inaturalist = _active_provider_media(active_assets, bindings, "inaturalist")
-    if active_inaturalist:
-        expected_inaturalist = {
-            species: selected_media[species][0] for species in sorted(selected_media)
-        }
-        if active_inaturalist != expected_inaturalist:
-            raise PublicMediaDeltaError(
-                "active iNaturalist media is not the exact reviewed idempotent delta"
-            )
 
     timestamp = generated_at or datetime.now(UTC).isoformat()
     _require_aware_timestamp(timestamp)
@@ -199,7 +257,6 @@ def _compose_public_media_delta(
     updated_bindings, _providers = _validate_active_species(updated)
 
     added = 0
-    reused = 0
     changed_profile_paths: set[str] = set()
     changed_summary_indexes: set[int] = set()
     for species_key in sorted(selected_media):
@@ -207,15 +264,12 @@ def _compose_public_media_delta(
         binding = updated_bindings[species_key]
         profile = updated[binding.profile_path]
         current = profile.get("media")
-        if current == []:
-            profile["media"] = [item]
-            added += 1
-        elif current == [item]:
-            reused += 1
-        else:
+        if current != []:
             raise PublicMediaDeltaError(
                 "refusing to replace an existing species image for " + binding.scientific_name
             )
+        profile["media"] = [item]
+        added += 1
         summary = updated_manifest["species"][binding.summary_index]
         assert isinstance(summary, dict)
         summary["hero_photo"] = copy.deepcopy(item)
@@ -227,8 +281,13 @@ def _compose_public_media_delta(
     counts = updated_manifest.get("counts")
     if not isinstance(source_policy, dict) or not isinstance(counts, dict):
         raise PublicMediaDeltaError("active Rufous manifest has malformed policy or counts")
-    source_policy["media_source"] = "usfws+inaturalist"
+    expected_providers = set(state.active_providers).union({provider})
+    marker = _MEDIA_SOURCE_MARKERS.get(frozenset(expected_providers))
+    if marker is None:
+        raise PublicMediaDeltaError("composed Rufous media provider combination is unsupported")
+    source_policy["media_source"] = marker
     source_policy["media_delivery"] = "immutable_r2"
+    _update_license_policy(updated_manifest)
     updated_manifest["generated_at"] = timestamp
     counts["media_items"] = sum(
         int(summary["photo_count"])
@@ -241,7 +300,12 @@ def _compose_public_media_delta(
         if isinstance(summary, dict)
     )
 
-    _update_attribution(updated, timestamp)
+    _update_attribution(
+        updated,
+        timestamp,
+        active_providers=set(state.active_providers),
+        updated_providers=expected_providers,
+    )
     updated_manifest["data_version"] = semantic_data_version(updated)
     _assert_allowed_asset_changes(
         active_assets,
@@ -251,8 +315,10 @@ def _compose_public_media_delta(
     )
     # Re-run structural checks on the exact tree that will be written.
     _updated_bindings, updated_providers = _validate_active_species(updated)
-    if updated_providers != {"usfws", "inaturalist"}:
-        raise PublicMediaDeltaError("composed Rufous media providers are not exactly mixed")
+    if updated_providers != expected_providers:
+        raise PublicMediaDeltaError(
+            "composed Rufous media providers do not match the bounded delta"
+        )
 
     write_public_assets(output_dir, updated)
     return PublicMediaDeltaResult(
@@ -261,7 +327,7 @@ def _compose_public_media_delta(
         selected_species=len(selected_media),
         selected_objects=len(scanned_objects),
         added_species=added,
-        reused_species=reused,
+        reused_species=0,
     )
 
 
@@ -318,10 +384,7 @@ def _validate_active_species(
         )
         if media:
             item = media[0]
-            if not isinstance(item, dict) or item.get("provider") not in {
-                "usfws",
-                "inaturalist",
-            }:
+            if not isinstance(item, dict) or item.get("provider") not in _IMAGE_PROVIDERS:
                 raise PublicMediaDeltaError("active Rufous media has an unsupported provider")
             if item.get("scientific_name") != scientific_name:
                 raise PublicMediaDeltaError("active Rufous media scientific name has drifted")
@@ -338,19 +401,78 @@ def _validate_active_species(
 
 def _partition_selections(
     selections: Mapping[str, VisualSelection],
-) -> tuple[dict[str, VisualSelection], dict[str, VisualSelection]]:
-    usfws: dict[str, VisualSelection] = {}
-    inaturalist: dict[str, VisualSelection] = {}
+) -> dict[str, dict[str, VisualSelection]]:
+    partitioned: dict[str, dict[str, VisualSelection]] = {
+        provider: {} for provider in _IMAGE_PROVIDERS
+    }
     for species_key, selection in selections.items():
         if all(_USFWS_MEDIA_PAGE.fullmatch(url) for url in selection.source_page_urls):
-            usfws[species_key] = selection
+            provider = "usfws"
         elif all(_INATURALIST_MEDIA_PAGE.fullmatch(url) for url in selection.source_page_urls):
-            inaturalist[species_key] = selection
+            provider = "inaturalist"
+        elif all(_WIKIMEDIA_MEDIA_PAGE.fullmatch(url) for url in selection.source_page_urls):
+            # The approval reader already applies the stricter decoded Commons
+            # File-page validation before a selection reaches this function.
+            provider = "wikimedia"
         else:
             raise PublicMediaDeltaError(
                 f"visual selection has mixed or unsupported provenance: {selection.scientific_name}"
             )
-    return usfws, inaturalist
+        partitioned[provider][species_key] = selection
+    return partitioned
+
+
+def _pending_media_state(
+    assets: dict[str, JsonObject],
+    *,
+    approval_path: Path,
+    provider: str,
+) -> _PendingMediaState:
+    if provider not in _DELTA_PROVIDERS:
+        raise PublicMediaDeltaError("media delta provider is not reviewed")
+    manifest = assets.get("data/manifest.json")
+    if not isinstance(manifest, dict) or manifest.get("release_mode") != "production":
+        raise PublicMediaDeltaError("active Rufous snapshot must be a production release")
+
+    bindings, active_providers = _validate_active_species(assets)
+    selections_by_provider = _partition_selections(load_visual_approvals(approval_path))
+    _validate_active_provider(
+        assets,
+        bindings,
+        committed=selections_by_provider["usfws"],
+        provider="usfws",
+        require_exact=True,
+    )
+    for optional_provider in sorted(_DELTA_PROVIDERS):
+        _validate_active_provider(
+            assets,
+            bindings,
+            committed=selections_by_provider[optional_provider],
+            provider=optional_provider,
+            require_exact=False,
+        )
+    _validate_active_media_source(manifest, active_providers)
+    _validate_license_policy_for_delta(manifest)
+
+    active_selected_provider = _active_provider_media(assets, bindings, provider)
+    pending = {
+        species_key: selection
+        for species_key, selection in selections_by_provider[provider].items()
+        if species_key not in active_selected_provider
+    }
+    missing_targets = sorted(set(pending) - set(bindings))
+    if missing_targets:
+        raise PublicMediaDeltaError(
+            f"pending {provider} species is absent from the active snapshot: "
+            + pending[missing_targets[0]].scientific_name
+        )
+    _validate_pending_target_media_state(assets, bindings, pending, provider=provider)
+    return _PendingMediaState(
+        assets=assets,
+        bindings=bindings,
+        active_providers=frozenset(active_providers),
+        pending=pending,
+    )
 
 
 def _active_provider_media(
@@ -368,30 +490,95 @@ def _active_provider_media(
     return result
 
 
-def _validate_target_media_state(
+def _validate_pending_target_media_state(
     assets: Mapping[str, JsonObject],
     bindings: Mapping[str, _SpeciesBinding],
-    selected_media: Mapping[str, list[JsonObject]],
+    pending: Mapping[str, VisualSelection],
+    *,
+    provider: str,
 ) -> None:
-    for species_key, items in selected_media.items():
+    for species_key, selection in pending.items():
         binding = bindings[species_key]
         current = assets[binding.profile_path].get("media")
-        expected = items[0]
-        if current not in ([], [expected]):
+        if selection.scientific_name != binding.scientific_name:
+            raise PublicMediaDeltaError(
+                f"pending {provider} selection scientific name has drifted for "
+                + binding.scientific_name
+            )
+        if current != []:
             raise PublicMediaDeltaError(
                 "refusing to replace an existing species image for " + binding.scientific_name
             )
 
 
-def _validate_active_usfws(
+def _validate_pending_prepared_selections(
+    candidates: Mapping[tuple[str, str], MediaCandidate],
+    pending: Mapping[str, VisualSelection],
+    *,
+    approval_path: Path,
+    provider: str,
+) -> None:
+    candidate_species = {species_key for species_key, _sha256 in candidates}
+    if candidate_species != set(pending):
+        unexpected = sorted(candidate_species - set(pending))
+        missing = sorted(set(pending) - candidate_species)
+        detail = (
+            f"unexpected already-live or unselected species {unexpected[0]}"
+            if unexpected
+            else f"missing pending species {pending[missing[0]].scientific_name}"
+        )
+        raise PublicMediaDeltaError(
+            f"prepared {provider} manifest must contain exactly the pending species; " + detail
+        )
+
+    for selection in pending.values():
+        candidate = candidates.get(selection.key)
+        if candidate is None:
+            raise PublicMediaDeltaError(
+                "pending selected pixels are absent from prepared media for "
+                + selection.scientific_name
+            )
+        if not set(candidate.source_page_urls).issubset(selection.source_page_urls):
+            raise PublicMediaDeltaError(
+                "pending prepared provenance exceeds its committed selection for "
+                + selection.scientific_name
+            )
+
+    disqualified_hashes = {
+        rejection.sha256
+        for rejection in load_visual_rejections(approval_path).values()
+        if rejection.reason in DISQUALIFYING_REJECTION_REASONS
+    }
+    conflict = sorted(
+        {selection.sha256 for selection in pending.values()}.intersection(disqualified_hashes)
+    )
+    if conflict:
+        raise PublicMediaDeltaError(
+            "pending selected pixels also carry a dead-bird, human-present, or "
+            f"migration-map rejection: {conflict[0]}"
+        )
+
+
+def _validate_active_provider(
     assets: Mapping[str, JsonObject],
     bindings: Mapping[str, _SpeciesBinding],
+    *,
     committed: Mapping[str, VisualSelection],
+    provider: str,
+    require_exact: bool,
 ) -> None:
-    active = _active_provider_media(assets, bindings, "usfws")
-    if not active or set(active) != set(committed):
+    active = _active_provider_media(assets, bindings, provider)
+    if require_exact and (not active or set(active) != set(committed)):
+        label = _PROVIDER_LABEL[provider]
         raise PublicMediaDeltaError(
-            "active USFWS species do not exactly match committed USFWS selections"
+            f"active {label} species do not exactly match committed {label} selections"
+        )
+    uncommitted = sorted(set(active) - set(committed))
+    if uncommitted:
+        label = _PROVIDER_LABEL[provider]
+        raise PublicMediaDeltaError(
+            f"active {label} image has no committed selection for "
+            + bindings[uncommitted[0]].scientific_name
         )
     for species_key, item in active.items():
         selection = committed[species_key]
@@ -403,8 +590,9 @@ def _validate_active_usfws(
             or not isinstance(source_url, str)
             or source_url not in selection.source_page_urls
         ):
+            label = _PROVIDER_LABEL[provider]
             raise PublicMediaDeltaError(
-                "active USFWS image drifted from its committed selection for "
+                f"active {label} image drifted from its committed selection for "
                 + binding.scientific_name
             )
 
@@ -415,20 +603,56 @@ def _validate_active_media_source(manifest: JsonObject, providers: set[str]) -> 
         raise PublicMediaDeltaError("active Rufous source policy is malformed")
     marker = source_policy.get("media_source")
     delivery = source_policy.get("media_delivery")
-    expected_marker = (
-        "usfws"
-        if providers == {"usfws"}
-        else "usfws+inaturalist"
-        if providers == {"usfws", "inaturalist"}
-        else None
-    )
+    expected_marker = _MEDIA_SOURCE_MARKERS.get(frozenset(providers))
     if expected_marker is None or marker != expected_marker or delivery != "immutable_r2":
         raise PublicMediaDeltaError(
-            "active snapshot must contain only the approved USFWS base or exact retry media"
+            "active snapshot must contain the approved USFWS base and only pinned media"
         )
 
 
-def _update_attribution(assets: dict[str, JsonObject], timestamp: str) -> None:
+def _validate_license_policy_for_delta(manifest: JsonObject) -> bool:
+    """Accept only the current policy or its exact pre-Wikimedia predecessor."""
+    policy = manifest.get("license_policy")
+    if (
+        not isinstance(policy, dict)
+        or set(policy) != {"version", "allowed", "rejected_counts"}
+        or policy.get("version") != 1
+        or not isinstance(policy.get("rejected_counts"), dict)
+        or any(
+            not isinstance(name, str)
+            or not name
+            or isinstance(count, bool)
+            or not isinstance(count, int)
+            or count < 0
+            for name, count in policy["rejected_counts"].items()
+        )
+    ):
+        raise PublicMediaDeltaError("active Rufous license policy is malformed")
+    allowed = policy.get("allowed")
+    if allowed == _CURRENT_LICENSE_ALLOWLIST:
+        return False
+    if allowed == _PRE_WIKIMEDIA_LICENSE_ALLOWLIST:
+        return True
+    raise PublicMediaDeltaError(
+        "active Rufous license allowlist is neither current nor the exact pre-Wikimedia policy"
+    )
+
+
+def _update_license_policy(manifest: JsonObject) -> None:
+    if not _validate_license_policy_for_delta(manifest):
+        return
+    policy = manifest["license_policy"]
+    assert isinstance(policy, dict)
+    policy["allowed"] = copy.deepcopy(_CURRENT_LICENSE_ALLOWLIST)
+
+
+def _update_attribution(
+    assets: dict[str, JsonObject],
+    timestamp: str,
+    *,
+    active_providers: set[str],
+    updated_providers: set[str],
+) -> None:
     attribution = assets.get("data/attribution.json")
     if not isinstance(attribution, dict) or not isinstance(attribution.get("sources"), list):
         raise PublicMediaDeltaError("active Rufous attribution is malformed")
@@ -441,20 +665,41 @@ def _update_attribution(assets: dict[str, JsonObject], timestamp: str) -> None:
         provider = source.get("provider")
         if isinstance(provider, str):
             provider_indexes.setdefault(provider, []).append(index)
-    usfws_indexes = provider_indexes.get("usfws", [])
-    if len(usfws_indexes) != 1:
-        raise PublicMediaDeltaError("active Rufous attribution must have one USFWS source")
-    usfws_index = usfws_indexes[0]
-    if sources[usfws_index] != _USFWS_ATTRIBUTION_SOURCE:
-        raise PublicMediaDeltaError("active USFWS attribution source has drifted")
-    inaturalist_indexes = provider_indexes.get("inaturalist", [])
-    if not inaturalist_indexes:
-        sources.insert(usfws_index, copy.deepcopy(_INATURALIST_ATTRIBUTION_SOURCE))
-    elif (
-        len(inaturalist_indexes) != 1
-        or sources[inaturalist_indexes[0]] != _INATURALIST_ATTRIBUTION_SOURCE
-    ):
-        raise PublicMediaDeltaError("active iNaturalist attribution source has drifted")
+    image_indexes = sorted(
+        index
+        for provider_name in _IMAGE_PROVIDERS
+        for index in provider_indexes.get(provider_name, [])
+    )
+    if not image_indexes:
+        raise PublicMediaDeltaError("active Rufous attribution has no image provider source")
+    for provider_name in _IMAGE_PROVIDERS:
+        indexes = provider_indexes.get(provider_name, [])
+        if indexes and (
+            len(indexes) != 1
+            or sources[indexes[0]] != _ATTRIBUTION_SOURCE_BY_PROVIDER[provider_name]
+        ):
+            raise PublicMediaDeltaError(f"active {provider_name} attribution source has drifted")
+    existing_image_providers = {
+        provider_name for provider_name in _IMAGE_PROVIDERS if provider_indexes.get(provider_name)
+    }
+    if existing_image_providers != active_providers:
+        raise PublicMediaDeltaError("active Rufous image attribution providers are inconsistent")
+
+    insertion_index = image_indexes[0]
+    non_image_sources = [
+        source
+        for source in sources
+        if not isinstance(source.get("provider"), str)
+        or source.get("provider") not in _IMAGE_PROVIDERS
+    ]
+    sources[:] = [
+        *non_image_sources[:insertion_index],
+        *(
+            copy.deepcopy(_ATTRIBUTION_SOURCE_BY_PROVIDER[name])
+            for name in sorted(updated_providers)
+        ),
+        *non_image_sources[insertion_index:],
+    ]
     attribution["generated_at"] = timestamp
 
 
@@ -492,6 +737,7 @@ def _assert_allowed_asset_changes(
                 ("data_version",),
                 ("source_policy", "media_source"),
                 ("source_policy", "media_delivery"),
+                ("license_policy", "allowed"),
                 ("counts", "media_items"),
                 ("counts", "species_with_media"),
                 *tuple(
@@ -540,7 +786,7 @@ def _changed_paths(
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Apply reviewed iNaturalist photos to an active Rufous public snapshot."
+        description="Apply one reviewed provider's photos to an active Rufous public snapshot."
     )
     parser.add_argument(
         "--active-root",
@@ -552,7 +798,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--prepared-media-dir",
         type=Path,
         required=True,
-        help="iNaturalist-only preparation containing manifest.json and objects/.",
+        help="Provider-only preparation containing manifest.json and objects/.",
     )
     parser.add_argument(
         "--approvals",
@@ -566,6 +812,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         required=True,
         help="Dedicated public-export root to atomically write as data/... JSON.",
     )
+    parser.add_argument(
+        "--provider",
+        required=True,
+        choices=sorted(_DELTA_PROVIDERS),
+        help="Exact reviewed provider represented by the prepared media directory.",
+    )
     parser.add_argument("--generated-at", help=argparse.SUPPRESS)
     return parser.parse_args(argv)
 
@@ -578,6 +830,7 @@ def main(argv: list[str] | None = None) -> int:
             prepared_media_dir=args.prepared_media_dir,
             approval_path=args.approvals,
             output_dir=args.output_root,
+            provider=args.provider,
             generated_at=args.generated_at,
         )
     except PublicMediaDeltaError as exc:
@@ -600,9 +853,9 @@ def main(argv: list[str] | None = None) -> int:
 
 
 __all__ = [
-    "EXPECTED_INATURALIST_SELECTIONS",
     "PublicMediaDeltaError",
     "PublicMediaDeltaResult",
     "compose_public_media_delta",
+    "load_pending_public_media_selections",
     "main",
 ]

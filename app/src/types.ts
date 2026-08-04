@@ -1,3 +1,5 @@
+import type { PublicMediaProvider } from "./publicTypes";
+
 export type JsonObject = Record<string, unknown>;
 
 export interface ApiError {
@@ -40,7 +42,7 @@ export interface RecommendationPhoto {
   license_text: string | null;
   license_url: string | null;
   selection_reason: string | null;
-  provider: "inaturalist" | "usfws" | null;
+  provider: PublicMediaProvider | null;
   license_code: string | null;
   original_width: number | null;
   original_height: number | null;
@@ -163,7 +165,7 @@ export interface LocationSuggestion extends LocationSelection {
 }
 
 export interface CatalogPhoto extends RecommendationPhoto {
-  provider: "inaturalist" | "usfws" | null;
+  provider: PublicMediaProvider | null;
   license_code: string | null;
   original_width: number | null;
   original_height: number | null;

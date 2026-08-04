@@ -53,7 +53,7 @@ _PUBLIC_URL = re.compile(
     r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
     r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.webp$"
 )
-_MEDIA_PROVIDERS = frozenset({"usfws", "inaturalist"})
+_MEDIA_PROVIDERS = frozenset({"usfws", "inaturalist", "wikimedia"})
 
 
 @dataclass(frozen=True)

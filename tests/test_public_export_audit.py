@@ -13,6 +13,9 @@ from databox.public_export_audit import (
     audit_public_site,
     audit_workflow_runners,
 )
+from databox.public_export_audit import (
+    main as audit_main,
+)
 
 _REVIEWED_CSP = (
     "/*\n"
@@ -40,11 +43,32 @@ def _synthetic_site(tmp_path: Path) -> Path:
     return site
 
 
+def _attach_static_shell(site: Path) -> None:
+    site.mkdir(parents=True, exist_ok=True)
+    (site / "index.html").write_text("<!doctype html><title>Rufous</title>", encoding="utf-8")
+    (site / "404.html").write_text("<!doctype html><title>Not found</title>", encoding="utf-8")
+    (site / "_headers").write_text(
+        _REVIEWED_CSP + "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
+        encoding="utf-8",
+    )
+    (site / "_redirects").write_text(_REVIEWED_SPA_REDIRECTS, encoding="utf-8")
+    assets = site / "assets"
+    assets.mkdir(exist_ok=True)
+    (assets / "client-g2-shell.js").write_text("export {};\n", encoding="utf-8")
+
+
+def _shell_only_site(tmp_path: Path) -> Path:
+    site = tmp_path / "shell"
+    _attach_static_shell(site)
+    return site
+
+
 def _attach_synthetic_media(
     site: Path,
     provider: str,
     *,
     summary_index: int = 0,
+    append: bool = False,
     **overrides: object,
 ) -> None:
     manifest_path = site / "data/manifest.json"
@@ -52,32 +76,52 @@ def _attach_synthetic_media(
     summary = manifest["species"][summary_index]
     profile_path = site / str(summary["profile_path"]).removeprefix("/")
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
-    digest = ("d" if provider == "usfws" else "e") * 64
+    provider_values = {
+        "usfws": {
+            "digest": "d" * 64,
+            "media_id": "usfws-" + "a" * 24,
+            "source_url": "https://www.fws.gov/media/annas-hummingbird",
+            "creator": "Jane Birder/USFWS",
+            "license": "Public Domain",
+            "license_url": "https://www.fws.gov/notices",
+            "attribution_id": "usfws-attribution-" + "b" * 24,
+        },
+        "inaturalist": {
+            "digest": "e" * 64,
+            "media_id": "inaturalist-123456789",
+            "source_url": "https://www.inaturalist.org/photos/123456789",
+            "creator": "Jane Naturalist",
+            "license": "CC BY 4.0",
+            "license_url": "https://creativecommons.org/licenses/by/4.0/",
+            "attribution_id": "inaturalist-attribution-123456789",
+        },
+        "wikimedia": {
+            "digest": "f" * 64,
+            "media_id": "wikimedia-" + "c" * 24,
+            "source_url": (
+                "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee_(Melozone_aberti).jpg"
+            ),
+            "creator": "Jane Commons Contributor",
+            "license": "CC BY-SA 4.0",
+            "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+            "attribution_id": "wikimedia-attribution-" + "d" * 24,
+        },
+    }
+    values = provider_values[provider]
+    digest = str(values["digest"])
     media: dict[str, object] = {
         "kind": "photo",
         "provider": provider,
-        "media_id": ("usfws-" + "a" * 24 if provider == "usfws" else "inaturalist-123456789"),
+        "media_id": values["media_id"],
         "url": (
             "https://rufous-data.loughondata.com/rufous-media/v1/objects/"
             f"{digest[:2]}/{digest}.webp"
         ),
-        "source_url": (
-            "https://www.fws.gov/media/annas-hummingbird"
-            if provider == "usfws"
-            else "https://www.inaturalist.org/photos/123456789"
-        ),
-        "creator": "Jane Birder/USFWS" if provider == "usfws" else "Jane Naturalist",
-        "license": "Public Domain" if provider == "usfws" else "CC BY 4.0",
-        "license_url": (
-            "https://www.fws.gov/notices"
-            if provider == "usfws"
-            else "https://creativecommons.org/licenses/by/4.0/"
-        ),
-        "attribution_id": (
-            "usfws-attribution-" + "b" * 24
-            if provider == "usfws"
-            else "inaturalist-attribution-123456789"
-        ),
+        "source_url": values["source_url"],
+        "creator": values["creator"],
+        "license": values["license"],
+        "license_url": values["license_url"],
+        "attribution_id": values["attribution_id"],
         "scientific_name": profile["scientific_name"],
         "title": f"{profile['common_name']} at flowers",
         "caption": "An adult bird feeds at desert flowers.",
@@ -88,18 +132,28 @@ def _attach_synthetic_media(
         "sha256": digest,
     }
     media.update(overrides)
-    profile["media"] = [media]
-    summary["hero_photo"] = media
-    summary["photo_count"] = 1
-    media_sources = {
-        str(item["hero_photo"]["provider"])
-        for item in manifest["species"]
-        if isinstance(item.get("hero_photo"), dict)
-    }
+    existing_media = profile.get("media") if append else []
+    profile["media"] = [*existing_media, media] if isinstance(existing_media, list) else [media]
+    summary["hero_photo"] = profile["media"][0]
+    summary["photo_count"] = len(profile["media"])
+    profile_path.write_text(json.dumps(profile), encoding="utf-8")
+    media_sources: set[str] = set()
+    for species_summary in manifest["species"]:
+        species_profile_path = site / str(species_summary["profile_path"]).removeprefix("/")
+        species_profile = json.loads(species_profile_path.read_text(encoding="utf-8"))
+        media_sources.update(
+            str(item["provider"])
+            for item in species_profile.get("media", [])
+            if isinstance(item, dict) and isinstance(item.get("provider"), str)
+        )
     source_markers = {
         frozenset({"usfws"}): "usfws",
         frozenset({"inaturalist"}): "inaturalist",
+        frozenset({"wikimedia"}): "wikimedia",
         frozenset({"usfws", "inaturalist"}): "usfws+inaturalist",
+        frozenset({"usfws", "wikimedia"}): "usfws+wikimedia",
+        frozenset({"inaturalist", "wikimedia"}): "inaturalist+wikimedia",
+        frozenset({"usfws", "inaturalist", "wikimedia"}): ("usfws+inaturalist+wikimedia"),
     }
     manifest["counts"]["media_items"] = sum(
         int(item["photo_count"]) for item in manifest["species"]
@@ -117,7 +171,7 @@ def _attach_synthetic_media(
     attribution["sources"] = [
         source
         for source in attribution["sources"]
-        if source.get("provider") not in {"usfws", "inaturalist"}
+        if source.get("provider") not in {"usfws", "inaturalist", "wikimedia"}
     ]
     provider_sources = {
         "usfws": {
@@ -144,6 +198,18 @@ def _attach_synthetic_media(
                 "copies; each credit links to the original iNaturalist photo page."
             ),
         },
+        "wikimedia": {
+            "provider": "wikimedia",
+            "title": "Wikimedia Commons",
+            "url": "https://commons.wikimedia.org/",
+            "license": "Per-item Public Domain or Creative Commons license",
+            "license_url": None,
+            "credit": "Individual creators are credited on each media item.",
+            "modifications": (
+                "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
+                "copies; each credit links to the original Wikimedia Commons File page."
+            ),
+        },
     }
     attribution["sources"].extend(provider_sources[value] for value in sorted(media_sources))
     attribution_path.write_text(json.dumps(attribution), encoding="utf-8")
@@ -167,6 +233,22 @@ def _attach_synthetic_inaturalist_media(
     )
 
 
+def _attach_synthetic_wikimedia_media(
+    site: Path,
+    *,
+    summary_index: int = 0,
+    append: bool = False,
+    **overrides: object,
+) -> None:
+    _attach_synthetic_media(
+        site,
+        "wikimedia",
+        summary_index=summary_index,
+        append=append,
+        **overrides,
+    )
+
+
 def test_synthetic_contract_passes_cost_privacy_audit(tmp_path: Path) -> None:
     site = _synthetic_site(tmp_path)
     workflows = tmp_path / "workflows"
@@ -175,6 +257,91 @@ def test_synthetic_contract_passes_cost_privacy_audit(tmp_path: Path) -> None:
         "jobs:\n  build:\n    runs-on: ubuntu-latest\n", encoding="utf-8"
     )
     assert audit_public_site(site, workflows) == []
+
+
+def test_shell_only_audit_requires_a_built_app_and_forbids_bundled_data(
+    tmp_path: Path,
+) -> None:
+    site = _shell_only_site(tmp_path)
+
+    assert audit_public_site(site, shell_only=True) == []
+    assert any("static data contract" in item for item in audit_public_site(site))
+
+    (site / "data").mkdir()
+    assert any(
+        "must not contain a data/ path" in item for item in audit_public_site(site, shell_only=True)
+    )
+
+    missing_index = tmp_path / "missing-index"
+    missing_index.mkdir()
+    assert any(
+        "requires a built static application index.html" in item
+        for item in audit_public_site(missing_index, shell_only=True)
+    )
+
+
+def test_shell_only_cli_selects_the_explicit_contract(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    site = _shell_only_site(tmp_path)
+
+    assert audit_main([str(site), "--shell-only"]) == 0
+    assert "safety audit passed" in capsys.readouterr().out
+
+    (site / "data").mkdir()
+    assert audit_main([str(site), "--shell-only"]) == 1
+    assert "must not contain a data/ path" in capsys.readouterr().out
+
+
+def test_shell_only_retains_cost_privacy_routing_csp_and_context_checks(
+    tmp_path: Path,
+) -> None:
+    site = _shell_only_site(tmp_path)
+    functions = site / "functions"
+    functions.mkdir()
+    (functions / "api.js").write_text(
+        "fetch('https://api.mapbox.com');\n",
+        encoding="utf-8",
+    )
+    (site / "assets/private.json").write_text(
+        json.dumps({"profile": {"email": "visitor@example.com"}}),
+        encoding="utf-8",
+    )
+    (site / "_redirects").write_text("/* /index.html 200\n", encoding="utf-8")
+    (site / "_headers").write_text(
+        "/*\n"
+        "  Content-Security-Policy: default-src 'self'; "
+        "img-src 'self' data: blob: https://rufous-data.loughondata.com; "
+        "media-src 'self' https://rufous-data.loughondata.com; "
+        "connect-src 'self' https:; frame-ancestors *\n"
+        "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
+        encoding="utf-8",
+    )
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / "paid.yml").write_text(
+        "jobs:\n  build:\n    runs-on: ubuntu-latest-16-cores\n",
+        encoding="utf-8",
+    )
+    repository = tmp_path / "repository"
+    (repository / "functions").mkdir(parents=True)
+
+    findings = audit_public_site(
+        site,
+        workflows,
+        repository,
+        shell_only=True,
+    )
+
+    assert any("Pages Functions" in item for item in findings)
+    assert any("api.mapbox.com" in item for item in findings)
+    assert any("forbidden field profile.email" in item for item in findings)
+    assert any("reviewed client-side routes" in item for item in findings)
+    assert any("connect-src" in item for item in findings)
+    assert any("frame-ancestors" in item for item in findings)
+    assert any("non-free/nonstandard runner" in item for item in findings)
+    assert any("forbidden Pages Functions directory" in item for item in findings)
 
 
 def test_audit_accepts_ordinary_usfws_bird_media(tmp_path: Path) -> None:
@@ -191,10 +358,26 @@ def test_audit_accepts_exact_commercial_inaturalist_bird_media(tmp_path: Path) -
     assert audit_public_site(site) == []
 
 
+def test_audit_accepts_exact_commercial_wikimedia_bird_media(tmp_path: Path) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_wikimedia_media(site)
+
+    assert audit_public_site(site) == []
+
+
 def test_audit_accepts_mixed_usfws_and_inaturalist_media_sources(tmp_path: Path) -> None:
     site = _synthetic_site(tmp_path)
     _attach_synthetic_usfws_media(site)
     _attach_synthetic_inaturalist_media(site, summary_index=1)
+
+    assert audit_public_site(site) == []
+
+
+def test_audit_accepts_all_three_reviewed_media_sources(tmp_path: Path) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_usfws_media(site)
+    _attach_synthetic_inaturalist_media(site, summary_index=1)
+    _attach_synthetic_wikimedia_media(site, summary_index=1, append=True)
 
     assert audit_public_site(site) == []
 
@@ -223,6 +406,81 @@ def test_audit_rejects_noncommercial_or_nondeterministic_inaturalist_media(
     _attach_synthetic_inaturalist_media(site, **override)
 
     assert any(expected in finding for finding in audit_public_site(site))
+
+
+@pytest.mark.parametrize(
+    ("override", "expected"),
+    [
+        ({"license": "CC BY-NC 4.0"}, "media license is not allowed for wikimedia"),
+        (
+            {
+                "source_url": (
+                    "https://commons.wikimedia.org/wiki/"
+                    "File:Abert%27s_Towhee_(Melozone_aberti).jpg/"
+                )
+            },
+            "source_url is not an official media page",
+        ),
+        (
+            {
+                "source_url": (
+                    "https://commons.wikimedia.org/wiki/"
+                    "File:Abert%27s_Towhee_(Melozone_aberti).jpg?download=1"
+                )
+            },
+            "source_url is not an official media page",
+        ),
+        (
+            {
+                "source_url": (
+                    "https://commons.wikimedia.org/wiki/File:folder%2Fnot-one-exact-file.jpg"
+                )
+            },
+            "source_url is not an official media page",
+        ),
+        (
+            {
+                "source_url": (
+                    "https://commons.wikimedia.org/wiki/Abert%27s_Towhee_(Melozone_aberti).jpg"
+                )
+            },
+            "source_url is not an official media page",
+        ),
+        ({"media_id": "wikimedia-" + "a" * 23}, "media_id is invalid"),
+        (
+            {"attribution_id": "wikimedia-attribution-" + "b" * 25},
+            "attribution_id is invalid",
+        ),
+    ],
+)
+def test_audit_rejects_noncommercial_or_noncanonical_wikimedia_media(
+    tmp_path: Path,
+    override: dict[str, object],
+    expected: str,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_wikimedia_media(site, **override)
+
+    assert any(expected in finding for finding in audit_public_site(site))
+
+
+def test_audit_rejects_wikimedia_provider_attribution_contract_drift(
+    tmp_path: Path,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    _attach_synthetic_wikimedia_media(site)
+    attribution_path = site / "data/attribution.json"
+    attribution = json.loads(attribution_path.read_text(encoding="utf-8"))
+    wikimedia = next(
+        source for source in attribution["sources"] if source.get("provider") == "wikimedia"
+    )
+    wikimedia["title"] = "Unreviewed Commons mirror"
+    attribution_path.write_text(json.dumps(attribution), encoding="utf-8")
+
+    assert any(
+        "public wikimedia media attribution does not match its contract" in finding
+        for finding in audit_public_site(site)
+    )
 
 
 def test_audit_rejects_media_source_marker_or_provider_attribution_drift(

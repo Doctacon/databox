@@ -270,7 +270,7 @@ def test_inaturalist_scope_filters_unrelated_full_ledger_decisions(
     assert plan.summary.unused_ledger_decisions == 0
 
 
-def test_inaturalist_scope_requires_every_inaturalist_selection_in_ledger(
+def test_inaturalist_scope_allows_an_exact_approved_provider_subset(
     tmp_path: Path,
 ) -> None:
     wigeon = _inaturalist_item(b"wigeon", "Mareca americana", 2498155)
@@ -280,12 +280,16 @@ def test_inaturalist_scope_requires_every_inaturalist_selection_in_ledger(
     selections.sort(key=lambda row: (str(row["scientific_name"]).casefold(), str(row["sha256"])))
     approvals = _ledger(tmp_path, selections=selections)
 
-    with pytest.raises(MediaApprovalError, match="committed selected media is absent"):
-        require_visual_approvals(
-            manifest,
-            approvals,
-            provider="inaturalist",
-        )
+    plan = require_visual_approvals(
+        manifest,
+        approvals,
+        provider="inaturalist",
+    )
+
+    assert plan.selected_sha256s == {wigeon["sha256"]}
+    assert plan.summary.manifest_species == 1
+    assert plan.summary.selected_species == 1
+    assert plan.summary.unused_ledger_decisions == 1
 
 
 @pytest.mark.parametrize("items", ["mixed", "wrong"])
@@ -341,7 +345,7 @@ def test_unknown_provider_scope_fails_closed(tmp_path: Path) -> None:
         require_visual_approvals(
             manifest,
             _ledger(tmp_path, selections=[_selection(wigeon)]),
-            provider="wikimedia",
+            provider="wikimedia_commons",
         )
 
 

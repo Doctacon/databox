@@ -2,6 +2,7 @@ import { FormEvent, KeyboardEvent, MouseEvent, ReactNode, useCallback, useEffect
 import rufousImage from "./assets/rufous.png";
 import { getBird, listBirds } from "./birdApi";
 import { ProfileCollectionControls } from "./MyBirds";
+import { publicMediaProviderLabel } from "./publicMediaContracts";
 import type { BirdCatalogSummary, BirdProfile, CatalogCall, CatalogPhoto } from "./types";
 import { compareVisibleLabels } from "./visibleLabel";
 
@@ -102,7 +103,7 @@ function RufousSilhouette({ label }: { label: string }) {
 }
 
 function photoProviderLabel(photo: CatalogPhoto): string {
-  return photo.provider === "usfws" ? "USFWS" : "iNaturalist";
+  return photo.provider ? publicMediaProviderLabel(photo.provider) : "Photo";
 }
 
 function CatalogPhotoMedia({ photo, label, compact = false }: {
@@ -142,9 +143,12 @@ function photoKey(photo: CatalogPhoto): string {
 
 function galleryProviderLabel(photos: CatalogPhoto[]): string {
   const providers = new Set(photos.map((photo) => photo.provider));
-  if (providers.has("usfws") && providers.has("inaturalist")) return "USFWS and iNaturalist";
-  if (providers.has("inaturalist")) return "iNaturalist";
-  return "USFWS";
+  const labels = (["usfws", "inaturalist", "wikimedia"] as const)
+    .filter((provider) => providers.has(provider))
+    .map(publicMediaProviderLabel);
+  if (labels.length < 2) return labels[0] || "public-release";
+  if (labels.length === 2) return labels.join(" and ");
+  return `${labels.slice(0, -1).join(", ")}, and ${labels.at(-1)}`;
 }
 
 function GalleryThumbnail({

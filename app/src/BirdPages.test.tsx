@@ -64,6 +64,23 @@ function publishedInaturalistPhoto(id: number): CatalogPhoto {
   };
 }
 
+function publishedWikimediaPhoto(id: number): CatalogPhoto {
+  const photo = usfwsPhoto(id);
+  return {
+    ...photo,
+    source_record_id: `wikimedia-${String(id).repeat(24)}`,
+    source_url: `https://commons.wikimedia.org/wiki/File:Rufous_Hummingbird_${id}.jpg`,
+    creator: `Commons Photographer ${id}`,
+    publisher: null,
+    license_text: "CC BY-SA 4.0",
+    license_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+    selection_reason: "Validated Wikimedia Commons public-release photo",
+    provider: "wikimedia",
+    license_code: "CC BY-SA 4.0",
+    attribution_id: `wikimedia-attribution-${String(id + 1).repeat(24)}`,
+  };
+}
+
 function bird(index: number): BirdCatalogSummary {
   return {
     species_code: `bird${index.toString().padStart(3, "0")}`,
@@ -396,6 +413,18 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(screen.getByRole("link", { name: "iNaturalist source" })).toHaveAttribute(
       "href",
       "https://www.inaturalist.org/photos/42",
+    );
+  });
+
+  it("labels and links Wikimedia Commons photos in a three-provider gallery", () => {
+    const photos = [usfwsPhoto(1), publishedInaturalistPhoto(2), publishedWikimediaPhoto(3)];
+    render(<SpeciesPhotoGallery photo={photos[0]} photos={photos} label="Rufous Hummingbird" />);
+
+    expect(screen.getByText("3 validated USFWS, iNaturalist, and Wikimedia Commons photos")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "View Rufous photo 3" }));
+    expect(screen.getByRole("link", { name: "Wikimedia Commons source" })).toHaveAttribute(
+      "href",
+      "https://commons.wikimedia.org/wiki/File:Rufous_Hummingbird_3.jpg",
     );
   });
 

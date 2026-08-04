@@ -136,7 +136,7 @@ def test_manifest_and_attribution_represent_mixed_public_media_providers() -> No
 
 def test_manifest_rejects_an_unreviewed_media_provider() -> None:
     records = public_export.synthetic_records()
-    records.species[0]["media"] = [{"provider": "wikimedia"}]
+    records.species[0]["media"] = [{"provider": "wikimedia_commons"}]
 
     with pytest.raises(PublicExportError, match="unsupported public provider"):
         build_public_assets(records, mode="synthetic", gnis_sha256=None)
@@ -764,6 +764,65 @@ def test_production_export_requires_committed_human_media_approval(tmp_path: Pat
             gnis_sha256=checksum,
             media_manifest_path=media_manifest,
             media_approvals_path=empty_approvals,
+        )
+
+
+def test_production_export_refuses_to_drop_a_pinned_approved_media_species(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "source.duckdb"
+    _database(database)
+    gnis, checksum = _gnis_file(tmp_path)
+    media_manifest = _media_manifest(tmp_path)
+    approvals = json.loads(_media_approvals(tmp_path, media_manifest).read_text(encoding="utf-8"))
+    manifest_payload = json.loads(media_manifest.read_text(encoding="utf-8"))
+    existing = manifest_payload["items"][0]
+    missing_digest = "e" * 64
+    missing = {
+        **existing,
+        "species_code": "absent",
+        "common_name": "Absent Bird",
+        "scientific_name": "Avis absentia",
+        "media_id": "usfws-" + "c" * 24,
+        "source_page_url": "https://www.fws.gov/media/absent-bird",
+        "title": "Absent Bird perched safely",
+        "sha256": missing_digest,
+        "url": (
+            "https://rufous-data.loughondata.com/rufous-media/v1/objects/"
+            f"{missing_digest[:2]}/{missing_digest}.webp"
+        ),
+        "attribution_id": "usfws-attribution-" + "d" * 24,
+    }
+    manifest_payload["items"].append(missing)
+    manifest_payload["counts"] = {"items": 2, "objects": 2, "species": 2}
+    media_manifest.write_text(json.dumps(manifest_payload), encoding="utf-8")
+
+    approvals["selections"].append(
+        {
+            "sha256": missing_digest,
+            "decision": "selected",
+            "reason": SELECTION_REASON,
+            "reviewed_at": "2026-08-03",
+            "reviewed_by": "Test Human",
+            "scientific_name": "Avis absentia",
+            "source_page_urls": ["https://www.fws.gov/media/absent-bird"],
+        }
+    )
+    approvals["selections"].sort(
+        key=lambda item: (item["scientific_name"].casefold(), item["sha256"])
+    )
+    approval_path = tmp_path / "pinned-approvals.json"
+    approval_path.write_bytes(canonical_approval_json(approvals))
+
+    with pytest.raises(PublicExportError, match="every pinned approved media species"):
+        export_public_data(
+            mode="production",
+            output_dir=tmp_path / "missing-pinned-species",
+            database_path=database,
+            gnis_path=gnis,
+            gnis_sha256=checksum,
+            media_manifest_path=media_manifest,
+            media_approvals_path=approval_path,
         )
 
 

@@ -55,10 +55,20 @@ const inaturalistHero = {
   license_url: "https://creativecommons.org/licenses/by/4.0/",
   attribution_id: "inaturalist-attribution-5938231789",
 };
+const wikimediaHero = {
+  ...usfwsHero,
+  provider: "wikimedia" as const,
+  media_id: `wikimedia-${"1".repeat(24)}`,
+  source_url: "https://commons.wikimedia.org/wiki/File:Rufous_Hummingbird.jpg",
+  creator: "Commons Photographer",
+  license: "CC BY-SA 4.0",
+  license_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+  attribution_id: `wikimedia-attribution-${"2".repeat(24)}`,
+};
 
 function productionManifest(
-  mediaSource: "none" | "usfws" | "inaturalist" | "usfws+inaturalist",
-  provider: "usfws" | "inaturalist" = "usfws",
+  mediaSource: PublicManifest["source_policy"]["media_source"],
+  provider: "usfws" | "inaturalist" | "wikimedia" = "usfws",
 ): PublicManifest {
   const withMedia = mediaSource !== "none";
   return {
@@ -78,7 +88,11 @@ function productionManifest(
       common_name: "Rufous Hummingbird",
       scientific_name: "Selasphorus rufus",
       profile_path: "/data/species/gbif-2476855.json",
-      hero_photo: provider === "usfws" ? usfwsHero : inaturalistHero,
+      hero_photo: provider === "usfws"
+        ? usfwsHero
+        : provider === "inaturalist"
+          ? inaturalistHero
+          : wikimediaHero,
       photo_count: 1,
     }] : [],
     counts: {
@@ -144,7 +158,11 @@ describe("public static data", () => {
   it.each([
     ["USFWS", productionManifest("usfws")],
     ["iNaturalist", productionManifest("inaturalist", "inaturalist")],
+    ["Wikimedia Commons", productionManifest("wikimedia", "wikimedia")],
     ["mixed USFWS and iNaturalist", productionManifest("usfws+inaturalist", "inaturalist")],
+    ["mixed USFWS and Wikimedia", productionManifest("usfws+wikimedia", "wikimedia")],
+    ["mixed iNaturalist and Wikimedia", productionManifest("inaturalist+wikimedia", "wikimedia")],
+    ["all reviewed providers", productionManifest("usfws+inaturalist+wikimedia", "wikimedia")],
   ])("accepts the reviewed %s immutable media policy", async (_label, validManifest) => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(validManifest), { status: 200 }));
     await expect(getPublicManifest()).resolves.toMatchObject({

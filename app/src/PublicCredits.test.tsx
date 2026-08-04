@@ -173,9 +173,50 @@ describe("public credits", () => {
     ["inaturalist", "https://www.inaturalist.org/photos/5938231789?size=large", null],
     ["inaturalist", "https://inaturalist.org/photos/5938231789", null],
     ["inaturalist", "https://www.inaturalist.org/photos/0", null],
+    ["wikimedia", "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee.jpg", "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee.jpg"],
+    ["wikimedia", "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee.jpg?download=1", null],
+    ["wikimedia", "https://commons.wikimedia.org/wiki/Category:Abert%27s_Towhee", null],
+    ["wikimedia", "https://commons.wikimedia.org/wiki/File:Abert%2FTowhee.jpg", null],
     ["gbif", "https://www.gbif.org/dataset/example", "https://www.gbif.org/dataset/example"],
   ])("enforces an exact per-photo source URL for %s: %s", (provider, value, expected) => {
     expect(safeItemSourceHref(provider, value)).toBe(expected);
+  });
+
+  it("credits Wikimedia Commons creators and links each exact File page", async () => {
+    const commonsManifest = structuredClone(manifest);
+    commonsManifest.source_policy.media_source = "usfws+inaturalist+wikimedia";
+    const commonsAttribution = structuredClone(attribution);
+    commonsAttribution.sources.push({
+      provider: "wikimedia",
+      title: "Wikimedia Commons",
+      url: "https://commons.wikimedia.org/",
+      license: "Per-item Public Domain or Creative Commons license",
+      license_url: null,
+      credit: "Individual creators are credited on each media item.",
+      modifications: "Rufous resized and re-encoded reviewed web display copies.",
+    });
+    commonsAttribution.items.push({
+      attribution_id: `wikimedia-attribution-${"2".repeat(24)}`,
+      provider: "wikimedia",
+      source_url: "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee.jpg",
+      creator: "Commons Photographer",
+      license: "CC BY-SA 4.0",
+      license_url: "https://creativecommons.org/licenses/by-sa/4.0/",
+    });
+    render(<PublicCreditsPage
+      loadManifest={vi.fn().mockResolvedValue(commonsManifest)}
+      loadAttribution={vi.fn().mockResolvedValue(commonsAttribution)}
+    />);
+
+    expect(await screen.findByText(/Wikimedia Commons creators/)).toBeVisible();
+    const commons = screen.getByRole("heading", { name: "Wikimedia Commons", level: 2 }).closest("article");
+    expect(commons).not.toBeNull();
+    expect(within(commons!).getByText("Individual creators are credited on each media item.")).toBeVisible();
+    expect(screen.getByText("Creator: Commons Photographer")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Open cited source on commons.wikimedia.org" })).toHaveAttribute(
+      "href",
+      "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee.jpg",
+    );
   });
 
   it("keeps unsafe persisted URLs inert while preserving their attribution text", async () => {

@@ -16,6 +16,10 @@ import {
   parseArizonaCoordinates,
   searchPublicPlaces,
 } from "./publicData";
+import {
+  isExactPublicMediaSourceUrl,
+  publicMediaProviderLabel,
+} from "./publicMediaContracts";
 import type {
   PublicAttribution,
   PublicManifest,
@@ -57,6 +61,13 @@ function safeExternalUrl(value: string): string | null {
   } catch {
     return null;
   }
+}
+
+function safeItemSourceUrl(provider: string, value: string): string | null {
+  if (provider === "usfws" || provider === "inaturalist" || provider === "wikimedia") {
+    return isExactPublicMediaSourceUrl(provider, value) ? value : null;
+  }
+  return safeExternalUrl(value);
 }
 
 function safeDoiUrl(value: string | undefined): string | null {
@@ -107,7 +118,7 @@ function SpeciesProfile({ profile }: { profile: PublicSpeciesProfile }) {
       {photoUrl
         ? <img src={photoUrl} alt={birdName(profile)} loading="lazy" />
         : <div className="media-placeholder"><img src={rufousImage} alt="" aria-hidden="true" /><span>No licensed public photo in this release.</span></div>}
-      {photo && <figcaption>Photo: {photo.creator} · <a href={photo.source_url} target="_blank" rel="noreferrer">{photo.provider} source</a> · <a href={photo.license_url} target="_blank" rel="noreferrer">{photo.license}</a></figcaption>}
+      {photo && <figcaption>Photo: {photo.creator} · <a href={photo.source_url} target="_blank" rel="noreferrer">{publicMediaProviderLabel(photo.provider)} source</a> · <a href={photo.license_url} target="_blank" rel="noreferrer">{photo.license}</a></figcaption>}
     </figure>
   </section>;
 }
@@ -409,7 +420,7 @@ export default function PublicApp() {
         {attribution && attribution.items.length > 0 && <>
           <h3>Item-level media and occurrence credits</h3>
           <ul>{attribution.items.map((item) => {
-            const sourceUrl = safeExternalUrl(item.source_url);
+            const sourceUrl = safeItemSourceUrl(item.provider, item.source_url);
             const licenseUrl = safeExternalUrl(item.license_url);
             const doiUrl = safeDoiUrl(item.dataset_doi);
             return <li key={item.attribution_id}>

@@ -16,6 +16,7 @@ from databox.public_export import (
 )
 from databox.public_inaturalist_media_ingest import (
     _validate_ingested_snapshot,
+    ingest_public_inaturalist_media,
     load_missing_public_species_targets,
     load_selected_public_species_targets,
 )
@@ -85,6 +86,7 @@ def _ledger(
     *,
     selected_name: str = "Calypte anna",
     include_inaturalist_selection: bool = False,
+    include_wikimedia_selection: bool = False,
 ) -> None:
     payload = empty_approval_ledger()
     payload["selections"] = [
@@ -106,21 +108,37 @@ def _ledger(
             "https://www.inaturalist.org/photos/12345",
             "https://www.inaturalist.org/photos/67890",
         ]
-    payload["species_exclusions"] = [
-        {
-            "candidates": [
-                {
-                    "sha256": "b" * 64,
-                    "source_page_urls": ["https://www.fws.gov/media/elegant-trogon"],
-                }
-            ],
-            "decision": "no_safe_image",
-            "reason": "no_compliant_candidate",
-            "reviewed_at": "2026-08-03",
-            "reviewed_by": "Rufous Reviewer",
-            "scientific_name": "Trogon elegans",
-        }
-    ]
+    if include_wikimedia_selection:
+        payload["selections"].append(
+            _selection(
+                "Trogon elegans",
+                sha256="d" * 64,
+                source_page_url=("https://commons.wikimedia.org/wiki/File:Trogon_elegans.jpg"),
+            )
+        )
+    payload["selections"] = sorted(
+        payload["selections"],
+        key=lambda item: (str(item["scientific_name"]).casefold(), str(item["sha256"])),
+    )
+    payload["species_exclusions"] = (
+        []
+        if include_wikimedia_selection
+        else [
+            {
+                "candidates": [
+                    {
+                        "sha256": "b" * 64,
+                        "source_page_urls": ["https://www.fws.gov/media/elegant-trogon"],
+                    }
+                ],
+                "decision": "no_safe_image",
+                "reason": "no_compliant_candidate",
+                "reviewed_at": "2026-08-03",
+                "reviewed_by": "Rufous Reviewer",
+                "scientific_name": "Trogon elegans",
+            }
+        ]
+    )
     path.write_bytes(canonical_approval_json(payload))
 
 
@@ -192,18 +210,13 @@ def test_only_usfws_selected_species_are_removed_from_targets(tmp_path: Path) ->
     ]
 
 
-def test_selected_inaturalist_species_remains_a_refresh_target(tmp_path: Path) -> None:
+def test_selected_inaturalist_species_is_not_rediscovered(tmp_path: Path) -> None:
     database = tmp_path / "warehouse.duckdb"
     approvals = tmp_path / "approvals.json"
     _database(database)
     _ledger(approvals, include_inaturalist_selection=True)
 
     assert load_missing_public_species_targets(database, approvals) == [
-        {
-            "species_code": "gbif-2",
-            "common_name": "Rufous Hummingbird",
-            "scientific_name": "Selasphorus rufus",
-        },
         {
             "species_code": "gbif-3",
             "common_name": "Elegant Trogon",
@@ -212,7 +225,7 @@ def test_selected_inaturalist_species_remains_a_refresh_target(tmp_path: Path) -
     ]
 
 
-def test_existing_167_usfws_selections_stay_excluded_while_inaturalist_refreshes(
+def test_all_existing_provider_selections_stay_excluded_from_discovery(
     tmp_path: Path,
 ) -> None:
     selections = load_visual_approvals(PRODUCTION_APPROVALS)
@@ -229,8 +242,18 @@ def test_existing_167_usfws_selections_stay_excluded_while_inaturalist_refreshes
             for url in selection.source_page_urls
         )
     }
+    wikimedia_selections = {
+        name: selection
+        for name, selection in selections.items()
+        if all(
+            url.startswith("https://commons.wikimedia.org/wiki/File:")
+            for url in selection.source_page_urls
+        )
+    }
     assert len(usfws_selections) == 167
     assert len(inaturalist_selections) == 16
+    assert len(wikimedia_selections) == 24
+    assert len(selections) == 207
     assert "selasphorus rufus" in usfws_selections
 
     database = tmp_path / "warehouse.duckdb"
@@ -244,14 +267,20 @@ def test_existing_167_usfws_selections_stay_excluded_while_inaturalist_refreshes
             (f"Fallback fixture {index}", selection.scientific_name)
             for index, selection in enumerate(inaturalist_selections.values(), start=1)
         ]
+        + [
+            (f"Commons fixture {index}", selection.scientific_name)
+            for index, selection in enumerate(wikimedia_selections.values(), start=1)
+        ]
         + [("Unpictured Fixture Bird", "Fixturebird missingus")],
     )
 
     targets = load_missing_public_species_targets(database, PRODUCTION_APPROVALS)
     target_names = {item["scientific_name"].casefold() for item in targets}
 
-    assert target_names == set(inaturalist_selections) | {"fixturebird missingus"}
+    assert target_names == {"fixturebird missingus"}
     assert not target_names.intersection(usfws_selections)
+    assert not target_names.intersection(inaturalist_selections)
+    assert not target_names.intersection(wikimedia_selections)
 
 
 def test_stale_selection_cannot_silently_change_the_missing_set(tmp_path: Path) -> None:
@@ -269,6 +298,25 @@ def test_media_delta_targets_only_selected_inaturalist_species(tmp_path: Path) -
     approvals = tmp_path / "approvals.json"
     _public_output(public_output)
     _ledger(approvals, include_inaturalist_selection=True)
+
+    assert load_selected_public_species_targets(public_output, approvals) == [
+        {
+            "species_code": "gbif-2",
+            "common_name": "Rufous Hummingbird",
+            "scientific_name": "Selasphorus rufus",
+        }
+    ]
+
+
+def test_media_delta_ignores_committed_wikimedia_selection(tmp_path: Path) -> None:
+    public_output = tmp_path / "public"
+    approvals = tmp_path / "approvals.json"
+    _public_output(public_output)
+    _ledger(
+        approvals,
+        include_inaturalist_selection=True,
+        include_wikimedia_selection=True,
+    )
 
     assert load_selected_public_species_targets(public_output, approvals) == [
         {
@@ -299,7 +347,7 @@ def test_media_delta_refuses_to_replace_existing_species_media(tmp_path: Path) -
         load_selected_public_species_targets(public_output, approvals)
 
 
-def test_media_delta_allows_exact_idempotent_inaturalist_retry(tmp_path: Path) -> None:
+def test_media_delta_skips_exact_active_inaturalist_selection(tmp_path: Path) -> None:
     public_output = tmp_path / "public"
     approvals = tmp_path / "approvals.json"
     _public_output(
@@ -314,10 +362,46 @@ def test_media_delta_allows_exact_idempotent_inaturalist_retry(tmp_path: Path) -
     )
     _ledger(approvals, include_inaturalist_selection=True)
 
-    assert [
-        item["scientific_name"]
-        for item in load_selected_public_species_targets(public_output, approvals)
-    ] == ["Selasphorus rufus"]
+    assert load_selected_public_species_targets(public_output, approvals) == []
+
+
+def test_media_delta_zero_pending_targets_never_constructs_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    public_output = tmp_path / "public"
+    approvals = tmp_path / "approvals.json"
+    _public_output(
+        public_output,
+        rufous_media=[
+            {
+                "provider": "inaturalist",
+                "sha256": "c" * 64,
+                "source_url": "https://www.inaturalist.org/photos/12345",
+            }
+        ],
+    )
+    _ledger(approvals, include_inaturalist_selection=True)
+
+    def unexpected_source(**_kwargs: object) -> object:
+        pytest.fail("zero pending targets must not construct the iNaturalist source")
+
+    monkeypatch.setattr(
+        "databox.public_inaturalist_media_ingest.inaturalist_public_photo_source",
+        unexpected_source,
+    )
+
+    result = ingest_public_inaturalist_media(
+        tmp_path / "unused.duckdb",
+        approvals,
+        targets_from_public_output=public_output,
+    )
+
+    assert result.missing_species == 0
+    assert result.exact_species == 0
+    assert result.species_with_candidates == 0
+    assert result.candidate_records == 0
+    assert result.completed_runs == 0
 
 
 def test_media_delta_rejects_nonproduction_snapshot(tmp_path: Path) -> None:

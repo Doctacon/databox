@@ -150,7 +150,7 @@ def test_main_push_routes_only_app_changes_to_pages(tmp_path: Path) -> None:
     assert _route_push(tmp_path, script, mixed, moved_into_app) == "full"
 
 
-def test_media_delta_dispatch_and_safe_push_routing(tmp_path: Path) -> None:
+def test_media_refresh_is_manual_only_and_pushes_never_route_to_it(tmp_path: Path) -> None:
     workflow = _workflow()
     script = _route_script(workflow)
     _git(tmp_path, "init", "--quiet")
@@ -160,6 +160,8 @@ def test_media_delta_dispatch_and_safe_push_routing(tmp_path: Path) -> None:
         {
             "packages/databox/databox/public_media_delta.py": "initial\n",
             "tests/test_public_media_delta.py": "initial\n",
+            "config/rufous-pinned-public-media.json": "initial\n",
+            "config/rufous-wikimedia-public-media.json": "initial\n",
             "README.md": "initial\n",
         },
         "initial",
@@ -171,6 +173,16 @@ def test_media_delta_dispatch_and_safe_push_routing(tmp_path: Path) -> None:
             "tests/test_public_media_delta.py": "delta tests\n",
         },
         "safe media delta",
+    )
+    pinned_media = _commit(
+        tmp_path,
+        {"config/rufous-pinned-public-media.json": "reviewed media pin\n"},
+        "pin reviewed media",
+    )
+    curated_wikimedia = _commit(
+        tmp_path,
+        {"config/rufous-wikimedia-public-media.json": "curated candidates\n"},
+        "curate Wikimedia candidates",
     )
     mixed = _commit(
         tmp_path,
@@ -189,11 +201,13 @@ def test_media_delta_dispatch_and_safe_push_routing(tmp_path: Path) -> None:
         "app and media delta",
     )
 
-    assert _route_dispatch(tmp_path, script, "media-delta") == "media"
+    assert _route_dispatch(tmp_path, script, "media-refresh") == "media"
     assert _route_dispatch(tmp_path, script, "pages-only") == "pages"
     assert _route_dispatch(tmp_path, script, "full") == "full"
-    assert _route_push(tmp_path, script, initial, safe_delta) == "media"
-    assert _route_push(tmp_path, script, safe_delta, mixed) == "full"
+    assert _route_push(tmp_path, script, initial, safe_delta) == "full"
+    assert _route_push(tmp_path, script, safe_delta, pinned_media) == "none"
+    assert _route_push(tmp_path, script, pinned_media, curated_wikimedia) == "none"
+    assert _route_push(tmp_path, script, curated_wikimedia, mixed) == "full"
     assert _route_push(tmp_path, script, mixed, app_mixed) == "full"
 
 
@@ -207,7 +221,9 @@ def test_pages_job_cannot_publish_or_rebuild_r2_data() -> None:
     commands = "\n".join(step.get("run", "") for step in pages["steps"])
 
     assert "needs.route.outputs.release_mode == 'pages'" in pages["if"]
-    assert "scripts/hydrate_rufous_public.py app/dist" in commands
+    assert "rm -rf app/dist/data" in commands
+    assert "scripts/hydrate_rufous_public.py" not in commands
+    assert "--shell-only" in commands
     assert "scripts/audit_rufous_public.py app/dist" in commands
     assert 'wrangler" pages deploy' in commands
 
@@ -223,6 +239,7 @@ def test_pages_job_cannot_publish_or_rebuild_r2_data() -> None:
         "publish_rufous_public.py",
         "publish_rufous_media.py",
         "export_rufous_public.py",
+        "hydrate_rufous_public.py",
         "load_dlt_quack.py",
         "load_rufous_usfws_media.py",
         "prepare_rufous_media.py",
@@ -235,37 +252,62 @@ def test_pages_job_cannot_publish_or_rebuild_r2_data() -> None:
     assert "needs.route.outputs.release_mode == 'media'" in production_readiness["if"]
 
 
-def test_media_delta_carries_active_release_and_publishes_only_inaturalist() -> None:
+def test_explicit_media_refresh_targets_only_one_selected_provider() -> None:
     workflow = _workflow()
     dispatch_options = workflow["on"]["workflow_dispatch"]["inputs"]["release_mode"]["options"]
+    provider_options = workflow["on"]["workflow_dispatch"]["inputs"]["media_provider"]["options"]
     media = workflow["jobs"]["media_delta"]
     steps = media["steps"]
     step_names = [step.get("name", "") for step in steps]
     commands = "\n".join(step.get("run", "") for step in steps)
 
-    assert "media-delta" in dispatch_options
+    assert "media-refresh" in dispatch_options
+    assert provider_options == ["inaturalist", "wikimedia"]
     assert "needs.route.outputs.release_mode == 'media'" in media["if"]
+    assert "github.event_name == 'workflow_dispatch'" in media["if"]
+    assert "github.event_name == 'push'" not in media["if"]
+    assert "inputs.release_mode == 'media-refresh'" in media["if"]
+    assert media["env"]["RUFOUS_MEDIA_PROVIDER"] == "${{ inputs.media_provider }}"
     assert "scripts/hydrate_rufous_public.py app/dist" in commands
+    assert "load_pending_public_media_selections" in commands
+    assert 'provider=os.environ["RUFOUS_MEDIA_PROVIDER"]' in commands
+    assert "scripts/load_rufous_wikimedia_media.py" in commands
+    assert "--input config/rufous-wikimedia-public-media.json" in commands
     assert "--targets-from-public-output app/dist" in commands
     assert "scripts/sqlmesh_plan_rufous_inaturalist_media.sh" in commands
     assert "scripts/prepare_rufous_media.py" in commands
-    assert "--provider inaturalist" in commands
-    prepare_step = steps[step_names.index("Prepare only approved iNaturalist WebP candidates")]
+    assert '--provider "$RUFOUS_MEDIA_PROVIDER"' in commands
+    prepare_step = steps[step_names.index("Prepare only approved provider WebP candidates")]
+    assert prepare_step["run"].splitlines()[0].endswith(" \\")
     assert "--approvals config/rufous-media-visual-approvals.json" in prepare_step["run"]
     assert "scripts/verify_rufous_media_approvals.py" in commands
+    assert "scripts/compose_rufous_media_pin.py" in commands
+    assert "--verify-pinned config/rufous-pinned-public-media.json" in commands
     assert "scripts/apply_rufous_media_delta.py" in commands
     assert "--active-root app/dist" in commands
-    assert "--prepared-media-dir build/rufous-inaturalist-media" in commands
+    assert "--prepared-media-dir build/rufous-selected-media" in commands
     assert "--output-root build/rufous-public-data" in commands
     assert "scripts/audit_app_bundle.py" in commands
     assert "scripts/audit_rufous_public.py app/dist" in commands
     assert commands.count("python scripts/publish_rufous_media.py") == 2
-    assert commands.count("--provider inaturalist") >= 4
+    assert commands.count('--provider "$RUFOUS_MEDIA_PROVIDER"') >= 5
     assert commands.count("python scripts/publish_rufous_public.py") == 2
 
+    pending_index = step_names.index("Identify only newly approved unpictured provider species")
+    no_op_index = step_names.index("Stop cleanly when every approved image is already live")
+    inaturalist_index = step_names.index("Refresh only newly committed iNaturalist selections")
+    wikimedia_index = step_names.index("Load only the committed offline Wikimedia metadata")
+    prepare_index = step_names.index("Prepare only approved provider WebP candidates")
+    assert pending_index < no_op_index < inaturalist_index < wikimedia_index < prepare_index
+    assert steps[no_op_index]["if"] == "steps.pending-media.outputs.pending_count == '0'"
+    assert "env.RUFOUS_MEDIA_PROVIDER == 'inaturalist'" in steps[inaturalist_index]["if"]
+    assert "env.RUFOUS_MEDIA_PROVIDER == 'wikimedia'" in steps[wikimedia_index]["if"]
+    for step in steps[prepare_index:]:
+        assert step.get("if") == "steps.pending-media.outputs.pending_count != '0'"
+
     preflight_data = step_names.index("Preflight monotonic R2 activation before Pages deployment")
-    preflight_media = step_names.index("Preflight only the approved iNaturalist media objects")
-    publish_media = step_names.index("Publish only the approved iNaturalist media objects")
+    preflight_media = step_names.index("Preflight only the approved provider media objects")
+    publish_media = step_names.index("Publish only the approved provider media objects")
     deploy_pages = step_names.index("Deploy immutable static Pages release")
     activate_data = step_names.index("Publish and activate the audited immutable R2 delta release")
     assert preflight_data < publish_media
@@ -284,27 +326,61 @@ def test_media_delta_carries_active_release_and_publishes_only_inaturalist() -> 
     assert not [token for token in forbidden if token in commands]
 
 
-def test_full_release_builds_strict_inaturalist_fallback_before_combined_media() -> None:
+def test_automatic_full_release_reuses_pinned_media_without_provider_work() -> None:
     workflow = _workflow()
     production_steps = workflow["jobs"]["production"]["steps"]
     step_names = [step.get("name", "") for step in production_steps]
-    usfws_index = step_names.index("Refresh and model the public USFWS media metadata")
-    inaturalist_index = step_names.index("Refresh and model strict iNaturalist fallback metadata")
-    prepare_index = step_names.index("Prepare bounded immutable WebP media")
-
-    assert usfws_index < inaturalist_index < prepare_index
-    inaturalist_step = production_steps[inaturalist_index]
-    commands = inaturalist_step["run"]
-    assert "databox.public_inaturalist_media_ingest" in commands
-    assert "--approvals config/rufous-media-visual-approvals.json" in commands
-    assert "scripts/sqlmesh_plan_rufous_inaturalist_media.sh" in commands
-    assert "env" not in inaturalist_step
-
-    synthetic_commands = "\n".join(
-        step.get("run", "") for step in workflow["jobs"]["synthetic"]["steps"]
-    )
     production_commands = "\n".join(step.get("run", "") for step in production_steps)
-    for commands in (synthetic_commands, production_commands):
-        assert "packages/databox-sources/tests/inaturalist" in commands
-        assert "tests/test_public_inaturalist_media_ingest.py" in commands
-        assert "test_rufous_public_inaturalist_commercial_image" in commands
+
+    verify_index = step_names.index("Verify the pinned immutable media catalog")
+    export_index = step_names.index("Export licensed static public projection")
+    assert verify_index < export_index
+    assert "--manifest config/rufous-pinned-public-media.json" in production_commands
+    assert "--media-manifest config/rufous-pinned-public-media.json" in production_commands
+    assert "--media-approvals config/rufous-media-visual-approvals.json" in production_commands
+    assert "rm -rf app/dist/data" in production_commands
+    assert "scripts/audit_rufous_public.py app/dist --shell-only" in production_commands
+    assert "scripts/audit_rufous_public.py build/rufous-public-data" in production_commands
+    assert '"$RUFOUS_PUBLIC_DATA_URL/manifest.json"' in production_commands
+    assert '"$RUF_PUBLIC_URL/data/manifest.json"' not in production_commands
+
+    forbidden = (
+        "load_rufous_usfws_media.py",
+        "load_rufous_wikimedia_media.py",
+        "databox.public_inaturalist_media_ingest",
+        "scripts/sqlmesh_plan_rufous_media.sh",
+        "scripts/sqlmesh_plan_rufous_inaturalist_media.sh",
+        "scripts/prepare_rufous_media.py",
+        "scripts/publish_rufous_media.py",
+        "actions/cache/restore",
+        "actions/cache/save",
+        "scripts/hydrate_rufous_public.py",
+        "commons.wikimedia.org",
+        "upload.wikimedia.org",
+    )
+    assert not [token for token in forbidden if token in production_commands]
+
+
+def test_only_manual_media_refresh_can_contact_media_providers() -> None:
+    workflow = _workflow()
+    automatic_jobs = ("pages", "production")
+    forbidden = (
+        "load_rufous_usfws_media.py",
+        "load_rufous_wikimedia_media.py",
+        "databox.public_inaturalist_media_ingest",
+        "prepare_rufous_media.py",
+        "publish_rufous_media.py",
+        "hydrate_rufous_public.py",
+        "commons.wikimedia.org",
+        "upload.wikimedia.org",
+    )
+    for job_name in automatic_jobs:
+        commands = "\n".join(step.get("run", "") for step in workflow["jobs"][job_name]["steps"])
+        assert not [token for token in forbidden if token in commands]
+
+    manual_commands = "\n".join(
+        step.get("run", "") for step in workflow["jobs"]["media_delta"]["steps"]
+    )
+    assert "databox.public_inaturalist_media_ingest" in manual_commands
+    assert "prepare_rufous_media.py" in manual_commands
+    assert "publish_rufous_media.py" in manual_commands

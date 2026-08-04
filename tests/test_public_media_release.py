@@ -153,6 +153,16 @@ def _set_inaturalist_provider(source: Path, *, photo_id: int = 2498155) -> None:
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
 
+def _set_wikimedia_provider(source: Path) -> None:
+    manifest_path = source / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["items"][0]["provider"] = "wikimedia"
+    manifest["items"][0]["source_page_url"] = (
+        "https://commons.wikimedia.org/wiki/File:Rufous_Hummingbird.jpg"
+    )
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
 def _add_unrelated_usfws_selection(approvals: Path) -> None:
     payload = json.loads(approvals.read_text(encoding="utf-8"))
     payload["selections"].append(
@@ -320,6 +330,33 @@ def test_local_cli_accepts_inaturalist_provider_scope(
     assert result == 0
     output = json.loads(capsys.readouterr().out)
     assert output["file_count"] == 1
+
+
+def test_local_cli_accepts_wikimedia_provider_scope(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source, digest = _source(tmp_path)
+    _set_wikimedia_provider(source)
+    approvals = _approvals(tmp_path, source, digest)
+
+    result = public_media_release_module.main(
+        [
+            "--source",
+            str(source),
+            "--local-root",
+            str(tmp_path / "store"),
+            "--approvals",
+            str(approvals),
+            "--provider",
+            "wikimedia",
+        ]
+    )
+
+    assert result == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["file_count"] == 1
+    assert output["uploaded_objects"] == 1
 
 
 def test_publisher_ignores_and_never_uploads_unselected_candidate(tmp_path: Path) -> None:

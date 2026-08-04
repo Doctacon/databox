@@ -3,6 +3,7 @@ import type {
   PublicBounds,
   PublicCell,
   PublicManifest,
+  PublicMediaProvider,
   PublicMediaSource,
   PublicPlace,
   PublicPlaceShard,
@@ -29,8 +30,20 @@ const SAFE_DATA_PATH = /^\/?(?:data\/)?(?:releases\/[a-f0-9_-]+\/)?(?:manifest|a
 const BOUNDARY_TOLERANCE = 1e-9;
 const EBIRD_EOD_DATASET_KEY = "4fa7b334-ce0d-4e88-aaae-2e0c138d049e";
 const RUFOUS_TAXON_KEY = 2476855;
-const MEDIA_SOURCES: readonly PublicMediaSource[] = ["none", "usfws", "inaturalist", "usfws+inaturalist"];
-const NONEMPTY_MEDIA_SOURCES: ReadonlySet<PublicMediaSource> = new Set(["usfws", "inaturalist", "usfws+inaturalist"]);
+const MEDIA_PROVIDERS_BY_SOURCE: Record<PublicMediaSource, readonly PublicMediaProvider[]> = {
+  none: [],
+  usfws: ["usfws"],
+  inaturalist: ["inaturalist"],
+  wikimedia: ["wikimedia"],
+  "usfws+inaturalist": ["usfws", "inaturalist"],
+  "usfws+wikimedia": ["usfws", "wikimedia"],
+  "inaturalist+wikimedia": ["inaturalist", "wikimedia"],
+  "usfws+inaturalist+wikimedia": ["usfws", "inaturalist", "wikimedia"],
+};
+const MEDIA_SOURCES = Object.freeze(Object.keys(MEDIA_PROVIDERS_BY_SOURCE) as PublicMediaSource[]);
+const NONEMPTY_MEDIA_SOURCES: ReadonlySet<PublicMediaSource> = new Set(
+  MEDIA_SOURCES.filter((source) => source !== "none"),
+);
 
 export const ARIZONA_STATE_RING = (JSON.parse(arizonaBoundariesRaw) as {
   features: Array<{
@@ -136,11 +149,8 @@ export function normalizedPrefix(value: string): string | null {
   return normalized.length === 1 ? `${normalized}_` : normalized.slice(0, 2);
 }
 
-function mediaProviders(source: PublicMediaSource): ReadonlySet<"usfws" | "inaturalist"> {
-  if (source === "usfws") return new Set(["usfws"]);
-  if (source === "inaturalist") return new Set(["inaturalist"]);
-  if (source === "usfws+inaturalist") return new Set(["usfws", "inaturalist"]);
-  return new Set();
+function mediaProviders(source: PublicMediaSource): ReadonlySet<PublicMediaProvider> {
+  return new Set(MEDIA_PROVIDERS_BY_SOURCE[source]);
 }
 
 function recognizedMediaSource(value: unknown): PublicMediaSource | null {

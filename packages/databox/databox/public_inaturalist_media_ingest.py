@@ -32,6 +32,9 @@ _USFWS_SELECTION_PAGE = re.compile(
     r"^https://www\.fws\.gov/media/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$"
 )
 _INATURALIST_SELECTION_PAGE = re.compile(r"^https://www\.inaturalist\.org/photos/[1-9][0-9]*$")
+_WIKIMEDIA_SELECTION_PAGE = re.compile(
+    r"^https://commons\.wikimedia\.org/wiki/File:[^/?#\x00-\x20\x7f]+$"
+)
 
 
 @dataclass(frozen=True)
@@ -51,9 +54,8 @@ def load_missing_public_species_targets(
 
     A species-level no-safe-USFWS-image decision is intentionally still
     missing: it says nothing about a separately licensed iNaturalist photo.
-    An existing iNaturalist selection also remains a target so its source
-    metadata and prepared bytes cannot disappear on the next full refresh.
-    Only a committed, exact USFWS selection removes a catalog species.
+    Every committed image selection is already pinned, regardless of provider,
+    so it is removed from future discovery instead of being fetched again.
     """
     targets = load_public_species_targets(database_path)
     selections = load_visual_approvals(approval_path)
@@ -64,12 +66,9 @@ def load_missing_public_species_targets(
             "visual approval ledger selects a species outside the current public catalog: "
             f"{stale[0]}"
         )
-    usfws_selected = {
-        species_name
-        for species_name, selection in selections.items()
-        if _selection_provider(selection.source_page_urls, species_name=species_name) == "usfws"
-    }
-    return [item for item in targets if item["scientific_name"].casefold() not in usfws_selected]
+    for species_name, selection in selections.items():
+        _selection_provider(selection.source_page_urls, species_name=species_name)
+    return [item for item in targets if item["scientific_name"].casefold() not in selections]
 
 
 def load_selected_public_species_targets(
@@ -82,7 +81,8 @@ def load_selected_public_species_targets(
     GBIF warehouse or infer every currently unpictured species: the committed
     human ledger is the complete target list.  ``load_public_assets`` first
     proves that the hydrated snapshot has an exact inventory and matching
-    semantic data version.
+    semantic data version.  An exact selection already present in the active
+    snapshot is complete and is therefore not sent back to iNaturalist.
     """
     assets = load_public_assets(public_output_root)
     manifest = assets.get("data/manifest.json")
@@ -152,14 +152,14 @@ def load_selected_public_species_targets(
                 f"public catalog: {selection.scientific_name}"
             )
         media = media_by_name[key]
-        if media and not _is_identical_inaturalist_retry(media, selection):
+        if media:
+            if _is_identical_inaturalist_retry(media, selection):
+                continue
             raise PublicExportError(
                 "iNaturalist media delta refuses to replace existing media for "
                 f"{selection.scientific_name}"
             )
         selected_targets.append(target)
-    if not selected_targets:
-        raise PublicExportError("visual approval ledger contains no iNaturalist selections")
     return sorted(selected_targets, key=lambda item: item["species_code"])
 
 
@@ -167,7 +167,7 @@ def _is_identical_inaturalist_retry(
     media: list[object],
     selection: VisualSelection,
 ) -> bool:
-    """Allow an idempotent retry only for the exact already-selected object."""
+    """Recognize an exact already-published iNaturalist selection."""
     if len(media) != 1:
         return False
     item = media[0]
@@ -185,6 +185,11 @@ def _selection_provider(source_pages: tuple[str, ...], *, species_name: str) -> 
         return "usfws"
     if source_pages and all(_INATURALIST_SELECTION_PAGE.fullmatch(url) for url in source_pages):
         return "inaturalist"
+    if source_pages and all(_WIKIMEDIA_SELECTION_PAGE.fullmatch(url) for url in source_pages):
+        # ``load_visual_approvals`` already applies strict decoded File-page
+        # validation; this classification only keeps other providers out of an
+        # explicitly iNaturalist-scoped refresh.
+        return "wikimedia"
     raise PublicExportError(
         f"visual approval selection has unsupported or mixed provider provenance for {species_name}"
     )

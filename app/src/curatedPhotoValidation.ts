@@ -1,3 +1,9 @@
+import {
+  isExactPublicMediaSourceUrl,
+  publicMediaLicenseUrl,
+  publicMediaProviderLabel,
+} from "./publicMediaContracts";
+
 export const curatedPhotoKeys = [
   "status", "source_record_id", "species_name", "display_url", "source_url", "creator",
   "rights_holder", "publisher", "format", "license_text", "license_url", "selection_reason",
@@ -9,7 +15,7 @@ type PhotoRecord = Record<string, unknown>;
 export interface ValidatedCuratedPhoto {
   displayUrl: string;
   sourceUrl: string;
-  providerLabel: "iNaturalist" | "USFWS";
+  providerLabel: "iNaturalist" | "USFWS" | "Wikimedia Commons";
   licenseUrl: string;
   licenseCode: string;
 }
@@ -22,23 +28,6 @@ const LICENSES = new Map([
       `https://creativecommons.org/licenses/${slug}/${version}/`,
     ] as const),
   ),
-]);
-
-const USFWS_LICENSES = new Map([
-  ["Public Domain", "https://www.fws.gov/notices"],
-  ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
-  ...["by", "by-sa"].flatMap((slug) =>
-    ["1.0", "2.0", "2.5", "3.0", "4.0"].map((version) => [
-      `CC ${slug.toUpperCase()} ${version}`,
-      `https://creativecommons.org/licenses/${slug}/${version}/`,
-    ] as const),
-  ),
-]);
-
-const PUBLIC_INATURALIST_LICENSES = new Map([
-  ["CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"],
-  ["CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/"],
-  ["CC BY-SA 4.0", "https://creativecommons.org/licenses/by-sa/4.0/"],
 ]);
 
 function boundedPlainText(value: unknown, maximum: number): value is string {
@@ -109,6 +98,22 @@ function validPublishedInaturalist(row: PhotoRecord): ValidatedCuratedPhoto | nu
   };
 }
 
+function validPublishedWikimedia(row: PhotoRecord): ValidatedCuratedPhoto | null {
+  const display = strictProviderUrl(row.display_url, "rufous-data.loughondata.com");
+  if (!display || !isExactPublicMediaSourceUrl("wikimedia", row.source_url)) return null;
+  const image = /^\/rufous-media\/v1\/objects\/([0-9a-f]{2})\/([0-9a-f]{64})\.webp$/.exec(display.pathname);
+  if (!image || image[1] !== image[2].slice(0, 2)
+    || typeof row.source_record_id !== "string"
+    || !/^wikimedia-[0-9a-f]{24}$/.test(row.source_record_id)) return null;
+  return {
+    displayUrl: display.href,
+    sourceUrl: row.source_url,
+    providerLabel: publicMediaProviderLabel("wikimedia"),
+    licenseUrl: row.license_url as string,
+    licenseCode: row.license_code as string,
+  };
+}
+
 export function validateAvailableCuratedPhoto(
   row: PhotoRecord,
   scientificName: string | null,
@@ -120,7 +125,7 @@ export function validateAvailableCuratedPhoto(
       || row.rights_holder !== null || row.publisher !== "U.S. Fish and Wildlife Service"
       || row.format !== "image/webp"
       || typeof row.license_code !== "string" || row.license_text !== row.license_code
-      || USFWS_LICENSES.get(row.license_code) !== row.license_url
+      || publicMediaLicenseUrl("usfws", row.license_code) !== row.license_url
       || !Number.isSafeInteger(row.original_width) || !Number.isSafeInteger(row.original_height)
       || Number(row.original_width) < 1 || Number(row.original_width) > 650
       || Number(row.original_height) < 1 || Number(row.original_height) > 650) return null;
@@ -131,11 +136,22 @@ export function validateAvailableCuratedPhoto(
     if (!boundedPublicText(row.creator, 500)
       || row.rights_holder !== null || row.publisher !== null || row.format !== "image/webp"
       || typeof row.license_code !== "string" || row.license_text !== row.license_code
-      || PUBLIC_INATURALIST_LICENSES.get(row.license_code) !== row.license_url
+      || publicMediaLicenseUrl("inaturalist", row.license_code) !== row.license_url
       || !Number.isSafeInteger(row.original_width) || !Number.isSafeInteger(row.original_height)
       || Number(row.original_width) < 1 || Number(row.original_width) > 650
       || Number(row.original_height) < 1 || Number(row.original_height) > 650) return null;
     return validPublishedInaturalist(row);
+  }
+  if (row.provider === "wikimedia"
+    && row.selection_reason === "Validated Wikimedia Commons public-release photo") {
+    if (!boundedPublicText(row.creator, 500)
+      || row.rights_holder !== null || row.publisher !== null || row.format !== "image/webp"
+      || typeof row.license_code !== "string" || row.license_text !== row.license_code
+      || publicMediaLicenseUrl("wikimedia", row.license_code) !== row.license_url
+      || !Number.isSafeInteger(row.original_width) || !Number.isSafeInteger(row.original_height)
+      || Number(row.original_width) < 1 || Number(row.original_width) > 650
+      || Number(row.original_height) < 1 || Number(row.original_height) > 650) return null;
+    return validPublishedWikimedia(row);
   }
   if (!boundedPlainText(row.creator, 500) || !boundedPlainText(row.selection_reason, 500)
     || row.rights_holder !== null || row.publisher !== null || row.format !== null

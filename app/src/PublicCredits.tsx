@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getPublicAttribution } from "./publicData";
 import { publicManifest } from "./publicAdapters/runtime";
+import { isExactPublicMediaSourceUrl } from "./publicMediaContracts";
 import type {
   PublicAttribution,
   PublicAttributionSource,
@@ -46,10 +47,8 @@ export function safeDoiHref(value: unknown): string | null {
 }
 
 export function safeItemSourceHref(provider: unknown, value: unknown): string | null {
-  if (provider === "inaturalist"
-    && (typeof value !== "string" || !/^https:\/\/www\.inaturalist\.org\/photos\/[1-9][0-9]*$/.test(value))) {
-    return null;
-  }
+  if ((provider === "usfws" || provider === "inaturalist" || provider === "wikimedia")
+    && !isExactPublicMediaSourceUrl(provider, value)) return null;
   return safeAttributionHref(value);
 }
 
@@ -60,12 +59,17 @@ function sourceHost(href: string): string {
 function mediaSourceNotice(manifest: PublicManifest): string {
   const source = manifest.source_policy.media_source;
   if (source === "none") return "No bird photos are included in this release.";
-  const provider = source === "usfws"
+  const names = source.split("+").map((provider) => provider === "usfws"
     ? "the U.S. Fish and Wildlife Service"
-    : source === "inaturalist"
+    : provider === "inaturalist"
       ? "iNaturalist creators"
-      : "the U.S. Fish and Wildlife Service and iNaturalist creators";
-  return `Approved bird photos come from ${provider}. Rufous serves immutable display copies and retains each creator, source page, and license.`;
+      : "Wikimedia Commons creators");
+  const providers = names.length === 1
+    ? names[0]
+    : names.length === 2
+      ? names.join(" and ")
+      : `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
+  return `Approved bird photos come from ${providers}. Rufous serves immutable display copies and retains each creator, source page, and license.`;
 }
 
 function SourceCredit({ source }: { source: PublicAttributionSource }) {

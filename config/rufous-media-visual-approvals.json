@@ -62,12 +62,34 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Agapornis roseicollis",
+      "sha256": "d10133655cf09334fc159795e9b654a59e616ddc1188265a468e1b962aa45b80",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Rosy-faced_lovebird_(Agapornis_roseicollis_roseicollis).jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Agelaius phoeniceus",
       "sha256": "19c11b813fd6a38c414f25a23d1a3c17e9a660b7d3b48246afd11f71952b402f",
       "source_page_urls": [
         "https://www.fws.gov/media/turnbull-nwr-red-winged-blackbird-2"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Aimophila ruficeps",
+      "sha256": "e6e3c08dc77e246c1ec7ce8b0c9cde06bd37f054fbd54907e35bebbb599d2dbe",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Rufous-crowned_Sparrow.jpg"
       ]
     },
     {
@@ -128,6 +150,17 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Anas diazi",
+      "sha256": "b8564bcfe1e82f69bad842cf00fe2509fe1c346642d3d0556405bb6915df35bd",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:029_-_MEXICAN_MALLARD_(1-21-2017)_male,_patagonia_lake,_santa_cruz_co,_az_-01_(32360928371).jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Anas platyrhynchos",
@@ -150,6 +183,17 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Anser cygnoides",
+      "sha256": "490e78b8e3bbe73c966e632288e238474c73e36e0ac9ec168d09fbd901edfbd6",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Anser_cygnoides,_Ozero_Stepnoye,_Ivolginskiy,_Buryatia_Republic,_Russia_1.jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Anser rossii",
@@ -167,6 +211,17 @@
       "sha256": "a48e2ef7ea2bee2380c4e021d428f8f6689ce740c7a06b3b1d8feb647ec5033c",
       "source_page_urls": [
         "https://www.fws.gov/media/american-pipit-0"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Aphelocoma wollweberi",
+      "sha256": "d1605f78328cccb9dba91d40c69132fab45167db0285f3904a3fa7aa02cc353e",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Mexican_Jay_(33899678402).jpg"
       ]
     },
     {
@@ -277,6 +332,17 @@
       "sha256": "8a6c90203c16e53aa8be78e9aad5e3cef0f7900f7e3aa62b7f4e9fe0a473a2d5",
       "source_page_urls": [
         "https://www.fws.gov/media/juniper-titmouse"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Baeolophus wollweberi",
+      "sha256": "d8f42fd59cce654e1d34d66076903a15d4616f536d0a1e80d1250c80162a8c90",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:678_-_BRIDLED_TITMOUSE_(7-26-2018)_upper_humboldt_canyon,_patagonia_mts,_santa_cruz_co,_az_-01_(43711201671).jpg"
       ]
     },
     {
@@ -403,6 +469,17 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Calcarius ornatus",
+      "sha256": "1fdbc0df2f6d69800f21c78a92d92efa51a09dc42028253afcf3d115bef76ef0",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Calcarius_ornatus_GNP_01.jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Calidris minutilla",
@@ -509,6 +586,17 @@
       "source_page_urls": [
         "https://www.fws.gov/media/hermit-thrush-insect-its-bill",
         "https://www.fws.gov/media/hermit-thrush-perched-conifer-dave-menke-usfwsjpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Catherpes mexicanus",
+      "sha256": "de5d3302eec8250e5ece39e480a477f8b1e4aba4db4e76b3cea409c6b2c77943",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Canyon_Wren.jpg"
       ]
     },
     {
@@ -718,6 +806,17 @@
       "sha256": "b63ed3b6632c3c168c42543df1c0a155a05ed8630124564455083fda60015302",
       "source_page_urls": [
         "https://www.fws.gov/media/snowy-egret-harris-neck-refuge-0"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Empidonax hammondii",
+      "sha256": "021c13b91fcc608b9a21ebd2db606bc3c379f9b44d6963cc5a0019ed6f503ca4",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Empidonax_hammondii.jpg"
       ]
     },
     {
@@ -978,6 +1077,17 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Junco phaeonotus",
+      "sha256": "45d0765298e354781de81eb2627889903cb87030af00d18b85c00377f3f32b94",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Yellow-eyed_Junco_(33534820670).jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Lampornis clemenciae",
@@ -1039,6 +1149,17 @@
       "sha256": "1842f9188b97e212d2b1c437f31d1cbcb28edbd8520626ef1ffe22eaa21bd10b",
       "source_page_urls": [
         "https://www.fws.gov/media/orange-crowned-warbler-8"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Leucolia violiceps",
+      "sha256": "3ef220d3f2ad33d5c2288912af4a3c0699b06f343966f7f1b48e24cdb7d7c0ac",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Violet-crowned_Hummingbird,_Arizona_04.jpg"
       ]
     },
     {
@@ -1199,6 +1320,28 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Melozone aberti",
+      "sha256": "60224952b99ccc762e76f8b1c69278bfe7866101cee6efbc937a5c6c837b5634",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Abert%27s_Towhee_8537.jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Melozone fusca",
+      "sha256": "338ad871704b1d63deafa1da61255f24a274ea15a7d072d12474dbf3a7a79883",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:CanyonTowhee-1MAY2017.jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Mergus merganser",
@@ -1249,6 +1392,17 @@
       "sha256": "ef838c4b1057a85af4252a2888d218ef2fe7fe8daa31dbe4dd2bef0c5d2aaaac",
       "source_page_urls": [
         "https://www.fws.gov/media/townsends-solitaire-0"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Myiarchus tuberculifer",
+      "sha256": "c0f9e361971e3057cfddd9881d99ebc8cd259d1e72921f964a79407bab2f24a4",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Dusky-capped_flycatcher_(Myiarchus_tuberculifer_atriceps)_San_Isidro.jpg"
       ]
     },
     {
@@ -1386,6 +1540,17 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Peucaea carpalis",
+      "sha256": "e20074a4f3e1af59b634bb33f1193efe6bd8fd2644b96ed83be21c8ff70748fb",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Rufous-winged_sparrow.jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Phainopepla nitens",
@@ -1491,6 +1656,17 @@
       "sha256": "9186c69e8abe630f2e63d1c21cc01e8871aee2428ee1d37596748cf17dbf8d58",
       "source_page_urls": [
         "https://www.fws.gov/media/blue-gray-gnatcatcher"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Polioptila melanura",
+      "sha256": "602cd9de7350bf832c3ff76cd0f2cdb3d2137ea7d7b6798ab3a918df2b99d3ed",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Black-tailed_Gnatcatcher_(33892304431).jpg"
       ]
     },
     {
@@ -1728,6 +1904,17 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Spatula clypeata",
+      "sha256": "e44fdd8859401b2e1a857ed8ddb40af73a327f4b1b410b3a1892585fd191d6b8",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Northern_shoveler_(Spatula_clypeata)_male_swimming_Marken.jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Connor Lough",
       "scientific_name": "Spatula cyanoptera",
@@ -1794,6 +1981,17 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Spizella atrogularis",
+      "sha256": "72968bbc3ba8d9fbddf81413c58d28068c1b4da0b6aad6c31fa4a3a870dc00aa",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Black-chinned_Sparrow.jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Spizella breweri",
@@ -1811,6 +2009,17 @@
       "sha256": "cf937b5c320f1575716ac3cc2b5d16b6c708750ef9a42a0bdaa4477c10d2c0fe",
       "source_page_urls": [
         "https://www.fws.gov/media/chipping-sparrow-6"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Stelgidopteryx serripennis",
+      "sha256": "6fae8f0edef60900f13fb11654be0ad5f46ea5ff10d00f01205be809e43d2683",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Adult_Northern_Rough-winged_Swallow_(Stelgidopteryx_serripennis)_in_Waterville,_Maine.jpg"
       ]
     },
     {
@@ -1893,6 +2102,28 @@
     {
       "decision": "selected",
       "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Toxostoma bendirei",
+      "sha256": "90427dd19aaaf6f36fd9763e4b0c1cfd295e73e8257cdf22b730b52237cbac91",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Bendire%27s_Thrasher_Willow_Tank_Portal_AZ_2018-01-19_13-36-07_(38903846605).jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Toxostoma crissale",
+      "sha256": "3dcf7a0fb69ac5a6e77b8870e81608922e6d701f82445210c1f17920b022202e",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Toxostoma_crissale.jpg"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
       "reviewed_at": "2026-08-03",
       "reviewed_by": "Rufous site owner via Codex",
       "scientific_name": "Toxostoma curvirostre",
@@ -1921,6 +2152,17 @@
       "sha256": "d330854608ac9455693a55d74f09be0d85ceebbc36f99a4fc2f3ce3ccd4dcd1b",
       "source_page_urls": [
         "https://www.fws.gov/media/house-wren-1"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Trogon elegans",
+      "sha256": "cbecc1dc31b4781462a4ecacfdc7cd98bcae414936d47fd72bf8c28053371e8a",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Elegant_Trogon_(Trogon_elegans)_(4412444696).jpg"
       ]
     },
     {
@@ -1965,6 +2207,17 @@
       "sha256": "ba7eae4ec1f288a01e78fd3c2c45100861d7059896764ce535de8252ebe666e4",
       "source_page_urls": [
         "https://www.fws.gov/media/huttons-vireo-tree-branch"
+      ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Vireo plumbeus",
+      "sha256": "0603c57dfc09a554664dc90f8eeddf23163e8bea968db3a44a92c9c02aad7aad",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Plumbeous_Vireo_(Vireo_plumbeus)_(7222930710)_(cropped).jpg"
       ]
     },
     {
@@ -2021,53 +2274,18 @@
       "source_page_urls": [
         "https://www.fws.gov/media/white-crowned-sparrow-15"
       ]
+    },
+    {
+      "decision": "selected",
+      "reason": "live_bird_without_human_or_migration_map",
+      "reviewed_at": "2026-08-04",
+      "reviewed_by": "Rufous site owner via Codex",
+      "scientific_name": "Zonotrichia querula",
+      "sha256": "718141e501bf7a1896e8ef23c8ec966dd452664393ca001c93cf62b0a3bece62",
+      "source_page_urls": [
+        "https://commons.wikimedia.org/wiki/File:Harris%27s_Sparrow_-_Flickr_-_GregTheBusker.jpg"
+      ]
     }
   ],
-  "species_exclusions": [
-    {
-      "candidates": [
-        {
-          "sha256": "5c6b3c7686fafaea2ecd91d773770c31f1599f855a77c6b30e4e9f4dc04129af",
-          "source_page_urls": [
-            "https://www.fws.gov/media/bosque-del-apache-national-wildlife-refuge-personnel-handling-mexican-ducks-refuge-1948"
-          ]
-        }
-      ],
-      "decision": "no_safe_image",
-      "reason": "user_content_policy",
-      "reviewed_at": "2026-08-03",
-      "reviewed_by": "Rufous site owner via Codex",
-      "scientific_name": "Anas diazi"
-    },
-    {
-      "candidates": [
-        {
-          "sha256": "54553aa710e15bd22fb9d543fa5880e20985cbd6e1365a58ab04bd504a4a58cf",
-          "source_page_urls": [
-            "https://www.fws.gov/media/fab-four-grassland-birds"
-          ]
-        }
-      ],
-      "decision": "no_safe_image",
-      "reason": "user_content_policy",
-      "reviewed_at": "2026-08-03",
-      "reviewed_by": "Rufous site owner via Codex",
-      "scientific_name": "Calcarius ornatus"
-    },
-    {
-      "candidates": [
-        {
-          "sha256": "1776c60d9ea755b241254a8aa296e30aadb99a8ab563a95604f11a1b0618f120",
-          "source_page_urls": [
-            "https://www.fws.gov/media/moapa-valley-nwr-maps-banding"
-          ]
-        }
-      ],
-      "decision": "no_safe_image",
-      "reason": "user_content_policy",
-      "reviewed_at": "2026-08-03",
-      "reviewed_by": "Rufous site owner via Codex",
-      "scientific_name": "Melozone aberti"
-    }
-  ]
+  "species_exclusions": []
 }

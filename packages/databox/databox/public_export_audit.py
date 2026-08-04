@@ -8,6 +8,7 @@ import re
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 from databox.public_export import (
     ALLOWED_LICENSES,
@@ -188,12 +189,67 @@ _MEDIA_ID = re.compile(r"^usfws-[a-f0-9]{24}$")
 _MEDIA_ATTRIBUTION_ID = re.compile(r"^usfws-attribution-[a-f0-9]{24}$")
 _INATURALIST_MEDIA_ID = re.compile(r"^inaturalist-(?P<photo_id>[1-9][0-9]*)$")
 _INATURALIST_ATTRIBUTION_ID = re.compile(r"^inaturalist-attribution-(?P<photo_id>[1-9][0-9]*)$")
+_WIKIMEDIA_MEDIA_ID = re.compile(r"^wikimedia-[a-f0-9]{24}$")
+_WIKIMEDIA_ATTRIBUTION_ID = re.compile(r"^wikimedia-attribution-[a-f0-9]{24}$")
 _USFWS_MEDIA_PAGE = re.compile(
     r"^https://www\.fws\.gov/media/[a-z0-9](?:[a-z0-9-]{0,238}[a-z0-9])?$"
 )
 _INATURALIST_PHOTO_PAGE = re.compile(
     r"^https://www\.inaturalist\.org/photos/(?P<photo_id>[1-9][0-9]*)$"
 )
+_WIKIMEDIA_FILE_PAGE = re.compile(
+    r"^https://commons\.wikimedia\.org/wiki/File:[^/?#\x00-\x20\x7f]+$"
+)
+_MEDIA_PROVIDER_LABELS = {
+    "usfws": "USFWS",
+    "inaturalist": "iNaturalist",
+    "wikimedia": "Wikimedia Commons",
+}
+_MEDIA_ID_PATTERNS = {
+    "usfws": _MEDIA_ID,
+    "inaturalist": _INATURALIST_MEDIA_ID,
+    "wikimedia": _WIKIMEDIA_MEDIA_ID,
+}
+_MEDIA_ATTRIBUTION_ID_PATTERNS = {
+    "usfws": _MEDIA_ATTRIBUTION_ID,
+    "inaturalist": _INATURALIST_ATTRIBUTION_ID,
+    "wikimedia": _WIKIMEDIA_ATTRIBUTION_ID,
+}
+_MEDIA_SOURCE_PAGE_PATTERNS = {
+    "usfws": _USFWS_MEDIA_PAGE,
+    "inaturalist": _INATURALIST_PHOTO_PAGE,
+    "wikimedia": _WIKIMEDIA_FILE_PAGE,
+}
+
+
+def _valid_wikimedia_file_page(value: str) -> bool:
+    if len(value) > 2_000 or _WIKIMEDIA_FILE_PAGE.fullmatch(value) is None:
+        return False
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+        encoded_name = parsed.path.removeprefix("/wiki/File:")
+        if re.search(r"%(?![0-9A-Fa-f]{2})", encoded_name):
+            return False
+        name = unquote(encoded_name, errors="strict")
+    except (UnicodeError, ValueError):
+        return False
+    return bool(
+        parsed.scheme == "https"
+        and parsed.hostname == "commons.wikimedia.org"
+        and parsed.username is None
+        and parsed.password is None
+        and port is None
+        and not parsed.query
+        and not parsed.fragment
+        and 0 < len(name) <= 500
+        and name.strip() == name
+        and name not in {".", ".."}
+        and not any(character in name for character in ("/", "\\"))
+        and not any(ord(character) < 32 or ord(character) == 127 for character in name)
+    )
+
+
 _PUBLIC_MEDIA_URL = re.compile(
     r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
     r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.webp$"
@@ -202,7 +258,11 @@ _MEDIA_SOURCE_PROVIDERS = {
     "none": frozenset(),
     "usfws": frozenset({"usfws"}),
     "inaturalist": frozenset({"inaturalist"}),
+    "wikimedia": frozenset({"wikimedia"}),
     "usfws+inaturalist": frozenset({"usfws", "inaturalist"}),
+    "usfws+wikimedia": frozenset({"usfws", "wikimedia"}),
+    "inaturalist+wikimedia": frozenset({"inaturalist", "wikimedia"}),
+    "usfws+inaturalist+wikimedia": frozenset({"usfws", "inaturalist", "wikimedia"}),
 }
 _PUBLIC_MEDIA_EMAIL = re.compile(
     r"(?<![A-Za-z0-9.!#$%&'*+/=?^_`{|}~-])"
@@ -259,6 +319,8 @@ def audit_public_site(
     site_dir: Path,
     workflow_root: Path | None = None,
     repository_root: Path | None = None,
+    *,
+    shell_only: bool = False,
 ) -> list[str]:
     """Return stable human-readable findings; an empty list is release-ready."""
     findings: list[str] = []
@@ -297,7 +359,10 @@ def audit_public_site(
     findings.extend(_audit_static_routing(site_dir))
     findings.extend(_audit_browser_security_policy(site_dir))
     findings.extend(_audit_all_json_privacy(site_dir, files))
-    findings.extend(_audit_static_contract(site_dir))
+    if shell_only:
+        findings.extend(_audit_shell_only_contract(site_dir))
+    else:
+        findings.extend(_audit_static_contract(site_dir))
     if workflow_root is not None:
         findings.extend(audit_workflow_runners(workflow_root))
     if repository_root is not None:
@@ -671,6 +736,18 @@ def _audit_media_attribution_sources(
                 "copies; each credit links to the original iNaturalist photo page."
             ),
         },
+        "wikimedia": {
+            "provider": "wikimedia",
+            "title": "Wikimedia Commons",
+            "url": "https://commons.wikimedia.org/",
+            "license": "Per-item Public Domain or Creative Commons license",
+            "license_url": None,
+            "credit": "Individual creators are credited on each media item.",
+            "modifications": (
+                "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
+                "copies; each credit links to the original Wikimedia Commons File page."
+            ),
+        },
     }
     for provider, contract in expected.items():
         matches = [
@@ -690,6 +767,18 @@ def _audit_media_attribution_sources(
         source = matches[0]
         if any(source.get(field) != value for field, value in contract.items()):
             findings.append(f"public {provider} media attribution does not match its contract")
+    return findings
+
+
+def _audit_shell_only_contract(site_dir: Path) -> list[str]:
+    """Require a built application shell with no bundled public-data snapshot."""
+    findings: list[str] = []
+    index = site_dir / "index.html"
+    if index.is_symlink() or not index.is_file():
+        findings.append("shell-only release requires a built static application index.html")
+    data = site_dir / "data"
+    if data.exists() or data.is_symlink():
+        findings.append("shell-only release must not contain a data/ path")
     return findings
 
 
@@ -843,7 +932,7 @@ def _audit_static_contract(site_dir: Path) -> list[str]:
                 str(media_item.get("provider"))
                 for media_item in profile_media
                 if isinstance(media_item, dict)
-                and media_item.get("provider") in {"usfws", "inaturalist"}
+                and media_item.get("provider") in {"usfws", "inaturalist", "wikimedia"}
             )
             summary_count = item.get("photo_count")
             if type(summary_count) is not int or summary_count != len(profile_media):
@@ -1061,16 +1150,16 @@ def _audit_species_profile(profile: dict[str, Any], relative: Path, *, mode: obj
             "sha256",
             "mime_type",
         )
-        if provider not in {"usfws", "inaturalist"}:
+        if not isinstance(provider, str) or provider not in _MEDIA_PROVIDER_LABELS:
             findings.append(f"{relative} media provider is not allowed")
         elif canonical_license(provider, item.get("license")) is None:
             findings.append(f"{relative} media license is not allowed for {provider}")
         for field in required:
             if not isinstance(item.get(field), str) or not item[field].strip():
                 findings.append(f"{relative} media is missing {field}")
-        if provider not in {"usfws", "inaturalist"}:
+        if not isinstance(provider, str) or provider not in _MEDIA_PROVIDER_LABELS:
             continue
-        provider_label = "USFWS" if provider == "usfws" else "iNaturalist"
+        provider_label = _MEDIA_PROVIDER_LABELS[provider]
         media_id = item.get("media_id")
         attribution_id = item.get("attribution_id")
         source_url = item.get("source_url")
@@ -1079,28 +1168,24 @@ def _audit_species_profile(profile: dict[str, Any], relative: Path, *, mode: obj
         license_pair = canonical_license(provider, item.get("license"))
         match = _PUBLIC_MEDIA_URL.fullmatch(asset_url) if isinstance(asset_url, str) else None
         media_id_match = (
-            _MEDIA_ID.fullmatch(media_id)
-            if provider == "usfws" and isinstance(media_id, str)
-            else (_INATURALIST_MEDIA_ID.fullmatch(media_id) if isinstance(media_id, str) else None)
+            _MEDIA_ID_PATTERNS[provider].fullmatch(media_id) if isinstance(media_id, str) else None
         )
         attribution_id_match = (
-            _MEDIA_ATTRIBUTION_ID.fullmatch(attribution_id)
-            if provider == "usfws" and isinstance(attribution_id, str)
-            else (
-                _INATURALIST_ATTRIBUTION_ID.fullmatch(attribution_id)
-                if isinstance(attribution_id, str)
-                else None
-            )
+            _MEDIA_ATTRIBUTION_ID_PATTERNS[provider].fullmatch(attribution_id)
+            if isinstance(attribution_id, str)
+            else None
         )
         source_url_match = (
-            _USFWS_MEDIA_PAGE.fullmatch(source_url)
-            if provider == "usfws" and isinstance(source_url, str)
-            else (
-                _INATURALIST_PHOTO_PAGE.fullmatch(source_url)
-                if isinstance(source_url, str)
-                else None
-            )
+            _MEDIA_SOURCE_PAGE_PATTERNS[provider].fullmatch(source_url)
+            if isinstance(source_url, str)
+            else None
         )
+        if (
+            provider == "wikimedia"
+            and isinstance(source_url, str)
+            and not _valid_wikimedia_file_page(source_url)
+        ):
+            source_url_match = None
         if media_id_match is None:
             findings.append(f"{relative} {provider_label} media_id is invalid")
         elif media_id in seen_media_ids:
@@ -1254,12 +1339,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("site", type=Path)
     parser.add_argument("--workflows", type=Path)
     parser.add_argument("--repository-root", type=Path)
+    parser.add_argument(
+        "--shell-only",
+        action="store_true",
+        help="require a built static application with no bundled data/ snapshot",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
-    findings = audit_public_site(args.site, args.workflows, args.repository_root)
+    findings = audit_public_site(
+        args.site,
+        args.workflows,
+        args.repository_root,
+        shell_only=args.shell_only,
+    )
     if findings:
         print("Rufous public release safety audit failed:")
         for finding in findings:

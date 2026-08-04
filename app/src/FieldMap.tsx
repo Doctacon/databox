@@ -9,6 +9,7 @@ import {
 } from "./openFreeMapStyle";
 import { getMapSnapshot } from "./mapApi";
 import rufousImage from "./assets/rufous.png";
+import { publicMediaProviderLabel } from "./publicMediaContracts";
 import type { CatalogPhoto, MapEncounter, MapSnapshot, TripPlanDetail } from "./types";
 import { compareVisibleLabels } from "./visibleLabel";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -167,8 +168,8 @@ function reducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
-function photoProviderLabel(photo: CatalogPhoto): "USFWS" | "iNaturalist" {
-  return photo.provider === "usfws" ? "USFWS" : "iNaturalist";
+function photoProviderLabel(photo: CatalogPhoto): string {
+  return photo.provider ? publicMediaProviderLabel(photo.provider) : "Photo";
 }
 
 export function EncounterThumbnail({ photo, name }: { photo: CatalogPhoto | undefined; name: string }) {

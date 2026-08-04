@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 from zoneinfo import ZoneInfo
 
 import duckdb
@@ -52,6 +52,8 @@ _MEDIA_ID = re.compile(r"^usfws-[a-f0-9]{24}$")
 _MEDIA_ATTRIBUTION_ID = re.compile(r"^usfws-attribution-[a-f0-9]{24}$")
 _INATURALIST_MEDIA_ID = re.compile(r"^inaturalist-(?P<photo_id>[1-9][0-9]*)$")
 _INATURALIST_ATTRIBUTION_ID = re.compile(r"^inaturalist-attribution-(?P<photo_id>[1-9][0-9]*)$")
+_WIKIMEDIA_MEDIA_ID = re.compile(r"^wikimedia-[a-f0-9]{24}$")
+_WIKIMEDIA_ATTRIBUTION_ID = re.compile(r"^wikimedia-attribution-[a-f0-9]{24}$")
 _SCIENTIFIC_NAME = re.compile(r"^[A-Z][A-Za-z-]+ [a-z][A-Za-z-]+(?: [A-Za-z-]+)?$")
 _SPECIES_BINOMIAL = re.compile(r"^[A-Z][A-Za-z-]+ [a-z][A-Za-z-]+$")
 _USFWS_MEDIA_PAGE = re.compile(
@@ -59,6 +61,9 @@ _USFWS_MEDIA_PAGE = re.compile(
 )
 _INATURALIST_PHOTO_PAGE = re.compile(
     r"^https://www\.inaturalist\.org/photos/(?P<photo_id>[1-9][0-9]*)$"
+)
+_WIKIMEDIA_FILE_PAGE = re.compile(
+    r"^https://commons\.wikimedia\.org/wiki/File:[^/?#\x00-\x20\x7f]+$"
 )
 _PUBLIC_MEDIA_URL = re.compile(
     r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
@@ -72,7 +77,11 @@ _MEDIA_SOURCE_MARKERS = {
     frozenset(): "none",
     frozenset({"usfws"}): "usfws",
     frozenset({"inaturalist"}): "inaturalist",
+    frozenset({"wikimedia"}): "wikimedia",
     frozenset({"usfws", "inaturalist"}): "usfws+inaturalist",
+    frozenset({"usfws", "wikimedia"}): "usfws+wikimedia",
+    frozenset({"inaturalist", "wikimedia"}): "inaturalist+wikimedia",
+    frozenset({"usfws", "inaturalist", "wikimedia"}): ("usfws+inaturalist+wikimedia"),
 }
 
 _PUBLIC_MANIFEST_KEYS = frozenset(
@@ -150,6 +159,22 @@ ALLOWED_LICENSES: dict[str, frozenset[str]] = {
             "CC BY-SA 4.0",
         }
     ),
+    "wikimedia": frozenset(
+        {
+            "Public Domain",
+            "CC0 1.0",
+            "CC BY 1.0",
+            "CC BY 2.0",
+            "CC BY 2.5",
+            "CC BY 3.0",
+            "CC BY 4.0",
+            "CC BY-SA 1.0",
+            "CC BY-SA 2.0",
+            "CC BY-SA 2.5",
+            "CC BY-SA 3.0",
+            "CC BY-SA 4.0",
+        }
+    ),
 }
 
 
@@ -184,6 +209,11 @@ def canonical_license(provider: str, value: object) -> tuple[str, str] | None:
     raw = value.strip()
     if provider == "usfws" and raw == "Public Domain":
         return "Public Domain", "https://www.fws.gov/notices"
+    if provider == "wikimedia" and raw == "Public Domain":
+        return (
+            "Public Domain",
+            "https://commons.wikimedia.org/wiki/Commons:Copyright_tags/General_public_domain",
+        )
     if "://" in raw:
         try:
             parsed = urlsplit(raw)
@@ -330,6 +360,15 @@ def _valid_public_media_identity(
             and source_url
             and _USFWS_MEDIA_PAGE.fullmatch(source_url)
         )
+    if provider == "wikimedia":
+        return bool(
+            media_id
+            and _WIKIMEDIA_MEDIA_ID.fullmatch(media_id)
+            and attribution_id
+            and _WIKIMEDIA_ATTRIBUTION_ID.fullmatch(attribution_id)
+            and source_url
+            and _valid_wikimedia_file_page(source_url)
+        )
     if provider != "inaturalist" or not media_id or not attribution_id or not source_url:
         return False
     media_match = _INATURALIST_MEDIA_ID.fullmatch(media_id)
@@ -341,6 +380,34 @@ def _valid_public_media_identity(
         and source_match
         and media_match.group("photo_id") == source_match.group("photo_id")
         and attribution_match.group("photo_id") == source_match.group("photo_id")
+    )
+
+
+def _valid_wikimedia_file_page(value: str) -> bool:
+    if len(value) > 2_000 or _WIKIMEDIA_FILE_PAGE.fullmatch(value) is None:
+        return False
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+        encoded_name = parsed.path.removeprefix("/wiki/File:")
+        if re.search(r"%(?![0-9A-Fa-f]{2})", encoded_name):
+            return False
+        name = unquote(encoded_name, errors="strict")
+    except (UnicodeError, ValueError):
+        return False
+    return bool(
+        parsed.scheme == "https"
+        and parsed.hostname == "commons.wikimedia.org"
+        and parsed.username is None
+        and parsed.password is None
+        and port is None
+        and not parsed.query
+        and not parsed.fragment
+        and 0 < len(name) <= 500
+        and name.strip() == name
+        and name not in {".", ".."}
+        and not any(character in name for character in ("/", "\\"))
+        and not any(ord(character) < 32 or ord(character) == 127 for character in name)
     )
 
 
@@ -1065,6 +1132,7 @@ def _media_source_marker(records: PublicRecords) -> str:
             if not isinstance(item, dict) or item.get("provider") not in {
                 "usfws",
                 "inaturalist",
+                "wikimedia",
             }:
                 raise PublicExportError("species media has an unsupported public provider")
             providers.add(str(item["provider"]))
@@ -1318,6 +1386,18 @@ def _media_attribution_sources(records: PublicRecords) -> list[JsonObject]:
             "modifications": (
                 "Rufous resized, re-encoded, and stripped metadata from web display copies; "
                 "each credit links to the original USFWS media page."
+            ),
+        },
+        "wikimedia": {
+            "provider": "wikimedia",
+            "title": "Wikimedia Commons",
+            "url": "https://commons.wikimedia.org/",
+            "license": "Per-item Public Domain or Creative Commons license",
+            "license_url": None,
+            "credit": "Individual creators are credited on each media item.",
+            "modifications": (
+                "Rufous resized, re-encoded, and stripped metadata from reviewed web display "
+                "copies; each credit links to the original Wikimedia Commons File page."
             ),
         },
     }
@@ -1696,6 +1776,7 @@ def export_public_data(
     if media_manifest_path is not None:
         selected_media: Mapping[str, str] | None = None
         excluded_media: frozenset[str] = frozenset()
+        expected_attached_media: int | None = None
         if mode == "production":
             assert media_approvals_path is not None
             try:
@@ -1704,6 +1785,7 @@ def export_public_data(
                 raise PublicExportError(f"public media visual approval failed: {exc}") from None
             selected_media = media_plan.selected_sha256_by_species
             excluded_media = media_plan.excluded_species
+            expected_attached_media = len(media_plan.selections)
         attached = attach_public_media(
             records,
             load_public_media_manifest(
@@ -1713,6 +1795,11 @@ def export_public_data(
             ),
         )
         if mode == "production":
+            assert expected_attached_media is not None
+            if attached != expected_attached_media:
+                raise PublicExportError(
+                    "production catalog does not contain every pinned approved media species"
+                )
             rufous = next(
                 (
                     species

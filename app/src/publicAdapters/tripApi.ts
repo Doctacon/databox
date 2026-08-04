@@ -208,7 +208,7 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
   const photoEvidence: Evidence[] = recommendations.flatMap((recommendation, index) => {
     const photo = recommendation.photo;
     if (photo.status !== "available") return [];
-    if ((photo.provider !== "usfws" && photo.provider !== "inaturalist")
+    if ((photo.provider !== "usfws" && photo.provider !== "inaturalist" && photo.provider !== "wikimedia")
       || photo.source_record_id === null) {
       throw new Error("Published recommendation photo provenance is unavailable.");
     }
@@ -217,7 +217,11 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
       evidence_id: `photo_${index + 1}_${recommendation.species_code}`,
       recommendation_id: recommendation.recommendation_id,
       source: provider,
-      source_table: provider === "usfws" ? "published_usfws_media" : "published_inaturalist_media",
+      source_table: provider === "usfws"
+        ? "published_usfws_media"
+        : provider === "inaturalist"
+          ? "published_inaturalist_media"
+          : "published_wikimedia_media",
       source_record_id: photo.source_record_id,
       evidence_type: "recommendation_photo",
       status: "available",

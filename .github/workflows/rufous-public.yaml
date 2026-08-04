@@ -6,6 +6,8 @@ on:
     paths:
       - "app/**"
       - "config/rufous-media-visual-approvals.json"
+      - "config/rufous-pinned-public-media.json"
+      - "config/rufous-wikimedia-public-media.json"
       - "pyproject.toml"
       - "packages/databox/pyproject.toml"
       - "packages/databox-sources/pyproject.toml"
@@ -32,6 +34,7 @@ on:
       - "scripts/*rufous_public.py"
       - "scripts/*rufous*media.py"
       - "scripts/build_rufous_media_review.py"
+      - "scripts/compose_rufous_media_pin.py"
       - "scripts/verify_rufous_media_approvals.py"
       - "scripts/sqlmesh_plan_rufous_public.sh"
       - "scripts/sqlmesh_plan_rufous_media.sh"
@@ -43,6 +46,7 @@ on:
       - "tests/test_public_release.py"
       - "tests/test_public_release_hydrate.py"
       - "tests/test_rufous_public_workflow.py"
+      - "tests/test_rufous_wikimedia_public_media.py"
       - "tests/test_public_media*.py"
       - "tests/test_public_inaturalist_media_ingest.py"
       - "tests/test_settings.py"
@@ -68,6 +72,8 @@ on:
     paths:
       - "app/**"
       - "config/rufous-media-visual-approvals.json"
+      - "config/rufous-pinned-public-media.json"
+      - "config/rufous-wikimedia-public-media.json"
       - "pyproject.toml"
       - "packages/databox/pyproject.toml"
       - "packages/databox-sources/pyproject.toml"
@@ -94,6 +100,7 @@ on:
       - "scripts/*rufous_public.py"
       - "scripts/*rufous*media.py"
       - "scripts/build_rufous_media_review.py"
+      - "scripts/compose_rufous_media_pin.py"
       - "scripts/verify_rufous_media_approvals.py"
       - "scripts/sqlmesh_plan_rufous_public.sh"
       - "scripts/sqlmesh_plan_rufous_media.sh"
@@ -105,6 +112,7 @@ on:
       - "tests/test_public_release.py"
       - "tests/test_public_release_hydrate.py"
       - "tests/test_rufous_public_workflow.py"
+      - "tests/test_rufous_wikimedia_public_media.py"
       - "tests/test_public_media*.py"
       - "tests/test_public_inaturalist_media_ingest.py"
       - "tests/test_settings.py"
@@ -136,8 +144,16 @@ on:
         default: full
         options:
           - full
-          - media-delta
+          - media-refresh
           - pages-only
+      media_provider:
+        description: Explicit provider for a manual media refresh
+        type: choice
+        required: true
+        default: inaturalist
+        options:
+          - inaturalist
+          - wikimedia
 
 permissions:
   contents: read
@@ -184,7 +200,7 @@ jobs:
           elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             if [[ "$DISPATCH_MODE" == "pages-only" ]]; then
               release_mode=pages
-            elif [[ "$DISPATCH_MODE" == "media-delta" ]]; then
+            elif [[ "$DISPATCH_MODE" == "media-refresh" ]]; then
               release_mode=media
             else
               release_mode=full
@@ -197,8 +213,7 @@ jobs:
               && git cat-file -e "$HEAD_SHA^{commit}"; then
               changed_count=0
               app_only=true
-              media_delta_only=true
-              media_delta_trigger=false
+              media_maintenance_change=false
               while IFS= read -r -d '' path; do
                 changed_count=$((changed_count + 1))
                 if [[ "$path" != app/* ]]; then
@@ -206,34 +221,16 @@ jobs:
                 fi
                 case "$path" in
                   config/rufous-media-visual-approvals.json|\
-                  packages/databox/databox/public_export.py|\
-                  packages/databox/databox/public_inaturalist_media_ingest.py|\
-                  packages/databox/databox/public_media.py|\
-                  packages/databox/databox/public_media_approval.py|\
-                  packages/databox/databox/public_media_delta.py|\
-                  packages/databox/databox/public_media_release.py|\
-                  scripts/apply_rufous_media_delta.py)
-                    media_delta_trigger=true
-                    ;;
-                  .github/workflows/rufous-public.yaml|\
-                  docs/rufous-public-release.md|\
-                  tests/test_public_export.py|\
-                  tests/test_public_inaturalist_media_ingest.py|\
-                  tests/test_public_media.py|\
-                  tests/test_public_media_approval.py|\
-                  tests/test_public_media_delta.py|\
-                  tests/test_public_media_release.py|\
-                  tests/test_rufous_public_workflow.py)
-                    ;;
-                  *)
-                    media_delta_only=false
+                  config/rufous-pinned-public-media.json|\
+                  config/rufous-wikimedia-public-media.json)
+                    media_maintenance_change=true
                     ;;
                 esac
               done < <(git diff --no-renames --name-only --diff-filter=ACMRD -z "$BEFORE_SHA" "$HEAD_SHA")
-              if [[ "$changed_count" -gt 0 && "$app_only" == "true" ]]; then
+              if [[ "$changed_count" -gt 0 && "$media_maintenance_change" == "true" ]]; then
+                release_mode=none
+              elif [[ "$changed_count" -gt 0 && "$app_only" == "true" ]]; then
                 release_mode=pages
-              elif [[ "$changed_count" -gt 0 && "$media_delta_only" == "true" && "$media_delta_trigger" == "true" ]]; then
-                release_mode=media
               fi
             fi
           fi
@@ -334,6 +331,8 @@ jobs:
           tests/test_public_media_ingest.py tests/test_public_inaturalist_media_ingest.py
           tests/test_public_media_release.py
           tests/test_public_media_review.py
+          tests/test_public_wikimedia_media_ingest.py
+          tests/test_rufous_wikimedia_public_media.py
           tests/test_source_builders.py tests/test_source_registry.py
           -o "addopts=-v --tb=short"
       - name: Test public SQLMesh publication model
@@ -369,7 +368,7 @@ jobs:
           --repository-root .
 
   pages:
-    name: Build and deploy app with the active public snapshot
+    name: Build and deploy the R2-backed static app shell
     needs: [readiness, route]
     if: >-
       needs.readiness.outputs.pages_ready == 'true' &&
@@ -393,10 +392,10 @@ jobs:
         run: |
           uv sync --all-extras --dev --locked
           npm --prefix app ci
-      - name: Test current-release hydration and public browser application
+      - name: Test the shell-only release contract and public browser application
         run: |
           uv run pytest \
-            tests/test_public_release_hydrate.py \
+            tests/test_public_export_audit.py \
             tests/test_rufous_public_workflow.py \
             -o "addopts=-v --tb=short"
           npm --prefix app run typecheck
@@ -405,13 +404,13 @@ jobs:
         env:
           VITE_RUFOUS_DATA_BASE_URL: ${{ env.RUFOUS_PUBLIC_DATA_URL }}
         run: npm --prefix app run build:public
-      - name: Install the verified active production snapshot
-        run: uv run python scripts/hydrate_rufous_public.py app/dist
+      - name: Remove bundled fixture data from the R2-only production shell
+        run: rm -rf app/dist/data
       - name: Audit browser bundle configuration
         run: uv run python scripts/audit_app_bundle.py
-      - name: Enforce public release boundary
+      - name: Enforce the shell-only public release boundary
         run: >-
-          uv run python scripts/audit_rufous_public.py app/dist
+          uv run python scripts/audit_rufous_public.py app/dist --shell-only
           --workflows .github/workflows
           --repository-root .
       - name: Verify this revision is still the main branch head
@@ -436,19 +435,21 @@ jobs:
           --commit-hash "${{ github.sha }}"
 
   media_delta:
-    name: Add approved iNaturalist media to the active release
+    name: Explicitly add approved media to the active release
     needs: [production_readiness, route]
     if: >-
       needs.production_readiness.outputs.production_ready == 'true' &&
       needs.route.outputs.release_mode == 'media' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.release_mode == 'media-refresh'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
       RUNTIME__DLTHUB_TELEMETRY: "false"
       SQLMESH__DISABLE_ANONYMIZED_ANALYTICS: "true"
       DAGSTER_HOME: ${{ github.workspace }}/.dagster
+      RUFOUS_MEDIA_PROVIDER: ${{ inputs.media_provider }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -471,8 +472,10 @@ jobs:
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_release.py tests/test_public_release_hydrate.py
           tests/test_public_inaturalist_media_ingest.py
+          tests/test_public_wikimedia_media_ingest.py
           tests/test_public_media.py tests/test_public_media_approval.py
-          tests/test_public_media_delta.py tests/test_public_media_release.py
+          tests/test_public_media_delta.py tests/test_public_media_pin.py
+          tests/test_public_media_release.py
           tests/test_rufous_public_workflow.py
           -o "addopts=-v --tb=short"
       - name: Test the iNaturalist publication model
@@ -488,45 +491,91 @@ jobs:
         run: npm --prefix app run build:public
       - name: Hydrate the verified active production snapshot
         run: uv run python scripts/hydrate_rufous_public.py app/dist
-      - name: Refresh only the committed iNaturalist selections
+      - name: Verify the complete pinned immutable media catalog
+        run: >-
+          uv run python scripts/verify_rufous_media_approvals.py
+          --manifest config/rufous-pinned-public-media.json
+          --approvals config/rufous-media-visual-approvals.json
+      - id: pending-media
+        name: Identify only newly approved unpictured provider species
+        shell: bash
+        run: |
+          pending_count=$(uv run python -c 'import os; from pathlib import Path; from databox.public_media_delta import load_pending_public_media_selections; print(len(load_pending_public_media_selections(Path("app/dist"), Path("config/rufous-media-visual-approvals.json"), provider=os.environ["RUFOUS_MEDIA_PROVIDER"])))')
+          if [[ ! "$pending_count" =~ ^[0-9]+$ ]]; then
+            echo "Pending media count is invalid." >&2
+            exit 1
+          fi
+          echo "pending_count=$pending_count" >> "$GITHUB_OUTPUT"
+      - name: Stop cleanly when every approved image is already live
+        if: steps.pending-media.outputs.pending_count == '0'
+        run: echo "No newly approved unpictured species; no provider or deployment work is needed."
+      - name: Refresh only newly committed iNaturalist selections
+        if: >-
+          steps.pending-media.outputs.pending_count != '0' &&
+          env.RUFOUS_MEDIA_PROVIDER == 'inaturalist'
         run: |
           uv run python -m databox.public_inaturalist_media_ingest \
             --database data/databox.duckdb \
             --approvals config/rufous-media-visual-approvals.json \
             --targets-from-public-output app/dist
           bash scripts/sqlmesh_plan_rufous_inaturalist_media.sh
-      - name: Prepare only approved iNaturalist WebP candidates
+      - name: Load only the committed offline Wikimedia metadata
+        if: >-
+          steps.pending-media.outputs.pending_count != '0' &&
+          env.RUFOUS_MEDIA_PROVIDER == 'wikimedia'
         run: >-
-          uv run python scripts/prepare_rufous_media.py
-          --database-path data/databox.duckdb
-          --output-dir build/rufous-inaturalist-media
-          --provider inaturalist
-          --approvals config/rufous-media-visual-approvals.json
+          uv run python scripts/load_rufous_wikimedia_media.py
+          --database data/databox.duckdb
+          --input config/rufous-wikimedia-public-media.json
+          --targets-from-public-output app/dist
+      - name: Prepare only approved provider WebP candidates
+        if: steps.pending-media.outputs.pending_count != '0'
+        run: |
+          uv run python scripts/prepare_rufous_media.py \
+            --database-path data/databox.duckdb \
+            --output-dir build/rufous-selected-media \
+            --provider "$RUFOUS_MEDIA_PROVIDER" \
+            --approvals config/rufous-media-visual-approvals.json
       - name: Verify provider-scoped human image approvals
+        if: steps.pending-media.outputs.pending_count != '0'
         run: >-
           uv run python scripts/verify_rufous_media_approvals.py
-          --manifest build/rufous-inaturalist-media/manifest.json
+          --manifest build/rufous-selected-media/manifest.json
           --approvals config/rufous-media-visual-approvals.json
-          --provider inaturalist
+          --provider "$RUFOUS_MEDIA_PROVIDER"
+      - name: Bind prepared provider media to the committed public pin
+        if: steps.pending-media.outputs.pending_count != '0'
+        run: >-
+          uv run python scripts/compose_rufous_media_pin.py
+          --verify-pinned config/rufous-pinned-public-media.json
+          --prepared build/rufous-selected-media/manifest.json
+          --approvals config/rufous-media-visual-approvals.json
+          --provider "$RUFOUS_MEDIA_PROVIDER"
       - name: Apply the bounded media delta to the active snapshot
+        if: steps.pending-media.outputs.pending_count != '0'
         run: >-
           uv run python scripts/apply_rufous_media_delta.py
           --active-root app/dist
-          --prepared-media-dir build/rufous-inaturalist-media
+          --prepared-media-dir build/rufous-selected-media
           --approvals config/rufous-media-visual-approvals.json
           --output-root build/rufous-public-data
+          --provider "$RUFOUS_MEDIA_PROVIDER"
       - name: Install the audited delta data contract
+        if: steps.pending-media.outputs.pending_count != '0'
         run: |
           rm -rf app/dist/data
           cp -R build/rufous-public-data/data app/dist/data
       - name: Audit browser bundle configuration
+        if: steps.pending-media.outputs.pending_count != '0'
         run: uv run python scripts/audit_app_bundle.py
       - name: Enforce the complete public release boundary
+        if: steps.pending-media.outputs.pending_count != '0'
         run: >-
           uv run python scripts/audit_rufous_public.py app/dist
           --workflows .github/workflows
           --repository-root .
       - name: Verify this revision is still the main branch head
+        if: steps.pending-media.outputs.pending_count != '0'
         shell: bash
         run: |
           read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
@@ -535,6 +584,7 @@ jobs:
             exit 1
           fi
       - name: Preflight monotonic R2 activation before Pages deployment
+        if: steps.pending-media.outputs.pending_count != '0'
         env:
           RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
@@ -549,7 +599,8 @@ jobs:
           --publication-attempt "$GITHUB_RUN_ATTEMPT"
           --source-revision "$GITHUB_SHA"
           --dry-run
-      - name: Preflight only the approved iNaturalist media objects
+      - name: Preflight only the approved provider media objects
+        if: steps.pending-media.outputs.pending_count != '0'
         env:
           RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
@@ -557,13 +608,14 @@ jobs:
         run: >-
           uv run --package databox --extra r2 --locked
           python scripts/publish_rufous_media.py
-          --source build/rufous-inaturalist-media
+          --source build/rufous-selected-media
           --approvals config/rufous-media-visual-approvals.json
-          --provider inaturalist
+          --provider "$RUFOUS_MEDIA_PROVIDER"
           --r2
           --prefix rufous-media/v1/objects
           --dry-run
       - name: Recheck the main branch head before media publication
+        if: steps.pending-media.outputs.pending_count != '0'
         shell: bash
         run: |
           read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
@@ -571,7 +623,8 @@ jobs:
             echo "Refusing to publish media for a superseded main revision." >&2
             exit 1
           fi
-      - name: Publish only the approved iNaturalist media objects
+      - name: Publish only the approved provider media objects
+        if: steps.pending-media.outputs.pending_count != '0'
         env:
           RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
@@ -579,12 +632,13 @@ jobs:
         run: >-
           uv run --package databox --extra r2 --locked
           python scripts/publish_rufous_media.py
-          --source build/rufous-inaturalist-media
+          --source build/rufous-selected-media
           --approvals config/rufous-media-visual-approvals.json
-          --provider inaturalist
+          --provider "$RUFOUS_MEDIA_PROVIDER"
           --r2
           --prefix rufous-media/v1/objects
       - name: Recheck the main branch head before Pages deployment
+        if: steps.pending-media.outputs.pending_count != '0'
         shell: bash
         run: |
           read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
@@ -593,6 +647,7 @@ jobs:
             exit 1
           fi
       - name: Deploy immutable static Pages release
+        if: steps.pending-media.outputs.pending_count != '0'
         working-directory: ${{ runner.temp }}
         env:
           CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
@@ -605,6 +660,7 @@ jobs:
           --branch main
           --commit-hash "${{ github.sha }}"
       - name: Recheck the main branch head before R2 activation
+        if: steps.pending-media.outputs.pending_count != '0'
         shell: bash
         run: |
           read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
@@ -613,6 +669,7 @@ jobs:
             exit 1
           fi
       - name: Publish and activate the audited immutable R2 delta release
+        if: steps.pending-media.outputs.pending_count != '0'
         env:
           RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
@@ -656,15 +713,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: app/package-lock.json
-      - id: restore-media-cache
-        name: Restore the last verified prepared-media cache
-        continue-on-error: true
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: build/rufous-media
-          key: rufous-media-v2-${{ runner.os }}-${{ hashFiles('uv.lock', 'packages/databox/pyproject.toml', 'packages/databox/databox/public_media.py') }}-${{ github.run_id }}
-          restore-keys: |
-            rufous-media-v2-${{ runner.os }}-${{ hashFiles('uv.lock', 'packages/databox/pyproject.toml', 'packages/databox/databox/public_media.py') }}-
       - name: Install dependencies
         run: |
           mkdir -p "$DAGSTER_HOME"
@@ -672,25 +720,18 @@ jobs:
           npm --prefix app ci
       - name: Test public exporter and release invariant
         run: >-
-          uv run pytest packages/databox-sources/tests/usfws
-          packages/databox-sources/tests/inaturalist
-          tests/test_analytics_contract_inventory.py
+          uv run pytest tests/test_analytics_contract_inventory.py
           tests/test_public_export.py tests/test_public_export_audit.py
           tests/test_public_release.py tests/test_public_media.py
-          tests/test_public_release_hydrate.py
           tests/test_rufous_public_workflow.py
           tests/test_public_media_approval.py
-          tests/test_public_media_ingest.py tests/test_public_inaturalist_media_ingest.py
-          tests/test_public_media_release.py
-          tests/test_public_media_review.py
+          tests/test_public_media_pin.py
+          tests/test_rufous_pinned_public_media.py
           tests/test_source_builders.py tests/test_source_registry.py
           -o "addopts=-v --tb=short"
-      - name: Test public SQLMesh publication model
+      - name: Test public occurrence publication model
         working-directory: transforms/main
-        run: |
-          ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
-          ../../.venv/bin/sqlmesh test -k test_rufous_public_usfws_commercial_image
-          ../../.venv/bin/sqlmesh test -k test_rufous_public_inaturalist_commercial_image
+        run: ../../.venv/bin/sqlmesh test -k test_rufous_public_gbif_eod_occurrence
       - name: Test public browser application
         run: |
           npm --prefix app run typecheck
@@ -705,38 +746,11 @@ jobs:
             --database data/databox.duckdb \
             --skip-sqlmesh
           bash scripts/sqlmesh_plan_rufous_public.sh
-      - name: Refresh and model the public USFWS media metadata
-        run: |
-          uv run python scripts/load_rufous_usfws_media.py \
-            --database data/databox.duckdb \
-            --max-images-per-target 500
-          bash scripts/sqlmesh_plan_rufous_media.sh
-      - name: Refresh and model strict iNaturalist fallback metadata
-        run: |
-          uv run python -m databox.public_inaturalist_media_ingest \
-            --database data/databox.duckdb \
-            --approvals config/rufous-media-visual-approvals.json
-          bash scripts/sqlmesh_plan_rufous_inaturalist_media.sh
-      - name: Prepare bounded immutable WebP media
-        run: >-
-          uv run python scripts/prepare_rufous_media.py
-          --database-path data/databox.duckdb
-          --output-dir build/rufous-media
-      - name: Require one committed safe image selection per represented species
+      - name: Verify the pinned immutable media catalog
         run: >-
           uv run python scripts/verify_rufous_media_approvals.py
-          --manifest build/rufous-media/manifest.json
+          --manifest config/rufous-pinned-public-media.json
           --approvals config/rufous-media-visual-approvals.json
-      - id: prepared-media
-        name: Identify the verified prepared-media cache
-        shell: bash
-        run: |
-          identity=$(python -c 'import json; print(json.load(open("build/rufous-media/manifest.json"))["cache_identity"])')
-          if [[ ! "$identity" =~ ^[0-9a-f]{64}$ ]]; then
-            echo "Prepared media cache identity is invalid." >&2
-            exit 1
-          fi
-          echo "cache_identity=$identity" >> "$GITHUB_OUTPUT"
       - name: Download official Arizona GNIS archive
         run: >-
           curl --fail --silent --show-error --location
@@ -760,20 +774,25 @@ jobs:
           --database data/databox.duckdb
           --gnis data/DomesticNames_AZ.txt
           --gnis-sha256 "$RUF_GNIS_SHA256"
-          --media-manifest build/rufous-media/manifest.json
+          --media-manifest config/rufous-pinned-public-media.json
           --media-approvals config/rufous-media-visual-approvals.json
           --output build/rufous-public-data
       - name: Build static public app
         env:
           VITE_RUFOUS_DATA_BASE_URL: ${{ env.RUFOUS_PUBLIC_DATA_URL }}
         run: npm --prefix app run build:public
-      - name: Install production data contract
-        run: |
-          rm -rf app/dist/data
-          cp -R build/rufous-public-data/data app/dist/data
-      - name: Enforce public release boundary
+      - name: Remove bundled fixture data from the R2-only production shell
+        run: rm -rf app/dist/data
+      - name: Audit browser bundle configuration
+        run: uv run python scripts/audit_app_bundle.py
+      - name: Enforce the shell-only public release boundary
         run: >-
-          uv run python scripts/audit_rufous_public.py app/dist
+          uv run python scripts/audit_rufous_public.py app/dist --shell-only
+          --workflows .github/workflows
+          --repository-root .
+      - name: Enforce the generated public data boundary
+        run: >-
+          uv run python scripts/audit_rufous_public.py build/rufous-public-data
           --workflows .github/workflows
           --repository-root .
       - name: Verify this revision is still the main branch head
@@ -784,12 +803,6 @@ jobs:
             echo "Refusing to deploy a revision that is no longer the main branch head." >&2
             exit 1
           fi
-      - name: Save the audited prepared-media cache
-        continue-on-error: true
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: build/rufous-media
-          key: rufous-media-v2-${{ runner.os }}-${{ hashFiles('uv.lock', 'packages/databox/pyproject.toml', 'packages/databox/databox/public_media.py') }}-${{ steps.prepared-media.outputs.cache_identity }}
       - name: Preflight monotonic R2 activation before Pages deployment
         env:
           RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -805,60 +818,17 @@ jobs:
           --publication-attempt "$GITHUB_RUN_ATTEMPT"
           --source-revision "$GITHUB_SHA"
           --dry-run
-      - name: Preflight the immutable shared-media namespace
-        env:
-          RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
-          RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
-        run: >-
-          uv run --package databox --extra r2 --locked
-          python scripts/publish_rufous_media.py
-          --source build/rufous-media
-          --approvals config/rufous-media-visual-approvals.json
-          --r2
-          --prefix rufous-media/v1/objects
-          --dry-run
-      - name: Recheck the main branch head before media publication
-        shell: bash
-        run: |
-          read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
-          if [[ ! "$main_sha" =~ ^[0-9a-f]{40}$ || "$main_sha" != "$GITHUB_SHA" ]]; then
-            echo "Refusing to publish media for a superseded main revision." >&2
-            exit 1
-          fi
-      - name: Publish missing immutable shared-media objects
-        env:
-          RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
-          RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
-        run: >-
-          uv run --package databox --extra r2 --locked
-          python scripts/publish_rufous_media.py
-          --source build/rufous-media
-          --approvals config/rufous-media-visual-approvals.json
-          --r2
-          --prefix rufous-media/v1/objects
-      - name: Recheck the main branch head after media publication
-        shell: bash
-        run: |
-          read -r main_sha _ < <(git ls-remote --refs origin refs/heads/main)
-          if [[ ! "$main_sha" =~ ^[0-9a-f]{40}$ || "$main_sha" != "$GITHUB_SHA" ]]; then
-            echo "Refusing to deploy a revision that is no longer the main branch head." >&2
-            exit 1
-          fi
       - id: changed
         name: Skip only an unchanged scheduled data refresh
         shell: bash
-        env:
-          RUF_PUBLIC_URL: ${{ vars.RUF_PUBLIC_URL }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          new_version=$(python -c 'import json; print(json.load(open("app/dist/data/manifest.json"))["data_version"])')
+          new_version=$(python -c 'import json; print(json.load(open("build/rufous-public-data/data/manifest.json"))["data_version"])')
           current_version=$(curl --fail --silent --show-error --max-time 15 \
-            "$RUF_PUBLIC_URL/data/manifest.json" 2>/dev/null \
+            "$RUFOUS_PUBLIC_DATA_URL/manifest.json" 2>/dev/null \
             | python -c 'import json,sys; print(json.load(sys.stdin).get("data_version", ""))' \
             || true)
           if [[ -n "$current_version" && "$current_version" == "$new_version" ]]; then
@@ -867,7 +837,7 @@ jobs:
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Deploy immutable static Pages release
-        if: steps.changed.outputs.deploy == 'true'
+        if: github.event_name != 'schedule'
         working-directory: ${{ runner.temp }}
         env:
           CLOUDFLARE_PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT }}
@@ -888,6 +858,7 @@ jobs:
             exit 1
           fi
       - name: Publish and activate audited immutable R2 release
+        if: steps.changed.outputs.deploy == 'true'
         env:
           RUFOUS_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           RUFOUS_R2_ACCESS_KEY_ID: ${{ secrets.RUF_R2_ACCESS_KEY_ID }}
