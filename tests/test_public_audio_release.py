@@ -35,6 +35,7 @@ from databox.public_audio_release import (
     sanitize_prepared_audio,
     scan_prepared_audio,
     verify_pinned_audio_store,
+    verify_preverified_audio_package,
     verify_selection_matches_manifest,
 )
 from databox.public_export import PUBLIC_AUDIO_SANITIZATION_NOTICE
@@ -1148,6 +1149,22 @@ def test_preverified_publish_rechecks_pins_without_media_parsing(tmp_path: Path)
     )
 
     assert result.uploaded_objects == 1
+
+
+def test_preverified_package_verifier_binds_selection_without_media_parsing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    prepared, selection, _ = _captured_fixture(tmp_path)
+    monkeypatch.setattr(
+        public_audio_release_module,
+        "_probe_audio",
+        lambda _payload, _mime: pytest.fail("cached-byte verification must not parse media"),
+    )
+
+    result = verify_preverified_audio_package(prepared, selection)
+
+    assert result == {"status": "verified", "objects": 1, "total_bytes": 417}
 
 
 def test_preverified_publish_rejects_artifact_byte_tampering(tmp_path: Path) -> None:

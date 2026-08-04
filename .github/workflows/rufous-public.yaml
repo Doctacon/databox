@@ -735,7 +735,16 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
+      - name: Install focused audio release dependencies
+        run: uv sync --all-extras --dev --locked
+      - id: audio_cache
+        name: Restore an exactly pinned package from a prior safe preparation
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: build/rufous-public-audio
+          key: rufous-public-audio-${{ hashFiles('config/rufous-pinned-public-audio.json') }}
       - name: Build the checksum-pinned FFmpeg sanitizer
+        if: steps.audio_cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           archive="$RUNNER_TEMP/ffmpeg-7.1.1.tar.xz"
@@ -762,6 +771,7 @@ jobs:
           make install
           echo "$install_root/bin" >> "$GITHUB_PATH"
       - name: Verify the pinned audio sanitizer toolchain
+        if: steps.audio_cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           ffmpeg_version="$(ffmpeg -version | sed -n '1s/^ffmpeg version \([^ ]*\).*/\1/p')"
@@ -774,9 +784,8 @@ jobs:
             echo "Refusing an unpinned FFmpeg toolchain." >&2
             exit 1
           fi
-      - name: Install focused audio release dependencies
-        run: uv sync --all-extras --dev --locked
       - name: Test the bounded public audio release path
+        if: steps.audio_cache.outputs.cache-hit != 'true'
         run: >-
           uv run pytest
           tests/test_public_audio_export.py
@@ -793,18 +802,27 @@ jobs:
             exit 1
           fi
       - name: Reproduce every reviewed object without cloud credentials
+        if: steps.audio_cache.outputs.cache-hit != 'true'
         run: >-
           uv run --package databox --locked
           python -m databox.public_audio_release acquire
           --selection config/rufous-public-audio-selection.json
           --output build/rufous-public-audio
       - name: Verify the complete prepared package without cloud credentials
+        if: steps.audio_cache.outputs.cache-hit != 'true'
         run: >-
           uv run --package databox --locked
           python -m databox.public_audio_release verify
           --selection config/rufous-public-audio-selection.json
           --source build/rufous-public-audio
+      - name: Recheck every cached byte against the committed pins
+        run: >-
+          uv run --package databox --locked
+          python -m databox.public_audio_release verify-preverified
+          --selection config/rufous-public-audio-selection.json
+          --source build/rufous-public-audio
       - name: Cache the verified package for the isolated upload job
+        if: steps.audio_cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: build/rufous-public-audio
@@ -844,10 +862,10 @@ jobs:
           path: build/rufous-public-audio
           key: rufous-public-audio-${{ hashFiles('config/rufous-pinned-public-audio.json') }}
           fail-on-cache-miss: true
-      - name: Reverify the cached package without cloud credentials
+      - name: Reverify the cached byte pins without media parsing
         run: >-
           uv run --package databox --locked
-          python -m databox.public_audio_release verify
+          python -m databox.public_audio_release verify-preverified
           --selection config/rufous-public-audio-selection.json
           --source build/rufous-public-audio
       - name: Upload pinned bytes without provider or media-parser access

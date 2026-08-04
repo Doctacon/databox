@@ -462,11 +462,18 @@ def test_explicit_audio_refresh_separates_untrusted_media_from_r2_credentials() 
     cache_save_step = next(
         step for step in prepare_steps if "actions/cache/save@" in step.get("uses", "")
     )
+    prepare_cache_restore_step = next(
+        step for step in prepare_steps if "actions/cache/restore@" in step.get("uses", "")
+    )
     cache_restore_step = next(
         step for step in upload_steps if "actions/cache/restore@" in step.get("uses", "")
     )
     cache_key = "rufous-public-audio-${{ hashFiles('config/rufous-pinned-public-audio.json') }}"
     assert cache_save_step["with"] == {
+        "path": "build/rufous-public-audio",
+        "key": cache_key,
+    }
+    assert prepare_cache_restore_step["with"] == {
         "path": "build/rufous-public-audio",
         "key": cache_key,
     }
@@ -476,12 +483,25 @@ def test_explicit_audio_refresh_separates_untrusted_media_from_r2_credentials() 
         "fail-on-cache-miss": "true",
     }
     assert "restore-keys" not in cache_restore_step["with"]
+    assert "restore-keys" not in prepare_cache_restore_step["with"]
+    cache_miss_condition = "steps.audio_cache.outputs.cache-hit != 'true'"
+    for name in (
+        "Build the checksum-pinned FFmpeg sanitizer",
+        "Verify the pinned audio sanitizer toolchain",
+        "Test the bounded public audio release path",
+        "Reproduce every reviewed object without cloud credentials",
+        "Verify the complete prepared package without cloud credentials",
+        "Cache the verified package for the isolated upload job",
+    ):
+        assert prepare_steps[prepare_names.index(name)]["if"] == cache_miss_condition
+    assert "databox.public_audio_release verify-preverified" in prepare_commands
     assert "actions/upload-artifact@" not in json.dumps(prepare_steps)
     assert "actions/download-artifact@" not in json.dumps(upload_steps)
     assert "secrets." not in json.dumps(prepare_steps)
 
     assert "databox.public_audio_release acquire" not in upload_commands
     assert "databox.public_audio_release ensure-r2" not in upload_commands
+    assert "databox.public_audio_release verify-preverified" in upload_commands
     assert (
         "python -m databox.public_audio_release publish-preverified-r2 "
         "--source build/rufous-public-audio "

@@ -2317,6 +2317,17 @@ def scan_preverified_audio_bytes(source_dir: Path) -> list[SourceObject]:
     return objects
 
 
+def verify_preverified_audio_package(source_dir: Path, selection_path: Path) -> dict[str, object]:
+    """Recheck an already parsed package using only its exact committed byte pins."""
+    verify_selection_matches_manifest(selection_path, source_dir / "manifest.json")
+    objects = scan_preverified_audio_bytes(source_dir)
+    return {
+        "status": "verified",
+        "objects": len(objects),
+        "total_bytes": sum(item.size for item in objects),
+    }
+
+
 def _duration_metadata(value: object) -> str:
     if type(value) is int:
         return str(value)
@@ -2549,6 +2560,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     verify.add_argument("--source", required=True, type=Path)
     verify.add_argument("--selection", type=Path)
 
+    verify_preverified = subparsers.add_parser(
+        "verify-preverified",
+        help="recheck cached prepared bytes without media parsing or provider contact",
+    )
+    verify_preverified.add_argument("--source", required=True, type=Path)
+    verify_preverified.add_argument("--selection", required=True, type=Path)
+
     verify_pin = subparsers.add_parser(
         "verify-pin", help="verify the committed review and manifest without audio or network"
     )
@@ -2623,6 +2641,8 @@ def main(argv: list[str] | None = None) -> int:
                 "objects": len(objects),
                 "total_bytes": sum(item.size for item in objects),
             }
+        elif args.command == "verify-preverified":
+            result = verify_preverified_audio_package(args.source, args.selection)
         elif args.command == "verify-pin":
             result = {
                 "status": "verified",
