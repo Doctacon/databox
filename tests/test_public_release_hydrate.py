@@ -9,10 +9,14 @@ from typing import Any
 
 import databox.public_release_hydrate as hydrate_module
 import pytest
+from databox.public_export import semantic_data_version
 from databox.public_release import IMMUTABLE_CACHE_CONTROL, PublicReleaseError
 from databox.public_release_hydrate import (
+    APPROVED_PAGES_SNAPSHOT_ROOT,
     APPROVED_PUBLIC_RELEASE_ROOT,
+    PagesSnapshotHttpsFetcher,
     PublicHttpsFetcher,
+    PublicReleaseUnavailableError,
     hydrate_active_public_release,
 )
 
@@ -157,6 +161,77 @@ def _fixture(
         **{f"{asset_base}/{path}": payload for path, payload in files.items()},
     }
     return objects, pointer, release
+
+
+def _pages_fixture(
+    *, cell_id: str = "n32w111", place_prefix: str = "ph"
+) -> dict[str, bytes | list[bytes]]:
+    assets: dict[str, object] = {
+        "data/attribution.json": {"schema_version": 1, "items": []},
+        "data/species/gbif-1.json": {"schema_version": 1, "species_code": "gbif-1"},
+        f"data/cells/{cell_id}.json": {
+            "schema_version": 1,
+            "cell_id": cell_id,
+            "observations": [{"public_id": "one"}],
+        },
+        f"data/places/{place_prefix}.json": {
+            "schema_version": 1,
+            "prefix": place_prefix,
+            "places": [{"public_id": "phoenix"}],
+        },
+    }
+    manifest: dict[str, Any] = {
+        "schema_version": 1,
+        "mode": "public",
+        "release_mode": "production",
+        "generated_at": "2026-08-03T12:00:00Z",
+        "data_version": "pending",
+        "region": {
+            "code": "US-AZ",
+            "name": "Arizona",
+            "bounds": {"west": -114.82, "south": 31.33, "east": -109.04, "north": 37.01},
+        },
+        "species": [
+            {
+                "species_code": "gbif-1",
+                "profile_path": "/data/species/gbif-1.json",
+                "photo_count": 0,
+            }
+        ],
+        "cells": [
+            {
+                "cell_id": cell_id,
+                "path": f"/data/cells/{cell_id}.json",
+                "observation_count": 1,
+            }
+        ],
+        "place_prefixes": [
+            {
+                "prefix": place_prefix,
+                "path": f"/data/places/{place_prefix}.json",
+                "count": 1,
+            }
+        ],
+        "attribution_path": "/data/attribution.json",
+        "source_policy": {"direct_ebird": "excluded", "occurrence_source": "gbif"},
+        "license_policy": {"version": 1},
+        "counts": {
+            "species": 1,
+            "observations": 1,
+            "places": 1,
+            "attribution_items": 0,
+            "media_items": 0,
+            "species_with_media": 0,
+        },
+    }
+    assets["data/manifest.json"] = manifest
+    manifest["data_version"] = semantic_data_version(assets)
+    encoded = {path: _json_bytes(value) for path, value in assets.items()}
+    encoded["data/manifest.json"] = [
+        encoded["data/manifest.json"],
+        encoded["data/manifest.json"],
+    ]
+    return encoded
 
 
 def _site(tmp_path: Path) -> Path:
@@ -353,3 +428,159 @@ def test_https_fetcher_does_not_retry_permanent_http_failure(
         PublicHttpsFetcher()("rufous-public/manifest.json", 100)
 
     assert len(FakeHttpsConnection.requests) == 1
+
+
+def test_falls_back_to_complete_verified_pages_snapshot_only_when_pointer_unavailable(
+    tmp_path: Path,
+) -> None:
+    snapshot = _pages_fixture()
+    snapshot_fetcher = MemoryFetcher(snapshot)
+
+    def unavailable_pointer(key: str, _maximum: int) -> bytes:
+        assert key == "rufous-public/manifest.json"
+        raise PublicReleaseUnavailableError("HTTP 403")
+
+    site = _site(tmp_path)
+    result = hydrate_active_public_release(
+        site,
+        fetch=unavailable_pointer,
+        snapshot_fetch=snapshot_fetcher,
+        workers=2,
+    )
+
+    assert result.file_count == 5
+    assert (
+        result.data_version == json.loads((site / "data/manifest.json").read_text())["data_version"]
+    )
+    assert len(result.release_id) == 64
+    assert not (site / "data/synthetic.json").exists()
+    assert [key for key, _ in snapshot_fetcher.calls].count("data/manifest.json") == 2
+
+
+@pytest.mark.parametrize(
+    ("cell_id", "place_prefix"),
+    [("n37w111", "ph"), ("n32w111", "a_"), ("n32w111", "__")],
+)
+def test_pages_fallback_accepts_all_exporter_shard_names(
+    tmp_path: Path, cell_id: str, place_prefix: str
+) -> None:
+    site = _site(tmp_path)
+    result = hydrate_active_public_release(
+        site,
+        fetch=lambda _key, _maximum: (_ for _ in ()).throw(
+            PublicReleaseUnavailableError("HTTP 403")
+        ),
+        snapshot_fetch=MemoryFetcher(_pages_fixture(cell_id=cell_id, place_prefix=place_prefix)),
+        workers=1,
+    )
+
+    assert result.file_count == 5
+    assert (site / "data/cells" / f"{cell_id}.json").is_file()
+    assert (site / "data/places" / f"{place_prefix}.json").is_file()
+
+
+def test_does_not_fallback_for_pointer_integrity_failure(tmp_path: Path) -> None:
+    snapshot_fetcher = MemoryFetcher(_pages_fixture())
+
+    with pytest.raises(PublicReleaseError, match="invalid 'schema_version'"):
+        hydrate_active_public_release(
+            _site(tmp_path),
+            fetch=MemoryFetcher({"rufous-public/manifest.json": b"{}"}),
+            snapshot_fetch=snapshot_fetcher,
+            workers=1,
+        )
+
+    assert snapshot_fetcher.calls == []
+
+
+def test_does_not_fallback_when_r2_fails_after_valid_pointer(tmp_path: Path) -> None:
+    objects, pointer, _ = _fixture()
+    snapshot_fetcher = MemoryFetcher(_pages_fixture())
+
+    def fails_after_pointer(key: str, maximum: int) -> bytes:
+        if key == pointer["release_manifest_key"]:
+            raise PublicReleaseUnavailableError("release unavailable")
+        payload = objects[key]
+        assert isinstance(payload, bytes)
+        assert len(payload) <= maximum
+        return payload
+
+    with pytest.raises(PublicReleaseUnavailableError, match="release unavailable"):
+        hydrate_active_public_release(
+            _site(tmp_path),
+            fetch=fails_after_pointer,
+            snapshot_fetch=snapshot_fetcher,
+            workers=1,
+        )
+
+    assert snapshot_fetcher.calls == []
+
+
+def test_pages_fallback_rejects_unsafe_manifest_without_replacement(
+    tmp_path: Path,
+) -> None:
+    snapshot = _pages_fixture()
+    initial = json.loads(snapshot["data/manifest.json"][0])
+    initial["species"][0]["profile_path"] = "/data/places/ph.json"
+    snapshot["data/manifest.json"] = [_json_bytes(initial), _json_bytes(initial)]
+    site = _site(tmp_path)
+
+    with pytest.raises(PublicReleaseError, match="unsafe species path"):
+        hydrate_active_public_release(
+            site,
+            fetch=lambda _key, _maximum: (_ for _ in ()).throw(
+                PublicReleaseUnavailableError("HTTP 403")
+            ),
+            snapshot_fetch=MemoryFetcher(snapshot),
+            workers=1,
+        )
+
+    assert (site / "data/synthetic.json").is_file()
+
+
+def test_pages_fallback_rejects_manifest_change_during_download(tmp_path: Path) -> None:
+    snapshot = _pages_fixture()
+    initial_payload = snapshot["data/manifest.json"][0]
+    changed = json.loads(initial_payload)
+    changed["generated_at"] = "2026-08-03T12:01:00Z"
+    snapshot["data/manifest.json"] = [initial_payload, _json_bytes(changed)]
+    site = _site(tmp_path)
+
+    with pytest.raises(PublicReleaseError, match="changed during hydration"):
+        hydrate_active_public_release(
+            site,
+            fetch=lambda _key, _maximum: (_ for _ in ()).throw(
+                PublicReleaseUnavailableError("HTTP 403")
+            ),
+            snapshot_fetch=MemoryFetcher(snapshot),
+            workers=1,
+        )
+
+    assert (site / "data/synthetic.json").is_file()
+
+
+def test_pages_fallback_rejects_semantic_data_version_mismatch(tmp_path: Path) -> None:
+    snapshot = _pages_fixture()
+    manifest = json.loads(snapshot["data/manifest.json"][0])
+    manifest["data_version"] = "b" * 64
+    payload = _json_bytes(manifest)
+    snapshot["data/manifest.json"] = [payload, payload]
+    site = _site(tmp_path)
+
+    with pytest.raises(PublicReleaseError, match="does not match its data version"):
+        hydrate_active_public_release(
+            site,
+            fetch=lambda _key, _maximum: (_ for _ in ()).throw(
+                PublicReleaseUnavailableError("HTTP 403")
+            ),
+            snapshot_fetch=MemoryFetcher(snapshot),
+            workers=1,
+        )
+
+    assert (site / "data/synthetic.json").is_file()
+
+
+def test_pages_snapshot_fetcher_requires_exact_reviewed_origin() -> None:
+    with pytest.raises(PublicReleaseError, match="reviewed origin"):
+        PagesSnapshotHttpsFetcher("https://example.com/data")
+    assert PagesSnapshotHttpsFetcher(APPROVED_PAGES_SNAPSHOT_ROOT)

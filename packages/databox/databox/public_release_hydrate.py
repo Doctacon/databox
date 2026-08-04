@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from databox.public_export import PublicExportError, semantic_data_version
 from databox.public_release import (
     IMMUTABLE_CACHE_CONTROL,
     MAX_APPLICATION_MANIFEST_BYTES,
@@ -31,17 +32,59 @@ from databox.public_release import (
 )
 
 APPROVED_PUBLIC_RELEASE_ROOT = "https://rufous-data.loughondata.com/rufous-public"
+APPROVED_PAGES_SNAPSHOT_ROOT = "https://rufous.pages.dev/data"
 _APPROVED_HOST = "rufous-data.loughondata.com"
+_PAGES_HOST = "rufous.pages.dev"
 _POINTER_KEY = "rufous-public/manifest.json"
+_PAGES_MANIFEST_KEY = "data/manifest.json"
 _SHA256 = re.compile(r"^[a-f0-9]{64}$")
 _KEY_PART = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
+_SPECIES_CODE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
+_CELL_ID = re.compile(r"^n(?:3[1-7])w(?:11[0-5])$")
+_PLACE_PREFIX = re.compile(r"^(?:[a-z0-9]{2}|[a-z0-9]_|__)$")
 _MAX_FILES = 20_000
 _MAX_WORKERS = 2
 _MAX_FETCH_ATTEMPTS = 5
 _MIN_REQUEST_INTERVAL_SECONDS = 0.25
 _RETRYABLE_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
+_APPLICATION_MANIFEST_KEYS = frozenset(
+    {
+        "schema_version",
+        "mode",
+        "release_mode",
+        "generated_at",
+        "data_version",
+        "region",
+        "species",
+        "cells",
+        "place_prefixes",
+        "attribution_path",
+        "source_policy",
+        "license_policy",
+        "counts",
+    }
+)
+_APPLICATION_COUNT_KEYS = frozenset(
+    {
+        "species",
+        "observations",
+        "places",
+        "attribution_items",
+        "media_items",
+        "species_with_media",
+    }
+)
+_ARIZONA_REGION = {
+    "code": "US-AZ",
+    "name": "Arizona",
+    "bounds": {"west": -114.82, "south": 31.33, "east": -109.04, "north": 37.01},
+}
 
 FetchObject = Callable[[str, int], bytes]
+
+
+class PublicReleaseUnavailableError(PublicReleaseError):
+    """The reviewed public origin could not serve a requested object."""
 
 
 @dataclass(frozen=True)
@@ -64,6 +107,16 @@ class HydratedRelease:
     total_bytes: int
 
 
+@dataclass(frozen=True)
+class SnapshotReference:
+    """One path and cardinality pinned by a Pages application manifest."""
+
+    path: str
+    kind: str
+    identity: str | None
+    count: int | None
+
+
 class PublicHttpsFetcher:
     """Bounded read-only client for the one reviewed Rufous public origin."""
 
@@ -77,8 +130,15 @@ class PublicHttpsFetcher:
         self._request_lock = threading.Lock()
         self._last_request_at = 0.0
 
-    def __call__(self, key: str, maximum: int) -> bytes:
+    @property
+    def _host(self) -> str:
+        return _APPROVED_HOST
+
+    def _validate_fetch_key(self, key: str) -> None:
         _validate_object_key(key)
+
+    def __call__(self, key: str, maximum: int) -> bytes:
+        self._validate_fetch_key(key)
         if maximum < 0 or maximum > MAX_PUBLIC_OBJECT_BYTES:
             raise PublicReleaseError("Rufous hydration requested an unsafe object size")
         for attempt in range(_MAX_FETCH_ATTEMPTS):
@@ -87,14 +147,14 @@ class PublicHttpsFetcher:
                 return retry_after
             if attempt + 1 < _MAX_FETCH_ATTEMPTS:
                 time.sleep(retry_after)
-        raise PublicReleaseError(
+        raise PublicReleaseUnavailableError(
             f"Rufous public object {key!r} remained unavailable after bounded retries"
         )
 
     def _fetch_attempt(self, key: str, maximum: int, attempt: int) -> bytes | float:
         self._wait_for_request_slot()
         connection = http.client.HTTPSConnection(
-            _APPROVED_HOST,
+            self._host,
             timeout=self._timeout,
             context=self._context,
         )
@@ -111,6 +171,10 @@ class PublicHttpsFetcher:
             response = connection.getresponse()
             if response.status in _RETRYABLE_STATUSES:
                 return _retry_delay(response.getheader("Retry-After"), attempt)
+            if response.status in {401, 403}:
+                raise PublicReleaseUnavailableError(
+                    f"Rufous public object {key!r} is unavailable (HTTP {response.status})"
+                )
             if response.status != 200:
                 raise PublicReleaseError(
                     f"Rufous public object {key!r} returned HTTP {response.status}"
@@ -145,7 +209,9 @@ class PublicHttpsFetcher:
         except (OSError, http.client.HTTPException, ssl.SSLError):
             if attempt + 1 < _MAX_FETCH_ATTEMPTS:
                 return _retry_delay(None, attempt)
-            raise PublicReleaseError(f"Rufous public object {key!r} could not be read") from None
+            raise PublicReleaseUnavailableError(
+                f"Rufous public object {key!r} could not be read"
+            ) from None
         finally:
             connection.close()
         if len(payload) > maximum:
@@ -162,10 +228,32 @@ class PublicHttpsFetcher:
             self._last_request_at = time.monotonic()
 
 
+class PagesSnapshotHttpsFetcher(PublicHttpsFetcher):
+    """Bounded read-only client for the fixed Rufous Pages snapshot origin."""
+
+    def __init__(self, root: str = APPROVED_PAGES_SNAPSHOT_ROOT, *, timeout: float = 20) -> None:
+        if root != APPROVED_PAGES_SNAPSHOT_ROOT:
+            raise PublicReleaseError("Rufous snapshot hydration only permits the reviewed origin")
+        if timeout <= 0 or timeout > 120:
+            raise PublicReleaseError("Rufous hydration timeout is outside the safe range")
+        self._timeout = timeout
+        self._context = ssl.create_default_context()
+        self._request_lock = threading.Lock()
+        self._last_request_at = 0.0
+
+    @property
+    def _host(self) -> str:
+        return _PAGES_HOST
+
+    def _validate_fetch_key(self, key: str) -> None:
+        _validate_data_path(key)
+
+
 def hydrate_active_public_release(
     site_root: Path,
     *,
     fetch: FetchObject | None = None,
+    snapshot_fetch: FetchObject | None = None,
     workers: int = _MAX_WORKERS,
 ) -> HydratedRelease:
     """Replace ``site_root/data`` with a fully verified active production snapshot."""
@@ -180,7 +268,11 @@ def hydrate_active_public_release(
         raise PublicReleaseError("Rufous hydration worker count is outside the safe range")
 
     reader = fetch or PublicHttpsFetcher()
-    pointer_payload = reader(_POINTER_KEY, MAX_POINTER_BYTES)
+    try:
+        pointer_payload = reader(_POINTER_KEY, MAX_POINTER_BYTES)
+    except PublicReleaseUnavailableError:
+        snapshot_reader = snapshot_fetch or PagesSnapshotHttpsFetcher()
+        return _hydrate_pages_snapshot(site, destination, snapshot_reader, workers)
     pointer = _validated_pointer(_json_object(pointer_payload, "release pointer"))
     release_payload = reader(pointer["release_manifest_key"], MAX_APPLICATION_MANIFEST_BYTES)
     if _sha256(release_payload) != pointer["release_manifest_sha256"]:
@@ -245,6 +337,283 @@ def hydrate_active_public_release(
         file_count=release["file_count"],
         total_bytes=release["total_bytes"],
     )
+
+
+def _hydrate_pages_snapshot(
+    site: Path,
+    destination: Path,
+    fetch: FetchObject,
+    workers: int,
+) -> HydratedRelease:
+    """Hydrate the last deployed Pages snapshot when the R2 pointer is unreachable."""
+
+    manifest_payload = fetch(_PAGES_MANIFEST_KEY, MAX_APPLICATION_MANIFEST_BYTES)
+    if not manifest_payload:
+        raise PublicReleaseError("deployed Rufous Pages manifest is empty")
+    manifest = _json_object(manifest_payload, "deployed Pages application manifest")
+    references = _validated_pages_snapshot_manifest(manifest)
+
+    staging_root = Path(tempfile.mkdtemp(prefix=".rufous-pages-data-", dir=site.parent))
+    try:
+        staging_data = staging_root / "data"
+        staging_data.mkdir()
+        manifest_target = staging_root / _PAGES_MANIFEST_KEY
+        manifest_target.write_bytes(manifest_payload)
+        files = [
+            ReleaseFile(
+                path=_PAGES_MANIFEST_KEY,
+                key=_PAGES_MANIFEST_KEY,
+                size=len(manifest_payload),
+                sha256=_sha256(manifest_payload),
+            )
+        ]
+        assets: dict[str, object] = {_PAGES_MANIFEST_KEY: manifest}
+        total_bytes = len(manifest_payload)
+        with ThreadPoolExecutor(max_workers=min(workers, len(references))) as executor:
+            futures = {
+                executor.submit(_download_snapshot_file, reference, staging_root, fetch): reference
+                for reference in references
+            }
+            try:
+                for future in as_completed(futures):
+                    item, payload = future.result()
+                    files.append(item)
+                    assets[item.path] = payload
+                    total_bytes += item.size
+                    if total_bytes > MAX_PUBLIC_RELEASE_BYTES:
+                        raise PublicReleaseError(
+                            "deployed Rufous Pages snapshot exceeds the total byte limit"
+                        )
+            except Exception:
+                for future in futures:
+                    future.cancel()
+                raise
+
+        try:
+            computed_data_version = semantic_data_version(assets)
+        except PublicExportError as exc:
+            raise PublicReleaseError(
+                f"deployed Rufous Pages snapshot has an invalid data identity: {exc}"
+            ) from None
+        if computed_data_version != manifest["data_version"]:
+            raise PublicReleaseError(
+                "deployed Rufous Pages snapshot does not match its data version"
+            )
+
+        final_manifest_payload = fetch(_PAGES_MANIFEST_KEY, MAX_APPLICATION_MANIFEST_BYTES)
+        if final_manifest_payload != manifest_payload:
+            raise PublicReleaseError("deployed Rufous Pages snapshot changed during hydration")
+
+        _install_data_directory(staging_data, destination, site.parent)
+    finally:
+        shutil.rmtree(staging_root, ignore_errors=True)
+
+    return HydratedRelease(
+        release_id=_release_id(files),
+        data_version=manifest["data_version"],
+        file_count=len(files),
+        total_bytes=total_bytes,
+    )
+
+
+def _download_snapshot_file(
+    reference: SnapshotReference,
+    staging_root: Path,
+    fetch: FetchObject,
+) -> tuple[ReleaseFile, dict[str, Any]]:
+    payload = fetch(reference.path, MAX_PUBLIC_OBJECT_BYTES)
+    if not payload or len(payload) > MAX_PUBLIC_OBJECT_BYTES:
+        raise PublicReleaseError(
+            f"deployed Rufous Pages object {reference.path!r} has an unsafe size"
+        )
+    value = _json_object(payload, f"deployed Pages object {reference.path!r}")
+    _validate_snapshot_object(value, reference)
+    target = staging_root.joinpath(*PurePosixPath(reference.path).parts)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(payload)
+    return (
+        ReleaseFile(
+            path=reference.path,
+            key=reference.path,
+            size=len(payload),
+            sha256=_sha256(payload),
+        ),
+        value,
+    )
+
+
+def _validated_pages_snapshot_manifest(
+    value: Mapping[str, Any],
+) -> tuple[SnapshotReference, ...]:
+    if (
+        set(value) != _APPLICATION_MANIFEST_KEYS
+        or type(value.get("schema_version")) is not int
+        or value.get("schema_version") != RELEASE_SCHEMA_VERSION
+        or value.get("mode") != "public"
+        or value.get("release_mode") != "production"
+        or value.get("region") != _ARIZONA_REGION
+    ):
+        raise PublicReleaseError("deployed Rufous Pages manifest is not a production snapshot")
+    data_version = value.get("data_version")
+    if not isinstance(data_version, str) or not _SHA256.fullmatch(data_version):
+        raise PublicReleaseError("deployed Rufous Pages manifest has an invalid data version")
+    generated_at = value.get("generated_at")
+    if not isinstance(generated_at, str):
+        raise PublicReleaseError("deployed Rufous Pages manifest has an invalid timestamp")
+    try:
+        timestamp = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+    except ValueError:
+        raise PublicReleaseError(
+            "deployed Rufous Pages manifest has an invalid timestamp"
+        ) from None
+    if timestamp.tzinfo is None:
+        raise PublicReleaseError("deployed Rufous Pages manifest timestamp lacks a timezone")
+    source_policy = value.get("source_policy")
+    if (
+        not isinstance(source_policy, dict)
+        or source_policy.get("direct_ebird") != "excluded"
+        or source_policy.get("occurrence_source") != "gbif"
+    ):
+        raise PublicReleaseError("deployed Rufous Pages manifest violates the source boundary")
+    license_policy = value.get("license_policy")
+    if (
+        not isinstance(license_policy, dict)
+        or type(license_policy.get("version")) is not int
+        or license_policy.get("version") != 1
+    ):
+        raise PublicReleaseError("deployed Rufous Pages manifest lacks the license policy")
+    counts = value.get("counts")
+    if (
+        not isinstance(counts, dict)
+        or set(counts) != _APPLICATION_COUNT_KEYS
+        or any(type(counts[field]) is not int or counts[field] < 0 for field in counts)
+    ):
+        raise PublicReleaseError("deployed Rufous Pages manifest has invalid counts")
+    if value.get("attribution_path") != "/data/attribution.json":
+        raise PublicReleaseError("deployed Rufous Pages manifest has an invalid attribution path")
+
+    references = [
+        SnapshotReference(
+            path="data/attribution.json",
+            kind="attribution",
+            identity=None,
+            count=counts["attribution_items"],
+        )
+    ]
+    seen = {_PAGES_MANIFEST_KEY, "data/attribution.json"}
+
+    raw_species = value.get("species")
+    if not isinstance(raw_species, list) or len(raw_species) != counts["species"]:
+        raise PublicReleaseError("deployed Rufous Pages manifest has an invalid species index")
+    species_codes: list[str] = []
+    media_items = 0
+    species_with_media = 0
+    for row in raw_species:
+        if not isinstance(row, dict):
+            raise PublicReleaseError("deployed Rufous Pages manifest has a malformed species item")
+        code = row.get("species_code")
+        photo_count = row.get("photo_count")
+        if (
+            not isinstance(code, str)
+            or not _SPECIES_CODE.fullmatch(code)
+            or type(photo_count) is not int
+            or photo_count < 0
+        ):
+            raise PublicReleaseError("deployed Rufous Pages manifest has a malformed species item")
+        path = f"data/species/{code}.json"
+        if row.get("profile_path") != f"/{path}" or path in seen:
+            raise PublicReleaseError("deployed Rufous Pages manifest has an unsafe species path")
+        seen.add(path)
+        species_codes.append(code)
+        media_items += photo_count
+        species_with_media += int(photo_count > 0)
+        references.append(SnapshotReference(path=path, kind="species", identity=code, count=None))
+    if species_codes != sorted(species_codes) or (
+        media_items != counts["media_items"] or species_with_media != counts["species_with_media"]
+    ):
+        raise PublicReleaseError("deployed Rufous Pages manifest has inconsistent species counts")
+
+    raw_cells = value.get("cells")
+    if not isinstance(raw_cells, list):
+        raise PublicReleaseError("deployed Rufous Pages manifest has an invalid cell index")
+    cell_ids: list[str] = []
+    observation_count = 0
+    for row in raw_cells:
+        if not isinstance(row, dict):
+            raise PublicReleaseError("deployed Rufous Pages manifest has a malformed cell item")
+        cell_id = row.get("cell_id")
+        count = row.get("observation_count")
+        if (
+            not isinstance(cell_id, str)
+            or not _CELL_ID.fullmatch(cell_id)
+            or type(count) is not int
+            or count < 1
+        ):
+            raise PublicReleaseError("deployed Rufous Pages manifest has a malformed cell item")
+        path = f"data/cells/{cell_id}.json"
+        if row.get("path") != f"/{path}" or path in seen:
+            raise PublicReleaseError("deployed Rufous Pages manifest has an unsafe cell path")
+        seen.add(path)
+        cell_ids.append(cell_id)
+        observation_count += count
+        references.append(SnapshotReference(path=path, kind="cell", identity=cell_id, count=count))
+    if cell_ids != sorted(cell_ids) or observation_count != counts["observations"]:
+        raise PublicReleaseError("deployed Rufous Pages manifest has inconsistent cell counts")
+
+    raw_prefixes = value.get("place_prefixes")
+    if not isinstance(raw_prefixes, list):
+        raise PublicReleaseError("deployed Rufous Pages manifest has an invalid place index")
+    prefixes: list[str] = []
+    place_count = 0
+    for row in raw_prefixes:
+        if not isinstance(row, dict):
+            raise PublicReleaseError("deployed Rufous Pages manifest has a malformed place item")
+        prefix = row.get("prefix")
+        count = row.get("count")
+        if (
+            not isinstance(prefix, str)
+            or not _PLACE_PREFIX.fullmatch(prefix)
+            or type(count) is not int
+            or count < 1
+        ):
+            raise PublicReleaseError("deployed Rufous Pages manifest has a malformed place item")
+        path = f"data/places/{prefix}.json"
+        if row.get("path") != f"/{path}" or path in seen:
+            raise PublicReleaseError("deployed Rufous Pages manifest has an unsafe place path")
+        seen.add(path)
+        prefixes.append(prefix)
+        place_count += count
+        references.append(SnapshotReference(path=path, kind="place", identity=prefix, count=count))
+    if prefixes != sorted(prefixes) or place_count != counts["places"]:
+        raise PublicReleaseError("deployed Rufous Pages manifest has inconsistent place counts")
+    if len(seen) > _MAX_FILES:
+        raise PublicReleaseError("deployed Rufous Pages snapshot exceeds the file-count limit")
+    return tuple(references)
+
+
+def _validate_snapshot_object(value: Mapping[str, Any], reference: SnapshotReference) -> None:
+    if (
+        type(value.get("schema_version")) is not int
+        or value.get("schema_version") != RELEASE_SCHEMA_VERSION
+    ):
+        raise PublicReleaseError(f"deployed Pages object {reference.path!r} has an invalid schema")
+    contracts = {
+        "attribution": (None, None, "items"),
+        "species": ("species_code", reference.identity, None),
+        "cell": ("cell_id", reference.identity, "observations"),
+        "place": ("prefix", reference.identity, "places"),
+    }
+    identity_field, expected_identity, collection_field = contracts[reference.kind]
+    if identity_field is not None and value.get(identity_field) != expected_identity:
+        raise PublicReleaseError(
+            f"deployed Pages object {reference.path!r} disagrees with its manifest"
+        )
+    if collection_field is not None:
+        collection = value.get(collection_field)
+        if not isinstance(collection, list) or len(collection) != reference.count:
+            raise PublicReleaseError(
+                f"deployed Pages object {reference.path!r} disagrees with its manifest count"
+            )
 
 
 def _download_file(item: ReleaseFile, staging_root: Path, fetch: FetchObject) -> None:
