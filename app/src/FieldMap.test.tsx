@@ -292,7 +292,9 @@ describe("Rufous Field Map", () => {
     expect(document.title).toBe("Field Map · Rufous");
     expect(screen.getByRole("link", { name: "Field Map" })).toHaveAttribute("aria-current", "page");
     expect(fetchMock).toHaveBeenCalledWith("/api/map-snapshot", { headers: { "Content-Type": "application/json" } });
-    expect(await screen.findByText("4 eligible encounters")).toBeVisible();
+    const resultCount = await screen.findByText("4 eligible encounters");
+    expect(resultCount).toHaveClass("map-result-count", "sr-only");
+    expect(resultCount).toHaveAttribute("aria-live", "polite");
     expect(Array.from((screen.getByLabelText("Species") as HTMLSelectElement).options).map((option) => option.text)).toEqual([
       "All species", "Alpha 2", "alpha 10", "Beta", "Gamma scientific",
     ]);
@@ -304,19 +306,19 @@ describe("Rufous Field Map", () => {
     ]);
 
     await userEvent.selectOptions(screen.getByLabelText("Recency"), "48h");
-    expect(screen.getByText("2 eligible encounters")).toBeVisible();
+    expect(screen.getByText("2 eligible encounters")).toHaveClass("sr-only");
     await userEvent.selectOptions(screen.getByLabelText("Recency"), "7d");
-    expect(screen.getByText("3 eligible encounters")).toBeVisible();
+    expect(screen.getByText("3 eligible encounters")).toHaveClass("sr-only");
     await userEvent.selectOptions(screen.getByLabelText("Recency"), "30d");
-    expect(screen.getByText("4 eligible encounters")).toBeVisible();
+    expect(screen.getByText("4 eligible encounters")).toHaveClass("sr-only");
     await userEvent.selectOptions(screen.getByLabelText("Recency"), "48h");
     await userEvent.selectOptions(screen.getByLabelText("Family"), "Alpha Family");
     expect(screen.getByText(/No persisted encounters fall inside this current-clock window/)).toBeVisible();
     expect(screen.getByText(/choose All snapshot/)).toBeVisible();
     await userEvent.selectOptions(screen.getByLabelText("Recency"), "all");
-    expect(screen.getByText("2 eligible encounters")).toBeVisible();
+    expect(screen.getByText("2 eligible encounters")).toHaveClass("sr-only");
     await userEvent.selectOptions(screen.getByLabelText("Species"), "alpha10");
-    expect(screen.getByText("1 eligible encounter")).toBeVisible();
+    expect(screen.getByText("1 eligible encounter")).toHaveClass("sr-only");
     expect(screen.getByText(/Source freshness:/)).toBeVisible();
     expect(screen.getByText(/not endorsed or certified/)).toBeVisible();
     const layout = screen.getByRole("heading", { name: "Arizona encounter map" }).closest(".field-map-layout")!;
@@ -326,6 +328,8 @@ describe("Rufous Field Map", () => {
       "Selected encounter", "Accessible encounter list",
     ]);
     expect(styles).toMatch(/\.field-map-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(280px, 2fr\)/s);
+    expect(styles).toMatch(/\.field-map-main\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
+    expect(styles).toMatch(/\.sr-only\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px/s);
     expect(styles).toMatch(/\.field-map-rail\s*\{[^}]*display:\s*grid;[^}]*gap:\s*18px/s);
     expect(styles).toMatch(/@media \(max-width:\s*820px\)[\s\S]*?\.field-map-layout[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
     expect(styles).toMatch(/@media \(max-width:\s*540px\)[\s\S]*?\.map-canvas\s*\{\s*min-height:\s*360px/);
@@ -411,7 +415,7 @@ describe("Rufous Field Map", () => {
     expect(map.setData).not.toHaveBeenCalled();
 
     await userEvent.selectOptions(screen.getByLabelText("Species"), "alpha10");
-    expect(screen.getByText("1 eligible encounter")).toBeVisible();
+    expect(screen.getByText("1 eligible encounter")).toHaveClass("sr-only");
     expect(map.setData).not.toHaveBeenCalled();
     act(() => map.handlers.get("load")?.({}));
     expect(map.setData).toHaveBeenCalledTimes(1);
@@ -426,7 +430,7 @@ describe("Rufous Field Map", () => {
     expect(screen.getByRole("button", { name: "Zoom to cluster containing 1 eligible encounter" })).toHaveTextContent("1");
 
     await userEvent.selectOptions(screen.getByLabelText("Species"), "all");
-    expect(screen.getByText("4 eligible encounters")).toBeVisible();
+    expect(screen.getByText("4 eligible encounters")).toHaveClass("sr-only");
     expect(map.setData.mock.lastCall?.[0].features).toHaveLength(4);
     expect(screen.queryByRole("button", { name: "Zoom to cluster containing 1 eligible encounter" })).not.toBeInTheDocument();
     act(() => map.handlers.get("moveend")?.({}));
@@ -440,7 +444,7 @@ describe("Rufous Field Map", () => {
     );
 
     await userEvent.selectOptions(screen.getByLabelText("Recency"), "48h");
-    expect(screen.getByText("2 eligible encounters")).toBeVisible();
+    expect(screen.getByText("2 eligible encounters")).toHaveClass("sr-only");
     expect(map.setData.mock.lastCall?.[0].features).toHaveLength(2);
     act(() => map.handlers.get("moveend")?.({}));
     expect(screen.queryByRole("button", { name: /Zoom to cluster/ })).not.toBeInTheDocument();
@@ -454,10 +458,10 @@ describe("Rufous Field Map", () => {
     );
 
     await userEvent.selectOptions(screen.getByLabelText("Family"), "Fixtureidae");
-    expect(screen.getByText("1 eligible encounter")).toBeVisible();
+    expect(screen.getByText("1 eligible encounter")).toHaveClass("sr-only");
     expect(map.setData.mock.lastCall?.[0].features).toHaveLength(1);
     await userEvent.selectOptions(screen.getByLabelText("Species"), "alpha10");
-    expect(screen.getByText("0 eligible encounters")).toBeVisible();
+    expect(screen.getByText("0 eligible encounters")).toHaveClass("sr-only");
     expect(map.setData.mock.lastCall?.[0].features).toHaveLength(0);
     expect(map.fitBounds).toHaveBeenLastCalledWith(
       [[-114.82, 31.3], [-109, 37.1]],
