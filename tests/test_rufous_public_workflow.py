@@ -417,6 +417,31 @@ def test_automatic_full_release_reuses_pinned_media_without_provider_work() -> N
     assert not [token for token in forbidden if token in production_commands]
 
 
+def test_full_release_loads_avonet_through_its_independent_job() -> None:
+    workflow = _workflow()
+    steps = workflow["jobs"]["production"]["steps"]
+    step_names = [step.get("name", "") for step in steps]
+
+    avonet_name = "Load the pinned AVONET trait snapshot independently"
+    gbif_name = "Refresh and model the licensed GBIF publication warehouse"
+    avonet_index = step_names.index(avonet_name)
+    gbif_index = step_names.index(gbif_name)
+    avonet_step = steps[avonet_index]
+    gbif_step = steps[gbif_index]
+
+    assert avonet_index < gbif_index
+    assert avonet_step["env"] == {"PYTHONPATH": "${{ github.workspace }}"}
+    assert 'mkdir -p data "$DAGSTER_HOME"' in avonet_step["run"]
+    assert (
+        "uv run dg launch --target-path packages/databox --job avonet_ingest" in avonet_step["run"]
+    )
+    assert "scripts/load_dlt_quack.py" in gbif_step["run"]
+    assert "--source gbif" in gbif_step["run"]
+    assert "--source avonet" not in gbif_step["run"]
+    assert "--database data/databox.duckdb" in gbif_step["run"]
+    assert "bash scripts/sqlmesh_plan_rufous_public.sh" in gbif_step["run"]
+
+
 def test_explicit_audio_refresh_separates_untrusted_media_from_r2_credentials() -> None:
     workflow = _workflow()
     dispatch_options = workflow["on"]["workflow_dispatch"]["inputs"]["release_mode"]["options"]

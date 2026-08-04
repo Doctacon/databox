@@ -212,11 +212,18 @@ terms](https://support.ebird.org/en/support/solutions/articles/48001078113).
 The production warehouse refresh is intentionally source-scoped:
 
 ```bash
+mkdir -p data .dagster
+DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
+  uv run dg launch --target-path packages/databox --job avonet_ingest
 uv run python scripts/load_dlt_quack.py \
-  --source gbif --source avonet \
+  --source gbif \
   --database data/databox.duckdb --skip-sqlmesh
 bash scripts/sqlmesh_plan_rufous_public.sh
 ```
+
+AVONET is loaded first through its independent, atomic snapshot job; it is not
+passed to the parallel routine-source loader. Both commands target the same
+`data/databox.duckdb` warehouse before SQLMesh builds the public projections.
 
 The release sets `DATABOX_GBIF_MAX_RECORDS=3000`. The dlt source requests only
 CC BY 4.0 records marked present, reserves 300 rows for Rufous Hummingbird, and
