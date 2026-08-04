@@ -6,6 +6,7 @@ import base64
 import gzip
 import hashlib
 import json
+import shutil
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -588,6 +589,10 @@ def test_ffprobe_allows_only_exact_technical_mp3_replay_gain_side_data(
         _probe_audio(_mp3(), "audio/mpeg")
 
 
+@pytest.mark.skipif(
+    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
+    reason="requires the pinned FFmpeg audio sanitizer toolchain",
+)
 def test_mp3_fallback_strips_real_edge_id3_wrapper_and_preserves_xing_frames() -> None:
     frames = gzip.decompress(base64.b64decode(_MP3_XING_FIXTURE_GZIP_BASE64))
     assert hashlib.sha256(frames).hexdigest() == (
@@ -794,6 +799,10 @@ def test_ffprobe_rejects_codec_or_stream_shape_outside_public_allowlist(
         _probe_audio(_mp3(), "audio/mpeg")
 
 
+@pytest.mark.skipif(
+    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
+    reason="requires the pinned FFmpeg audio sanitizer toolchain",
+)
 def test_real_sanitizer_strips_gps_device_comment_and_creation_metadata(
     tmp_path: Path,
 ) -> None:
@@ -861,6 +870,10 @@ def test_real_sanitizer_strips_gps_device_comment_and_creation_metadata(
     _verify_audio_equivalence(source_payload, "audio/mp4", first, "audio/mp4")
 
 
+@pytest.mark.skipif(
+    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
+    reason="requires the pinned FFmpeg audio sanitizer toolchain",
+)
 def test_webm_to_ogg_remux_preserves_decoded_pcm_and_end_padding(tmp_path: Path) -> None:
     source = tmp_path / "source.webm"
     completed = subprocess.run(
