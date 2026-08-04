@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
+from typing import Literal
 
 import duckdb
 import pytest
-from databox.public_export import PublicExportError
+from databox.public_export import (
+    PublicExportError,
+    PublicRecords,
+    build_public_assets,
+    write_public_assets,
+)
 from databox.public_inaturalist_media_ingest import (
     _validate_ingested_snapshot,
     load_missing_public_species_targets,
+    load_selected_public_species_targets,
 )
 from databox.public_media_approval import (
     canonical_approval_json,
@@ -116,6 +124,54 @@ def _ledger(
     path.write_bytes(canonical_approval_json(payload))
 
 
+def _public_output(
+    path: Path,
+    *,
+    mode: Literal["production", "synthetic"] = "production",
+    include_rufous: bool = True,
+    rufous_media: list[dict[str, object]] | None = None,
+) -> None:
+    species: list[dict[str, object]] = [
+        {
+            "species_code": "gbif-1",
+            "common_name": "Anna's Hummingbird",
+            "scientific_name": "Calypte anna",
+            "media": [{"provider": "usfws"}],
+        }
+    ]
+    if include_rufous:
+        species.append(
+            {
+                "species_code": "gbif-2",
+                "common_name": "Rufous Hummingbird",
+                "scientific_name": "Selasphorus rufus",
+                "media": rufous_media or [],
+            }
+        )
+    species.append(
+        {
+            "species_code": "gbif-3",
+            "common_name": "Elegant Trogon",
+            "scientific_name": "Trogon elegans",
+            "media": [],
+        }
+    )
+    records = PublicRecords(
+        species=species,
+        observations=[],
+        places=[],
+        attribution_items=[],
+        rejected=Counter(),
+        source_generated_at="2026-08-03T12:00:00+00:00",
+    )
+    assets = build_public_assets(
+        records,
+        mode=mode,
+        gnis_sha256="d" * 64 if mode == "production" else None,
+    )
+    write_public_assets(path, assets)
+
+
 def test_only_usfws_selected_species_are_removed_from_targets(tmp_path: Path) -> None:
     database = tmp_path / "warehouse.duckdb"
     approvals = tmp_path / "approvals.json"
@@ -206,6 +262,72 @@ def test_stale_selection_cannot_silently_change_the_missing_set(tmp_path: Path) 
 
     with pytest.raises(PublicExportError, match="outside the current public catalog"):
         load_missing_public_species_targets(database, approvals)
+
+
+def test_media_delta_targets_only_selected_inaturalist_species(tmp_path: Path) -> None:
+    public_output = tmp_path / "public"
+    approvals = tmp_path / "approvals.json"
+    _public_output(public_output)
+    _ledger(approvals, include_inaturalist_selection=True)
+
+    assert load_selected_public_species_targets(public_output, approvals) == [
+        {
+            "species_code": "gbif-2",
+            "common_name": "Rufous Hummingbird",
+            "scientific_name": "Selasphorus rufus",
+        }
+    ]
+
+
+def test_media_delta_rejects_stale_selected_species(tmp_path: Path) -> None:
+    public_output = tmp_path / "public"
+    approvals = tmp_path / "approvals.json"
+    _public_output(public_output, include_rufous=False)
+    _ledger(approvals, include_inaturalist_selection=True)
+
+    with pytest.raises(PublicExportError, match="outside the active public catalog"):
+        load_selected_public_species_targets(public_output, approvals)
+
+
+def test_media_delta_refuses_to_replace_existing_species_media(tmp_path: Path) -> None:
+    public_output = tmp_path / "public"
+    approvals = tmp_path / "approvals.json"
+    _public_output(public_output, rufous_media=[{"provider": "usfws"}])
+    _ledger(approvals, include_inaturalist_selection=True)
+
+    with pytest.raises(PublicExportError, match="refuses to replace existing media"):
+        load_selected_public_species_targets(public_output, approvals)
+
+
+def test_media_delta_allows_exact_idempotent_inaturalist_retry(tmp_path: Path) -> None:
+    public_output = tmp_path / "public"
+    approvals = tmp_path / "approvals.json"
+    _public_output(
+        public_output,
+        rufous_media=[
+            {
+                "provider": "inaturalist",
+                "sha256": "c" * 64,
+                "source_url": "https://www.inaturalist.org/photos/12345",
+            }
+        ],
+    )
+    _ledger(approvals, include_inaturalist_selection=True)
+
+    assert [
+        item["scientific_name"]
+        for item in load_selected_public_species_targets(public_output, approvals)
+    ] == ["Selasphorus rufus"]
+
+
+def test_media_delta_rejects_nonproduction_snapshot(tmp_path: Path) -> None:
+    public_output = tmp_path / "public"
+    approvals = tmp_path / "approvals.json"
+    _public_output(public_output, mode="synthetic")
+    _ledger(approvals, include_inaturalist_selection=True)
+
+    with pytest.raises(PublicExportError, match="requires a production public snapshot"):
+        load_selected_public_species_targets(public_output, approvals)
 
 
 def test_snapshot_validation_never_falls_back_to_an_older_complete_run(tmp_path: Path) -> None:

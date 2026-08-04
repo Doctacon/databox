@@ -1552,6 +1552,63 @@ def _read_public_json(path: Path) -> tuple[JsonObject, bytes]:
     return payload, encoded
 
 
+def load_public_assets(output_root: Path) -> dict[str, JsonObject]:
+    """Load and verify one complete Rufous public JSON snapshot.
+
+    ``output_root`` may be either a hydrated static-site/public-export root that
+    contains ``data/manifest.json`` or that ``data`` directory itself.  Static
+    application files beside ``data`` are deliberately outside this loader's
+    scope, while the JSON data subtree must match its manifest inventory
+    exactly and its semantic ``data_version`` must verify.
+    """
+    if output_root.is_symlink():
+        raise PublicExportError("Rufous public snapshot root must not be a symbolic link")
+    root = output_root.resolve()
+    nested_data = root / "data"
+    if root.name == "data" and (root / "manifest.json").exists():
+        data_root = root
+    elif (nested_data / "manifest.json").exists():
+        data_root = nested_data
+    else:
+        raise PublicExportError("Rufous public snapshot is missing data/manifest.json")
+    try:
+        data_stat = data_root.lstat()
+    except OSError as exc:
+        raise PublicExportError("Rufous public snapshot data directory is missing") from exc
+    if data_root.is_symlink() or not stat.S_ISDIR(data_stat.st_mode):
+        raise PublicExportError("Rufous public snapshot data directory must be a real directory")
+
+    manifest, _encoded = _read_public_json(data_root / "manifest.json")
+    if (
+        set(manifest) != _PUBLIC_MANIFEST_KEYS
+        or manifest.get("schema_version") != SCHEMA_VERSION
+        or manifest.get("mode") != "public"
+        or manifest.get("release_mode") not in {"synthetic", "production"}
+        or manifest.get("region") != REGION
+        or not isinstance(manifest.get("data_version"), str)
+        or _SHA256.fullmatch(manifest["data_version"]) is None
+    ):
+        raise PublicExportError("Rufous public snapshot manifest has an invalid contract")
+
+    expected_paths = _public_manifest_paths(manifest)
+    data_inventory = {
+        Path(*relative.parts[1:])
+        for relative in expected_paths
+        if relative.parts and relative.parts[0] == "data"
+    }
+    if len(data_inventory) != len(expected_paths):
+        raise PublicExportError("Rufous public snapshot references an asset outside data")
+    _validate_public_output_inventory(data_root, data_inventory)
+
+    assets: dict[str, JsonObject] = {"data/manifest.json": manifest}
+    for relative in sorted(expected_paths - {Path("data/manifest.json")}):
+        payload, _encoded = _read_public_json(data_root / Path(*relative.parts[1:]))
+        assets[relative.as_posix()] = payload
+    if semantic_data_version(assets) != manifest["data_version"]:
+        raise PublicExportError("Rufous public snapshot does not match its data version")
+    return assets
+
+
 def _publish_public_tree(
     stage: Path,
     output: Path,

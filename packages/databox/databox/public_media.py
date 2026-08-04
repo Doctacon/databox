@@ -34,6 +34,11 @@ import PIL
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 import databox.public_restricted_marks as restricted_marks
+from databox.public_media_approval import (
+    MediaApprovalError,
+    load_visual_approvals,
+    require_visual_approvals,
+)
 
 SCHEMA_VERSION = 1
 MODE = "rufous-media-preparation"
@@ -485,8 +490,15 @@ def prepare_public_media(
     client: httpx.Client | None = None,
     reuse_cache: bool = True,
     sleeper: Callable[[float], None] = time.sleep,
+    provider: str | None = None,
+    approval_path: str | Path | None = None,
 ) -> PreparationResult:
-    """Prepare all eligible rows and atomically replace ``output_dir`` on success."""
+    """Prepare eligible rows and atomically replace ``output_dir`` on success.
+
+    ``provider=None`` retains the complete release behavior.  An explicit
+    provider reads only that reviewed model, which supports small immutable
+    provider-delta releases without touching another provider's source table.
+    """
     database = Path(database_path).expanduser().resolve()
     requested_output = Path(output_dir).expanduser()
     if requested_output.is_symlink():
@@ -497,8 +509,20 @@ def prepare_public_media(
     existing_output = _validate_output_target(output)
     if output == database or output in database.parents:
         raise PublicMediaError("media output must not contain its source database")
+    if approval_path is not None and provider is None:
+        raise PublicMediaError("media approval filtering requires an explicit provider scope")
 
-    rows = _read_source_rows(database)
+    rows = _read_source_rows(database, provider=provider)
+    approvals: Path | None = None
+    if approval_path is not None:
+        assert provider is not None  # guarded above
+        approvals = Path(approval_path).expanduser().resolve()
+        selected_pages = _selected_source_pages(approvals, provider=provider)
+        rows = [row for row in rows if row.source_page_url in selected_pages]
+        if not rows:
+            raise PublicMediaError(
+                f"the reviewed {provider} model contains none of the selected source pages"
+            )
     source_object_count = len({row.source_object_key() for row in rows})
     if source_object_count > MAX_PREPARED_OBJECTS:
         raise PublicMediaError("eligible media exceeds the prepared-object candidate limit")
@@ -641,6 +665,16 @@ def prepare_public_media(
             "unavailable_items": unavailable_items,
         }
         _write_json(stage / "manifest.json", manifest)
+        if approvals is not None:
+            assert provider is not None  # guarded above
+            try:
+                require_visual_approvals(
+                    stage / "manifest.json",
+                    approvals,
+                    provider=provider,
+                )
+            except MediaApprovalError as exc:
+                raise PublicMediaError(f"prepared media visual approval failed: {exc}") from None
         _publish_staged_tree(stage, output, expected=existing_output)
     except PublicMediaError:
         shutil.rmtree(stage, ignore_errors=True)
@@ -664,13 +698,28 @@ def prepare_public_media(
     )
 
 
-def _read_source_rows(database: Path) -> list[SourceImageRow]:
+def _read_source_rows(
+    database: Path,
+    *,
+    provider: str | None = None,
+) -> list[SourceImageRow]:
     expected = list(SOURCE_COLUMNS)
     raw_rows: list[tuple[str, tuple[object, ...]]] = []
     total_eligible_rows = 0
+    source_tables: Sequence[tuple[str, str, str, bool]]
+    if provider is None:
+        source_tables = SOURCE_TABLES
+    else:
+        if provider not in _MEDIA_PROVIDERS:
+            raise PublicMediaError("media provider is not reviewed")
+        selected = [table for table in SOURCE_TABLES if table[0] == provider]
+        if len(selected) != 1:  # pragma: no cover - constant contract invariant
+            raise PublicMediaError("media provider has no reviewed source model")
+        provider_name, schema_name, table_name, _required = selected[0]
+        source_tables = ((provider_name, schema_name, table_name, True),)
     try:
         with duckdb.connect(str(database), read_only=True) as connection:
-            for provider, schema_name, table_name, required in SOURCE_TABLES:
+            for provider_name, schema_name, table_name, required in source_tables:
                 exists = connection.execute(
                     """SELECT 1
                     FROM information_schema.tables
@@ -702,13 +751,15 @@ def _read_source_rows(database: Path) -> list[SourceImageRow]:
                 qualified = f'"{schema_name}"."{table_name}"'
                 raw_count = connection.execute(f"SELECT COUNT(*) FROM {qualified}").fetchone()
                 if raw_count is None or isinstance(raw_count[0], bool):
-                    raise PublicMediaError(f"could not count the reviewed {provider} media model")
+                    raise PublicMediaError(
+                        f"could not count the reviewed {provider_name} media model"
+                    )
                 total_eligible_rows += int(raw_count[0])
                 if total_eligible_rows > MAX_ELIGIBLE_ROWS:
                     raise PublicMediaError("eligible media exceeds the reviewed row limit")
                 quoted = ", ".join(f'"{column}"' for column in SOURCE_COLUMNS)
                 cursor = connection.execute(f"SELECT {quoted} FROM {qualified}")
-                raw_rows.extend((provider, tuple(row)) for row in cursor.fetchall())
+                raw_rows.extend((provider_name, tuple(row)) for row in cursor.fetchall())
     except PublicMediaError:
         raise
     except duckdb.Error as exc:
@@ -726,6 +777,25 @@ def _read_source_rows(database: Path) -> list[SourceImageRow]:
         if previous is None or row.loaded_at > previous.loaded_at:
             distinct[row.semantic_key()] = row
     return sorted(distinct.values(), key=_source_row_sort_key)
+
+
+def _selected_source_pages(approval_path: Path, *, provider: str) -> frozenset[str]:
+    """Load exact selected provenance pages for a provider-only preparation."""
+    try:
+        selections = load_visual_approvals(approval_path).values()
+    except MediaApprovalError as exc:
+        raise PublicMediaError(f"media visual approval failed: {exc}") from None
+    pages: set[str] = set()
+    for selection in selections:
+        for source_page_url in selection.source_page_urls:
+            try:
+                validate_source_page_url(source_page_url, provider=provider)
+            except PublicMediaError:
+                continue
+            pages.add(source_page_url)
+    if not pages:
+        raise PublicMediaError(f"visual-approval ledger has no selected {provider} source pages")
+    return frozenset(pages)
 
 
 def _download_image(
@@ -1748,6 +1818,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="redownload every source instead of reusing verified prepared objects",
     )
+    parser.add_argument(
+        "--provider",
+        choices=sorted(_MEDIA_PROVIDERS),
+        help="prepare only one reviewed provider model (default: complete release)",
+    )
+    parser.add_argument(
+        "--approvals",
+        type=Path,
+        help="download only selected pages and verify final hashes (requires --provider)",
+    )
     return parser
 
 
@@ -1758,6 +1838,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.database_path,
             args.output_dir,
             reuse_cache=not args.no_cache_reuse,
+            provider=args.provider,
+            approval_path=args.approvals,
         )
     except PublicMediaError as exc:
         print(f"Rufous media preparation failed: {exc}")

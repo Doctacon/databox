@@ -50,6 +50,19 @@ species, and retain the neutral silhouette when no safe candidate is selected.
 The current ledger's 167 USFWS selections are not reopened or replaced by the
 fallback refresh.
 
+Adding already-reviewed iNaturalist fallback images uses the dedicated
+`media-delta` release scope. That scope hydrates the active, hash-verified
+production snapshot, carries its existing USFWS media forward unchanged, and
+derives targets only from committed iNaturalist selections. It still runs those
+new records through dlt, DuckDB, SQLMesh, image preparation, approval checks,
+and the complete public-release audit, but it does not call USFWS, refresh GBIF,
+download GNIS, or run the full exporter. Only the selected iNaturalist WebPs are
+considered for the immutable media upload; Pages is deployed before the new R2
+data pointer is activated. A main-branch push is routed to this narrow scope
+only when every changed path belongs to its reviewed implementation allowlist;
+mixed or unrelated changes fail closed to the full release. The scheduled
+monthly release remains the explicit complete source refresh.
+
 DuckDB and SQLMesh select eligible records; the offline builder downloads the
 reviewed USFWS or iNaturalist source image, verifies that its model and HTTP media
 types are allowlisted hints, independently identifies the bytes as a still JPEG,

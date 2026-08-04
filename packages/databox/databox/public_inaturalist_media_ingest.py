@@ -20,8 +20,12 @@ from databox.destinations import (
     prepare_dlt_source,
     quack_ingest_session,
 )
-from databox.public_export import PublicExportError
-from databox.public_media_approval import MediaApprovalError, load_visual_approvals
+from databox.public_export import PublicExportError, load_public_assets
+from databox.public_media_approval import (
+    MediaApprovalError,
+    VisualSelection,
+    load_visual_approvals,
+)
 from databox.public_media_ingest import load_public_species_targets
 
 _USFWS_SELECTION_PAGE = re.compile(
@@ -68,6 +72,113 @@ def load_missing_public_species_targets(
     return [item for item in targets if item["scientific_name"].casefold() not in usfws_selected]
 
 
+def load_selected_public_species_targets(
+    public_output_root: Path,
+    approval_path: Path,
+) -> list[dict[str, str]]:
+    """Derive only approved iNaturalist targets from an active public snapshot.
+
+    This is the bounded media-delta path.  It deliberately does not consult the
+    GBIF warehouse or infer every currently unpictured species: the committed
+    human ledger is the complete target list.  ``load_public_assets`` first
+    proves that the hydrated snapshot has an exact inventory and matching
+    semantic data version.
+    """
+    assets = load_public_assets(public_output_root)
+    manifest = assets.get("data/manifest.json")
+    if not isinstance(manifest, dict) or manifest.get("release_mode") != "production":
+        raise PublicExportError("iNaturalist media delta requires a production public snapshot")
+    source_policy = manifest.get("source_policy")
+    if (
+        not isinstance(source_policy, dict)
+        or source_policy.get("direct_ebird") != "excluded"
+        or source_policy.get("occurrence_source") != "gbif"
+    ):
+        raise PublicExportError("iNaturalist media delta snapshot violates the source boundary")
+
+    raw_species = manifest.get("species")
+    if not isinstance(raw_species, list) or not raw_species:
+        raise PublicExportError("iNaturalist media delta snapshot has no species catalog")
+    catalog: dict[str, dict[str, str]] = {}
+    media_by_name: dict[str, list[object]] = {}
+    for summary in raw_species:
+        if not isinstance(summary, dict):
+            raise PublicExportError("iNaturalist media delta snapshot has malformed species")
+        code = summary.get("species_code")
+        common_name = summary.get("common_name")
+        scientific_name = summary.get("scientific_name")
+        profile_path = summary.get("profile_path")
+        if (
+            not isinstance(code, str)
+            or not code
+            or not isinstance(common_name, str)
+            or not common_name
+            or not isinstance(scientific_name, str)
+            or not scientific_name
+        ):
+            raise PublicExportError("iNaturalist media delta snapshot has malformed species")
+        expected_profile = f"/data/species/{code}.json"
+        if profile_path != expected_profile:
+            raise PublicExportError("iNaturalist media delta snapshot has unsafe species profile")
+        profile = assets.get(expected_profile.removeprefix("/"))
+        if (
+            not isinstance(profile, dict)
+            or profile.get("species_code") != code
+            or profile.get("common_name") != common_name
+            or profile.get("scientific_name") != scientific_name
+            or not isinstance(profile.get("media"), list)
+        ):
+            raise PublicExportError("iNaturalist media delta species profile is inconsistent")
+        key = scientific_name.casefold()
+        if key in catalog:
+            raise PublicExportError("iNaturalist media delta repeats a scientific name")
+        catalog[key] = {
+            "species_code": code,
+            "common_name": common_name,
+            "scientific_name": scientific_name,
+        }
+        media_by_name[key] = profile["media"]
+
+    selections = load_visual_approvals(approval_path)
+    selected_targets: list[dict[str, str]] = []
+    for key, selection in sorted(selections.items()):
+        provider = _selection_provider(selection.source_page_urls, species_name=key)
+        if provider != "inaturalist":
+            continue
+        target = catalog.get(key)
+        if target is None:
+            raise PublicExportError(
+                "visual approval ledger selects an iNaturalist species outside the active "
+                f"public catalog: {selection.scientific_name}"
+            )
+        media = media_by_name[key]
+        if media and not _is_identical_inaturalist_retry(media, selection):
+            raise PublicExportError(
+                "iNaturalist media delta refuses to replace existing media for "
+                f"{selection.scientific_name}"
+            )
+        selected_targets.append(target)
+    if not selected_targets:
+        raise PublicExportError("visual approval ledger contains no iNaturalist selections")
+    return sorted(selected_targets, key=lambda item: item["species_code"])
+
+
+def _is_identical_inaturalist_retry(
+    media: list[object],
+    selection: VisualSelection,
+) -> bool:
+    """Allow an idempotent retry only for the exact already-selected object."""
+    if len(media) != 1:
+        return False
+    item = media[0]
+    return bool(
+        isinstance(item, dict)
+        and item.get("provider") == "inaturalist"
+        and item.get("sha256") == selection.sha256
+        and item.get("source_url") in selection.source_page_urls
+    )
+
+
 def _selection_provider(source_pages: tuple[str, ...], *, species_name: str) -> str:
     """Classify one already-validated ledger selection without guessing."""
     if source_pages and all(_USFWS_SELECTION_PAGE.fullmatch(url) for url in source_pages):
@@ -82,9 +193,15 @@ def _selection_provider(source_pages: tuple[str, ...], *, species_name: str) -> 
 def ingest_public_inaturalist_media(
     database_path: Path,
     approval_path: Path,
+    *,
+    targets_from_public_output: Path | None = None,
 ) -> InaturalistMediaIngestResult:
     """Run the normal dlt -> Quack/DuckDB path for proven missing species."""
-    missing = load_missing_public_species_targets(database_path, approval_path)
+    missing = (
+        load_missing_public_species_targets(database_path, approval_path)
+        if targets_from_public_output is None
+        else load_selected_public_species_targets(targets_from_public_output, approval_path)
+    )
     if not missing:
         return InaturalistMediaIngestResult(0, 0, 0, 0, 0)
     loaded_at = datetime.now(UTC).isoformat()
@@ -175,13 +292,25 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", required=True, type=Path)
     parser.add_argument("--approvals", required=True, type=Path)
+    parser.add_argument(
+        "--targets-from-public-output",
+        type=Path,
+        help=(
+            "hydrate and validate this active production snapshot, then ingest only its "
+            "committed iNaturalist selections"
+        ),
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
-        result = ingest_public_inaturalist_media(args.database, args.approvals)
+        result = ingest_public_inaturalist_media(
+            args.database,
+            args.approvals,
+            targets_from_public_output=args.targets_from_public_output,
+        )
     except (
         OSError,
         PublicExportError,

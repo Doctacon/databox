@@ -21,6 +21,11 @@ from databox.public_media import (
     validate_source_image_url,
     validate_source_page_url,
 )
+from databox.public_media_approval import (
+    SELECTION_REASON,
+    canonical_approval_json,
+    empty_approval_ledger,
+)
 from databox.public_restricted_marks import restricted_usfws_mark_reason
 from PIL import Image
 
@@ -169,8 +174,12 @@ def _png(
     return output.getvalue()
 
 
-def _jpeg(width: int = 900, height: int = 600) -> bytes:
-    image = Image.new("RGB", (width, height), (179, 83, 41))
+def _jpeg(
+    width: int = 900,
+    height: int = 600,
+    color: tuple[int, int, int] = (179, 83, 41),
+) -> bytes:
+    image = Image.new("RGB", (width, height), color)
     output = BytesIO()
     image.save(output, format="JPEG")
     return output.getvalue()
@@ -476,6 +485,188 @@ def test_mixed_provider_preparation_preserves_provenance_and_content_addressing(
         assert hashlib.sha256(payload).hexdigest() == item["sha256"]
         with Image.open(BytesIO(payload)) as image:
             assert image.format == "WEBP"
+
+
+def test_inaturalist_scope_never_requires_or_reads_usfws_model(tmp_path: Path) -> None:
+    database = tmp_path / "inaturalist-delta.duckdb"
+    with duckdb.connect(str(database)) as connection:
+        connection.execute("CREATE SCHEMA rufous_public")
+        # A malformed table with the production USFWS name proves the scoped
+        # reader does not even inspect that provider's schema.
+        connection.execute("CREATE TABLE rufous_public.usfws_commercial_image (unexpected VARCHAR)")
+        connection.execute(_CREATE_INATURALIST_TABLE)
+        _insert_rows(
+            connection,
+            [_inaturalist_row()],
+            table="rufous_public.inaturalist_commercial_image",
+        )
+
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        assert request.url.host == "inaturalist-open-data.s3.amazonaws.com"
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/jpeg"},
+            content=_jpeg(),
+        )
+
+    with _client(handler) as client:
+        result = prepare_public_media(
+            database,
+            tmp_path / "prepared",
+            client=client,
+            provider="inaturalist",
+        )
+
+    assert result.items == 1
+    assert len(calls) == 1
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert {item["provider"] for item in manifest["items"]} == {"inaturalist"}
+
+    with pytest.raises(PublicMediaError, match="exact reviewed schema"):
+        prepare_public_media(database, tmp_path / "full-release")
+
+
+def test_inaturalist_approval_scope_downloads_only_selected_pages_and_binds_hashes(
+    tmp_path: Path,
+) -> None:
+    selected_row = _inaturalist_row()
+    ignored_row = _inaturalist_row(
+        species_code="annhum",
+        common_name="Anna's Hummingbird",
+        scientific_name="Calypte anna",
+        source_page_url="https://www.inaturalist.org/photos/171955255",
+        source_image_url=(
+            "https://inaturalist-open-data.s3.amazonaws.com/photos/171955255/original.jpg"
+        ),
+        title="Anna's Hummingbird perched",
+        caption="A live Anna's Hummingbird perched on a branch.",
+        alt_text="A live Anna's Hummingbird perched on a branch",
+    )
+    database = _mixed_database(
+        tmp_path,
+        usfws_rows=[_row()],
+        inaturalist_rows=[selected_row, ignored_row],
+    )
+    selected_source = _jpeg()
+    source_row = public_media.SourceImageRow.from_values(
+        {**selected_row, "provider": "inaturalist"}
+    )
+    expected, _payload, _mime = public_media._prepare_image(
+        selected_source,
+        source_row,
+        response_mime_type="image/jpeg",
+    )
+    ledger = empty_approval_ledger()
+    ledger["selections"] = [
+        {
+            "sha256": expected.sha256,
+            "decision": "selected",
+            "reason": SELECTION_REASON,
+            "reviewed_at": "2026-08-03",
+            "reviewed_by": "Test Human",
+            "scientific_name": selected_row["scientific_name"],
+            "source_page_urls": [selected_row["source_page_url"]],
+        }
+    ]
+    approvals = tmp_path / "approvals.json"
+    approvals.write_bytes(canonical_approval_json(ledger))
+    calls: list[str] = []
+
+    def selected_handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        assert str(request.url) == selected_row["source_image_url"]
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/jpeg"},
+            content=selected_source,
+        )
+
+    with _client(selected_handler) as client:
+        result = prepare_public_media(
+            database,
+            tmp_path / "selected-only",
+            client=client,
+            provider="inaturalist",
+            approval_path=approvals,
+        )
+
+    assert calls == [selected_row["source_image_url"]]
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert len(manifest["items"]) == 1
+    assert manifest["items"][0]["sha256"] == expected.sha256
+
+    def changed_handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            headers={"content-type": "image/jpeg"},
+            content=_jpeg(color=(20, 80, 160)),
+        )
+
+    failed_output = tmp_path / "changed-pixels"
+    with _client(changed_handler) as client:
+        with pytest.raises(PublicMediaError, match="visual approval failed"):
+            prepare_public_media(
+                database,
+                failed_output,
+                client=client,
+                provider="inaturalist",
+                approval_path=approvals,
+            )
+    assert not failed_output.exists()
+
+
+def test_explicit_provider_scope_fails_closed_for_unknown_or_missing_model(
+    tmp_path: Path,
+) -> None:
+    database = _database(tmp_path, [_row()])
+
+    with pytest.raises(PublicMediaError, match="provider is not reviewed"):
+        prepare_public_media(database, tmp_path / "unknown", provider="wikimedia")
+    with pytest.raises(PublicMediaError, match="inaturalist_commercial_image is missing"):
+        prepare_public_media(database, tmp_path / "missing", provider="inaturalist")
+
+
+def test_prepare_cli_forwards_explicit_provider_scope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_prepare(
+        database_path: str | Path,
+        output_dir: str | Path,
+        **kwargs: object,
+    ) -> public_media.PreparationResult:
+        captured.update(
+            database_path=database_path,
+            output_dir=output_dir,
+            **kwargs,
+        )
+        output = Path(output_dir)
+        return public_media.PreparationResult(output, output / "manifest.json", 1, 1, 1)
+
+    monkeypatch.setattr(public_media, "prepare_public_media", fake_prepare)
+
+    assert (
+        public_media.main(
+            [
+                "--database-path",
+                str(tmp_path / "media.duckdb"),
+                "--output-dir",
+                str(tmp_path / "prepared"),
+                "--provider",
+                "inaturalist",
+                "--approvals",
+                str(tmp_path / "approvals.json"),
+            ]
+        )
+        == 0
+    )
+    assert captured["provider"] == "inaturalist"
+    assert captured["approval_path"] == tmp_path / "approvals.json"
 
 
 @pytest.mark.parametrize(

@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 
+import databox.public_media_approval as public_media_approval_module
 import pytest
 from databox.public_media_approval import (
     LOCAL_DECISION_MODE,
@@ -243,6 +244,132 @@ def test_committed_selection_absent_from_current_manifest_fails_closed(
 
     with pytest.raises(MediaApprovalError, match="committed selected media is absent"):
         require_visual_approvals(manifest, approvals)
+
+
+def test_inaturalist_scope_filters_unrelated_full_ledger_decisions(
+    tmp_path: Path,
+) -> None:
+    rufous = _item(b"rufous", "Selasphorus rufus", "rufous-one")
+    wigeon = _inaturalist_item(b"wigeon", "Mareca americana", 2498155)
+    manifest = _manifest(tmp_path, [wigeon])
+    selections = [_selection(rufous), _selection(wigeon)]
+    selections.sort(key=lambda row: (str(row["scientific_name"]).casefold(), str(row["sha256"])))
+    approvals = _ledger(tmp_path, selections=selections)
+
+    with pytest.raises(MediaApprovalError, match="committed selected media is absent"):
+        require_visual_approvals(manifest, approvals)
+
+    plan = require_visual_approvals(
+        manifest,
+        approvals,
+        provider="inaturalist",
+    )
+
+    assert plan.selected_sha256s == {wigeon["sha256"]}
+    assert plan.summary.ledger_decisions == 1
+    assert plan.summary.unused_ledger_decisions == 0
+
+
+def test_inaturalist_scope_requires_every_inaturalist_selection_in_ledger(
+    tmp_path: Path,
+) -> None:
+    wigeon = _inaturalist_item(b"wigeon", "Mareca americana", 2498155)
+    anna = _inaturalist_item(b"anna", "Calypte anna", 171955255)
+    manifest = _manifest(tmp_path, [wigeon])
+    selections = [_selection(anna), _selection(wigeon)]
+    selections.sort(key=lambda row: (str(row["scientific_name"]).casefold(), str(row["sha256"])))
+    approvals = _ledger(tmp_path, selections=selections)
+
+    with pytest.raises(MediaApprovalError, match="committed selected media is absent"):
+        require_visual_approvals(
+            manifest,
+            approvals,
+            provider="inaturalist",
+        )
+
+
+@pytest.mark.parametrize("items", ["mixed", "wrong"])
+def test_inaturalist_scope_rejects_mixed_or_wrong_provider_manifest(
+    tmp_path: Path,
+    items: str,
+) -> None:
+    rufous = _item(b"rufous", "Selasphorus rufus", "rufous-one")
+    wigeon = _inaturalist_item(b"wigeon", "Mareca americana", 2498155)
+    manifest_items = [wigeon, rufous] if items == "mixed" else [rufous]
+    manifest = _manifest(tmp_path, manifest_items)
+    selections = [_selection(item) for item in manifest_items]
+    selections.sort(key=lambda row: (str(row["scientific_name"]).casefold(), str(row["sha256"])))
+    approvals = _ledger(tmp_path, selections=selections)
+
+    with pytest.raises(MediaApprovalError, match="outside the requested inaturalist"):
+        require_visual_approvals(
+            manifest,
+            approvals,
+            provider="inaturalist",
+        )
+
+
+def test_provider_scope_preserves_cross_provider_pixel_disqualification(
+    tmp_path: Path,
+) -> None:
+    selected = _inaturalist_item(b"same unsafe pixels", "Mareca americana", 2498155)
+    rejected = {
+        **_item(b"same unsafe pixels", "Selasphorus rufus", "rufous-human"),
+        "sha256": selected["sha256"],
+        "url": selected["url"],
+    }
+    manifest = _manifest(tmp_path, [selected])
+    approvals = _ledger(
+        tmp_path,
+        selections=[_selection(selected)],
+        rejections=[_rejection(rejected, "human_present")],
+    )
+
+    with pytest.raises(MediaApprovalError, match="also carry"):
+        require_visual_approvals(
+            manifest,
+            approvals,
+            provider="inaturalist",
+        )
+
+
+def test_unknown_provider_scope_fails_closed(tmp_path: Path) -> None:
+    wigeon = _inaturalist_item(b"wigeon", "Mareca americana", 2498155)
+    manifest = _manifest(tmp_path, [wigeon])
+
+    with pytest.raises(MediaApprovalError, match="provider scope is not reviewed"):
+        require_visual_approvals(
+            manifest,
+            _ledger(tmp_path, selections=[_selection(wigeon)]),
+            provider="wikimedia",
+        )
+
+
+def test_approval_cli_accepts_inaturalist_provider_scope(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    wigeon = _inaturalist_item(b"wigeon", "Mareca americana", 2498155)
+    rufous = _item(b"rufous", "Selasphorus rufus", "rufous-one")
+    manifest = _manifest(tmp_path, [wigeon])
+    selections = [_selection(wigeon), _selection(rufous)]
+    selections.sort(key=lambda row: (str(row["scientific_name"]).casefold(), str(row["sha256"])))
+    approvals = _ledger(tmp_path, selections=selections)
+
+    result = public_media_approval_module.main(
+        [
+            "--manifest",
+            str(manifest),
+            "--approvals",
+            str(approvals),
+            "--provider",
+            "inaturalist",
+        ]
+    )
+
+    assert result == 0
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["selected_species"] == 1
 
 
 def test_species_without_safe_pixels_has_a_provenance_bound_exclusion(

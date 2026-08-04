@@ -53,6 +53,7 @@ _PUBLIC_URL = re.compile(
     r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
     r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.webp$"
 )
+_MEDIA_PROVIDERS = frozenset({"usfws", "inaturalist"})
 
 
 @dataclass(frozen=True)
@@ -408,14 +409,25 @@ def publish_prepared_media(
     prefix: str = DEFAULT_MEDIA_PREFIX,
     dry_run: bool = False,
     approval_path: Path | None = None,
+    provider: str | None = None,
 ) -> MediaPublishResult:
     """Create missing media objects, verify existing ones, and mutate nothing else."""
+    if provider is not None and provider not in _MEDIA_PROVIDERS:
+        raise PublicReleaseError("media provider scope is not reviewed")
+    if provider is not None and approval_path is None:
+        raise PublicReleaseError(
+            "provider-scoped media publication requires a human visual-approval ledger"
+        )
     if approval_path is None and not isinstance(store, LocalReleaseStore):
         raise PublicReleaseError("remote media publication requires a human visual-approval ledger")
     selected_sha256s: frozenset[str] | None = None
     if approval_path is not None:
         try:
-            media_plan = require_visual_approvals(source_dir / "manifest.json", approval_path)
+            media_plan = require_visual_approvals(
+                source_dir / "manifest.json",
+                approval_path,
+                provider=provider,
+            )
         except MediaApprovalError as exc:
             raise PublicReleaseError(f"media visual approval failed: {exc}") from None
         selected_sha256s = media_plan.selected_sha256s
@@ -478,6 +490,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--prefix", default=DEFAULT_MEDIA_PREFIX)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--approvals", type=Path)
+    parser.add_argument("--provider", choices=sorted(_MEDIA_PROVIDERS))
     return parser.parse_args(argv)
 
 
@@ -491,7 +504,11 @@ def main(argv: list[str] | None = None) -> int:
                     "R2 media publication requires --approvals with the committed human ledger"
                 )
             try:
-                require_visual_approvals(args.source / "manifest.json", args.approvals)
+                require_visual_approvals(
+                    args.source / "manifest.json",
+                    args.approvals,
+                    provider=args.provider,
+                )
             except MediaApprovalError as exc:
                 raise PublicReleaseError(f"media visual approval failed: {exc}") from None
             store = R2ReleaseStore(R2Config.from_env())
@@ -503,6 +520,7 @@ def main(argv: list[str] | None = None) -> int:
             prefix=args.prefix,
             dry_run=args.dry_run,
             approval_path=args.approvals,
+            provider=args.provider,
         )
     except PublicReleaseError as exc:
         print(f"Rufous media release failed: {exc}", file=sys.stderr)

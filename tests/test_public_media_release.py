@@ -145,6 +145,33 @@ def _approvals(tmp_path: Path, source: Path, digest: str, *, approved: bool = Tr
     return path
 
 
+def _set_inaturalist_provider(source: Path, *, photo_id: int = 2498155) -> None:
+    manifest_path = source / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["items"][0]["provider"] = "inaturalist"
+    manifest["items"][0]["source_page_url"] = f"https://www.inaturalist.org/photos/{photo_id}"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def _add_unrelated_usfws_selection(approvals: Path) -> None:
+    payload = json.loads(approvals.read_text(encoding="utf-8"))
+    payload["selections"].append(
+        {
+            "sha256": "a" * 64,
+            "decision": "selected",
+            "reason": SELECTION_REASON,
+            "reviewed_at": "2026-08-03",
+            "reviewed_by": "Test Human",
+            "scientific_name": "Calypte anna",
+            "source_page_urls": ["https://www.fws.gov/media/anna-test"],
+        }
+    )
+    payload["selections"].sort(
+        key=lambda item: (item["scientific_name"].casefold(), item["sha256"])
+    )
+    approvals.write_bytes(canonical_approval_json(payload))
+
+
 def test_scan_binds_webp_bytes_to_exact_content_address(tmp_path: Path) -> None:
     source, digest = _source(tmp_path)
 
@@ -212,6 +239,87 @@ def test_approved_media_can_exercise_local_publisher(tmp_path: Path) -> None:
 
     assert result.uploaded_objects == 1
     assert store.head_object(f"{DEFAULT_MEDIA_PREFIX}/{digest[:2]}/{digest}.webp") is not None
+
+
+def test_inaturalist_scoped_publish_uses_only_scoped_ledger_and_object(
+    tmp_path: Path,
+) -> None:
+    source, digest = _source(tmp_path)
+    _set_inaturalist_provider(source)
+    approvals = _approvals(tmp_path, source, digest)
+    _add_unrelated_usfws_selection(approvals)
+    store = LocalReleaseStore(tmp_path / "store")
+
+    result = publish_prepared_media(
+        source,
+        store,
+        approval_path=approvals,
+        provider="inaturalist",
+    )
+
+    assert result.file_count == 1
+    assert result.uploaded_objects == 1
+    assert store.head_object(f"{DEFAULT_MEDIA_PREFIX}/{digest[:2]}/{digest}.webp") is not None
+
+
+def test_provider_scoped_publish_requires_approvals_even_for_local_store(
+    tmp_path: Path,
+) -> None:
+    source, _ = _source(tmp_path)
+    _set_inaturalist_provider(source)
+
+    with pytest.raises(PublicReleaseError, match="provider-scoped.*requires"):
+        publish_prepared_media(
+            source,
+            LocalReleaseStore(tmp_path / "store"),
+            provider="inaturalist",
+        )
+
+
+def test_inaturalist_scoped_publish_rejects_mixed_manifest_before_store_access(
+    tmp_path: Path,
+) -> None:
+    source, digest = _source(tmp_path)
+    _set_inaturalist_provider(source)
+    _add_source_object(source, _webp(color=(30, 120, 180)))
+    approvals = _approvals(tmp_path, source, digest)
+    store = LocalReleaseStore(tmp_path / "store")
+
+    with pytest.raises(PublicReleaseError, match="outside the requested inaturalist"):
+        publish_prepared_media(
+            source,
+            store,
+            approval_path=approvals,
+            provider="inaturalist",
+        )
+
+    assert not [path for path in store.root.rglob("*") if path.is_file()]
+
+
+def test_local_cli_accepts_inaturalist_provider_scope(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    source, digest = _source(tmp_path)
+    _set_inaturalist_provider(source)
+    approvals = _approvals(tmp_path, source, digest)
+
+    result = public_media_release_module.main(
+        [
+            "--source",
+            str(source),
+            "--local-root",
+            str(tmp_path / "store"),
+            "--approvals",
+            str(approvals),
+            "--provider",
+            "inaturalist",
+        ]
+    )
+
+    assert result == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["file_count"] == 1
 
 
 def test_publisher_ignores_and_never_uploads_unselected_candidate(tmp_path: Path) -> None:

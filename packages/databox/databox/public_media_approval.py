@@ -21,7 +21,7 @@ import json
 import re
 import tempfile
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date
 from pathlib import Path
 
@@ -48,6 +48,7 @@ _PUBLIC_MEDIA_URL = re.compile(
     r"^https://rufous-data\.loughondata\.com/rufous-media/v1/objects/"
     r"(?P<shard>[a-f0-9]{2})/(?P<sha>[a-f0-9]{64})\.webp$"
 )
+_MEDIA_PROVIDERS = frozenset({"usfws", "inaturalist"})
 _REVIEWER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._@+'-]{1,99}$")
 _LEDGER_KEYS = {
     "schema_version",
@@ -412,8 +413,19 @@ def _parse_excluded_candidates(value: object, *, label: str) -> tuple[ExcludedCa
     return tuple(parsed)
 
 
-def load_manifest_provenance(path: Path) -> dict[tuple[str, str], MediaCandidate]:
-    """Read species/hash candidates and exact source provenance from a manifest."""
+def load_manifest_provenance(
+    path: Path,
+    *,
+    provider: str | None = None,
+) -> dict[tuple[str, str], MediaCandidate]:
+    """Read species/hash candidates and exact source provenance from a manifest.
+
+    A provider scope is an exact manifest contract, not a filter: every item
+    must identify that provider.  This prevents a mixed preparation from being
+    mistaken for a small provider-only release.
+    """
+    if provider is not None and provider not in _MEDIA_PROVIDERS:
+        raise MediaApprovalError("media provider scope is not reviewed")
     raw = _read_json_bytes(path, label="prepared-media manifest")
     try:
         payload = json.loads(raw)
@@ -439,7 +451,7 @@ def load_manifest_provenance(path: Path) -> dict[tuple[str, str], MediaCandidate
         sha256 = item.get("sha256")
         scientific_name = item.get("scientific_name")
         source_page_url = item.get("source_page_url")
-        provider = item.get("provider", "usfws")
+        item_provider = item.get("provider", "usfws")
         url = item.get("url")
         match = _PUBLIC_MEDIA_URL.fullmatch(url) if isinstance(url, str) else None
         if (
@@ -448,12 +460,17 @@ def load_manifest_provenance(path: Path) -> dict[tuple[str, str], MediaCandidate
             or not isinstance(scientific_name, str)
             or not _SCIENTIFIC_NAME.fullmatch(scientific_name)
             or not isinstance(source_page_url, str)
-            or not _valid_source_page(provider, source_page_url)
+            or not _valid_source_page(item_provider, source_page_url)
             or match is None
             or match.group("sha") != sha256
             or match.group("shard") != sha256[:2]
         ):
             raise MediaApprovalError(f"prepared-media item {index} has invalid provenance")
+        if provider is not None and item_provider != provider:
+            raise MediaApprovalError(
+                "prepared-media manifest contains media outside the requested "
+                f"{provider} provider scope"
+            )
         key = (scientific_name.casefold(), sha256)
         pages_by_candidate[key].add(source_page_url)
         object_hashes.add(sha256)
@@ -495,10 +512,23 @@ def _valid_source_page(provider: object, source_page_url: str) -> bool:
     return False
 
 
-def require_visual_approvals(manifest_path: Path, approval_path: Path) -> ApprovedMediaPlan:
-    """Require one selection or explicit no-safe-image exclusion per species."""
-    candidates = load_manifest_provenance(manifest_path)
-    ledger = _load_visual_decisions(approval_path)
+def require_visual_approvals(
+    manifest_path: Path,
+    approval_path: Path,
+    *,
+    provider: str | None = None,
+) -> ApprovedMediaPlan:
+    """Require one selection or explicit no-safe-image exclusion per species.
+
+    A provider-scoped manifest uses only decisions tied to that provider and
+    permits the complete ledger to retain decisions for other releases.  The
+    unscoped production gate keeps its stricter whole-manifest behavior.
+    """
+    candidates = load_manifest_provenance(manifest_path, provider=provider)
+    complete_ledger = _load_visual_decisions(approval_path)
+    ledger = complete_ledger
+    if provider is not None:
+        ledger = _ledger_for_provider(ledger, provider=provider)
     candidates_by_species: dict[str, list[MediaCandidate]] = defaultdict(list)
     for candidate in candidates.values():
         candidates_by_species[candidate.scientific_name.casefold()].append(candidate)
@@ -557,7 +587,9 @@ def require_visual_approvals(manifest_path: Path, approval_path: Path) -> Approv
         current_exclusions.append(exclusion)
 
     disqualified_hashes = {
-        item.sha256 for item in ledger.rejections if item.reason in DISQUALIFYING_REJECTION_REASONS
+        item.sha256
+        for item in complete_ledger.rejections
+        if item.reason in DISQUALIFYING_REJECTION_REASONS
     }
     conflicting = sorted(
         {item.sha256 for item in current_selections}.intersection(disqualified_hashes)
@@ -591,6 +623,40 @@ def require_visual_approvals(manifest_path: Path, approval_path: Path) -> Approv
         selections=tuple(current_selections),
         species_exclusions=tuple(current_exclusions),
     )
+
+
+def _ledger_for_provider(
+    ledger: VisualDecisionLedger,
+    *,
+    provider: str,
+) -> VisualDecisionLedger:
+    """Return the fully parsed ledger decisions applicable to one provider."""
+    selections = tuple(
+        item for item in ledger.selections if _pages_provider(item.source_page_urls) == provider
+    )
+    rejections = tuple(
+        item for item in ledger.rejections if _pages_provider(item.source_page_urls) == provider
+    )
+    exclusions: list[SpeciesExclusion] = []
+    for exclusion in ledger.species_exclusions:
+        candidates = tuple(
+            item
+            for item in exclusion.candidates
+            if _pages_provider(item.source_page_urls) == provider
+        )
+        if candidates:
+            exclusions.append(replace(exclusion, candidates=candidates))
+    return VisualDecisionLedger(selections, rejections, tuple(exclusions))
+
+
+def _pages_provider(source_page_urls: tuple[str, ...]) -> str:
+    """Return the provider already proven by strict ledger parsing."""
+    first = source_page_urls[0]
+    if _USFWS_MEDIA_PAGE.fullmatch(first):
+        return "usfws"
+    if _INATURALIST_MEDIA_PAGE.fullmatch(first):
+        return "inaturalist"
+    raise MediaApprovalError("media decision contains an unreviewed provider")
 
 
 def review_candidates(manifest_path: Path, approval_path: Path) -> dict[str, object]:
@@ -1019,6 +1085,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--write-updated-ledger", type=Path)
     parser.add_argument("--reviewed-by")
     parser.add_argument("--reviewed-at")
+    parser.add_argument("--provider", choices=sorted(_MEDIA_PROVIDERS))
     return parser.parse_args(argv)
 
 
@@ -1048,7 +1115,11 @@ def main(argv: list[str] | None = None) -> int:
                 args.write_review_candidates,
             )
             print(f"Wrote {count} species/image media review candidate(s).")
-        plan = require_visual_approvals(args.manifest, approval_path)
+        plan = require_visual_approvals(
+            args.manifest,
+            approval_path,
+            provider=args.provider,
+        )
     except (OSError, MediaApprovalError) as exc:
         print(f"Rufous media visual-selection gate failed: {exc}")
         return 1
