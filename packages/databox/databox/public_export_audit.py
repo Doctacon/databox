@@ -597,7 +597,7 @@ def audit_workflow_runners(workflow_root: Path) -> list[str]:
         if not runners:
             findings.append(f"{path.name} does not declare a runner")
         for runner in runners:
-            if runner != "ubuntu-latest":
+            if runner not in {"ubuntu-latest", "ubuntu-24.04"}:
                 findings.append(f"{path.name} uses non-free/nonstandard runner {runner!r}")
         if "workflow_run:" in text and "secrets." in text:
             trust_markers = (

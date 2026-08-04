@@ -814,6 +814,17 @@ def test_workflow_audit_rejects_paid_and_dynamic_runners(tmp_path: Path) -> None
     assert all("non-free/nonstandard" in item for item in findings)
 
 
+def test_workflow_audit_accepts_standard_free_ubuntu_2404_runner(tmp_path: Path) -> None:
+    workflows = tmp_path / "workflows"
+    workflows.mkdir()
+    (workflows / "free.yaml").write_text(
+        "jobs:\n  build:\n    runs-on: ubuntu-24.04\n",
+        encoding="utf-8",
+    )
+
+    assert audit_workflow_runners(workflows) == []
+
+
 def test_workflow_audit_rejects_untrusted_privileged_workflow_run(tmp_path: Path) -> None:
     workflows = tmp_path / "workflows"
     workflows.mkdir()
