@@ -23,6 +23,15 @@ _REVIEWED_CSP = (
     "https://rufous-data.loughondata.com; "
     "frame-ancestors https://loughondata.com https://www.loughondata.com\n"
 )
+_REVIEWED_SPA_REDIRECTS = (
+    "/birds / 200\n"
+    "/credits / 200\n"
+    "/map / 200\n"
+    "/my-birds / 200\n"
+    "/birds/:species/find / 200\n"
+    "/birds/:species / 200\n"
+    "/target-plans/:plan / 200\n"
+)
 
 
 def _synthetic_site(tmp_path: Path) -> Path:
@@ -309,6 +318,48 @@ def test_audit_requires_one_coherent_revalidation_policy_for_all_data(tmp_path: 
         "/data/cells/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
         encoding="utf-8",
     )
+    (site / "404.html").write_text("<!doctype html><title>Not found</title>", encoding="utf-8")
+    (site / "_redirects").write_text(_REVIEWED_SPA_REDIRECTS, encoding="utf-8")
+    assert audit_public_site(site) == []
+
+
+def test_audit_rejects_html_fallback_and_custom_caching_for_static_assets(
+    tmp_path: Path,
+) -> None:
+    site = _synthetic_site(tmp_path)
+    (site / "index.html").write_text("<!doctype html>", encoding="utf-8")
+    (site / "_redirects").write_text("/* /index.html 200\n", encoding="utf-8")
+    (site / "_headers").write_text(
+        _REVIEWED_CSP + "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n"
+        "/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n",
+        encoding="utf-8",
+    )
+
+    findings = audit_public_site(site)
+
+    assert any("top-level 404.html" in finding for finding in findings)
+    assert any("reviewed client-side routes" in finding for finding in findings)
+    assert any("default caching outside /data" in finding for finding in findings)
+
+    (site / "404.html").write_text("<!doctype html><title>Not found</title>", encoding="utf-8")
+    (site / "_redirects").write_text(_REVIEWED_SPA_REDIRECTS, encoding="utf-8")
+    (site / "_headers").write_text(
+        _REVIEWED_CSP + "  Cache-Control: public, max-age=31536000, immutable\n"
+        "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
+        encoding="utf-8",
+    )
+    assert any("default caching outside /data" in finding for finding in audit_public_site(site))
+
+    (site / "assets").mkdir()
+    (site / "assets/legacy.js").write_text("export {};", encoding="utf-8")
+    (site / "_headers").write_text(
+        _REVIEWED_CSP + "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
+        encoding="utf-8",
+    )
+    assert any("cache-recovery generation" in finding for finding in audit_public_site(site))
+
+    (site / "assets/legacy.js").rename(site / "assets/client-g2-current.js")
+
     assert audit_public_site(site) == []
 
 

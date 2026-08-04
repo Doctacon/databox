@@ -76,6 +76,16 @@ _ALLOWED_STATIC_SUFFIXES = frozenset(
     }
 )
 _ALLOWED_EXTENSIONLESS = frozenset({"_headers", "_redirects"})
+_PUBLIC_ASSET_GENERATION_MARKER = "-g2-"
+_REVIEWED_SPA_REDIRECTS = (
+    "/birds / 200",
+    "/credits / 200",
+    "/map / 200",
+    "/my-birds / 200",
+    "/birds/:species/find / 200",
+    "/birds/:species / 200",
+    "/target-plans/:plan / 200",
+)
 _FORBIDDEN_BINDING_PATTERNS = (
     re.compile(r"\bd1_databases\b", re.IGNORECASE),
     re.compile(r"\bkv_namespaces\b", re.IGNORECASE),
@@ -273,6 +283,7 @@ def audit_public_site(
             findings.append(f"{relative} is a Worker source entrypoint")
     findings.extend(_audit_deployed_text(site_dir, files))
     findings.extend(_audit_cache_coherence(site_dir))
+    findings.extend(_audit_static_routing(site_dir))
     findings.extend(_audit_browser_security_policy(site_dir))
     findings.extend(_audit_all_json_privacy(site_dir, files))
     findings.extend(_audit_static_contract(site_dir))
@@ -378,6 +389,61 @@ def _audit_cache_coherence(site_dir: Path) -> list[str]:
     ):
         return ["all /data/* assets must revalidate so manifest and shards cannot mix releases"]
     return []
+
+
+def _audit_static_routing(site_dir: Path) -> list[str]:
+    """Keep SPA navigation from turning missing executable assets into cached HTML."""
+    if not (site_dir / "index.html").is_file():
+        return []
+
+    findings: list[str] = []
+    if not (site_dir / "404.html").is_file():
+        findings.append(
+            "static application must include a top-level 404.html to disable implicit SPA fallback"
+        )
+
+    redirects_path = site_dir / "_redirects"
+    try:
+        redirect_lines = tuple(
+            line.strip()
+            for line in redirects_path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        )
+    except (OSError, UnicodeDecodeError):
+        redirect_lines = ()
+    if redirect_lines != _REVIEWED_SPA_REDIRECTS:
+        findings.append(
+            "static application _redirects must proxy only the reviewed client-side routes"
+        )
+
+    headers_path = site_dir / "_headers"
+    try:
+        header_lines = headers_path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return findings
+    route: str | None = None
+    for raw_line in header_lines:
+        stripped = raw_line.strip()
+        if stripped and not raw_line.startswith((" ", "\t")):
+            route = stripped
+            continue
+        if (
+            route is not None
+            and route != "/data"
+            and not route.startswith("/data/")
+            and stripped.casefold().startswith("cache-control:")
+        ):
+            findings.append("static application must use Pages' default caching outside /data")
+            break
+
+    assets_dir = site_dir / "assets"
+    if assets_dir.is_dir() and any(
+        _PUBLIC_ASSET_GENERATION_MARKER not in path.name
+        for path in assets_dir.rglob("*")
+        if path.is_file()
+    ):
+        findings.append("static application assets must use the reviewed cache-recovery generation")
+    return findings
 
 
 def _audit_browser_security_policy(site_dir: Path) -> list[str]:

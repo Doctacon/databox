@@ -1,6 +1,8 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
+const PUBLIC_ASSET_GENERATION = "g2";
+
 function publicAlias(source: string) {
   return `/src/publicAdapters/${source}`;
 }
@@ -38,6 +40,15 @@ export default defineConfig(({ mode }) => ({
       { find: "./TripCalendarControls", replacement: publicAlias("TripCalendarControls.tsx") },
     ] : [],
   },
+  build: mode === "public" ? {
+    rollupOptions: {
+      output: {
+        entryFileNames: `assets/[name]-${PUBLIC_ASSET_GENERATION}-[hash].js`,
+        chunkFileNames: `assets/[name]-${PUBLIC_ASSET_GENERATION}-[hash].js`,
+        assetFileNames: `assets/[name]-${PUBLIC_ASSET_GENERATION}-[hash][extname]`,
+      },
+    },
+  } : undefined,
   server: {
     host: "127.0.0.1",
     port: 5173,
