@@ -104,7 +104,48 @@ WITH normalized AS (
     ELSE ERROR('AVONET public trait source contract is invalid')
   END AS is_valid
 )
-SELECT n.*
+SELECT
+  n.species_natural_key,
+  n.source_scientific_name,
+  n.family,
+  n.order_name,
+  n.avibase_id,
+  n.total_individuals,
+  n.female_individuals,
+  n.male_individuals,
+  n.unknown_sex_individuals,
+  n.complete_measures,
+  n.beak_length_culmen_mm,
+  n.beak_length_nares_mm,
+  n.beak_width_mm,
+  n.beak_depth_mm,
+  n.tarsus_length_mm,
+  n.wing_length_mm,
+  n.kipps_distance_mm,
+  n.secondary_length_mm,
+  n.hand_wing_index,
+  n.tail_length_mm,
+  n.mass_g,
+  n.mass_source,
+  n.mass_reference_other,
+  n.inference,
+  n.traits_inferred,
+  n.reference_species,
+  n.habitat,
+  n.habitat_density_code,
+  n.habitat_density_label,
+  n.migration_code,
+  n.migration_label,
+  n.trophic_level,
+  n.trophic_niche,
+  n.primary_lifestyle,
+  n.dataset_doi,
+  n.dataset_version,
+  n.dataset_license,
+  n.source_file_id,
+  n.source_file_md5,
+  n.source_url,
+  n.loaded_at
 FROM normalized AS n
 CROSS JOIN source_guard AS guard
 WHERE guard.is_valid = 1

@@ -20,6 +20,14 @@ def _model_query() -> str:
     return _MODEL.read_text(encoding="utf-8").split(");", maxsplit=1)[1].strip()
 
 
+def test_public_avonet_model_has_an_explicit_final_projection() -> None:
+    query = _model_query()
+
+    assert "SELECT n.*" not in query
+    assert "n.species_natural_key" in query
+    assert "n.loaded_at" in query
+
+
 def _connection() -> duckdb.DuckDBPyConnection:
     connection = duckdb.connect()
     connection.execute("CREATE SCHEMA raw_avonet")
