@@ -103,6 +103,35 @@ function snapshot(): MapSnapshot {
   };
 }
 
+function snapshotWithRepeatedSpecies(): MapSnapshot {
+  const value = snapshot();
+  const alpha = value.encounters[0];
+  value.encounters = [
+    {
+      ...alpha,
+      source_observation_id: "S1-oldest",
+      observation_at: "2026-07-01T07:00:00",
+      observation_count: 1,
+      location_id: "L1-oldest",
+      location_name: "Public Oldest",
+      latitude: 32.1,
+      longitude: -110.9,
+    },
+    ...value.encounters,
+    {
+      ...alpha,
+      source_observation_id: "S1-middle",
+      observation_at: "2026-07-10T09:00:00",
+      observation_count: 4,
+      location_id: "L1-middle",
+      location_name: "Public Middle",
+      latitude: 33.4,
+      longitude: -111.7,
+    },
+  ];
+  return value;
+}
+
 function snapshotWithPhoto(): MapSnapshot {
   const value = snapshot();
   value.photos[0].photo = {
@@ -333,7 +362,9 @@ describe("Rufous Field Map", () => {
     expect(styles).toMatch(/\.field-map-rail\s*\{[^}]*display:\s*grid;[^}]*gap:\s*18px/s);
     expect(styles).toMatch(/@media \(max-width:\s*820px\)[\s\S]*?\.field-map-layout[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
     expect(styles).toMatch(/@media \(max-width:\s*540px\)[\s\S]*?\.map-canvas\s*\{\s*min-height:\s*360px/);
-    expect(styles).toMatch(/\.encounter-list button span\s*\{[^}]*overflow-wrap:\s*break-word;\s*word-break:\s*normal/s);
+    expect(styles).toMatch(/\.encounter-sighting-button span\s*\{[^}]*overflow-wrap:\s*break-word;\s*word-break:\s*normal/s);
+    expect(styles).toMatch(/\.encounter-stack-row\.is-stacked\s*\{[^}]*grid-template-columns:\s*44px minmax\(0, 1fr\) 44px/s);
+    expect(styles).toMatch(/\.encounter-carousel-arrow\s*\{[^}]*color:\s*var\(--teal-800\);[^}]*background:\s*transparent;[^}]*border:\s*0;[^}]*box-shadow:\s*none/s);
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
     expect(styles).toContain("@media (prefers-contrast: more), (forced-colors: active)");
   });
@@ -360,6 +391,85 @@ describe("Rufous Field Map", () => {
     await waitFor(() => expect(map.setData.mock.calls.at(-1)?.[0].features[0].properties.source_observation_id).toBe("S3"));
     fireEvent.mouseLeave(row);
     await waitFor(() => expect(map.setData.mock.calls.at(-1)?.[0].features).toHaveLength(0));
+  });
+
+  it("groups each species once and cycles its sightings newest-first", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response(snapshotWithRepeatedSpecies()));
+    render(<App />);
+
+    const listHeading = await screen.findByRole("heading", { name: "Accessible encounter list" });
+    const listPanel = listHeading.closest("section")!;
+    const list = within(listPanel).getByRole("list");
+    expect(Array.from(list.children)).toHaveLength(4);
+    expect(within(listPanel).getByText(
+      "4 species represented by 6 encounters. Stacks start with the newest sighting.",
+    )).toBeVisible();
+
+    const groups = within(list).getAllByRole("article");
+    expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual([
+      "Alpha 2, 3 encounters",
+      "alpha 10, 1 encounter",
+      "Beta, 1 encounter",
+      "Gamma scientific, 1 encounter",
+    ]);
+    const alphaGroup = within(list).getByRole("article", { name: "Alpha 2, 3 encounters" });
+    expect(within(alphaGroup).getByRole("button", { name: /Select Alpha 2 sighting 1 of 3: Public One/ })).toBeVisible();
+    expect(within(alphaGroup).getByText("Sighting 1 of 3 · newest first")).toBeVisible();
+    expect(within(alphaGroup).getByText("3 sightings")).toBeVisible();
+    expect(within(alphaGroup).getAllByText("Alpha 2")).toHaveLength(1);
+    expect(within(alphaGroup).getByRole("button", { name: "Previous Alpha 2 sighting" })).toHaveTextContent("<");
+    expect(within(alphaGroup).getByRole("button", { name: "Next Alpha 2 sighting" })).toHaveTextContent(">");
+    const betaGroup = within(list).getByRole("article", { name: "Beta, 1 encounter" });
+    expect(within(betaGroup).queryByRole("group", { name: "Browse Beta sightings" })).not.toBeInTheDocument();
+
+    await userEvent.click(within(alphaGroup).getByRole("button", { name: "Next Alpha 2 sighting" }));
+    expect(within(alphaGroup).getByRole("button", { name: /Select Alpha 2 sighting 2 of 3: Public Middle/ })).toBeVisible();
+    expect(within(alphaGroup).getByText("Sighting 2 of 3 · newest first")).toBeVisible();
+    const selected = screen.getByRole("heading", { name: "Selected encounter" }).closest("section")!;
+    expect(within(selected).getByText("Public Middle")).toBeVisible();
+
+    await userEvent.click(within(alphaGroup).getByRole("button", { name: "Next Alpha 2 sighting" }));
+    expect(within(alphaGroup).getByRole("button", { name: /Select Alpha 2 sighting 3 of 3: Public Oldest/ })).toBeVisible();
+    await userEvent.click(within(alphaGroup).getByRole("button", { name: "Next Alpha 2 sighting" }));
+    expect(within(alphaGroup).getByRole("button", { name: /Select Alpha 2 sighting 1 of 3: Public One/ })).toBeVisible();
+    await userEvent.click(within(alphaGroup).getByRole("button", { name: "Previous Alpha 2 sighting" }));
+    expect(within(alphaGroup).getByRole("button", { name: /Select Alpha 2 sighting 3 of 3: Public Oldest/ })).toBeVisible();
+  });
+
+  it("keeps carousel, map selection, selected details, and all occurrence points aligned", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response(snapshotWithRepeatedSpecies()));
+    render(<App />);
+    const listHeading = await screen.findByRole("heading", { name: "Accessible encounter list" });
+    await waitFor(() => expect(mapState.maps).toHaveLength(1));
+    const map = mapState.maps[0];
+    act(() => map.handlers.get("load")?.({}));
+    expect(map.setData.mock.lastCall?.[0].features).toHaveLength(6);
+
+    act(() => map.handlers.get("click:encounter-points")?.({
+      features: [{ properties: { source_observation_id: "S1-middle" } }],
+    }));
+    const listPanel = listHeading.closest("section")!;
+    const alphaGroup = within(listPanel).getByRole("article", { name: "Alpha 2, 3 encounters" });
+    const middleCard = within(alphaGroup).getByRole("button", { name: /Select Alpha 2 sighting 2 of 3: Public Middle/ });
+    expect(middleCard).toHaveAttribute("aria-pressed", "true");
+    expect(within(alphaGroup).getByText("Sighting 2 of 3 · newest first")).toBeVisible();
+    const selected = screen.getByRole("heading", { name: "Selected encounter" }).closest("section")!;
+    expect(within(selected).getByText("Public Middle")).toBeVisible();
+    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({ center: [-111.7, 33.4], zoom: 11 }));
+    await waitFor(() => expect(map.setFilter).toHaveBeenLastCalledWith(
+      "selected-encounter",
+      ["==", ["get", "source_observation_id"], "S1-middle"],
+    ));
+
+    await userEvent.click(within(alphaGroup).getByRole("button", { name: "Next Alpha 2 sighting" }));
+    const oldestCard = within(alphaGroup).getByRole("button", { name: /Select Alpha 2 sighting 3 of 3: Public Oldest/ });
+    expect(oldestCard).toHaveAttribute("aria-pressed", "true");
+    expect(within(selected).getByText("Public Oldest")).toBeVisible();
+    expect(map.easeTo).toHaveBeenLastCalledWith(expect.objectContaining({ center: [-110.9, 32.1], zoom: 11 }));
+    await waitFor(() => expect(map.setFilter).toHaveBeenLastCalledWith(
+      "selected-encounter",
+      ["==", ["get", "source_observation_id"], "S1-oldest"],
+    ));
   });
 
   it("preserves photo source, license, and attribution after thumbnail load failure", async () => {

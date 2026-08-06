@@ -146,6 +146,38 @@ function family(row: MapEncounter): string {
   return row.family_common_name || row.family_scientific_name || "Family unavailable";
 }
 
+type EncounterSpeciesGroup = {
+  speciesCode: string;
+  name: string;
+  encounters: MapEncounter[];
+};
+
+function encounterTime(row: MapEncounter): number {
+  const value = Date.parse(row.observation_at);
+  return Number.isNaN(value) ? Number.NEGATIVE_INFINITY : value;
+}
+
+function compareEncounterRecency(left: MapEncounter, right: MapEncounter): number {
+  const timestampDifference = encounterTime(right) - encounterTime(left);
+  return timestampDifference || left.source_observation_id.localeCompare(right.source_observation_id);
+}
+
+function groupEncountersBySpecies(rows: MapEncounter[]): EncounterSpeciesGroup[] {
+  const groups = new Map<string, MapEncounter[]>();
+  for (const row of rows) {
+    const existing = groups.get(row.species_code);
+    if (existing) existing.push(row);
+    else groups.set(row.species_code, [row]);
+  }
+  return [...groups.entries()]
+    .map(([speciesCode, encounters]) => ({
+      speciesCode,
+      name: label(encounters[0]),
+      encounters: encounters.sort(compareEncounterRecency),
+    }))
+    .sort((left, right) => compareVisibleLabels(left.name, right.name, left.speciesCode, right.speciesCode));
+}
+
 function points(rows: MapEncounter[]): FeatureCollection<Point, GeoJsonProperties> {
   return {
     type: "FeatureCollection",
@@ -761,6 +793,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   const [selectedFamily, setSelectedFamily] = useState("all");
   const [recency, setRecency] = useState<Recency>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeEncounterBySpecies, setActiveEncounterBySpecies] = useState<Record<string, string>>({});
   const [hoverPreviewId, setHoverPreviewId] = useState<string | null>(null);
   const [focusPreviewId, setFocusPreviewId] = useState<string | null>(null);
   const previewId = focusPreviewId ?? hoverPreviewId;
@@ -792,6 +825,7 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
       .filter((row) => selectedFamily === "all" || family(row) === selectedFamily)
       .filter((row) => cutoff === null || new Date(row.observation_at).getTime() >= cutoff);
   }, [recency, selectedFamily, snapshot, species]);
+  const encounterGroups = useMemo(() => groupEncountersBySpecies(filtered), [filtered]);
   const selected = selectedId ? filtered.find((row) => row.source_observation_id === selectedId) ?? null : null;
   const photoBySpecies = useMemo(() => new Map(snapshot?.photos.map((row) => [row.species_code, row.photo]) ?? []), [snapshot]);
   const mapStyle = useMemo(() => {
@@ -836,6 +870,9 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
   }, [previewId]);
 
   const choose = useCallback((row: MapEncounter) => {
+    setActiveEncounterBySpecies((current) => current[row.species_code] === row.source_observation_id
+      ? current
+      : { ...current, [row.species_code]: row.source_observation_id });
     setSelectedId(row.source_observation_id);
     const map = mapRef.current;
     map?.easeTo({
@@ -844,6 +881,13 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
       duration: reducedMotion() ? 0 : 350,
     });
   }, []);
+
+  const cycleEncounter = useCallback((group: EncounterSpeciesGroup, direction: -1 | 1) => {
+    const activeId = activeEncounterBySpecies[group.speciesCode];
+    const activeIndex = Math.max(0, group.encounters.findIndex((row) => row.source_observation_id === activeId));
+    const nextIndex = (activeIndex + direction + group.encounters.length) % group.encounters.length;
+    choose(group.encounters[nextIndex]);
+  }, [activeEncounterBySpecies, choose]);
 
   useEffect(() => {
     const runtime = mapRuntime.runtime;
@@ -961,7 +1005,52 @@ export function FieldMapPage({ navigate }: { navigate: Navigate }) {
         <section className="panel map-panel" aria-labelledby="map-canvas-heading"><h2 id="map-canvas-heading">{PUBLIC_RUNTIME ? "Arizona historical occurrence map" : "Arizona encounter map"}</h2><div ref={mapContainer} className="map-canvas" aria-label={PUBLIC_RUNTIME ? "Interactive map of licensed historical Arizona occurrences" : "Interactive map of eligible Arizona encounters"} />{!basemapResult && !mapRuntime.failed && <p role="status">Loading labeled geographic context…</p>}{mapRuntime.failed && <p className="caveat" role="alert">The interactive map could not start. Filters and the accessible {PUBLIC_RUNTIME ? "historical occurrence" : "encounter"} list remain available.</p>}</section>
         <aside className="field-map-rail" aria-label={PUBLIC_RUNTIME ? "Selected historical occurrence and accessible occurrence list" : "Selected encounter and accessible encounter list"}>
           <section className="panel selected-encounter" aria-labelledby="selected-encounter-heading" aria-live="polite"><h2 id="selected-encounter-heading">{PUBLIC_RUNTIME ? "Selected historical occurrence" : "Selected encounter"}</h2>{selected ? <><h3>{label(selected)}</h3><p>{selected.location_name}</p><p>{dateTime(selected.observation_at)} · {PUBLIC_RUNTIME ? "Published count" : ""}{PUBLIC_RUNTIME && ": "}{selected.observation_count.toLocaleString()}{PUBLIC_RUNTIME ? "" : " observed"}{selected.notable ? " · notable" : ""}</p>{selected.access_warning && <p className="caveat">Access may be restricted. Verify access before visiting.</p>}<a href={`/birds/${selected.species_code}`} onClick={(event) => profileLink(event, `/birds/${selected.species_code}`)}>View bird profile</a></> : <p>Select a map point or {PUBLIC_RUNTIME ? "historical occurrence" : "encounter"}-list row for details.</p>}</section>
-          <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading"><h2 id="encounter-list-heading">Accessible {PUBLIC_RUNTIME ? "historical occurrence" : "encounter"} list</h2>{filtered.length ? <ol className="encounter-list">{filtered.map((row) => <li key={row.source_observation_id}><button type="button" aria-pressed={selectedId === row.source_observation_id} onMouseEnter={() => setHoverPreviewId(row.source_observation_id)} onMouseLeave={() => setHoverPreviewId(null)} onFocus={() => setFocusPreviewId(row.source_observation_id)} onBlur={() => setFocusPreviewId(null)} onClick={() => choose(row)}><EncounterThumbnail photo={photoBySpecies.get(row.species_code)} name={label(row)} /><span className="encounter-copy"><strong>{label(row)}</strong><span>{row.location_name} · {dateTime(row.observation_at)} · {PUBLIC_RUNTIME ? "Published count: " : ""}{row.observation_count.toLocaleString()}{PUBLIC_RUNTIME ? "" : " observed"}{row.notable ? " · notable" : ""}</span>{row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}</span></button><EncounterPhotoLinks photo={photoBySpecies.get(row.species_code)} /></li>)}</ol> : <p className="empty">No {PUBLIC_RUNTIME ? "historical occurrences" : "encounters"} to list.</p>}</section>
+          <section className="panel encounter-list-panel" aria-labelledby="encounter-list-heading">
+            <h2 id="encounter-list-heading">Accessible {PUBLIC_RUNTIME ? "historical occurrence" : "encounter"} list</h2>
+            {filtered.length ? <>
+              <p className="encounter-list-summary">{encounterGroups.length.toLocaleString()} species represented by {filtered.length.toLocaleString()} {PUBLIC_RUNTIME ? `historical occurrence${filtered.length === 1 ? "" : "s"}` : `encounter${filtered.length === 1 ? "" : "s"}`}. {encounterGroups.some((group) => group.encounters.length > 1) ? "Stacks start with the newest sighting." : ""}</p>
+              <ol className="encounter-list">{encounterGroups.map((group) => {
+                const rememberedId = activeEncounterBySpecies[group.speciesCode];
+                const activeIndex = Math.max(0, group.encounters.findIndex((row) => row.source_observation_id === rememberedId));
+                const row = group.encounters[activeIndex];
+                const isStacked = group.encounters.length > 1;
+                const positionId = `encounter-position-${group.speciesCode}`;
+                return <li key={group.speciesCode}>
+                  <article className={`encounter-species-group${isStacked ? " is-stacked" : ""}`} aria-label={`${group.name}, ${group.encounters.length.toLocaleString()} ${PUBLIC_RUNTIME ? `historical occurrence${group.encounters.length === 1 ? "" : "s"}` : `encounter${group.encounters.length === 1 ? "" : "s"}`}`}>
+                    <div className={`encounter-stack-row${isStacked ? " is-stacked" : ""}`} role={isStacked ? "group" : undefined} aria-label={isStacked ? `Browse ${group.name} sightings` : undefined}>
+                      {isStacked && <button type="button" className="encounter-carousel-arrow" aria-label={`Previous ${group.name} sighting`} onClick={() => cycleEncounter(group, -1)}>&lt;</button>}
+                      <div className="encounter-stack-column">
+                        <div className="encounter-stack">
+                          <button
+                            type="button"
+                            className="encounter-sighting-button"
+                            aria-label={`Select ${group.name} sighting ${activeIndex + 1} of ${group.encounters.length}: ${row.location_name}, ${dateTime(row.observation_at)}`}
+                            aria-describedby={isStacked ? positionId : undefined}
+                            aria-pressed={selectedId === row.source_observation_id}
+                            onMouseEnter={() => setHoverPreviewId(row.source_observation_id)}
+                            onMouseLeave={() => setHoverPreviewId(null)}
+                            onFocus={() => setFocusPreviewId(row.source_observation_id)}
+                            onBlur={() => setFocusPreviewId(null)}
+                            onClick={() => choose(row)}
+                          >
+                            <EncounterThumbnail photo={photoBySpecies.get(row.species_code)} name={group.name} />
+                            <span className="encounter-copy">
+                              <span className="encounter-species-line"><strong>{group.name}</strong>{isStacked && <small>{group.encounters.length.toLocaleString()} sightings</small>}</span>
+                              <span>{row.location_name} · {dateTime(row.observation_at)} · {PUBLIC_RUNTIME ? "Published count: " : ""}{row.observation_count.toLocaleString()}{PUBLIC_RUNTIME ? "" : " observed"}{row.notable ? " · notable" : ""}</span>
+                              {row.access_warning && <span className="caveat">Access may be restricted despite the public source label.</span>}
+                            </span>
+                          </button>
+                        </div>
+                        {isStacked && <span className="encounter-position" id={positionId}>Sighting {activeIndex + 1} of {group.encounters.length} · newest first</span>}
+                      </div>
+                      {isStacked && <button type="button" className="encounter-carousel-arrow" aria-label={`Next ${group.name} sighting`} onClick={() => cycleEncounter(group, 1)}>&gt;</button>}
+                    </div>
+                    <EncounterPhotoLinks photo={photoBySpecies.get(row.species_code)} />
+                  </article>
+                </li>;
+              })}</ol>
+            </> : <p className="empty">No {PUBLIC_RUNTIME ? "historical occurrences" : "encounters"} to list.</p>}
+          </section>
         </aside>
       </div>
       {mapStyle && <BasemapAttribution hasBasemap={mapStyle.hasBasemap} />}
