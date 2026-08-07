@@ -20,10 +20,12 @@ from databox.public_export_audit import (
 _REVIEWED_CSP = (
     "/*\n"
     "  Content-Security-Policy: default-src 'self'; "
+    "script-src 'self' https://challenges.cloudflare.com; "
     "img-src 'self' data: blob: https://rufous-data.loughondata.com; "
     "media-src 'self' https://rufous-data.loughondata.com; "
     "connect-src 'self' https://tiles.openfreemap.org "
-    "https://rufous-data.loughondata.com; "
+    "https://rufous-data.loughondata.com https://rufous-ai.loughondata.com; "
+    "frame-src https://challenges.cloudflare.com; "
     "frame-ancestors https://loughondata.com https://www.loughondata.com\n"
 )
 _REVIEWED_SPA_REDIRECTS = (
@@ -602,6 +604,32 @@ def test_audit_rejects_broad_or_duplicate_image_and_media_csp_sources(
     assert any("media-src" in item for item in findings)
 
 
+def test_audit_requires_exact_ai_and_turnstile_origins(tmp_path: Path) -> None:
+    site = _shell_only_site(tmp_path)
+
+    assert audit_public_site(site, shell_only=True) == []
+
+    (site / "_headers").write_text(
+        "/*\n"
+        "  Content-Security-Policy: default-src 'self'; "
+        "script-src 'self' https:; "
+        "img-src 'self' data: blob: https://rufous-data.loughondata.com; "
+        "media-src 'self' https://rufous-data.loughondata.com; "
+        "connect-src 'self' https://tiles.openfreemap.org "
+        "https://rufous-data.loughondata.com https://*.workers.dev; "
+        "frame-src https:; "
+        "frame-ancestors https://loughondata.com https://www.loughondata.com\n"
+        "/data/*\n  Cache-Control: no-cache, max-age=0, must-revalidate\n",
+        encoding="utf-8",
+    )
+
+    findings = audit_public_site(site, shell_only=True)
+
+    assert any("connect-src" in item for item in findings)
+    assert any("script-src" in item for item in findings)
+    assert any("frame-src" in item for item in findings)
+
+
 def test_audit_rejects_local_human_review_bundle_marker(tmp_path: Path) -> None:
     site = _synthetic_site(tmp_path)
     (site / "index.html").write_text(
@@ -658,6 +686,62 @@ def test_audit_rejects_runtime_files_in_repository_deploy_context(tmp_path: Path
     assert any("functions" in item for item in findings)
     assert any("app/wrangler.toml" in item for item in findings)
     assert any(".wrangler/deploy" in item for item in findings)
+
+
+def test_deploy_context_allows_only_the_reviewed_free_ai_worker(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    worker = repository / "workers/rufous-ai"
+    worker.mkdir(parents=True)
+    config = worker / "wrangler.jsonc"
+    reviewed_config = {
+        "$schema": "node_modules/wrangler/config-schema.json",
+        "name": "rufous-ai",
+        "main": "src/index.ts",
+        "compatibility_date": "2026-08-07",
+        "workers_dev": False,
+        "preview_urls": False,
+        "routes": [{"pattern": "rufous-ai.loughondata.com", "custom_domain": True}],
+        "ai": {"binding": "AI"},
+        "ratelimits": [
+            {
+                "name": "RATE_LIMITER",
+                "namespace_id": "1000001",
+                "simple": {"limit": 3, "period": 60},
+            }
+        ],
+        "vars": {
+            "ALLOWED_ORIGINS": "https://rufous.loughondata.com",
+            "TURNSTILE_EXPECTED_ACTION": "trip_plan_enrich",
+            "TURNSTILE_EXPECTED_HOSTNAME": "rufous.loughondata.com",
+        },
+        "observability": {"enabled": False},
+        "limits": {"cpu_ms": 10},
+    }
+    config.write_text(json.dumps(reviewed_config), encoding="utf-8")
+    for ignored in (
+        worker / "node_modules/example/package.json",
+        worker / "dist/bundle.js",
+        worker / ".wrangler/state.json",
+    ):
+        ignored.parent.mkdir(parents=True, exist_ok=True)
+        ignored.write_text("RUF_R2_SECRET_ACCESS_KEY pages deploy", encoding="utf-8")
+
+    assert audit_deploy_context(repository) == []
+
+    reviewed_config["workers_dev"] = True
+    reviewed_config["r2_buckets"] = []
+    reviewed_config["browser"] = {"binding": "BROWSER"}
+    reviewed_config["env"] = {"dev": {"workers_dev": True}}
+    config.write_text(json.dumps(reviewed_config), encoding="utf-8")
+    (repository / "workers/unreviewed").mkdir()
+
+    findings = audit_deploy_context(repository)
+
+    assert any("top-level keys" in item for item in findings)
+    assert any("'workers_dev'" in item for item in findings)
+    assert any("at every depth" in item for item in findings)
+    assert any("forbidden billable binding" in item for item in findings)
+    assert any("outside the one reviewed Worker project" in item for item in findings)
 
 
 def test_audit_requires_one_coherent_revalidation_policy_for_all_data(tmp_path: Path) -> None:

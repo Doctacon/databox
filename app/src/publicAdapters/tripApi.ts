@@ -5,12 +5,14 @@ import type {
   Evidence,
   LocationSuggestion,
   Media,
+  PlanAiEnrichment,
   PlanSummary,
   Recommendation,
   ToolTrace,
   TripCalendarInviteStatus,
   TripPlanDetail,
 } from "../types";
+import { applyAiEnrichmentToPlan } from "../publicAiEnrichment";
 import { publicCatalogCall, publicCatalogPhoto, recommendationCall, recommendationPhoto } from "./media";
 import { validatePublicRecommendationAudio } from "../publicRecommendationAudio";
 import { queryPublicObservations } from "./observationStore";
@@ -107,6 +109,19 @@ export async function getPlan(id: string): Promise<TripPlanDetail> {
   const detail = plans().find((row) => row.plan.trip_plan_id === id);
   if (!detail) throw new Error("That trip plan is not saved in this browser.");
   return detail;
+}
+
+export async function savePlanAiEnrichment(
+  id: string,
+  enrichment: PlanAiEnrichment,
+): Promise<TripPlanDetail> {
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error("Invalid trip plan identifier.");
+  const stored = plans();
+  const current = stored.find((row) => row.plan.trip_plan_id === id);
+  if (!current) throw new Error("That trip plan is not saved in this browser.");
+  const updated = applyAiEnrichmentToPlan(current, enrichment);
+  safeWrite(PLANS_KEY, stored.map((row) => row.plan.trip_plan_id === id ? updated : row).slice(0, MAX_PLANS));
+  return updated;
 }
 
 function mapDistanceKm(

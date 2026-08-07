@@ -65,6 +65,12 @@ The emergency cost stop is to block or detach the custom domain. Do not delete
 the bucket or active release: the browser will fall back to the complete Pages
 copy while the data hostname is unavailable.
 
+The optional trip-planner field-strategy enhancement is a separate Worker with
+no R2 binding or credential. Its exact Workers Free plan gate, Turnstile setup,
+credential isolation, quota fallback, and emergency stop are documented in
+[`rufous-ai-free.md`](rufous-ai-free.md). Do not grant its deployment token any
+of the Pages or R2 permissions described above.
+
 Cloudflare references: [public R2 buckets](https://developers.cloudflare.com/r2/buckets/public-buckets/),
 [CORS](https://developers.cloudflare.com/r2/buckets/cors/), and
 [R2 caching](https://developers.cloudflare.com/cache/interaction-cloudflare-products/r2/),

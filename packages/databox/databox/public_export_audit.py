@@ -177,6 +177,14 @@ _FORBIDDEN_BINDING_PATTERNS = (
     re.compile(r"\banalytics_engine_datasets\b", re.IGNORECASE),
     re.compile(r"\bvectorize\b", re.IGNORECASE),
     re.compile(r"\bhyperdrive\b", re.IGNORECASE),
+    re.compile(r"\bbrowser\b", re.IGNORECASE),
+    re.compile(r"\bimages\b", re.IGNORECASE),
+    re.compile(r"\bservices\b", re.IGNORECASE),
+    re.compile(r"\bworkflows\b", re.IGNORECASE),
+    re.compile(r"\bpipelines\b", re.IGNORECASE),
+    re.compile(r"\bdispatch_namespaces\b", re.IGNORECASE),
+    re.compile(r"\bmtls_certificates\b", re.IGNORECASE),
+    re.compile(r"\bsecrets_store\b", re.IGNORECASE),
 )
 _FORBIDDEN_SERVICE_HOSTS = (
     "api.mapbox.com",
@@ -194,18 +202,20 @@ _FORBIDDEN_SERVICE_HOSTS = (
     "api.ebird.org",
     "api.weather.gov",
     "epqs.nationalmap.gov",
-    "challenges.cloudflare.com",
     "workers.dev",
     "www.google-analytics.com",
     "region1.google-analytics.com",
     "app.posthog.com",
 )
 _APPROVED_PUBLIC_DATA_ORIGIN = "https://rufous-data.loughondata.com"
+_APPROVED_AI_WORKER_ORIGIN = "https://rufous-ai.loughondata.com"
+_APPROVED_TURNSTILE_ORIGIN = "https://challenges.cloudflare.com"
 _APPROVED_CONNECT_SOURCES = frozenset(
     {
         "'self'",
         "https://tiles.openfreemap.org",
         _APPROVED_PUBLIC_DATA_ORIGIN,
+        _APPROVED_AI_WORKER_ORIGIN,
     }
 )
 _APPROVED_IMAGE_SOURCES = frozenset(
@@ -217,6 +227,10 @@ _APPROVED_IMAGE_SOURCES = frozenset(
     }
 )
 _APPROVED_MEDIA_SOURCES = frozenset({"'self'", _APPROVED_PUBLIC_DATA_ORIGIN})
+_APPROVED_SCRIPT_SOURCES = frozenset({"'self'", _APPROVED_TURNSTILE_ORIGIN})
+_APPROVED_FRAME_SOURCES = frozenset({_APPROVED_TURNSTILE_ORIGIN})
+_REVIEWED_AI_WORKER_DIRECTORY = Path("workers/rufous-ai")
+_REVIEWED_AI_WORKER_CONFIG = "wrangler.jsonc"
 _FORBIDDEN_OBJECT_STORE_MARKERS = (
     ".r2.dev",
     ".r2.cloudflarestorage.com",
@@ -604,7 +618,7 @@ def _audit_static_routing(site_dir: Path) -> list[str]:
 
 
 def _audit_browser_security_policy(site_dir: Path) -> list[str]:
-    """Require the public browser to contact only the reviewed data and map origins."""
+    """Require exact data, map, AI, and Turnstile browser origins."""
     if not (site_dir / "index.html").is_file():
         return []
     headers_path = site_dir / "_headers"
@@ -638,7 +652,8 @@ def _audit_browser_security_policy(site_dir: Path) -> list[str]:
     if connect_sources != _APPROVED_CONNECT_SOURCES:
         findings.append(
             "Content-Security-Policy connect-src must contain only self, OpenFreeMap, "
-            "and the reviewed Rufous R2 custom domain"
+            "the reviewed Rufous R2 custom domain, and the reviewed Rufous AI "
+            "custom domain"
         )
     image_sources = frozenset(directives.get("img-src", []))
     if image_sources != _APPROVED_IMAGE_SOURCES:
@@ -651,6 +666,18 @@ def _audit_browser_security_policy(site_dir: Path) -> list[str]:
         findings.append(
             "Content-Security-Policy media-src must contain only self and the reviewed "
             "Rufous media origin"
+        )
+    script_sources = frozenset(directives.get("script-src", []))
+    if script_sources != _APPROVED_SCRIPT_SOURCES:
+        findings.append(
+            "Content-Security-Policy script-src must contain only self and the exact "
+            "Cloudflare Turnstile origin"
+        )
+    frame_sources = frozenset(directives.get("frame-src", []))
+    if frame_sources != _APPROVED_FRAME_SOURCES:
+        findings.append(
+            "Content-Security-Policy frame-src must contain only the exact Cloudflare "
+            "Turnstile origin"
         )
     frame_ancestors = frozenset(directives.get("frame-ancestors", []))
     if frame_ancestors != {
@@ -722,6 +749,12 @@ def audit_workflow_runners(workflow_root: Path) -> list[str]:
                         f"{path.name} must trigger push and pull-request audits for "
                         f"deployment hazard path {deployment_hazard!r}"
                     )
+        worker_deploy = (
+            bool(re.search(r"\bwrangler(?:\"|')?\s+deploy\b", text, re.IGNORECASE))
+            and not pages_deploy
+        )
+        if worker_deploy:
+            findings.extend(_audit_ai_worker_workflow(path.name, text))
         media_publishers = _workflow_media_publisher_commands(text)
         if media_publishers:
             required_markers = (
@@ -747,6 +780,46 @@ def audit_workflow_runners(workflow_root: Path) -> list[str]:
                 findings.append(
                     f"{path.name} must run the human media approval gate before cloud publishers"
                 )
+    return findings
+
+
+def _audit_ai_worker_workflow(name: str, text: str) -> list[str]:
+    """Require one credential-isolated, main-only Workers Free deployment."""
+    findings: list[str] = []
+    if name != "rufous-ai-worker.yaml":
+        findings.append(f"{name} is an unreviewed Worker deployment workflow")
+    required_markers = (
+        "permissions:\n  contents: read",
+        "github.ref == 'refs/heads/main'",
+        "RUF_AI_RELEASE_ENABLED",
+        "RUF_AI_WORKERS_PLAN",
+        '[[ "$RUF_AI_WORKERS_PLAN" != "free" ]]',
+        "vars.RUF_AI_ACCOUNT_ID",
+        "secrets.RUF_AI_WORKER_API_TOKEN",
+        "working-directory: workers/rufous-ai",
+        "npm exec wrangler deploy -- --config wrangler.jsonc",
+    )
+    for marker in required_markers:
+        if marker not in text:
+            findings.append(f"{name} is missing reviewed AI deployment marker {marker!r}")
+
+    secret_names = set(re.findall(r"secrets\.([A-Za-z][A-Za-z0-9_]*)", text))
+    if secret_names != {"RUF_AI_WORKER_API_TOKEN"}:
+        findings.append(f"{name} must reference only the isolated RUF_AI_WORKER_API_TOKEN secret")
+    lower = text.casefold()
+    for marker in (
+        "secrets.cloudflare_api_token",
+        "secrets.cloudflare_account_id",
+        "ruf_r2_access_key_id",
+        "ruf_r2_secret_access_key",
+        "cloudflare_pages_project",
+        "pages deploy",
+        "publish_rufous_public",
+        "publish_rufous_media",
+        "schedule:",
+    ):
+        if marker in lower:
+            findings.append(f"{name} contains forbidden AI deployment marker {marker!r}")
     return findings
 
 
@@ -782,7 +855,145 @@ def audit_deploy_context(repository_root: Path) -> list[str]:
             findings.append(f"{label / 'functions'} is a forbidden Pages Functions directory")
     if (repository_root / ".wrangler" / "deploy").exists():
         findings.append(".wrangler/deploy is forbidden in the Pages deployment context")
+    findings.extend(_audit_reviewed_ai_worker(repository_root))
     return findings
+
+
+def _audit_reviewed_ai_worker(repository_root: Path) -> list[str]:
+    """Keep the one dynamic service isolated from the static Pages project."""
+    findings: list[str] = []
+    workers_root = repository_root / "workers"
+    worker_root = repository_root / _REVIEWED_AI_WORKER_DIRECTORY
+    if not worker_root.is_dir():
+        return [f"reviewed AI Worker directory is missing: {_REVIEWED_AI_WORKER_DIRECTORY}"]
+
+    if workers_root.is_dir():
+        for path in sorted(workers_root.iterdir()):
+            if path.name != worker_root.name:
+                findings.append(
+                    f"{path.relative_to(repository_root)} is outside the one reviewed "
+                    "Worker project"
+                )
+
+    configs = [
+        path
+        for name in ("wrangler.toml", "wrangler.json", "wrangler.jsonc")
+        if (path := worker_root / name).is_file()
+    ]
+    expected_config = worker_root / _REVIEWED_AI_WORKER_CONFIG
+    if configs != [expected_config]:
+        findings.append(
+            "Rufous AI must have exactly one reviewed workers/rufous-ai/wrangler.jsonc config"
+        )
+        return findings
+
+    try:
+        config = expected_config.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        findings.append("reviewed Rufous AI Worker config is unreadable")
+        return findings
+    try:
+        parsed = json.loads(config)
+    except json.JSONDecodeError:
+        findings.append("reviewed Rufous AI Worker config must be strict JSON without comments")
+        return findings
+    if not isinstance(parsed, dict):
+        return ["reviewed Rufous AI Worker config must be a JSON object"]
+
+    expected_keys = {
+        "$schema",
+        "name",
+        "main",
+        "compatibility_date",
+        "workers_dev",
+        "preview_urls",
+        "routes",
+        "ai",
+        "ratelimits",
+        "vars",
+        "observability",
+        "limits",
+    }
+    if set(parsed) != expected_keys:
+        findings.append(
+            "Rufous AI Worker config top-level keys must exactly match the reviewed free-service "
+            "allowlist"
+        )
+
+    exact_values: dict[str, object] = {
+        "$schema": "node_modules/wrangler/config-schema.json",
+        "name": "rufous-ai",
+        "main": "src/index.ts",
+        "workers_dev": False,
+        "preview_urls": False,
+        "routes": [{"pattern": "rufous-ai.loughondata.com", "custom_domain": True}],
+        "ai": {"binding": "AI"},
+        "ratelimits": [
+            {
+                "name": "RATE_LIMITER",
+                "namespace_id": "1000001",
+                "simple": {"limit": 3, "period": 60},
+            }
+        ],
+        "vars": {
+            "ALLOWED_ORIGINS": "https://rufous.loughondata.com",
+            "TURNSTILE_EXPECTED_ACTION": "trip_plan_enrich",
+            "TURNSTILE_EXPECTED_HOSTNAME": "rufous.loughondata.com",
+        },
+        "observability": {"enabled": False},
+        "limits": {"cpu_ms": 10},
+    }
+    for key, expected in exact_values.items():
+        if parsed.get(key) != expected:
+            findings.append(
+                f"Rufous AI Worker config field {key!r} does not match the reviewed value"
+            )
+    compatibility_date = parsed.get("compatibility_date")
+    if (
+        not isinstance(compatibility_date, str)
+        or re.fullmatch(r"20[2-9][0-9]-[01][0-9]-[0-3][0-9]", compatibility_date) is None
+    ):
+        findings.append("Rufous AI Worker compatibility_date must be an explicit ISO date")
+    if _contains_workers_dev_true(parsed):
+        findings.append("Rufous AI Worker config must reject workers_dev=true at every depth")
+
+    for pattern in _FORBIDDEN_BINDING_PATTERNS:
+        if pattern.search(config):
+            findings.append(
+                f"Rufous AI Worker config contains a forbidden billable binding ({pattern.pattern})"
+            )
+
+    combined_text = "\n".join(
+        path.read_text(encoding="utf-8", errors="replace")
+        for path in sorted(worker_root.rglob("*"))
+        if path.is_file()
+        and not {"node_modules", "dist", ".wrangler"}.intersection(
+            path.relative_to(worker_root).parts
+        )
+        and path.suffix.casefold() in {".json", ".jsonc", ".mjs", ".ts", ".toml", ".yaml", ".yml"}
+    ).casefold()
+    for forbidden in (
+        "ruf_r2_access_key_id",
+        "ruf_r2_secret_access_key",
+        "cloudflare_pages_project",
+        "pages deploy",
+    ):
+        if forbidden in combined_text:
+            findings.append(
+                f"Rufous AI Worker project contains forbidden Pages/R2 marker {forbidden!r}"
+            )
+    return findings
+
+
+def _contains_workers_dev_true(value: object) -> bool:
+    if isinstance(value, Mapping):
+        return any(
+            (key == "workers_dev" and nested is True) or _contains_workers_dev_true(nested)
+            for key, nested in value.items()
+        )
+    if isinstance(value, list):
+        return any(_contains_workers_dev_true(item) for item in value)
+    return False
 
 
 def _audit_media_attribution_sources(

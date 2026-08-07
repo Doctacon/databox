@@ -1,5 +1,5 @@
 import { FormEvent, lazy, MouseEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { createPlan, getPlan, listPlans } from "./api";
+import { createPlan, getPlan, listPlans, savePlanAiEnrichment } from "./api";
 import rufousImage from "./assets/rufous.png";
 import { validateAvailableCuratedPhoto } from "./curatedPhotoValidation";
 import { validatePublicRecommendationAudio } from "./publicRecommendationAudio";
@@ -18,6 +18,7 @@ import type {
   TripPlanDetail,
 } from "./types";
 import { presentWeather } from "./weather";
+import { PublicAiEnrichment } from "./publicAiEnrichment";
 import "./styles.css";
 
 const PUBLIC_RUNTIME = import.meta.env.MODE === "public";
@@ -346,7 +347,11 @@ function RecommendationGroup({
   );
 }
 
-function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCalendarChange: (invite: TripPlanDetail["calendar_invite"]) => void }) {
+function PlanView({ detail, onCalendarChange, onAiEnriched }: {
+  detail: TripPlanDetail;
+  onCalendarChange: (invite: TripPlanDetail["calendar_invite"]) => void;
+  onAiEnriched: (enrichment: NonNullable<TripPlanDetail["ai_enrichment"]>) => Promise<void>;
+}) {
   const recentlyReported = detail.recommendations
     .filter((row) => row.recommendation_group === "recently_reported")
     .sort((left, right) => left.rank_order - right.rank_order);
@@ -413,6 +418,7 @@ function PlanView({ detail, onCalendarChange }: { detail: TripPlanDetail; onCale
       <section className="panel" aria-labelledby="field-plan">
         <h2 id="field-plan">Field Plan</h2>
         <p className="field-plan">{detail.plan.field_plan_text || "No field plan was persisted."}</p>
+        {PUBLIC_RUNTIME && <PublicAiEnrichment detail={detail} onEnriched={onAiEnriched} />}
       </section>
 
       <TripCalendarControls planId={detail.plan.trip_plan_id} invite={detail.calendar_invite} onChange={onCalendarChange} />
@@ -566,7 +572,16 @@ function PlannerPage() {
       <section className="content" aria-busy={loadingPlan}>
         {error && <div className="error" role="alert"><strong>Could not complete that request.</strong><span>{error}</span></div>}
         {loadingPlan && <div className="loading" role="status">{PUBLIC_RUNTIME ? "Reading the published snapshot and building your field plan…" : "Gathering local evidence and building your field plan…"}</div>}
-        {!loadingPlan && detail && <PlanView key={detail.plan.trip_plan_id} detail={detail} onCalendarChange={(calendar_invite) => setDetail((current) => current && current.plan.trip_plan_id === detail.plan.trip_plan_id ? { ...current, calendar_invite } : current)} />}
+        {!loadingPlan && detail && <PlanView
+          key={detail.plan.trip_plan_id}
+          detail={detail}
+          onCalendarChange={(calendar_invite) => setDetail((current) => current && current.plan.trip_plan_id === detail.plan.trip_plan_id ? { ...current, calendar_invite } : current)}
+          onAiEnriched={async (enrichment) => {
+            const updated = await savePlanAiEnrichment(detail.plan.trip_plan_id, enrichment);
+            setDetail((current) => current?.plan.trip_plan_id === updated.plan.trip_plan_id ? updated : current);
+            await refreshPlans(false);
+          }}
+        />}
         {!loadingPlan && !detail && !error && <div className="welcome"><span aria-hidden="true">⌁</span><h2>No trip selected</h2><p>Create a plan or choose a saved plan to see recommendations, evidence, and the {PUBLIC_RUNTIME ? "deterministic browser workflow" : "agent workflow"}.</p></div>}
       </section>
     </main>;

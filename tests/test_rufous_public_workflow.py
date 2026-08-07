@@ -144,10 +144,16 @@ def test_main_push_routes_only_app_changes_to_pages(tmp_path: Path) -> None:
         "outside file moved into app",
     )
     moved_into_app = _git(tmp_path, "rev-parse", "HEAD")
+    worker_only = _commit(
+        tmp_path,
+        {"workers/rufous-ai/src/index.ts": "worker-only change\n"},
+        "isolated AI worker",
+    )
 
     assert _route_push(tmp_path, script, initial, app_only) == "pages"
     assert _route_push(tmp_path, script, app_only, mixed) == "full"
     assert _route_push(tmp_path, script, mixed, moved_into_app) == "full"
+    assert _route_push(tmp_path, script, moved_into_app, worker_only) == "none"
 
 
 def test_media_refresh_is_manual_only_and_pushes_never_route_to_it(tmp_path: Path) -> None:

@@ -93,6 +93,12 @@ hr { border: 0; border-top: 3px dashed var(--teal-800); margin: 26px 0 12px; }
 .notice { background: #fff1bd; border-left-width: 8px; }
 .notice::before { content: "NOTICE"; font-weight: 900; color: var(--warning); }
 .field-plan { white-space: pre-wrap; line-height: 1.75; margin-bottom: 0; }
+.ai-enrichment { margin-top: 20px; padding-top: 16px; border-top: 2px dashed var(--teal-800); }
+.ai-enrichment > p:first-child { margin-top: 0; }
+.ai-enrichment button { margin-top: 4px; }
+.ai-enrichment-complete { padding: 15px; border: 2px solid var(--teal-700); background: var(--cream-100); }
+.ai-enrichment-complete ul { margin-bottom: 0; }
+.turnstile-slot { min-height: 0; margin-top: 12px; }
 .species-grid { min-width: 0; list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .species-card, .bird-catalog-card, .collection-list > li { min-width: 0; position: relative; padding: 16px; background: var(--cream-100); border: 2px solid var(--ink); border-radius: 2px 9px 2px 9px; box-shadow: 3px 3px 0 var(--teal-800); }
 .species-card h3 { margin: 0 28px 4px 0; }

@@ -1,6 +1,7 @@
 import type {
   CreatePlanInput,
   LocationSuggestion,
+  PlanAiEnrichment,
   PlanSummary,
   TripCalendarInviteStatus,
   TripPlanDetail,
@@ -92,6 +93,13 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
       } : undefined,
     }),
   }));
+}
+
+export async function savePlanAiEnrichment(
+  _id: string,
+  _enrichment: PlanAiEnrichment,
+): Promise<TripPlanDetail> {
+  throw new Error("Free Workers AI enrichment is available only in public Rufous.");
 }
 
 export type TripCalendarAction = TripCalendarInviteStatus["allowed_actions"][number];

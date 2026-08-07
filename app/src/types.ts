@@ -140,6 +140,25 @@ export interface TripCalendarInviteStatus {
   acceptance_notice: "Accepted by local mail bridge" | null;
 }
 
+export type PlanAiActionId =
+  | "listen_first"
+  | "scan_habitat_edges"
+  | "move_between_vantage_points"
+  | "use_call_examples"
+  | "slow_observation_pace"
+  | "verify_access_and_conditions";
+
+/**
+ * A public-plan AI result contains decisions from a closed vocabulary, never
+ * model-authored prose. Rufous turns these IDs into fixed local wording.
+ */
+export interface PlanAiEnrichment {
+  schema_version: 1;
+  fact_hash: string;
+  action_ids: PlanAiActionId[];
+  created_at: string;
+}
+
 export interface TripPlanDetail {
   plan: TripPlan;
   recommendations: Recommendation[];
@@ -148,6 +167,8 @@ export interface TripPlanDetail {
   media: Media[];
   tool_traces: ToolTrace[];
   calendar_invite: TripCalendarInviteStatus;
+  /** Present only after an explicit, successful public Workers AI request. */
+  ai_enrichment?: PlanAiEnrichment;
 }
 
 export interface LocationSelection {

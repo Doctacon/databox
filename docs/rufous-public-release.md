@@ -148,11 +148,14 @@ Production publishes that complete projection twice:
    after any R2, CORS, pointer, hash, schema, or network failure.
 
 Pages still hosts only static application assets. There are no Pages Functions,
-Workers, R2 bindings, R2 SQL, Data Catalog, server-side AI calls, analytics, or
-email calls. Search, planning, watch evaluation, browser persistence, and `.ics`
-generation run on the visitor's device. R2 credentials exist only in the
-production GitHub Actions environment; the browser receives only the reviewed
-custom-domain URL.
+R2 bindings, R2 SQL, Data Catalog, analytics, or email calls. Search, planning,
+watch evaluation, browser persistence, and `.ics` generation run on the
+visitor's device. A separate, credential-isolated Workers Free service may
+optionally select allowlisted field-strategy actions for an already completed
+deterministic trip plan; browser code renders the corresponding fixed prose.
+It never becomes a Pages runtime, data API, or dependency of core planning. R2
+credentials exist only in the production GitHub Actions environment; neither
+the browser nor the AI Worker receives them.
 
 Pull requests build fictional fixtures without production-data access or
 deployment credentials (dependency installation still uses the network):
@@ -569,10 +572,12 @@ The monthly schedule never follows an unreviewed mutable GNIS URL.
   scope, or privacy status rejects an item.
 
 The audit checks every referenced JSON file, source-policy metadata, forbidden
-personal/raw fields, Pages file limits, Worker/Functions entrypoints, metered
-Cloudflare bindings, known metered browser services, repository-level Wrangler
-or Functions discovery paths, and workflow runners. It permits only the standard
-`ubuntu-latest` GitHub-hosted runner.
+personal/raw fields, Pages file limits, unreviewed Worker/Functions entrypoints,
+metered Cloudflare bindings, known metered browser services, repository-level
+Wrangler or Functions discovery paths, and workflow runners. It permits only
+the standard GitHub-hosted Ubuntu runners. The sole exception is the reviewed
+`workers/rufous-ai` project: it must use the exact custom domain, disable
+`workers.dev` and previews, and declare only AI and rate-limit bindings.
 
 Synthetic pull-request builds continue to test the provider adapters and media
 models with credentialless fixtures. Automatic production builds run the GBIF
@@ -639,19 +644,58 @@ Production secrets are:
 
 The Pages token and R2 token must be separate. Neither may grant billing, DNS,
 Worker, bucket-administration, or access to another bucket. There is no eBird,
-Cornell approval, AI, Turnstile, weather, media, or email credential in the
-public workflow.
+Cornell approval, AI secret, Turnstile secret, weather, media, or email
+credential in the public workflow. The public Turnstile site key is a GitHub
+variable, not a credential.
 
 The Pages project remains static-only: no Functions, D1, KV, R2 binding, Queue,
-Durable Object, Email, Analytics Engine, Worker entrypoint, or runtime API. R2 is
-accessed only through its public custom domain for GET/HEAD and through its S3
-endpoint by the production publisher.
+Durable Object, Email, Analytics Engine, Worker entrypoint, or runtime API. The
+optional AI Worker is deployed from its separate directory and workflow with a
+separate token. R2 is accessed only through its public custom domain for
+GET/HEAD and through its S3 endpoint by the production publisher.
 
 The static Pages Content Security Policy permits images only from the Pages
 origin, `data:`/`blob:` browser-local sources, and the exact
 `https://rufous-data.loughondata.com` media origin. `media-src` permits only the
-Pages origin and that same Rufous origin; broad `https:` sources are rejected by
-the release audit.
+Pages origin and that same Rufous origin. `connect-src` additionally permits
+only the exact `https://rufous-ai.loughondata.com` Worker and OpenFreeMap
+origins. Turnstile is permitted only from
+`https://challenges.cloudflare.com` in `script-src` and `frame-src`; broad
+`https:`, wildcard `workers.dev`, and preview origins are rejected by the
+release audit.
+
+### Optional Workers AI Free augmentation
+
+The `Rufous Workers AI Free augmentation` workflow is separate from the Pages
+and R2 workflow. Pull requests run its tests without secrets. A current `main`
+revision can deploy only when the operator has set both exact manual gates:
+
+- `RUF_AI_RELEASE_ENABLED=true`
+- `RUF_AI_WORKERS_PLAN=free`
+
+The second value attests that the dashboard was checked and still reports
+Workers Free; it is not inferred from R2 billing and is not a substitute for a
+quarterly plan/pricing review. `RUF_AI_ACCOUNT_ID` and the public
+`RUF_AI_TURNSTILE_SITE_KEY` are repository variables. The workflow's only
+secret is `RUF_AI_WORKER_API_TOKEN`. Its achievable Cloudflare scope is Workers
+Scripts Edit for the account plus Workers Routes Edit for the
+`loughondata.com` zone; repository policy limits its use to `rufous-ai`. It
+never receives the Pages token, R2 S3 credentials, billing access, Turnstile
+permission, or the Turnstile secret. The latter is provisioned directly on the
+Worker.
+
+Production accepts only `https://rufous.loughondata.com`, the exact Turnstile
+hostname, and the action `trip_plan_enrich`. Previews remain disabled. The
+Worker validates a fresh single-use token, rate-limits the request, and makes at
+most one bounded model call without a retry. The model returns only allowlisted
+field-strategy action IDs; fixed browser code renders the corresponding text.
+
+Workers AI quota, Worker request-limit, timeout, validation, and unavailable
+responses all retain the completed deterministic browser plan. Quota
+exhaustion is intentionally a loss of optional enhancement, not a reason to
+enable Workers Paid. See the
+[`infra/cloudflare/rufous-ai-free.md`](https://github.com/Doctacon/databox/blob/main/infra/cloudflare/rufous-ai-free.md)
+runbook for the exact account setup, emergency stop, and quarterly checklist.
 
 ## Cloudflare setup
 
@@ -704,6 +748,11 @@ metered. See [R2 pricing](https://developers.cloudflare.com/r2/pricing/).
 Cloudflare [budget alerts](https://developers.cloudflare.com/billing/manage/budget-alerts/)
 are informational and do not stop or cap usage.
 
+The optional AI path has a different boundary: while the account remains on
+Workers Free, its daily Workers AI and Worker request allowances fail closed
+rather than becoming paid overages. The manual plan gate and isolated token
+protect that boundary. They do not cap the separately metered R2 product.
+
 Caching, immutable URLs, WAF, and rate limiting reduce exposure but cannot
 guarantee zero cost against distributed abuse. The emergency cost stop is to
 block or disable the R2 custom domain; Rufous then automatically uses the
@@ -717,7 +766,9 @@ hard-zero-cost guarantee.
 
 ## Required launch tests
 
-- Build without any Worker, AI, email, Turnstile, eBird, or Cornell credential.
+- Build pull requests without any production Worker, AI, email, Turnstile
+  secret, eBird, or Cornell credential. Leave public AI browser variables empty
+  and verify the deterministic planner remains complete.
 - Confirm pull requests receive no production or R2 credentials and make no R2
   request.
 - Reject a staged release containing personal fields, raw identifiers, direct
@@ -732,6 +783,10 @@ hard-zero-cost guarantee.
   than mixing R2 and Pages shards.
 - Disable the R2 hostname completely and verify the full core application still
   works from Pages.
+- Exercise invalid, expired, and reused Turnstile tokens, the wrong hostname or
+  action, rate limiting, model timeout, Workers AI quota exhaustion, Worker
+  request-limit exhaustion, and a completely disabled AI custom domain. Every
+  case must retain the deterministic plan and its calendar download.
 - Verify pointer activation cannot race, an interrupted upload never changes
   the pointer, a sequentially stale run cannot reactivate an older release, and
   an unchanged release still checks every active object's bytes, role, cache
