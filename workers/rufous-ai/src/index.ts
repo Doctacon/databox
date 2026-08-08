@@ -472,22 +472,12 @@ async function boundedUpstreamJson(
     });
   } catch (error) {
     const name = error instanceof Error ? error.name : "Unknown";
-    const safeMessage = error instanceof Error
-      ? error.message
-        .replaceAll(url.toString(), "[provider-url]")
-        .replace(/https?:\/\/[^\s"']+/g, "[url]")
-        .replace(/[+-]?\d+(?:\.\d+)+/g, "[number]")
-        .replace(/[^\x20-\x7e]/g, " ")
-        .replace(/[;,]/g, " ")
-        .trim()
-        .slice(0, 120)
-      : "unknown";
     const state = name === "AbortError"
       ? "transport_abort"
       : name === "TimeoutError"
         ? "transport_timeout"
         : name === "TypeError"
-          ? `transport_type_error:${safeMessage || "unknown"}`
+          ? "transport_type_error"
           : "transport_other";
     report(state);
     return null;
