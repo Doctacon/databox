@@ -746,6 +746,8 @@ describe("weather and elevation augmentation", () => {
       expect(init.redirect).toBe("error");
       expect(init.signal).toBeInstanceOf(AbortSignal);
     }
+    const signals = upstream.mock.calls.map((call) => (call[1] as RequestInit).signal);
+    expect(new Set(signals).size).toBe(1);
     expect(cache.put).toHaveBeenCalledOnce();
     const [cacheKey, cachedResponse] = cache.put.mock.calls[0] as [Request, Response];
     expect(cacheKey.url).toContain("latitude=33.4484");
