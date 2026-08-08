@@ -469,8 +469,16 @@ async function boundedUpstreamJson(
       redirect: "error",
       signal,
     });
-  } catch {
-    report("transport_error");
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "Unknown";
+    const state = name === "AbortError"
+      ? "transport_abort"
+      : name === "TimeoutError"
+        ? "transport_timeout"
+        : name === "TypeError"
+          ? "transport_type_error"
+          : "transport_other";
+    report(state);
     return null;
   }
   if (!response.ok) {
