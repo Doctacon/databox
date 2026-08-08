@@ -715,7 +715,6 @@ def test_deploy_context_allows_only_the_reviewed_free_ai_worker(tmp_path: Path) 
             "TURNSTILE_EXPECTED_HOSTNAME": "rufous.loughondata.com",
         },
         "observability": {"enabled": False},
-        "limits": {"cpu_ms": 10},
     }
     config.write_text(json.dumps(reviewed_config), encoding="utf-8")
     for ignored in (

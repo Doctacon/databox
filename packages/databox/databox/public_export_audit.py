@@ -912,7 +912,6 @@ def _audit_reviewed_ai_worker(repository_root: Path) -> list[str]:
         "ratelimits",
         "vars",
         "observability",
-        "limits",
     }
     if set(parsed) != expected_keys:
         findings.append(
@@ -941,7 +940,6 @@ def _audit_reviewed_ai_worker(repository_root: Path) -> list[str]:
             "TURNSTILE_EXPECTED_HOSTNAME": "rufous.loughondata.com",
         },
         "observability": {"enabled": False},
-        "limits": {"cpu_ms": 10},
     }
     for key, expected in exact_values.items():
         if parsed.get(key) != expected:

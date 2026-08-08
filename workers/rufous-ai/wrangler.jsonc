@@ -8,9 +8,6 @@
   "observability": {
     "enabled": false
   },
-  "limits": {
-    "cpu_ms": 10
-  },
   "routes": [
     {
       "pattern": "rufous-ai.loughondata.com",
