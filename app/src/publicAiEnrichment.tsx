@@ -303,15 +303,19 @@ export function applyAiEnrichmentToPlan(
   const strategy = actions.map(aiActionText).join(" ");
   const prior = detail.plan.field_plan_text?.trim() || "Use the licensed historical evidence as context, not a guarantee of current presence.";
   const now = enrichment.created_at;
+  const legacyCombinedCaveat = "Live weather and AI prose are optional enhancements and were not used.";
   return {
     ...detail,
     plan: {
       ...detail.plan,
       field_plan_text: `${prior}\n\nFree AI field strategy: ${strategy}`,
       caveats: [
-        ...detail.plan.caveats.filter((item) => item !== "Live weather and AI prose are optional enhancements and were not used."),
+        ...detail.plan.caveats.filter((item) => item !== legacyCombinedCaveat && item !== "Free AI prose is optional and was not used."),
+        ...(detail.plan.caveats.includes(legacyCombinedCaveat)
+          ? ["Live weather remains optional and was not used for this plan."]
+          : []),
         "Free Workers AI selected from a fixed action list; Rufous rendered the wording locally and did not accept model-authored facts.",
-        "Live weather remains optional and was not used for this plan.",
+        "Workers AI received no weather, coordinates, dates, or free-form plan details.",
       ],
       updated_at: now,
     },

@@ -259,6 +259,17 @@ describe("Trip Planner runtime response validation", () => {
     expect(() => validatePlanDetail(value)).toThrow("Invalid trip planner response");
   });
 
+  it("accepts the normalized public NWS and USGS weather evidence identity", () => {
+    const value = structuredClone(plan);
+    value.weather!.source = "nws_usgs";
+    value.weather!.source_table = "nws_hourly_forecast_usgs_epqs";
+    value.weather!.summary = { providers: "National Weather Service + USGS EPQS" };
+    value.evidence = value.evidence.map((item) => item.evidence_id === value.weather!.evidence_id
+      ? structuredClone(value.weather!)
+      : item);
+    expect(validatePlanDetail(value).weather).toEqual(value.weather);
+  });
+
   it.each([
     ["unknown invite status", { ...plan.calendar_invite, status: "sent" }],
     ["action not allowed for status", { ...plan.calendar_invite, allowed_actions: ["send_update"] }],

@@ -2,7 +2,8 @@ import { FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
 import LocationCombobox from "./LocationCombobox";
 import { getBird } from "./birdApi";
 import { createTargetPlan, getTargetPlan } from "./targetApi";
-import type { BirdProfile, LocationSuggestion, TargetPlan } from "./types";
+import type { BirdProfile, JsonObject, LocationSuggestion, TargetPlan } from "./types";
+import { presentWeather } from "./weather";
 
 const PUBLIC_RUNTIME = import.meta.env.MODE === "public";
 type Navigate = (path: string) => void;
@@ -18,6 +19,10 @@ function weatherFact(value: number | null, unit: string) {
 
 function Result({ plan }: { plan: TargetPlan }) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const publicWeather = presentWeather({
+    forecast_summary: plan.weather.forecast_summary,
+    elevation_m: plan.weather.elevation_m,
+  } as unknown as JsonObject, {});
   useEffect(() => { document.title = `Find ${plan.common_name || plan.species_code} · Rufous`; heading.current?.focus(); }, [plan]);
   return <section className="target-result" aria-labelledby="target-result-heading">
     <h1 ref={heading} tabIndex={-1} id="target-result-heading">Find {plan.common_name || plan.scientific_name || plan.species_code}</h1>
@@ -37,9 +42,13 @@ function Result({ plan }: { plan: TargetPlan }) {
       </li>)}</ol> : <p className="empty">No qualifying modeled public observation location exists inside this radius.</p>}
       <p className="caveat">Recent records do not guarantee presence. Verify current access before visiting.</p>
     </section>
-    <section className="panel"><h2>Weather</h2><p>Status: <strong>{plan.weather.status}</strong></p>
-      <p>Retrieved: {date(plan.weather.retrieved_at)}</p>
-      <dl className="details-list bird-facts">
+    <section className="panel"><h2>{PUBLIC_RUNTIME ? "Weather and Elevation" : "Weather"}</h2><p>Status: <strong>{plan.weather.status}</strong></p>
+      <p>{PUBLIC_RUNTIME
+        ? plan.weather.status === "unavailable" ? "Plan created" : "Saved snapshot"
+        : "Retrieved"}: <time dateTime={plan.weather.retrieved_at}>{date(plan.weather.retrieved_at)}</time></p>
+      {PUBLIC_RUNTIME ? <dl className="details-list bird-facts">
+        {publicWeather.metrics.map((metric) => <div key={metric.label}><dt>{metric.label}</dt><dd>{metric.value}</dd></div>)}
+      </dl> : <dl className="details-list bird-facts">
         <div><dt>Temperature range</dt><dd>{plan.weather.forecast_summary.temperature_2m_min === null || plan.weather.forecast_summary.temperature_2m_max === null ? "Not available" : `${plan.weather.forecast_summary.temperature_2m_min.toLocaleString()}–${plan.weather.forecast_summary.temperature_2m_max.toLocaleString()} ${plan.weather.units.temperature}`}</dd></div>
         <div><dt>Average temperature</dt><dd>{weatherFact(plan.weather.forecast_summary.temperature_2m_avg, plan.weather.units.temperature)}</dd></div>
         <div><dt>Average relative humidity</dt><dd>{weatherFact(plan.weather.forecast_summary.relative_humidity_2m_avg, plan.weather.units.relative_humidity)}</dd></div>
@@ -49,8 +58,9 @@ function Result({ plan }: { plan: TargetPlan }) {
         <div><dt>Maximum wind gust</dt><dd>{weatherFact(plan.weather.forecast_summary.wind_gusts_10m_max, plan.weather.units.wind_gusts)}</dd></div>
         <div><dt>Weather codes</dt><dd>{plan.weather.forecast_summary.weather_codes.length ? plan.weather.forecast_summary.weather_codes.join(", ") : "Not available"}</dd></div>
         <div><dt>Origin elevation</dt><dd>{weatherFact(plan.weather.elevation_m, plan.weather.units.elevation)}</dd></div>
-      </dl>
+      </dl>}
       {plan.weather.caveats.length > 0 && <ul className="caveats">{plan.weather.caveats.map((item) => <li key={item}>{item}</li>)}</ul>}
+      {PUBLIC_RUNTIME && <p className="source-status">{plan.weather.status === "unavailable" ? "Optional data providers" : "Sources queried"}: <a href="https://www.weather.gov/documentation/services-web-api" rel="noreferrer">National Weather Service</a>{" + "}<a href="https://apps.nationalmap.gov/epqs/" rel="noreferrer">USGS EPQS</a>.</p>}
     </section>
     <section className="panel"><h2>Grounded guidance</h2><ol>{plan.guidance.map((item) => <li key={item}>{item}</li>)}</ol>
       <p className="source-status">{PUBLIC_RUNTIME

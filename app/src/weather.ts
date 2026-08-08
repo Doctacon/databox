@@ -81,7 +81,20 @@ function elevation(value: unknown): string {
   return `${display(meters * 3.28084, 0)} ft / ${display(meters, 0)} m`;
 }
 
-function conditions(value: unknown): string {
+function providerConditions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.flatMap((item) => {
+    if (typeof item !== "string") return [];
+    const normalized = item.normalize("NFC").replace(/\s+/g, " ").trim();
+    return normalized.length > 0 && normalized.length <= 80 && !/[\u0000-\u001f\u007f]/.test(normalized)
+      ? [normalized]
+      : [];
+  }))].slice(0, 3);
+}
+
+function conditions(value: unknown, providerValue: unknown): string {
+  const supplied = providerConditions(providerValue);
+  if (supplied.length > 0) return supplied.join(" · ");
   if (!Array.isArray(value)) return "Not reported";
   const labels = [...new Set(value.flatMap((code) => {
     const numericCode = number(code);
@@ -98,7 +111,7 @@ export function presentWeather(payload: JsonObject, evidenceSummary: JsonObject)
     ? object(payload.forecast_summary)
     : object(evidenceSummary.forecast_summary);
   const elevationValue = payload.elevation_m ?? evidenceSummary.elevation_m;
-  const condition = conditions(forecast.weather_codes);
+  const condition = conditions(forecast.weather_codes, forecast.condition_summaries);
   const elevationText = elevation(elevationValue);
 
   return {

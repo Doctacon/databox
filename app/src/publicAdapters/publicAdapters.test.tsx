@@ -14,8 +14,8 @@ import { getBird, listBirds } from "./birdApi";
 import { createObservation, getCollectionState, listLifeList, saveWatch } from "./collectionApi";
 import { getMapSnapshot } from "./mapApi";
 import { resetPublicRuntimeForTests } from "./runtime";
-import { createTargetPlan } from "./targetApi";
-import { createPlan, listPlans, searchLocations } from "./tripApi";
+import { createTargetPlan, getTargetPlan } from "./targetApi";
+import { createPlan, getPlan, listPlans, searchLocations } from "./tripApi";
 import { TripCalendarControls } from "./TripCalendarControls";
 import { evaluateBrowserWatch } from "./watchEvaluation";
 
@@ -23,7 +23,7 @@ function json(value: unknown): Promise<Response> {
   return Promise.resolve(new Response(JSON.stringify(value), { status: 200, headers: { "Content-Type": "application/json" } }));
 }
 
-function mockFixtureFetch() {
+function mockFixtureFetch(weatherResponse?: unknown) {
   return vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
     const url = String(input);
     const fixtures: Record<string, unknown> = {
@@ -36,6 +36,9 @@ function mockFixtureFetch() {
       "/data/cells/n34w113.json": n34w113,
       "/data/places/pr.json": prescott,
     };
+    if (url.startsWith("https://rufous-ai.loughondata.com/v1/weather?") && weatherResponse !== undefined) {
+      return json(weatherResponse);
+    }
     return url in fixtures ? json(fixtures[url]) : Promise.resolve(new Response("not found", { status: 404 }));
   });
 }
@@ -217,6 +220,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe("full public-app browser adapters", () => {
@@ -281,6 +285,7 @@ describe("full public-app browser adapters", () => {
     expect(trip.tool_traces.map((item) => item.tool_name)).toEqual([
       "lookup_recent_observation_evidence",
       "lookup_gbif_occurrence_evidence",
+      "load_nws_usgs_weather_elevation",
       "compose_deterministic_field_plan",
     ]);
     expect(trip.weather).toBeNull();
@@ -289,6 +294,85 @@ describe("full public-app browser adapters", () => {
     expect(target.weather.status).toBe("unavailable");
     expect(target.candidates.length).toBeGreaterThan(0);
     expect(target.caveats.join(" ")).toMatch(/No AI model, email service, or private observation/);
+  });
+
+  it("adds one optional NWS and USGS snapshot when configured and reopens it without another request", async () => {
+    vi.stubEnv("VITE_RUFOUS_AI_URL", "https://rufous-ai.loughondata.com");
+    const weatherResponse = {
+      status: "available",
+      retrieved_at: "2026-08-08T15:00:00.000Z",
+      forecast_summary: {
+        temperature_2m_min: 20,
+        temperature_2m_max: 24,
+        temperature_2m_avg: 22,
+        relative_humidity_2m_avg: 40,
+        precipitation_probability_max: 10,
+        precipitation_sum: null,
+        wind_speed_10m_max: 12.5,
+        wind_gusts_10m_max: null,
+        weather_codes: [],
+        condition_summaries: ["Mostly Sunny"],
+      },
+      elevation_m: 1_636.5,
+      caveats: ["NWS forecasts can change.", "USGS elevation is interpolated, not surveyed."],
+    };
+    const fetchMock = mockFixtureFetch(weatherResponse);
+    const [location] = await searchLocations("Prescott");
+    const trip = await createPlan({
+      location: location.display_name,
+      location_selection: location,
+      start_at: "2026-08-10T06:30",
+      duration_minutes: 120,
+      skill_level: "intermediate",
+    });
+
+    expect(trip.weather).toMatchObject({
+      source: "nws_usgs",
+      source_table: "nws_hourly_forecast_usgs_epqs",
+      status: "available",
+      payload: { elevation_m: 1_636.5, forecast_summary: { condition_summaries: ["Mostly Sunny"] } },
+    });
+    expect(trip.evidence.filter((item) => item.evidence_type === "weather_elevation_context"))
+      .toEqual([trip.weather]);
+    expect(trip.tool_traces.map((item) => item.tool_name)).toContain("load_nws_usgs_weather_elevation");
+    expect(trip.plan.caveats).toContain("Live NWS forecast and USGS elevation context were retrieved for this plan.");
+    const weatherCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/v1/weather?")).length;
+    expect(weatherCalls()).toBe(1);
+    expect(await getPlan(trip.plan.trip_plan_id)).toEqual(trip);
+    expect(weatherCalls()).toBe(1);
+  });
+
+  it("adds the same one-shot NWS and USGS context to a saved target-bird plan", async () => {
+    vi.stubEnv("VITE_RUFOUS_AI_URL", "https://rufous-ai.loughondata.com");
+    const weatherResponse = {
+      status: "partial",
+      retrieved_at: "2026-08-08T15:00:00.000Z",
+      forecast_summary: null,
+      elevation_m: 1_636.5,
+      caveats: ["NWS hourly forecast is not yet available.", "USGS elevation is interpolated, not surveyed."],
+    };
+    const fetchMock = mockFixtureFetch(weatherResponse);
+    const [location] = await searchLocations("Prescott");
+    const target = await createTargetPlan({
+      species_code: "rufhum",
+      location: location.display_name,
+      location_selection: location,
+      radius_miles: 100,
+      start_at: "2026-08-10T06:30",
+      duration_minutes: 120,
+    });
+
+    expect(target.weather).toMatchObject({
+      status: "partial",
+      elevation_m: 1_636.5,
+      units: { temperature: "°C", wind_speed: "km/h", elevation: "m" },
+      forecast_summary: { condition_summaries: [] },
+    });
+    expect(target.guidance.at(-1)).toMatch(/available saved NWS\/USGS context/);
+    const weatherCalls = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/v1/weather?")).length;
+    expect(weatherCalls()).toBe(1);
+    expect(await getTargetPlan(target.target_plan_id)).toEqual(target);
+    expect(weatherCalls()).toBe(1);
   });
 
   it("keeps observations, life list, and watches in browser storage", async () => {

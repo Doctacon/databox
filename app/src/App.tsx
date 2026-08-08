@@ -408,8 +408,15 @@ function PlanView({ detail, onCalendarChange, onAiEnriched }: {
               {detail.weather.caveats.map((item) => <li key={item}>{item}</li>)}
             </ul>
           )}
-          <p className="source-status">{PUBLIC_RUNTIME ? `Optional live weather status: ${detail.weather.status}` : `Open-Meteo source status: ${detail.weather.status}`}</p>
-        </> : <p className="empty">{PUBLIC_RUNTIME ? "Live weather is optional and unavailable for this browser-generated plan." : "Open-Meteo context was not persisted."}</p>}
+          {PUBLIC_RUNTIME && detail.weather.retrieved_at && <p>
+            Saved snapshot: <time dateTime={detail.weather.retrieved_at}>{new Date(detail.weather.retrieved_at).toLocaleString()}</time>
+          </p>}
+          <p className="source-status">{PUBLIC_RUNTIME ? <>
+            Sources queried: <a href="https://www.weather.gov/documentation/services-web-api" rel="noreferrer">National Weather Service</a>
+            {" + "}<a href="https://apps.nationalmap.gov/epqs/" rel="noreferrer">USGS EPQS</a>
+            {` · status: ${detail.weather.status}`}
+          </> : `Open-Meteo source status: ${detail.weather.status}`}</p>
+        </> : <p className="empty">{PUBLIC_RUNTIME ? "This saved plan has no weather snapshot. Create a new plan to fetch optional NWS and USGS context." : "Open-Meteo context was not persisted."}</p>}
       </section>
 
       <RecommendationGroup title={PUBLIC_RUNTIME ? "Direct recent reports (not published)" : "Recently Reported Species"} rows={recentlyReported} planId={detail.plan.trip_plan_id} />

@@ -63,4 +63,15 @@ describe("weather presentation", () => {
 
     expect(weather.condition).toBe("Clear · Mainly clear · Partly cloudy · Mixed conditions");
   });
+
+  it("prefers bounded NWS condition summaries without inventing WMO codes", () => {
+    const weather = presentWeather({
+      forecast_summary: {
+        weather_codes: [],
+        condition_summaries: ["Mostly Sunny", "Chance Showers And Thunderstorms"],
+      },
+    }, {});
+
+    expect(weather.condition).toBe("Mostly Sunny · Chance Showers And Thunderstorms");
+  });
 });

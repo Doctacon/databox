@@ -490,6 +490,8 @@ export interface TargetPlan {
       wind_speed_10m_max: number | null;
       wind_gusts_10m_max: number | null;
       weather_codes: number[];
+      /** NWS text conditions; local Open-Meteo plans may omit this field. */
+      condition_summaries?: string[];
     };
     units: {
       temperature: string;

@@ -1,6 +1,7 @@
 import { distanceMiles } from "../publicWatch";
 import { isPublicSpeciesCode } from "../publicSpeciesCode";
 import type { CreateTargetPlanInput, TargetCandidate, TargetPlan } from "../types";
+import { fetchPublicWeather } from "../publicWeather";
 import { queryPublicObservations } from "./observationStore";
 import {
   localDateTimeIso,
@@ -36,7 +37,7 @@ export async function createTargetPlan(input: CreateTargetPlanInput): Promise<Ta
   const location = input.location_selection;
   const start = localDateTimeIso(input.start_at, location.timezone);
   const end = new Date(Date.parse(start) + input.duration_minutes * 60_000).toISOString();
-  const [manifest, profile, observations] = await Promise.all([
+  const [manifest, profile, observations, weatherSnapshot] = await Promise.all([
     publicManifest(),
     publicProfile(input.species_code),
     queryPublicObservations({
@@ -47,6 +48,12 @@ export async function createTargetPlan(input: CreateTargetPlanInput): Promise<Ta
         radiusMiles: input.radius_miles,
       },
     }),
+    fetchPublicWeather({
+      latitude: location.latitude,
+      longitude: location.longitude,
+      start,
+      end,
+    }).catch(() => null),
   ]);
   const grouped = new Map<string, typeof observations>();
   for (const observation of observations) {
@@ -91,12 +98,16 @@ export async function createTargetPlan(input: CreateTargetPlanInput): Promise<Ta
       "Arrive near the start of your selected window and spend the first several minutes listening quietly.",
       "Verify current public access, closures, and site rules before departure.",
       "Review the evidence dates before departure; historical occurrences do not guarantee current presence.",
-      "Check a current National Weather Service forecast before leaving because live weather is not required by this static plan.",
+      weatherSnapshot
+        ? "Review the available saved NWS/USGS context, then verify current conditions again before leaving."
+        : "Check a current National Weather Service forecast before leaving because live weather is not required by this static plan.",
     ]
     : [
       "Arrive near the start of your selected window and spend the first several minutes listening quietly.",
       "Review the snapshot date before departure; no licensed occurrence location qualified inside this radius.",
-      "Check a current National Weather Service forecast before leaving because live weather is not required by this static plan.",
+      weatherSnapshot
+        ? "Review the available saved NWS/USGS context, then verify current conditions again before leaving."
+        : "Check a current National Weather Service forecast before leaving because live weather is not required by this static plan.",
     ];
   const now = new Date().toISOString();
   const targetPlan: TargetPlan = {
@@ -119,7 +130,22 @@ export async function createTargetPlan(input: CreateTargetPlanInput): Promise<Ta
     window_end: end,
     duration_minutes: input.duration_minutes,
     candidates,
-    weather: {
+    weather: weatherSnapshot ? {
+      status: weatherSnapshot.status,
+      retrieved_at: weatherSnapshot.retrieved_at,
+      forecast_summary: { ...weatherSnapshot.forecast_summary },
+      units: {
+        temperature: "°C",
+        relative_humidity: "%",
+        precipitation_probability: "%",
+        precipitation: "mm",
+        wind_speed: "km/h",
+        wind_gusts: "km/h",
+        elevation: "m",
+      },
+      elevation_m: weatherSnapshot.elevation_m,
+      caveats: [...weatherSnapshot.caveats],
+    } : {
       status: "unavailable",
       retrieved_at: now,
       forecast_summary: {
@@ -132,18 +158,19 @@ export async function createTargetPlan(input: CreateTargetPlanInput): Promise<Ta
         wind_speed_10m_max: null,
         wind_gusts_10m_max: null,
         weather_codes: [],
+        condition_summaries: [],
       },
       units: {
-        temperature: "°F",
+        temperature: "°C",
         relative_humidity: "%",
         precipitation_probability: "%",
-        precipitation: "in",
-        wind_speed: "mph",
-        wind_gusts: "mph",
-        elevation: "ft",
+        precipitation: "mm",
+        wind_speed: "km/h",
+        wind_gusts: "km/h",
+        elevation: "m",
       },
       elevation_m: null,
-      caveats: ["Live weather is optional and unavailable in this browser-only plan."],
+      caveats: ["Live weather and elevation are optional and unavailable in this browser-generated plan."],
     },
     action_ids: actionIds,
     guidance,

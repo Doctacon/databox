@@ -13,6 +13,7 @@ import type {
   TripPlanDetail,
 } from "../types";
 import { applyAiEnrichmentToPlan } from "../publicAiEnrichment";
+import { fetchPublicWeather, publicWeatherEvidence } from "../publicWeather";
 import { publicCatalogCall, publicCatalogPhoto, recommendationCall, recommendationPhoto } from "./media";
 import { validatePublicRecommendationAudio } from "../publicRecommendationAudio";
 import { queryPublicObservations } from "./observationStore";
@@ -143,7 +144,7 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
   }
   const start = localDateTimeIso(input.start_at, location.timezone);
   const end = new Date(Date.parse(start) + input.duration_minutes * 60_000).toISOString();
-  const [manifest, observations] = await Promise.all([
+  const [manifest, observations, weatherSnapshot] = await Promise.all([
     publicManifest(),
     queryPublicObservations({
       center: {
@@ -152,6 +153,12 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
         radiusMiles: PLAN_RADIUS_MILES,
       },
     }),
+    fetchPublicWeather({
+      latitude: location.latitude,
+      longitude: location.longitude,
+      start,
+      end,
+    }).catch(() => null),
   ]);
   const eligible = observations.map((observation) => ({
     observation,
@@ -294,7 +301,16 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
       caveats: [...recommendation.call.caveats],
     });
   }
-  const evidence = [...occurrenceEvidence, ...photoEvidence, ...callEvidence];
+  const tripPlanId = randomIdentifier("trip_");
+  const weather = weatherSnapshot
+    ? publicWeatherEvidence(weatherSnapshot, `weather_${tripPlanId}`)
+    : null;
+  const evidence = [
+    ...occurrenceEvidence,
+    ...photoEvidence,
+    ...callEvidence,
+    ...(weather ? [weather] : []),
+  ];
   const now = new Date().toISOString();
   const toolTraces: ToolTrace[] = [
     {
@@ -320,8 +336,19 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
       caveats: [],
     },
     {
-      tool_trace_id: "trace_deterministic_plan",
+      tool_trace_id: "trace_live_weather_elevation",
       step_order: 3,
+      tool_name: "load_nws_usgs_weather_elevation",
+      tool_status: weather ? "ok" : "unavailable",
+      started_at: now,
+      completed_at: now,
+      input: { region_code: "US-AZ", coordinate_precision: 4 },
+      output_summary: { status: weather?.status ?? "unavailable", source: "nws_usgs" },
+      caveats: weather?.caveats ?? ["Live NWS/USGS context was unavailable; deterministic planning continued."],
+    },
+    {
+      tool_trace_id: "trace_deterministic_plan",
+      step_order: 4,
       tool_name: "compose_deterministic_field_plan",
       tool_status: "ok",
       started_at: now,
@@ -331,7 +358,6 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
       caveats: [],
     },
   ];
-  const tripPlanId = randomIdentifier("trip_");
   const names = recommendations.slice(0, 3).map((row) => row.common_name || row.scientific_name || row.species_code).filter(Boolean);
   const detail: TripPlanDetail = {
     plan: {
@@ -353,7 +379,12 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
         : `Begin quietly near ${location.display_name}, pause often to listen, remain on public access, and use habitat cues because this release has no qualifying occurrence context inside ${PLAN_RADIUS_MILES} miles.`,
       caveats: [
         "This browser-generated plan uses generalized licensed historical occurrences.",
-        "Live weather and AI prose are optional enhancements and were not used.",
+        weather?.status === "available"
+          ? "Live NWS forecast and USGS elevation context were retrieved for this plan."
+          : weather?.status === "partial"
+            ? "Live NWS/USGS context is partial; unavailable fields remain explicitly unreported."
+            : "Live weather and elevation were unavailable; the deterministic plan remains complete.",
+        "Free AI prose is optional and was not used.",
         "Verify current access, conditions, and closures before visiting.",
       ],
       created_at: now,
@@ -361,7 +392,7 @@ export async function createPlan(input: CreatePlanInput): Promise<TripPlanDetail
     },
     recommendations,
     evidence,
-    weather: null,
+    weather,
     media: callMedia,
     tool_traces: toolTraces,
     calendar_invite: {

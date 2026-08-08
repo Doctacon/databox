@@ -325,7 +325,9 @@ export function validatePlanDetail(value: unknown): TripPlanDetail {
   if (evidenceRows.some((item) => item.recommendation_id !== null && !recommendationSet.has(item.recommendation_id))
     || mediaRows.some((item) => item.recommendation_id !== null && !recommendationSet.has(item.recommendation_id))) invalid();
 
-  const weatherEvidence = evidenceRows.filter((item) => item.source === "open_meteo");
+  const weatherEvidence = evidenceRows.filter((item) => (
+    item.source === "open_meteo" || item.source === "nws_usgs"
+  ) && item.evidence_type === "weather_elevation_context");
   if (weather === null ? weatherEvidence.length !== 0 : weatherEvidence.length !== 1
     || (weather !== null && (weather.recommendation_id !== null || weather.evidence_type !== "weather_elevation_context"
       || !equivalent(weather, weatherEvidence[0])))) invalid();
