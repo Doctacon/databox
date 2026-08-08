@@ -1,5 +1,50 @@
 # Changelog
 
+## [0.7.0](https://github.com/Doctacon/databox/compare/v0.6.0...v0.7.0) (2026-08-08)
+
+
+### Features
+
+* launch Rufous as a static public app ([c69448d](https://github.com/Doctacon/databox/commit/c69448d421aaba35cf984b1b4dbd7d791fc025fe))
+* **rufous:** add bounded Workers AI enhancement ([0802134](https://github.com/Doctacon/databox/commit/08021343007ae2271661ededbdd8a6659b36ca53))
+* **rufous:** add free weather elevation endpoint ([a5a7958](https://github.com/Doctacon/databox/commit/a5a79587c158caf8a3dbf82e58cf52fb5a49a51e))
+* **rufous:** add public weather elevation context ([dff5d7f](https://github.com/Doctacon/databox/commit/dff5d7f2eae3e42651e83f266e7b93f058d4b16a))
+* **rufous:** group field map encounters into species stacks ([38a7c99](https://github.com/Doctacon/databox/commit/38a7c99462daca1304efa72fd2abe06fb873bc71))
+* **rufous:** publish AVONET data parity ([bc39e67](https://github.com/Doctacon/databox/commit/bc39e67d29aa5349d1ff2ebc7efab3baa820dbb4))
+* **rufous:** publish curated USFWS bird images ([21e0c91](https://github.com/Doctacon/databox/commit/21e0c9143f63743d012a63a7aa0f27c6e6526541))
+* **rufous:** publish licensed bird audio ([26e6332](https://github.com/Doctacon/databox/commit/26e6332bc4bdb6b1ca9a0c2296fd7a263ccf4996))
+
+
+### Bug Fixes
+
+* **rufous:** allow standard Ubuntu 24 runner ([de5242e](https://github.com/Doctacon/databox/commit/de5242e7edd5839bb401d9bcd441a71aac89ca76))
+* **rufous:** compact public viewport layouts ([71b9549](https://github.com/Doctacon/databox/commit/71b95491c80eeb8d4edbfb4f75786441aa660468))
+* **rufous:** fall back to deployed Pages snapshot [skip ci] ([f9ca3f3](https://github.com/Doctacon/databox/commit/f9ca3f3706eb91880d11ecbab238deef711c90c4))
+* **rufous:** isolate audio test fixture encoder ([7f8ffa8](https://github.com/Doctacon/databox/commit/7f8ffa8e338de614d1c949251b4a1dceb92670e8))
+* **rufous:** keep bird photos fully visible ([9ae22e5](https://github.com/Doctacon/databox/commit/9ae22e5c2b5b0214f6509f2b788d5b97c1bc8497))
+* **rufous:** let Workers Free enforce CPU limit ([ae6db5d](https://github.com/Doctacon/databox/commit/ae6db5dbbc231e2f078e11548a9328aaa0ab0dcd))
+* **rufous:** load AVONET independently in production ([065424c](https://github.com/Doctacon/databox/commit/065424c5b42fa3fe0ab14c2fed94fa19fc315508))
+* **rufous:** make audio release tests self-contained ([51a88e4](https://github.com/Doctacon/databox/commit/51a88e4c4a63827a2b37fe10ee9c7e8cfc98e93d))
+* **rufous:** make AVONET projection lintable ([ff5f174](https://github.com/Doctacon/databox/commit/ff5f174d8f240c1e121c91dc36cfb1d0c619efc7))
+* **rufous:** prevent immutable SPA asset poisoning [skip ci] ([18aa237](https://github.com/Doctacon/databox/commit/18aa2375db82117dbb5e8aacd3bc8abd91732dba))
+* **rufous:** repin deterministic Condor audio ([2a132c5](https://github.com/Doctacon/databox/commit/2a132c5bb1ef3e659e7ccd68bc21d7461443a6e5))
+* **rufous:** reuse verified audio cache for upload ([ee1c979](https://github.com/Doctacon/databox/commit/ee1c9798530cbde22c0176609df3c968e75e98b1))
+* **rufous:** share weather provider timeout budget ([99c0b50](https://github.com/Doctacon/databox/commit/99c0b50e90cfc34a5ddcb5de7ebb3c02f26514f2))
+* **rufous:** skip codec tests without audio toolchain ([50a74e7](https://github.com/Doctacon/databox/commit/50a74e7007069f7764c98cc9807af14c26157bdd))
+* **rufous:** use Workers-compatible upstream redirects ([2648123](https://github.com/Doctacon/databox/commit/2648123a8177654a54c395d4085e7b25d9b21fcd))
+
+
+### Documentation
+
+* **readme:** enhance quickstart and reflect quack integration ([555521f](https://github.com/Doctacon/databox/commit/555521fb6a1ce442e87821cedac5ffa55719f8c1))
+* **rufous-trip-planner:** update rufous trip planner image ([47fd938](https://github.com/Doctacon/databox/commit/47fd9388c5443ef58b3d29eddd094c7f405e8f45))
+* **rufous:** record public audio edge rules [skip ci] ([67512e0](https://github.com/Doctacon/databox/commit/67512e0bb04226ddf90d178720e419669fceaf11))
+
+
+### Refactoring
+
+* **fieldmap:** visually hide encounter count for accessibility ([09c474b](https://github.com/Doctacon/databox/commit/09c474b70d3d240472a549fda8888ab58d10be2d))
+
 ## [0.6.0](https://github.com/Doctacon/databox/compare/v0.5.0...v0.6.0) (2026-07-15)
 
 
