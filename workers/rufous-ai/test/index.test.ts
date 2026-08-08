@@ -743,7 +743,7 @@ describe("weather and elevation augmentation", () => {
       const init = call[1] as RequestInit;
       const headers = new Headers(init.headers);
       expect(headers.get("User-Agent")).toBe("(loughondata.com, connor@loughondata.com)");
-      expect(init.redirect).toBe("error");
+      expect(init.redirect).toBe("manual");
       expect(init.signal).toBeInstanceOf(AbortSignal);
     }
     const signals = upstream.mock.calls.map((call) => (call[1] as RequestInit).signal);

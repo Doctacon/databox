@@ -466,7 +466,8 @@ async function boundedUpstreamJson(
         Accept: accept,
         "User-Agent": UPSTREAM_USER_AGENT,
       },
-      redirect: "error",
+      // Workers rejects redirect="error" at runtime. Manual keeps redirects visible and unfollowed.
+      redirect: "manual",
       signal,
     });
   } catch (error) {
