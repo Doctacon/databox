@@ -10,9 +10,16 @@ import {
 } from "../src/index";
 
 const ENDPOINT = "https://rufous-ai.loughondata.com/v1/ai/enrich";
+const WEATHER_ENDPOINT = "https://rufous-ai.loughondata.com/v1/weather";
 const ORIGIN = "https://rufous.loughondata.com";
 const MODEL = "@cf/zai-org/glm-4.7-flash";
 const EXPECTED_HASH = "f26e775bce0ada160cac133f86444ea4cffe6c837995508d7360c92a2d7ed2b2";
+const WEATHER_QUERY = {
+  latitude: "33.4484",
+  longitude: "-112.0740",
+  start: "2026-08-08T14:30:00Z",
+  end: "2026-08-08T15:30:00Z",
+};
 
 const BASE_FACTS: Fact[] = [
   { id: "time_of_day", value: "dawn" },
@@ -91,6 +98,126 @@ function postRequest(payload: unknown, headers: Record<string, string> = {}): Re
     },
     body: JSON.stringify(payload),
   });
+}
+
+function weatherRequest(
+  query: Record<string, string | string[]> = WEATHER_QUERY,
+  method = "GET",
+  headers: Record<string, string> = {},
+): Request {
+  const url = new URL(WEATHER_ENDPOINT);
+  for (const [key, rawValue] of Object.entries(query)) {
+    const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+    for (const value of values) url.searchParams.append(key, value);
+  }
+  return new Request(url, {
+    method,
+    headers: {
+      Origin: ORIGIN,
+      "CF-Connecting-IP": "203.0.113.9",
+      ...headers,
+    },
+  });
+}
+
+const NWS_POINTS = {
+  type: "Feature",
+  properties: {
+    forecastHourly: "https://api.weather.gov/gridpoints/PSR/159,58/forecast/hourly",
+  },
+};
+
+const NWS_FORECAST = {
+  properties: {
+    periods: [
+      {
+        startTime: "2026-08-08T07:00:00-07:00",
+        endTime: "2026-08-08T08:00:00-07:00",
+        temperature: 32,
+        temperatureUnit: "C",
+        probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: 10 },
+        relativeHumidity: { unitCode: "wmoUnit:percent", value: 35 },
+        windSpeed: "8 km/h",
+        shortForecast: "Mostly Sunny",
+      },
+      {
+        startTime: "2026-08-08T08:00:00-07:00",
+        endTime: "2026-08-08T09:00:00-07:00",
+        temperature: 34,
+        temperatureUnit: "C",
+        probabilityOfPrecipitation: { unitCode: "wmoUnit:percent", value: 20 },
+        relativeHumidity: { unitCode: "wmoUnit:percent", value: 45 },
+        windSpeed: "12 km/h",
+        shortForecast: "Slight Chance of Showers",
+      },
+    ],
+  },
+};
+
+const USGS_ELEVATION = {
+  location: {
+    x: -112.074,
+    y: 33.4484,
+    spatialReference: { wkid: 4326, latestWkid: 4326 },
+  },
+  locationId: 0,
+  value: "331.673278809",
+  rasterId: 19327,
+  resolution: 1,
+};
+
+interface WeatherUpstreamOptions {
+  points?: unknown;
+  forecast?: unknown;
+  elevation?: unknown;
+  pointsStatus?: number;
+  forecastStatus?: number;
+  elevationStatus?: number;
+}
+
+function weatherUpstreams(options: WeatherUpstreamOptions = {}): ReturnType<typeof vi.fn> {
+  const {
+    points = NWS_POINTS,
+    forecast = NWS_FORECAST,
+    elevation = USGS_ELEVATION,
+    pointsStatus = 200,
+    forecastStatus = 200,
+    elevationStatus = 200,
+  } = options;
+  const upstream = vi.fn().mockImplementation(async (input: string | URL | Request) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.startsWith("https://api.weather.gov/points/")) {
+      return new Response(JSON.stringify(points), {
+        status: pointsStatus,
+        headers: { "Content-Type": "application/geo+json" },
+      });
+    }
+    if (url.startsWith("https://api.weather.gov/gridpoints/")) {
+      return new Response(JSON.stringify(forecast), {
+        status: forecastStatus,
+        headers: { "Content-Type": "application/geo+json" },
+      });
+    }
+    if (url.startsWith("https://epqs.nationalmap.gov/v1/json")) {
+      return new Response(JSON.stringify(elevation), {
+        status: elevationStatus,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    throw new Error(`unexpected upstream URL: ${url}`);
+  });
+  vi.stubGlobal("fetch", upstream);
+  return upstream;
+}
+
+function weatherCacheMock(cached?: Response): {
+  match: ReturnType<typeof vi.fn>;
+  put: ReturnType<typeof vi.fn>;
+} {
+  const match = vi.fn().mockResolvedValue(cached);
+  const put = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal("caches", { default: { match, put } });
+  return { match, put };
 }
 
 async function body(response: Response): Promise<unknown> {
@@ -561,5 +688,213 @@ describe("single bounded Workers AI operation", () => {
     const response = await handleRequest(postRequest(payload), mocks.env);
     await expectUnavailable(response, 503, "invalid_ai_response");
     expect(mocks.aiRun).toHaveBeenCalledOnce();
+  });
+});
+
+describe("weather and elevation augmentation", () => {
+  it("returns the exact normalized NWS and USGS contract in canonical metric units", async () => {
+    const mocks = mockEnv(EXPECTED_HASH);
+    const upstream = weatherUpstreams();
+    const cache = weatherCacheMock();
+    const response = await handleRequest(weatherRequest(), mocks.env);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(ORIGIN);
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=300, s-maxage=900");
+    await expect(body(response)).resolves.toEqual({
+      status: "available",
+      retrieved_at: expect.any(String),
+      forecast_summary: {
+        temperature_2m_min: 32,
+        temperature_2m_max: 34,
+        temperature_2m_avg: 33,
+        relative_humidity_2m_avg: 40,
+        precipitation_probability_max: 20,
+        precipitation_sum: null,
+        wind_speed_10m_max: 12,
+        wind_gusts_10m_max: null,
+        weather_codes: [],
+        condition_summaries: ["Mostly Sunny", "Slight Chance of Showers"],
+      },
+      elevation_m: 331.7,
+      caveats: [
+        "NWS hourly forecast data is time-sensitive and may change.",
+        "NWS hourly data does not report precipitation totals, wind gusts, or WMO weather codes for this summary.",
+        "USGS elevation is interpolated 3DEP data and is not a surveyed elevation.",
+      ],
+    });
+
+    expect(mocks.rateLimit).toHaveBeenCalledOnce();
+    expect(mocks.aiRun).not.toHaveBeenCalled();
+    expect(upstream).toHaveBeenCalledTimes(3);
+    const urls = upstream.mock.calls.map((call) => new URL(String(call[0])));
+    expect(urls.find((url) => url.pathname.startsWith("/points/"))?.pathname)
+      .toBe("/points/33.4484,-112.0740");
+    const hourly = urls.find((url) => url.pathname.endsWith("/forecast/hourly"));
+    expect(hourly?.origin).toBe("https://api.weather.gov");
+    expect(hourly?.search).toBe("?units=si");
+    const elevation = urls.find((url) => url.hostname === "epqs.nationalmap.gov");
+    expect(elevation?.searchParams.get("x")).toBe("-112.0740");
+    expect(elevation?.searchParams.get("y")).toBe("33.4484");
+    expect(elevation?.searchParams.get("units")).toBe("Meters");
+    expect(elevation?.searchParams.get("wkid")).toBe("4326");
+    expect(elevation?.searchParams.get("includeDate")).toBe("false");
+    for (const call of upstream.mock.calls) {
+      const init = call[1] as RequestInit;
+      const headers = new Headers(init.headers);
+      expect(headers.get("User-Agent")).toBe("(loughondata.com, connor@loughondata.com)");
+      expect(init.redirect).toBe("error");
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+    }
+    expect(cache.put).toHaveBeenCalledOnce();
+    const [cacheKey, cachedResponse] = cache.put.mock.calls[0] as [Request, Response];
+    expect(cacheKey.url).toContain("latitude=33.4484");
+    expect(cachedResponse.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    expect(cachedResponse.headers.get("Cache-Control")).toBe("public, max-age=300, s-maxage=900");
+  });
+
+  it("returns a partial payload when USGS is unavailable without retrying or using AI", async () => {
+    const mocks = mockEnv(EXPECTED_HASH);
+    const upstream = weatherUpstreams({ elevationStatus: 503 });
+    const response = await handleRequest(weatherRequest(), mocks.env);
+    expect(response.status).toBe(200);
+    const payload = await response.json() as Record<string, unknown>;
+    expect(payload.status).toBe("partial");
+    expect(payload.forecast_summary).toMatchObject({ temperature_2m_avg: 33 });
+    expect(payload.elevation_m).toBeNull();
+    expect(payload.caveats).toContain("USGS elevation is temporarily unavailable.");
+    expect(upstream).toHaveBeenCalledTimes(3);
+    expect(mocks.aiRun).not.toHaveBeenCalled();
+  });
+
+  it("returns elevation-only partial data when NWS is unavailable", async () => {
+    const mocks = mockEnv(EXPECTED_HASH);
+    const upstream = weatherUpstreams({ pointsStatus: 503 });
+    const response = await handleRequest(weatherRequest(), mocks.env);
+    expect(response.status).toBe(200);
+    await expect(body(response)).resolves.toMatchObject({
+      status: "partial",
+      forecast_summary: null,
+      elevation_m: 331.7,
+      caveats: expect.arrayContaining(["NWS hourly forecast is unavailable for the selected trip window."]),
+    });
+    expect(upstream).toHaveBeenCalledTimes(2);
+    expect(mocks.aiRun).not.toHaveBeenCalled();
+  });
+
+  it("fails closed without data or caching when both independent providers fail", async () => {
+    const mocks = mockEnv(EXPECTED_HASH);
+    const upstream = weatherUpstreams({ pointsStatus: 503, elevationStatus: 503 });
+    const cache = weatherCacheMock();
+    const response = await handleRequest(weatherRequest(), mocks.env);
+    await expectUnavailable(response, 503, "weather_unavailable");
+    expect(upstream).toHaveBeenCalledTimes(2);
+    expect(cache.put).not.toHaveBeenCalled();
+    expect(mocks.aiRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects an untrusted hourly URL and never follows it", async () => {
+    const mocks = mockEnv(EXPECTED_HASH);
+    const upstream = weatherUpstreams({
+      points: { properties: { forecastHourly: "https://evil.example/steal" } },
+    });
+    const response = await handleRequest(weatherRequest(), mocks.env);
+    await expect(body(response)).resolves.toMatchObject({
+      status: "partial",
+      forecast_summary: null,
+      elevation_m: 331.7,
+    });
+    expect(upstream).toHaveBeenCalledTimes(2);
+    expect(upstream.mock.calls.map((call) => String(call[0])).join(" ")).not.toContain("evil.example");
+  });
+
+  it("uses the existing limiter on cache misses with a weather-specific opaque key", async () => {
+    const mocks = mockEnv(EXPECTED_HASH);
+    mocks.rateLimit.mockResolvedValue({ success: false });
+    const upstream = weatherUpstreams();
+    const response = await handleRequest(weatherRequest(), mocks.env);
+    await expectUnavailable(response, 429, "rate_limited");
+    expect(response.headers.get("Retry-After")).toBe("60");
+    expect(upstream).not.toHaveBeenCalled();
+    expect(mocks.aiRun).not.toHaveBeenCalled();
+
+    const expectedDigest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode("rufous-weather-rate-v1\u0000203.0.113.9"),
+    );
+    const expectedKey = [...new Uint8Array(expectedDigest)]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    expect(mocks.rateLimit).toHaveBeenCalledWith({ key: expectedKey });
+  });
+
+  it("serves a successful cached response before rate limiting or any upstream call", async () => {
+    const cachedPayload = {
+      status: "partial",
+      retrieved_at: "2026-08-08T14:00:00.000Z",
+      forecast_summary: null,
+      elevation_m: 331.7,
+      caveats: ["NWS hourly forecast is unavailable for the selected trip window."],
+    };
+    const cache = weatherCacheMock(new Response(JSON.stringify(cachedPayload), { status: 200 }));
+    const mocks = mockEnv(EXPECTED_HASH);
+    mocks.env.RATE_LIMITER = undefined;
+    const upstream = vi.fn();
+    vi.stubGlobal("fetch", upstream);
+
+    const response = await handleRequest(weatherRequest(), mocks.env);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe(ORIGIN);
+    expect(response.headers.get("Cache-Control")).toBe("public, max-age=300, s-maxage=900");
+    await expect(body(response)).resolves.toEqual(cachedPayload);
+    expect(cache.match).toHaveBeenCalledOnce();
+    expect(cache.put).not.toHaveBeenCalled();
+    expect(upstream).not.toHaveBeenCalled();
+    expect(mocks.aiRun).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an extra key", { ...WEATHER_QUERY, debug: "1" }],
+    ["a duplicate coordinate", { ...WEATHER_QUERY, latitude: ["33.4484", "33.5"] }],
+    ["a coordinate outside Arizona", { ...WEATHER_QUERY, longitude: "-120" }],
+    ["a non-ISO timestamp", { ...WEATHER_QUERY, start: "tomorrow" }],
+    ["an impossible calendar timestamp", { ...WEATHER_QUERY, start: "2026-02-30T14:30:00Z" }],
+    ["an inverted interval", { ...WEATHER_QUERY, end: "2026-08-08T14:00:00Z" }],
+    ["a window over 24 hours", { ...WEATHER_QUERY, end: "2026-08-09T15:30:01Z" }],
+  ])("rejects %s before rate limit or provider calls", async (_name, query) => {
+    const mocks = mockEnv(EXPECTED_HASH);
+    const upstream = weatherUpstreams();
+    const response = await handleRequest(weatherRequest(query), mocks.env);
+    await expectUnavailable(response, 400, "invalid_request");
+    expect(mocks.rateLimit).not.toHaveBeenCalled();
+    expect(upstream).not.toHaveBeenCalled();
+    expect(mocks.aiRun).not.toHaveBeenCalled();
+  });
+
+  it("enforces the exact origin, GET method, and narrow preflight", async () => {
+    const mocks = mockEnv(EXPECTED_HASH);
+    const denied = await handleRequest(weatherRequest(WEATHER_QUERY, "GET", {
+      Origin: "https://evil.example",
+    }), mocks.env);
+    await expectUnavailable(denied, 403, "origin_denied", null);
+
+    const wrongMethod = await handleRequest(weatherRequest(WEATHER_QUERY, "POST"), mocks.env);
+    await expectUnavailable(wrongMethod, 405, "method_not_allowed");
+    expect(wrongMethod.headers.get("Allow")).toBe("GET, OPTIONS");
+
+    const preflightRequest = weatherRequest(WEATHER_QUERY, "OPTIONS", {
+      "Access-Control-Request-Method": "GET",
+      "Access-Control-Request-Headers": "accept",
+    });
+    const preflightResponse = await handleRequest(preflightRequest, mocks.env);
+    expect(preflightResponse.status).toBe(204);
+    expect(preflightResponse.headers.get("Access-Control-Allow-Methods")).toBe("GET, OPTIONS");
+    expect(preflightResponse.headers.get("Access-Control-Allow-Headers")).toBe("Accept");
+
+    const badPreflight = weatherRequest(WEATHER_QUERY, "OPTIONS", {
+      "Access-Control-Request-Method": "GET",
+      "Access-Control-Request-Headers": "authorization",
+    });
+    await expectUnavailable(await handleRequest(badPreflight, mocks.env), 400, "invalid_request");
   });
 });
