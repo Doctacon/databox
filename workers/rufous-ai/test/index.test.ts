@@ -790,6 +790,8 @@ describe("weather and elevation augmentation", () => {
     const cache = weatherCacheMock();
     const response = await handleRequest(weatherRequest(), mocks.env);
     await expectUnavailable(response, 503, "weather_unavailable");
+    expect(response.headers.get("X-Rufous-Upstream-State"))
+      .toBe("nws=http_503>invalid_points_schema; usgs=http_503>invalid_elevation_schema");
     expect(upstream).toHaveBeenCalledTimes(2);
     expect(cache.put).not.toHaveBeenCalled();
     expect(mocks.aiRun).not.toHaveBeenCalled();

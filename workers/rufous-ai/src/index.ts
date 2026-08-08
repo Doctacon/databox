@@ -456,6 +456,7 @@ async function boundedUpstreamJson(
   url: URL,
   accept: string,
   signal: AbortSignal,
+  report: (state: string) => void,
 ): Promise<unknown | null> {
   let response: Response;
   try {
@@ -469,22 +470,36 @@ async function boundedUpstreamJson(
       signal,
     });
   } catch {
+    report("transport_error");
     return null;
   }
-  if (!response.ok) return null;
+  if (!response.ok) {
+    report(`http_${response.status}`);
+    return null;
+  }
   const contentLength = response.headers.get("Content-Length");
-  if (contentLength && (!/^\d+$/.test(contentLength) || Number(contentLength) > 512 * 1024)) return null;
+  if (contentLength && (!/^\d+$/.test(contentLength) || Number(contentLength) > 512 * 1024)) {
+    report("invalid_content_length");
+    return null;
+  }
 
   let text: string;
   try {
     text = await response.text();
   } catch {
+    report("body_read_error");
     return null;
   }
-  if (text.length === 0 || text.length > 512 * 1024) return null;
+  if (text.length === 0 || text.length > 512 * 1024) {
+    report("invalid_body_length");
+    return null;
+  }
   try {
-    return JSON.parse(text) as unknown;
+    const payload = JSON.parse(text) as unknown;
+    report("json_received");
+    return payload;
   } catch {
+    report("invalid_json");
     return null;
   }
 }
@@ -605,14 +620,26 @@ function aggregateForecast(payload: unknown, query: WeatherQuery): ForecastSumma
   };
 }
 
-async function nwsForecast(query: WeatherQuery, signal: AbortSignal): Promise<ForecastSummary | null> {
+async function nwsForecast(
+  query: WeatherQuery,
+  signal: AbortSignal,
+  report: (state: string) => void,
+): Promise<ForecastSummary | null> {
   const pointsUrl = new URL(`${NWS_POINTS_URL}/${query.latitudeText},${query.longitudeText}`);
-  const points = await boundedUpstreamJson(pointsUrl, "application/geo+json", signal);
-  if (!isRecord(points) || !isRecord(points.properties)) return null;
+  const points = await boundedUpstreamJson(pointsUrl, "application/geo+json", signal, report);
+  if (!isRecord(points) || !isRecord(points.properties)) {
+    report("invalid_points_schema");
+    return null;
+  }
   const hourlyUrl = validatedForecastHourlyUrl(points.properties.forecastHourly);
-  if (!hourlyUrl) return null;
-  const forecast = await boundedUpstreamJson(hourlyUrl, "application/geo+json", signal);
-  return aggregateForecast(forecast, query);
+  if (!hourlyUrl) {
+    report("invalid_hourly_url");
+    return null;
+  }
+  const forecast = await boundedUpstreamJson(hourlyUrl, "application/geo+json", signal, report);
+  const summary = aggregateForecast(forecast, query);
+  report(summary ? "available" : "invalid_forecast_schema_or_window");
+  return summary;
 }
 
 function elevationFromPayload(payload: unknown, query: WeatherQuery): number | null {
@@ -639,14 +666,23 @@ function elevationFromPayload(payload: unknown, query: WeatherQuery): number | n
     : null;
 }
 
-async function usgsElevation(query: WeatherQuery, signal: AbortSignal): Promise<number | null> {
+async function usgsElevation(
+  query: WeatherQuery,
+  signal: AbortSignal,
+  report: (state: string) => void,
+): Promise<number | null> {
   const url = new URL(USGS_EPQS_URL);
   url.searchParams.set("x", query.longitudeText);
   url.searchParams.set("y", query.latitudeText);
   url.searchParams.set("units", "Meters");
   url.searchParams.set("wkid", "4326");
   url.searchParams.set("includeDate", "false");
-  return elevationFromPayload(await boundedUpstreamJson(url, "application/json", signal), query);
+  const elevation = elevationFromPayload(
+    await boundedUpstreamJson(url, "application/json", signal, report),
+    query,
+  );
+  report(elevation === null ? "invalid_elevation_schema" : "available");
+  return elevation;
 }
 
 function weatherCaveats(forecast: ForecastSummary | null, elevation: number | null): string[] {
@@ -699,12 +735,20 @@ async function handleWeather(request: Request, url: URL, env: Env, origin: strin
   }
 
   const upstreamSignal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
+  let nwsState = "not_started";
+  let usgsState = "not_started";
   const [forecastSummary, elevation] = await Promise.all([
-    nwsForecast(query, upstreamSignal),
-    usgsElevation(query, upstreamSignal),
+    nwsForecast(query, upstreamSignal, (state) => {
+      nwsState = nwsState === "not_started" ? state : `${nwsState}>${state}`;
+    }),
+    usgsElevation(query, upstreamSignal, (state) => {
+      usgsState = usgsState === "not_started" ? state : `${usgsState}>${state}`;
+    }),
   ]);
   if (!forecastSummary && elevation === null) {
-    return unavailable("weather_unavailable", 503, origin);
+    const response = unavailable("weather_unavailable", 503, origin);
+    response.headers.set("X-Rufous-Upstream-State", `nws=${nwsState}; usgs=${usgsState}`);
+    return response;
   }
 
   const payload: WeatherPayload = {
