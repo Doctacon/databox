@@ -308,6 +308,7 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
   const [weight, setWeight] = useState<WeightFilter>("all");
   const [activeIndex, setActiveIndex] = useState(0);
   const wheelRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -374,6 +375,10 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
   }, [birds, category, family, habitat, query, sort, weight]);
   const currentIndex = Math.min(activeIndex, Math.max(0, filtered.length - 1));
   const activeBird = filtered[currentIndex] ?? null;
+
+  useEffect(() => {
+    if (previewRef.current) previewRef.current.scrollTop = 0;
+  }, [activeBird?.species_code]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -448,7 +453,7 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
             {filtered.map((bird, index) => <div id={`wheel-${bird.species_code}`} key={bird.species_code} data-wheel-index={index} role="option" aria-selected={index === currentIndex} className={`bird-wheel-option distance-${Math.min(3, Math.abs(index - currentIndex))}`} onClick={() => center(index)}>{displayName(bird)}</div>)}
             <div className="bird-wheel-spacer" aria-hidden="true" />
           </div>
-          <article className="bird-wheel-preview" aria-live="polite">
+          <article ref={previewRef} className="bird-wheel-preview" aria-live="polite">
             <CatalogPhotoMedia photo={activeBird.photo} label={activeBird.common_name && activeBird.scientific_name ? `${activeBird.common_name} (${activeBird.scientific_name})` : displayName(activeBird)} compact />
             <div className="bird-card-identity"><span className="badge">{categoryLabel(activeBird.taxonomic_category)}</span><span className="bird-code">{activeBird.species_code}</span></div>
             <h2>{displayName(activeBird)}</h2>{activeBird.common_name && activeBird.scientific_name && <p className="scientific">{activeBird.scientific_name}</p>}

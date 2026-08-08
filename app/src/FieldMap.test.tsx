@@ -360,6 +360,12 @@ describe("Rufous Field Map", () => {
     expect(styles).toMatch(/\.field-map-main\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
     expect(styles).toMatch(/\.sr-only\s*\{[^}]*position:\s*absolute;[^}]*width:\s*1px;[^}]*height:\s*1px/s);
     expect(styles).toMatch(/\.field-map-rail\s*\{[^}]*display:\s*grid;[^}]*gap:\s*18px/s);
+    expect(styles).toMatch(/--field-stage-height:\s*clamp\(360px, 50dvh, 520px\)/);
+    expect(styles).toMatch(/\.map-canvas\s*\{[^}]*min-height:\s*var\(--field-stage-height\)/s);
+    expect(styles).toMatch(/\.encounter-list\s*\{[^}]*max-height:\s*var\(--field-stage-height\);[^}]*overflow-y:\s*auto/s);
+    expect(styles).toMatch(/@media \(min-width:\s*1101px\)[\s\S]*?\.field-map-main\s*\{[^}]*grid-template-columns:\s*minmax\(250px, \.55fr\) minmax\(0, 1\.45fr\)/);
+    expect(styles).toMatch(/\.field-map-main > \.field-map-layout,[\s\S]*?grid-column:\s*1 \/ -1/);
+    expect(styles).toMatch(/@media \(min-width:\s*821px\) and \(max-width:\s*1050px\)[\s\S]*?\.field-map-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
     expect(styles).toMatch(/@media \(max-width:\s*820px\)[\s\S]*?\.field-map-layout[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
     expect(styles).toMatch(/@media \(max-width:\s*540px\)[\s\S]*?\.map-canvas\s*\{\s*min-height:\s*360px/);
     expect(styles).toMatch(/\.encounter-sighting-button span\s*\{[^}]*overflow-wrap:\s*break-word;\s*word-break:\s*normal/s);

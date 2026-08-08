@@ -376,6 +376,20 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(document.querySelector("audio")).toBeNull();
   });
 
+  it("returns the preview to its photo when the active bird changes", async () => {
+    window.history.replaceState(null, "", "/birds");
+    const birds = Array.from({ length: 706 }, (_, index) => bird(index));
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
+    render(<App />);
+    await screen.findByText("706 matching taxa · 706 total");
+
+    const preview = document.querySelector<HTMLElement>(".bird-wheel-preview");
+    expect(preview).not.toBeNull();
+    preview!.scrollTop = 160;
+    await userEvent.click(screen.getByRole("option", { name: "Arizona Bird 001" }));
+    await waitFor(() => expect(preview).toHaveProperty("scrollTop", 0));
+  });
+
   it("browses every USFWS profile photo lazily in accessible twelve-photo batches", async () => {
     const photos = Array.from({ length: 13 }, (_, index) => usfwsPhoto(index + 1));
     render(<SpeciesPhotoGallery photo={photos[0]} photos={photos} label="Rufous Hummingbird (Selasphorus rufus)" />);
@@ -560,9 +574,25 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(styles).toMatch(/\.responsive-bird-photo, \.catalog-photo-frame\s*>\s*img\s*\{[^}]*object-fit:\s*contain;[^}]*object-position:\s*center/s);
     expect(styles).toMatch(/\.responsive-bird-photo, \.catalog-photo-frame\s*>\s*img\s*\{[^}]*min-height:\s*0;[^}]*max-height:\s*100%/s);
     expect(styles).toMatch(/\.catalog-photo-profile \.catalog-photo-frame\s*\{[^}]*max-height:\s*none/s);
-    expect(styles).toMatch(/\.bird-wheel-preview \.catalog-photo-frame\s*\{[^}]*max-height:\s*none/s);
+    expect(styles).toMatch(/--bird-wheel-height:\s*clamp\(340px, 48dvh, 420px\)/);
+    expect(styles).toMatch(/\.bird-wheel\s*\{[^}]*height:\s*var\(--bird-wheel-height\)/s);
+    expect(styles).toMatch(/\.bird-wheel-spacer\s*\{[^}]*height:\s*calc\(\(var\(--bird-wheel-height\) - 60px\) \/ 2\)/s);
+    expect(styles).toMatch(/\.bird-wheel-preview \.catalog-photo-frame\s*\{[^}]*height:\s*clamp\(220px, 32dvh, 300px\);[^}]*aspect-ratio:\s*auto;[^}]*max-height:\s*none/s);
+    expect(styles).toMatch(/@media \(max-width:\s*820px\)[\s\S]*?\.bird-wheel-layout\s*\{[^}]*--bird-wheel-height:\s*380px/s);
+    expect(styles).not.toMatch(/@media \(max-width:\s*820px\)[\s\S]*?\.bird-wheel\s*\{[^}]*height:\s*380px/s);
     expect(styles).toMatch(/\.catalog-gallery-thumbnails img\s*\{[^}]*object-fit:\s*cover/s);
     expect(styles).not.toContain(".catalog-photo-frame img {");
+  });
+
+  it("uses a compact short-desktop shell without shrinking type or controls", () => {
+    expect(styles).toMatch(/--page-gutter:\s*clamp\(16px, 2vw, 24px\)/);
+    expect(styles).toMatch(/--panel-pad:\s*clamp\(14px, 1\.5vw, 20px\)/);
+    expect(styles).toMatch(/\.site-header nav a\s*\{[^}]*min-height:\s*44px;[^}]*white-space:\s*nowrap/s);
+    expect(styles).toMatch(/@media \(max-width:\s*1050px\)[\s\S]*?\.site-header nav\s*\{[^}]*width:\s*100%;[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\)/s);
+    expect(styles).toMatch(/main\s*\{[^}]*grid-template-columns:\s*minmax\(260px, 320px\) 1fr/s);
+    expect(styles).toMatch(/@media \(min-width:\s*821px\) and \(max-height:\s*850px\)[\s\S]*?#root\s*\{[^}]*height:\s*100dvh;[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto;[^}]*overflow:\s*hidden/s);
+    expect(styles).toMatch(/#root > main\s*\{[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto/s);
+    expect(styles).toMatch(/button, \.button-link\s*\{[^}]*min-height:\s*44px/s);
   });
 
   it("supports native navigation, direct detail routes, and popstate without a router dependency", async () => {

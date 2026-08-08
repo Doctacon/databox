@@ -111,6 +111,7 @@ describe("public credits", () => {
     expect(styles).toMatch(/\.credit-release\s*\{[^}]*max-width:\s*none/s);
     expect(styles).toMatch(/\.credits-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s);
     expect(styles).not.toMatch(/\.credits-grid\s*\{[^}]*repeat\(2,/s);
+    expect(styles).toMatch(/\.credit-items ul\s*\{[^}]*max-height:\s*min\(52dvh, 520px\);[^}]*overflow-y:\s*auto/s);
   });
 
   it("renders the production provider, license, modifications, disclaimer, citation, and GNIS credit", async () => {
