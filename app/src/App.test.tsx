@@ -196,7 +196,9 @@ describe("Rufous", () => {
     const brandMark = document.querySelector("img.brand-mark");
     expect(brandMark).toHaveAttribute("src", expect.stringContaining("rufous.png"));
     expect(brandMark).toHaveAttribute("alt", "");
-    expect(indexHtml).toContain('<link rel="icon" type="image/png" href="/src/assets/rufous.png" />');
+    expect(indexHtml).toContain(
+      '<link rel="icon" type="image/png" href="/src/assets/rufous-favicon.png" />',
+    );
     expect(screen.getByRole("link", { name: "Rufous — Arizona Birds home" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
   });
