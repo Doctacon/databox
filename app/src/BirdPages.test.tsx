@@ -319,46 +319,64 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(headings()[0]).toBe("Alpha");
   });
 
-  it("centers wheel selection without animation when reduced motion is active", async () => {
+  it("centers wheel selection inside the catalog without scrolling page ancestors", async () => {
     window.history.replaceState(null, "", "/birds");
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView });
     const birds = Array.from({ length: 706 }, (_, index) => bird(index));
     vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
-    render(<App />);
-    const option = await screen.findByRole("option", { name: "Arizona Bird 001" });
-    const scrollIntoView = vi.fn();
-    option.scrollIntoView = scrollIntoView;
-    fireEvent.click(option);
-    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
+    try {
+      render(<App />);
+      const wheel = await screen.findByRole("listbox", { name: "Arizona bird catalog" });
+      const option = screen.getByRole("option", { name: "Arizona Bird 001" });
+      const scrollTo = vi.fn();
+      wheel.scrollTo = scrollTo;
+      wheel.scrollTop = 30;
+      Object.defineProperty(wheel, "clientHeight", { configurable: true, value: 420 });
+      vi.spyOn(wheel, "getBoundingClientRect").mockReturnValue({ top: 100, height: 420 } as DOMRect);
+      vi.spyOn(option, "getBoundingClientRect").mockReturnValue({ top: 310, height: 60 } as DOMRect);
+      fireEvent.click(option);
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 60, behavior: "auto" }));
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: originalScrollIntoView });
+    }
   });
 
   it("recenters the first result after search, sort, filter, and reset", async () => {
     window.history.replaceState(null, "", "/birds");
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
-    const original = HTMLElement.prototype.scrollIntoView;
+    const originalScrollTo = HTMLElement.prototype.scrollTo;
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    const scrollTo = vi.fn();
     const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: scrollTo });
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView });
     try {
       const birds = Array.from({ length: 706 }, (_, index) => bird(index));
       vi.spyOn(globalThis, "fetch").mockImplementation(() => response({ birds }));
       render(<App />);
       await screen.findByText("706 matching taxa · 706 total");
-      scrollIntoView.mockClear();
+      scrollTo.mockClear();
 
       await userEvent.selectOptions(screen.getByLabelText("Sort"), "name-desc");
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
-      scrollIntoView.mockClear();
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" }));
+      scrollTo.mockClear();
       await userEvent.selectOptions(screen.getByLabelText("Category"), "hybrid");
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
-      scrollIntoView.mockClear();
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" }));
+      scrollTo.mockClear();
       await userEvent.type(screen.getByLabelText("Search birds"), "bird705");
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
-      scrollIntoView.mockClear();
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" }));
+      scrollTo.mockClear();
       await userEvent.click(screen.getByRole("button", { name: "Reset catalog" }));
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "auto" }));
+      await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "auto" }));
+      expect(scrollIntoView).not.toHaveBeenCalled();
       expect(screen.getByRole("listbox", { name: "Arizona bird catalog" })).toHaveAttribute("aria-activedescendant", "wheel-bird000");
     } finally {
-      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: original });
+      Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: originalScrollTo });
+      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: originalScrollIntoView });
     }
   });
 
@@ -597,6 +615,7 @@ describe("Arizona bird catalog and modeled profiles", () => {
 
   it("supports native navigation, direct detail routes, and popstate without a router dependency", async () => {
     const rows = Array.from({ length: 706 }, (_, index) => bird(index));
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const path = String(input);
       if (path === "/api/trip-plans") return response({ plans: [] });
@@ -606,15 +625,28 @@ describe("Arizona bird catalog and modeled profiles", () => {
       throw new Error(`Unexpected request ${path}`);
     });
     render(<App />);
+    const catalogHeading = await screen.findByRole("heading", { name: "Arizona Birds", level: 1 });
+    expect(catalogHeading).toHaveFocus();
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    expect(document.title).toBe("Arizona Birds · Rufous");
+    expect(window.location.pathname).toBe("/");
+    const primaryNavigation = screen.getByRole("navigation", { name: "Primary navigation" });
+    expect(within(primaryNavigation).getAllByRole("link").map((item) => item.textContent)).toEqual([
+      "Arizona Birds", "Trip Planner", "Field Map", "My Birds",
+    ]);
+    expect(within(primaryNavigation).getByRole("link", { name: "Arizona Birds" })).toHaveAttribute("href", "/");
+    expect(within(primaryNavigation).getByRole("link", { name: "Arizona Birds" })).toHaveAttribute("aria-current", "page");
+    expect(within(primaryNavigation).getByRole("link", { name: "Trip Planner" })).toHaveAttribute("href", "/planner");
+
+    await userEvent.click(within(primaryNavigation).getByRole("link", { name: "Trip Planner" }));
     expect(await screen.findByRole("heading", { name: "No trip selected" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Plan your next local birding outing", level: 1 })).toHaveFocus();
     expect(document.title).toBe("Trip Planner · Rufous");
+    expect(window.location.pathname).toBe("/planner");
 
-    await userEvent.click(screen.getByRole("link", { name: "Arizona Birds" }));
-    const catalogHeading = await screen.findByRole("heading", { name: "Arizona Birds", level: 1 });
-    expect(catalogHeading).toHaveFocus();
-    expect(document.title).toBe("Arizona Birds · Rufous");
-    expect(window.location.pathname).toBe("/birds");
+    await userEvent.click(screen.getByRole("link", { name: "Rufous — Arizona Birds home" }));
+    expect(await screen.findByRole("heading", { name: "Arizona Birds", level: 1 })).toHaveFocus();
+    expect(window.location.pathname).toBe("/");
     await userEvent.click(screen.getByRole("link", { name: "Open bird profile" }));
     const profileHeading = await screen.findByRole("heading", { name: "Arizona Bird 000", level: 1 });
     expect(profileHeading).toHaveFocus();
@@ -626,10 +658,12 @@ describe("Arizona bird catalog and modeled profiles", () => {
     const restoredCatalogHeading = await screen.findByRole("heading", { name: "Arizona Birds", level: 1 });
     expect(restoredCatalogHeading).toHaveFocus();
     expect(document.title).toBe("Arizona Birds · Rufous");
+    expect(window.location.pathname).toBe("/birds");
     await userEvent.click(screen.getByRole("link", { name: "Trip Planner" }));
     expect(await screen.findByRole("heading", { name: "No trip selected" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Plan your next local birding outing", level: 1 })).toHaveFocus();
     expect(document.title).toBe("Trip Planner · Rufous");
+    expect(window.location.pathname).toBe("/planner");
   });
 
   it("renders exact modeled sections, units, labels, inference, sources, and public locations", async () => {

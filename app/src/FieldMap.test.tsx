@@ -651,7 +651,7 @@ describe("Rufous Field Map", () => {
     expect(serialized).not.toContain("sprite");
     expect(serialized).toContain("Apache County");
 
-    window.history.pushState(null, "", "/");
+    window.history.pushState(null, "", "/planner");
     window.dispatchEvent(new PopStateEvent("popstate"));
     await waitFor(() => expect(map.remove).toHaveBeenCalled());
   });

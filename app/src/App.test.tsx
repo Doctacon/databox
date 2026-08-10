@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App, { CallArea } from "./App";
 import type { Evidence, Recommendation, RecommendationCall, RecommendationPhoto, TripPlanDetail } from "./types";
 
@@ -139,9 +139,12 @@ function paginatedDetail(
   return result;
 }
 
+beforeEach(() => window.history.replaceState(null, "", "/planner"));
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  window.history.replaceState(null, "", "/");
 });
 
 describe("Rufous", () => {
@@ -192,6 +195,7 @@ describe("Rufous", () => {
     const brandMark = document.querySelector("img.brand-mark");
     expect(brandMark).toHaveAttribute("src", expect.stringContaining("rufous.png"));
     expect(brandMark).toHaveAttribute("alt", "");
+    expect(screen.getByRole("link", { name: "Rufous — Arizona Birds home" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
   });
 

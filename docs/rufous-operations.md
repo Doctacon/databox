@@ -38,9 +38,10 @@ task app               # build and serve the complete app at http://127.0.0.1:80
 Both launch paths bind to loopback. On a new database, follow the README's
 one-time AVONET bootstrap and run `task full-refresh` to populate the local
 warehouse. `task verify` is only a bounded smoke refresh. Rufous uses an original
-local rust-orange/teal field-device theme with no remote fonts or theme assets. The Trip Planner remains at `/`; the read-only Arizona Birds
-catalog is available at `/birds`, with direct modeled profiles at
-`/birds/{species_code}`. Native browser history supports direct reload,
+local rust-orange/teal field-device theme with no remote fonts or theme assets.
+The read-only Arizona Birds catalog is the homepage at `/`, with `/birds` kept
+as a compatible catalog URL and direct modeled profiles at
+`/birds/{species_code}`. The Trip Planner is available at `/planner`. Native browser history supports direct reload,
 back, and forward without a routing dependency. Catalog search, species/hybrid
 filtering, and 24-row pagination operate entirely on the bounded 706-row API
 snapshot; profile pages use only persisted modeled facts and public Arizona

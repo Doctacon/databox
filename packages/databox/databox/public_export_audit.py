@@ -160,6 +160,7 @@ _PUBLIC_AVONET_MEASUREMENT_FIELDS = frozenset(
 _SCIENTIFIC_AUTHORITY_SUFFIX = re.compile(r"\s*\([^)]*\)\s*$")
 _REVIEWED_SPA_REDIRECTS = (
     "/birds / 200",
+    "/planner / 200",
     "/credits / 200",
     "/map / 200",
     "/my-birds / 200",

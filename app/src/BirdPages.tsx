@@ -35,6 +35,19 @@ function reducedMotion(): boolean {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
+function centerWheelOption(wheel: HTMLElement | null, index: number) {
+  const option = wheel?.querySelector<HTMLElement>(`[data-wheel-index="${index}"]`);
+  if (!wheel || !option) return;
+  const wheelRect = wheel.getBoundingClientRect();
+  const optionRect = option.getBoundingClientRect();
+  const top = Math.max(0, Math.round(
+    wheel.scrollTop + optionRect.top - wheelRect.top - (wheel.clientHeight - optionRect.height) / 2,
+  ));
+  const behavior = reducedMotion() ? "auto" : "smooth";
+  if (typeof wheel.scrollTo === "function") wheel.scrollTo({ top, behavior });
+  else wheel.scrollTop = top;
+}
+
 function weightMatches(mass: number | null, filter: WeightFilter): boolean {
   if (filter === "all") return true;
   if (filter === "unavailable") return mass === null;
@@ -73,7 +86,7 @@ function fact(value: string | number | null, suffix = ""): string {
 
 function PageHeading({ children, id }: { children: ReactNode; id?: string }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => headingRef.current?.focus(), []);
+  useEffect(() => headingRef.current?.focus({ preventScroll: true }), []);
   return <h1 ref={headingRef} id={id} tabIndex={-1}>{children}</h1>;
 }
 
@@ -382,21 +395,13 @@ export function BirdCatalogPage({ navigate }: { navigate: Navigate }) {
 
   useEffect(() => {
     setActiveIndex(0);
-    requestAnimationFrame(() => {
-      const option = wheelRef.current?.querySelector<HTMLElement>('[data-wheel-index="0"]');
-      if (typeof option?.scrollIntoView === "function") {
-        option.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
-      }
-    });
+    requestAnimationFrame(() => centerWheelOption(wheelRef.current, 0));
   }, [birds, query, sort, category, family, habitat, weight]);
 
   function center(index: number) {
     const next = Math.max(0, Math.min(filtered.length - 1, index));
     setActiveIndex(next);
-    requestAnimationFrame(() => {
-      const option = wheelRef.current?.querySelector<HTMLElement>(`[data-wheel-index="${next}"]`);
-      if (typeof option?.scrollIntoView === "function") option.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
-    });
+    requestAnimationFrame(() => centerWheelOption(wheelRef.current, next));
   }
 
   function wheelKey(event: KeyboardEvent<HTMLDivElement>) {
@@ -487,7 +492,7 @@ function BirdProfileView({ bird, navigate }: { bird: BirdProfile; navigate: Navi
   const avonetLicense = bird.traits.provenance.dataset_license === "CC BY 4.0";
 
   return <main className="bird-profile-main">
-    <p><a href="/birds" onClick={(event) => link(event, "/birds", navigate)}>← Back to Arizona Birds</a></p>
+    <p><a href="/" onClick={(event) => link(event, "/", navigate)}>← Back to Arizona Birds</a></p>
     <header className="hero-card bird-profile-hero">
       <p className="eyebrow">{categoryLabel(bird.taxonomic_category)} · {bird.species_code}</p>
       <PageHeading>{bird.common_name || bird.scientific_name || bird.species_code}</PageHeading>
@@ -601,6 +606,6 @@ export function BirdProfilePage({ speciesCode, navigate }: { speciesCode: string
     else if (error) document.title = "Bird Profile Unavailable · Arizona Birds · Rufous";
   }, [bird, error]);
   if (loading) return <main className="bird-profile-main"><p role="status">Loading the modeled bird profile…</p></main>;
-  if (error) return <main className="bird-profile-main"><PageHeading>Bird profile unavailable</PageHeading><div className="error" role="alert"><strong>Could not load this bird.</strong><span>{error}</span></div><p><a href="/birds" onClick={(event) => link(event, "/birds", navigate)}>Back to Arizona Birds</a></p></main>;
+  if (error) return <main className="bird-profile-main"><PageHeading>Bird profile unavailable</PageHeading><div className="error" role="alert"><strong>Could not load this bird.</strong><span>{error}</span></div><p><a href="/" onClick={(event) => link(event, "/", navigate)}>Back to Arizona Birds</a></p></main>;
   return bird ? <BirdProfileView bird={bird} navigate={navigate} /> : null;
 }

@@ -600,6 +600,7 @@ function currentRoute(): Route {
   if (PUBLIC_RUNTIME && window.location.pathname === "/credits") return { page: "credits" };
   if (window.location.pathname === "/my-birds") return { page: "my-birds" };
   if (window.location.pathname === "/map") return { page: "map" };
+  if (window.location.pathname === "/planner") return { page: "planner" };
   if (window.location.pathname === "/birds") return { page: "birds" };
   const targetPlan = /^\/target-plans\/(target_[0-9a-f]{32})$/.exec(window.location.pathname);
   if (targetPlan) return { page: "target-plan", planId: targetPlan[1] };
@@ -613,7 +614,7 @@ function currentRoute(): Route {
     try { return { page: "bird", speciesCode: decodeURIComponent(match[1]) }; }
     catch { return { page: "bird", speciesCode: "invalid-species-code" }; }
   }
-  return { page: "planner" };
+  return { page: "birds" };
 }
 
 export default function App() {
@@ -656,13 +657,13 @@ export default function App() {
   const birdsActive = route.page === "birds" || route.page === "bird" || route.page === "target-find" || route.page === "target-plan";
   return <>
     <header className="site-header">
-      <div className="site-brand">
+      <a className="site-brand" href="/" aria-label="Rufous — Arizona Birds home" onClick={(event) => navClick(event, "/")}>
         <img className="brand-mark" src={rufousImage} alt="" aria-hidden="true" />
         <span><strong>Rufous</strong><small>Arizona field console</small></span>
-      </div>
+      </a>
       <nav aria-label="Primary navigation">
-        <a href="/" aria-current={route.page === "planner" ? "page" : undefined} onClick={(event) => navClick(event, "/")}>Trip Planner</a>
-        <a href="/birds" aria-current={birdsActive ? "page" : undefined} onClick={(event) => navClick(event, "/birds")}>Arizona Birds</a>
+        <a href="/" aria-current={birdsActive ? "page" : undefined} onClick={(event) => navClick(event, "/")}>Arizona Birds</a>
+        <a href="/planner" aria-current={route.page === "planner" ? "page" : undefined} onClick={(event) => navClick(event, "/planner")}>Trip Planner</a>
         <a href="/map" aria-current={route.page === "map" ? "page" : undefined} onClick={(event) => navClick(event, "/map")}>Field Map</a>
         <a href="/my-birds" aria-current={route.page === "my-birds" ? "page" : undefined} onClick={(event) => navClick(event, "/my-birds")}>My Birds</a>
         {PUBLIC_RUNTIME && <a href="/credits" aria-current={route.page === "credits" ? "page" : undefined} onClick={(event) => navClick(event, "/credits")}>Credits</a>}

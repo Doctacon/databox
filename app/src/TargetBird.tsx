@@ -118,7 +118,7 @@ export function TargetBirdPage({ speciesCode, planId, navigate }: { speciesCode?
 
   if (loading) return <main className="bird-profile-main"><p role="status">Loading target planner…</p></main>;
   const profileCode = bird?.species_code ?? plan?.species_code;
-  const profilePath = profileCode ? `/birds/${encodeURIComponent(profileCode)}` : "/birds";
+  const profilePath = profileCode ? `/birds/${encodeURIComponent(profileCode)}` : "/";
   const errorHeading = error?.context === "load"
     ? planId ? "Target plan unavailable." : "Bird profile unavailable."
     : "Could not create that target plan.";

@@ -30,6 +30,7 @@ _REVIEWED_CSP = (
 )
 _REVIEWED_SPA_REDIRECTS = (
     "/birds / 200\n"
+    "/planner / 200\n"
     "/credits / 200\n"
     "/map / 200\n"
     "/my-birds / 200\n"
