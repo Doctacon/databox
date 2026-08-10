@@ -22,7 +22,7 @@
   --accent: var(--rust-700);
   --page-gutter: clamp(16px, 2vw, 24px);
   --panel-pad: clamp(14px, 1.5vw, 20px);
-  --bird-wheel-height: clamp(340px, 48dvh, 420px);
+  --bird-wheel-height: clamp(420px, 60dvh, 630px);
   --field-stage-height: clamp(360px, 50dvh, 520px);
   color: var(--ink);
   background: var(--cream-200);

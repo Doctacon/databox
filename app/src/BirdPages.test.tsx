@@ -574,7 +574,7 @@ describe("Arizona bird catalog and modeled profiles", () => {
     expect(styles).toMatch(/\.responsive-bird-photo, \.catalog-photo-frame\s*>\s*img\s*\{[^}]*object-fit:\s*contain;[^}]*object-position:\s*center/s);
     expect(styles).toMatch(/\.responsive-bird-photo, \.catalog-photo-frame\s*>\s*img\s*\{[^}]*min-height:\s*0;[^}]*max-height:\s*100%/s);
     expect(styles).toMatch(/\.catalog-photo-profile \.catalog-photo-frame\s*\{[^}]*max-height:\s*none/s);
-    expect(styles).toMatch(/--bird-wheel-height:\s*clamp\(340px, 48dvh, 420px\)/);
+    expect(styles).toMatch(/--bird-wheel-height:\s*clamp\(420px, 60dvh, 630px\)/);
     expect(styles).toMatch(/\.bird-wheel\s*\{[^}]*height:\s*var\(--bird-wheel-height\)/s);
     expect(styles).toMatch(/\.bird-wheel-spacer\s*\{[^}]*height:\s*calc\(\(var\(--bird-wheel-height\) - 60px\) \/ 2\)/s);
     expect(styles).toMatch(/\.bird-wheel-preview \.catalog-photo-frame\s*\{[^}]*height:\s*clamp\(220px, 32dvh, 300px\);[^}]*aspect-ratio:\s*auto;[^}]*max-height:\s*none/s);
