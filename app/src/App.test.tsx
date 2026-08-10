@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import indexHtml from "../index.html?raw";
 import App, { CallArea } from "./App";
 import type { Evidence, Recommendation, RecommendationCall, RecommendationPhoto, TripPlanDetail } from "./types";
 
@@ -195,6 +196,7 @@ describe("Rufous", () => {
     const brandMark = document.querySelector("img.brand-mark");
     expect(brandMark).toHaveAttribute("src", expect.stringContaining("rufous.png"));
     expect(brandMark).toHaveAttribute("alt", "");
+    expect(indexHtml).toContain('<link rel="icon" type="image/png" href="/src/assets/rufous.png" />');
     expect(screen.getByRole("link", { name: "Rufous — Arizona Birds home" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
   });
