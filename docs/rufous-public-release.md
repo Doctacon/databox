@@ -148,14 +148,24 @@ Production publishes that complete projection twice:
    after any R2, CORS, pointer, hash, schema, or network failure.
 
 Pages still hosts only static application assets. There are no Pages Functions,
-R2 bindings, R2 SQL, Data Catalog, analytics, or email calls. Search, planning,
-watch evaluation, browser persistence, and `.ics` generation run on the
-visitor's device. A separate, credential-isolated Workers Free service may
-optionally select allowlisted field-strategy actions for an already completed
-deterministic trip plan; browser code renders the corresponding fixed prose.
-It never becomes a Pages runtime, data API, or dependency of core planning. R2
-credentials exist only in the production GitHub Actions environment; neither
-the browser nor the AI Worker receives them.
+R2 bindings, R2 SQL, Data Catalog, custom analytics runtime, or email calls.
+Cloudflare's free, privacy-first Web Analytics beacon is injected at the edge;
+it receives no application credential and reports through the same-origin
+`/cdn-cgi/rum` endpoint. Search, planning, watch evaluation, browser
+persistence, and `.ics` generation run on the visitor's device. A separate,
+credential-isolated Workers Free service may optionally select allowlisted
+field-strategy actions for an already completed deterministic trip plan;
+browser code renders the corresponding fixed prose. It never becomes a Pages
+runtime, data API, or dependency of core planning. R2 credentials exist only in
+the production GitHub Actions environment; neither the browser nor the AI
+Worker receives them.
+
+Web Analytics records the current pathname, including SPA route changes. Public
+target-plan paths contain a random browser-local plan identifier; the identifier
+does not encode the plan contents, but downstream analytics exports must
+normalize or omit it rather than retaining linkable, high-cardinality paths.
+The companion `streams2r2` lab maps these routes to `/target-plans/:plan` before
+publishing them to Kafka or R2.
 
 Pull requests build fictional fixtures without production-data access or
 deployment credentials (dependency installation still uses the network):
@@ -660,9 +670,11 @@ origin, `data:`/`blob:` browser-local sources, and the exact
 Pages origin and that same Rufous origin. `connect-src` additionally permits
 only the exact `https://rufous-ai.loughondata.com` Worker and OpenFreeMap
 origins. Turnstile is permitted only from
-`https://challenges.cloudflare.com` in `script-src` and `frame-src`; broad
-`https:`, wildcard `workers.dev`, and preview origins are rejected by the
-release audit.
+`https://challenges.cloudflare.com` in `script-src` and `frame-src`. The
+edge-injected Web Analytics beacon is permitted only from
+`https://static.cloudflareinsights.com` in `script-src`; its proxied-site
+delivery remains same-origin. Broad `https:`, wildcard `workers.dev`, and
+preview origins are rejected by the release audit.
 
 ### Optional Workers AI Free augmentation
 

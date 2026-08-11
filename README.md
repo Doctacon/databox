@@ -20,8 +20,10 @@ planning.
 
 `React/TypeScript -> typed FastAPI APIs -> DuckDB warehouse -> bounded Google ADK workflow and strict-schema model inference`
 
-Rufous is local-first and loopback-only. It is not a deployed multi-tenant SaaS
-product; DuckDB and model credentials stay behind the local typed API.
+The full Rufous warehouse experience is local-first and loopback-only; DuckDB
+and model credentials stay behind the local typed API. A separate browser-only
+public export is deployed at [rufous.loughondata.com](https://rufous.loughondata.com/)
+with static, privacy-reviewed data and no database or model credentials.
 
 Rufous does not estimate encounter probability. Its recently reported group
 contains species with distinct eBird submissions in the configured eBird

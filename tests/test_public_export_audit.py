@@ -20,7 +20,8 @@ from databox.public_export_audit import (
 _REVIEWED_CSP = (
     "/*\n"
     "  Content-Security-Policy: default-src 'self'; "
-    "script-src 'self' https://challenges.cloudflare.com; "
+    "script-src 'self' https://challenges.cloudflare.com "
+    "https://static.cloudflareinsights.com; "
     "img-src 'self' data: blob: https://rufous-data.loughondata.com; "
     "media-src 'self' https://rufous-data.loughondata.com; "
     "connect-src 'self' https://tiles.openfreemap.org "
@@ -605,7 +606,7 @@ def test_audit_rejects_broad_or_duplicate_image_and_media_csp_sources(
     assert any("media-src" in item for item in findings)
 
 
-def test_audit_requires_exact_ai_and_turnstile_origins(tmp_path: Path) -> None:
+def test_audit_requires_exact_ai_turnstile_and_analytics_origins(tmp_path: Path) -> None:
     site = _shell_only_site(tmp_path)
 
     assert audit_public_site(site, shell_only=True) == []
@@ -629,6 +630,21 @@ def test_audit_requires_exact_ai_and_turnstile_origins(tmp_path: Path) -> None:
     assert any("connect-src" in item for item in findings)
     assert any("script-src" in item for item in findings)
     assert any("frame-src" in item for item in findings)
+
+
+def test_audit_requires_web_analytics_script_origin(tmp_path: Path) -> None:
+    site = _shell_only_site(tmp_path)
+    headers_path = site / "_headers"
+    reviewed_headers = headers_path.read_text(encoding="utf-8")
+
+    headers_path.write_text(
+        reviewed_headers.replace(" https://static.cloudflareinsights.com", ""),
+        encoding="utf-8",
+    )
+
+    findings = audit_public_site(site, shell_only=True)
+
+    assert any("script-src" in item for item in findings)
 
 
 def test_audit_rejects_local_human_review_bundle_marker(tmp_path: Path) -> None:

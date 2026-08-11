@@ -211,6 +211,7 @@ _FORBIDDEN_SERVICE_HOSTS = (
 _APPROVED_PUBLIC_DATA_ORIGIN = "https://rufous-data.loughondata.com"
 _APPROVED_AI_WORKER_ORIGIN = "https://rufous-ai.loughondata.com"
 _APPROVED_TURNSTILE_ORIGIN = "https://challenges.cloudflare.com"
+_APPROVED_WEB_ANALYTICS_ORIGIN = "https://static.cloudflareinsights.com"
 _APPROVED_CONNECT_SOURCES = frozenset(
     {
         "'self'",
@@ -228,7 +229,9 @@ _APPROVED_IMAGE_SOURCES = frozenset(
     }
 )
 _APPROVED_MEDIA_SOURCES = frozenset({"'self'", _APPROVED_PUBLIC_DATA_ORIGIN})
-_APPROVED_SCRIPT_SOURCES = frozenset({"'self'", _APPROVED_TURNSTILE_ORIGIN})
+_APPROVED_SCRIPT_SOURCES = frozenset(
+    {"'self'", _APPROVED_TURNSTILE_ORIGIN, _APPROVED_WEB_ANALYTICS_ORIGIN}
+)
 _APPROVED_FRAME_SOURCES = frozenset({_APPROVED_TURNSTILE_ORIGIN})
 _REVIEWED_AI_WORKER_DIRECTORY = Path("workers/rufous-ai")
 _REVIEWED_AI_WORKER_CONFIG = "wrangler.jsonc"
@@ -619,7 +622,7 @@ def _audit_static_routing(site_dir: Path) -> list[str]:
 
 
 def _audit_browser_security_policy(site_dir: Path) -> list[str]:
-    """Require exact data, map, AI, and Turnstile browser origins."""
+    """Require exact data, map, AI, Turnstile, and analytics origins."""
     if not (site_dir / "index.html").is_file():
         return []
     headers_path = site_dir / "_headers"
@@ -672,7 +675,7 @@ def _audit_browser_security_policy(site_dir: Path) -> list[str]:
     if script_sources != _APPROVED_SCRIPT_SOURCES:
         findings.append(
             "Content-Security-Policy script-src must contain only self and the exact "
-            "Cloudflare Turnstile origin"
+            "Cloudflare Turnstile and Web Analytics origins"
         )
     frame_sources = frozenset(directives.get("frame-src", []))
     if frame_sources != _APPROVED_FRAME_SOURCES:

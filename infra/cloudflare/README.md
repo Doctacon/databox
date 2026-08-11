@@ -10,6 +10,13 @@ objects only. Attach the custom domain `rufous-data.loughondata.com`, disable it
 must never receive a DuckDB file, raw pipeline output, personal observation, or
 private location.
 
+Keep free Cloudflare Web Analytics enabled for the Rufous Pages project. Pages
+injects the privacy-first beacon at the edge; the static CSP explicitly allows
+only `https://static.cloudflareinsights.com`, and beacon delivery for the
+proxied hostname stays on the same-origin `/cdn-cgi/rum` route. Analytics output
+for Kafka/Flink experiments belongs in a separate private R2 bucket, never this
+public-data bucket.
+
 Create two independent credentials:
 
 - the existing Pages deployment token, limited to Pages Write;
