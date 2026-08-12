@@ -27,6 +27,6 @@
     "@types/react-dom": "^18.3.5",
     "jsdom": "^26.0.0",
     "vitest": "^3.0.7",
-    "wrangler": "4.118.0"
+    "wrangler": "4.121.0"
   }
 }
