@@ -1,4 +1,4 @@
-# Project identity. `scripts/bootstrap.py` reads this file, then rewrites
+# Project identity. `scripts/platform/bootstrap.py` reads this file, then rewrites
 # every include-globbed file by substituting the recorded current values for
 # their replacements. `task init` is the user-facing entry point.
 #
@@ -31,4 +31,4 @@ bootstrap:
     - CLAUDE.md
     - docs/*.md
     - docs/adr/*.md
-    - scripts/generate_docs.py
+    - scripts/platform/generate_docs.py

@@ -70,8 +70,8 @@ jobs:
               - 'app/**'
               - 'app/package.json'
               - 'app/package-lock.json'
-              - 'scripts/audit_app_bundle.py'
-              - 'tests/test_audit_app_bundle.py'
+              - 'scripts/rufous_media/audit_app_bundle.py'
+              - 'tests/rufous_media/test_audit_app_bundle.py'
               - 'Taskfile.yaml'
               - '.github/workflows/ci.yaml'
             ci_config:
@@ -100,7 +100,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Scan tracked repository files
-        run: python3 scripts/check_secrets.py .
+        run: python3 scripts/platform/check_secrets.py .
 
   frontend:
     name: Frontend (typecheck, test, build, audit)
@@ -130,7 +130,7 @@ jobs:
         working-directory: app
         run: npm run build
       - name: Audit compiled bundle
-        run: python3 scripts/audit_app_bundle.py
+        run: python3 scripts/rufous_media/audit_app_bundle.py
 
   lint:
     name: Ruff (lint + format)
@@ -207,7 +207,7 @@ jobs:
           -o "addopts=-v --tb=short --record-mode=none --block-network"
       - name: Validate source contract and emit matrix
         id: matrix
-        run: echo "matrix=$(uv run python scripts/source_ci.py matrix)" >> "$GITHUB_OUTPUT"
+        run: echo "matrix=$(uv run python scripts/sources/source_ci.py matrix)" >> "$GITHUB_OUTPUT"
 
   tests-sources:
     name: pytest (${{ matrix.source }}, ${{ matrix.profile }})
@@ -252,7 +252,7 @@ jobs:
       - name: Coverage — core (tests/ + packages/databox)
         run: uv run coverage run --append -m pytest tests packages/databox -o "testpaths=tests packages/databox" -o "addopts=-v --tb=short"
       - name: Coverage — all registry sources, isolated and offline
-        run: uv run python scripts/source_ci.py coverage
+        run: uv run python scripts/sources/source_ci.py coverage
       - name: Coverage report (fail under 70%)
         run: uv run coverage report --fail-under=70 --show-missing
 
@@ -286,7 +286,7 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: Verify every source follows the standard layout
-        run: uv run python scripts/check_source_layout.py
+        run: uv run python scripts/sources/check_source_layout.py
 
   staging-codegen-drift:
     name: Staging codegen drift
@@ -302,9 +302,9 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: Check generated staging SQL matches contracts
-        run: uv run python scripts/generate_staging.py --check
+        run: uv run python scripts/analytics/generate_staging.py --check
       - name: Check generated platform_health.sql matches source registry
-        run: uv run python scripts/generate_platform_health.py --check
+        run: uv run python scripts/analytics/generate_platform_health.py --check
 
   schema-contract-gate:
     name: Schema contract gate
@@ -328,7 +328,7 @@ jobs:
           printf '%s' "$PR_BODY" > /tmp/pr_body.txt
       - name: Run schema-contract gate
         run: |
-          uv run python scripts/schema_gate.py \
+          uv run python scripts/platform/schema_gate.py \
             --base origin/${{ github.base_ref }} \
             --pr-body-file /tmp/pr_body.txt
 

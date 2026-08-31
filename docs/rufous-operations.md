@@ -58,13 +58,13 @@ Catalog photo/call metadata is populated only by an explicit local batch. Inspec
 read-only and performs no discovery:
 
 ```bash
-uv run --no-sync python scripts/catalog_media.py --inspect
+uv run --no-sync python scripts/birding/catalog_media.py --inspect
 ```
 
 Before apply, check Xeno-canto readiness without printing the credential value:
 
 ```bash
-uv run --no-sync python scripts/catalog_media.py --check-prerequisites
+uv run --no-sync python scripts/birding/catalog_media.py --check-prerequisites
 # {"xeno_canto_api_key_configured": true}
 ```
 
@@ -73,8 +73,8 @@ After independent review, run one bounded sequential checkpoint while the API, Q
 and SQLMesh writers are stopped:
 
 ```bash
-uv run --no-sync python scripts/catalog_media.py --apply --batch-size 25
-uv run --no-sync python scripts/catalog_media.py --refresh --batch-size 25
+uv run --no-sync python scripts/birding/catalog_media.py --apply --batch-size 25
+uv run --no-sync python scripts/birding/catalog_media.py --refresh --batch-size 25
 ```
 
 Apply resumes missing exact identities; refresh resumes one explicit refresh campaign.
@@ -139,8 +139,8 @@ Python lookup to valid, reviewed, non-private rows. To inspect or remediate save
 plans created before that boundary, stop the API and refresh writers and run:
 
 ```bash
-uv run --no-sync python scripts/remediate_trip_planner_ebird_privacy.py --inspect
-uv run --no-sync python scripts/remediate_trip_planner_ebird_privacy.py --apply
+uv run --no-sync python scripts/birding/remediate_trip_planner_ebird_privacy.py --inspect
+uv run --no-sync python scripts/birding/remediate_trip_planner_ebird_privacy.py --apply
 ```
 
 The inspect command is read-only and emits aggregate counts only. Apply performs
@@ -237,14 +237,14 @@ and never includes host, port, identities, certificate paths, or credentials.
 ```bash
 # Open and authenticate a loopback STARTTLS connection using exact public-
 # certificate trust and hostname verification, without calling send.
-uv run --no-sync python scripts/verify_bird_alert_smtp.py --preflight
+uv run --no-sync python scripts/birding/verify_bird_alert_smtp.py --preflight
 
 # Attempt delivery for at most one due persisted outbox row.
-uv run --no-sync python scripts/deliver_bird_alerts.py
+uv run --no-sync python scripts/birding/deliver_bird_alerts.py
 
 # Explicit live sends; each verification kind is durably limited to one attempt.
-uv run --no-sync python scripts/verify_bird_alert_smtp.py --test-email
-uv run --no-sync python scripts/verify_bird_alert_smtp.py --test-invitation
+uv run --no-sync python scripts/birding/verify_bird_alert_smtp.py --test-email
+uv run --no-sync python scripts/birding/verify_bird_alert_smtp.py --test-invitation
 ```
 
 A transient failure persists `next_attempt_at`, but no process dispatches it

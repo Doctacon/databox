@@ -26,7 +26,7 @@ The gate classifies each contract change into one of two buckets.
 - Widened type (`int` → `bigint`, `date` → `timestamp`, etc.)
 - New check
 
-The classifier lives in `databox.quality.schema_gate`; `scripts/schema_gate.py`
+The classifier lives in `databox.quality.schema_gate`; `scripts/platform/schema_gate.py`
 is a thin CLI wrapper. Type-widening is delegated to sqlglot's dialect-aware
 parser (`sqlglot.exp.DataType.build`) — the same parser SQLMesh uses — rather
 than a hand-rolled widening table. Covered families: integer widths
@@ -67,7 +67,7 @@ Do not use it to silence a drift you did not intend. If the diff surprises you, 
 ## Running the gate locally
 
 ```bash
-uv run python scripts/schema_gate.py --base origin/main
+uv run python scripts/platform/schema_gate.py --base origin/main
 ```
 
 Flags:

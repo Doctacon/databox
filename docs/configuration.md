@@ -40,7 +40,7 @@ code imports it rather than redeclaring values.
 - **Dagster resources** — orchestration reads the local path, dlt data directory,
   source windows, and Soda datasource.
 - **Local application** — local server-side code uses `settings.database_path` and reads Cloudflare Workers AI credentials. Browser code never receives these values.
-- **Data dictionary** — `scripts/generate_docs.py` uses the local gateway.
+- **Data dictionary** — `scripts/platform/generate_docs.py` uses the local gateway.
 
 ## Out-of-surface configuration
 

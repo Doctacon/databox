@@ -28,7 +28,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 CONTRACTS_DIR = Path("soda/contracts")
 MODELS_DIR = Path("transforms/main/models")
-TEMPLATE_DIR = Path("scripts/templates")
+TEMPLATE_DIR = Path("scripts/analytics/templates")
 SKIP_MARKER = "staging-codegen: skip"
 
 

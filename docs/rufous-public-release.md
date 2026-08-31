@@ -171,11 +171,11 @@ Pull requests build fictional fixtures without production-data access or
 deployment credentials (dependency installation still uses the network):
 
 ```bash
-uv run python scripts/export_rufous_public.py \
+uv run python scripts/rufous_media/export_rufous_public.py \
   --mode synthetic --output build/rufous-public-data
-uv run python scripts/audit_rufous_public.py \
+uv run python scripts/rufous_media/audit_rufous_public.py \
   build/rufous-public-data --workflows .github/workflows --repository-root .
-uv run python scripts/publish_rufous_public.py \
+uv run python scripts/rufous_media/publish_rufous_public.py \
   --source build/rufous-public-data \
   --local-root build/rufous-r2-preview \
   --prefix rufous-public
@@ -228,10 +228,10 @@ The production warehouse refresh is intentionally source-scoped:
 mkdir -p data .dagster
 DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
   uv run dg launch --target-path packages/databox --job avonet_ingest
-uv run python scripts/load_dlt_quack.py \
+uv run python scripts/sources/load_dlt_quack.py \
   --source gbif \
   --database data/databox.duckdb --skip-sqlmesh
-bash scripts/sqlmesh_plan_rufous_public.sh
+bash scripts/rufous_media/sqlmesh_plan_rufous_public.sh
 ```
 
 AVONET is loaded first through its independent, atomic snapshot job; it is not
@@ -278,11 +278,11 @@ model, this source is invoked only by the explicit maintenance script; it is not
 exposed as an unconfigured Dagster job and is never invoked by a push or schedule.
 
 ```bash
-uv run python scripts/load_rufous_usfws_media.py \
+uv run python scripts/rufous_media/load_rufous_usfws_media.py \
   --database data/databox.duckdb \
   --max-images-per-target 500
-bash scripts/sqlmesh_plan_rufous_media.sh
-uv run python scripts/prepare_rufous_media.py \
+bash scripts/rufous_media/sqlmesh_plan_rufous_media.sh
+uv run python scripts/rufous_media/prepare_rufous_media.py \
   --database-path data/databox.duckdb \
   --output-dir build/rufous-media
 ```
@@ -322,10 +322,10 @@ The loader has no network client and transactionally replaces only
 never execute it or contact Wikimedia:
 
 ```bash
-uv run python scripts/load_rufous_wikimedia_media.py \
+uv run python scripts/rufous_media/load_rufous_wikimedia_media.py \
   --database data/databox.duckdb \
   --input config/rufous-wikimedia-public-media.json
-uv run python scripts/prepare_rufous_media.py \
+uv run python scripts/rufous_media/prepare_rufous_media.py \
   --database-path data/databox.duckdb \
   --output-dir build/rufous-wikimedia-media \
   --provider wikimedia
@@ -339,7 +339,7 @@ That preparation remains usable for a local refresh even when nothing is
 selected. To produce a deterministic list without granting a selection:
 
 ```bash
-uv run python scripts/verify_rufous_media_approvals.py \
+uv run python scripts/rufous_media/verify_rufous_media_approvals.py \
   --manifest build/rufous-media/manifest.json \
   --approvals config/rufous-media-visual-approvals.json \
   --write-review-candidates build/rufous-media/review-candidates.json
@@ -380,7 +380,7 @@ For the browser-based review app, build a separate marked bundle and serve it
 only on loopback:
 
 ```bash
-uv run python scripts/build_rufous_media_review.py \
+uv run python scripts/rufous_media/build_rufous_media_review.py \
   --source build/rufous-media \
   --approvals config/rufous-media-visual-approvals.json \
   --recommendations /path/to/curated-local-recommendations.json \
@@ -439,7 +439,7 @@ Convert an exported browser file into a separate canonical ledger, with the
 human reviewer's identity added explicitly:
 
 ```bash
-uv run python scripts/verify_rufous_media_approvals.py \
+uv run python scripts/rufous_media/verify_rufous_media_approvals.py \
   --manifest build/rufous-wikimedia-media/manifest.json \
   --approvals config/rufous-media-visual-approvals.json \
   --import-local-decisions /path/to/rufous-local-review-decisions-NOT-YET-COMMITTED.json \
@@ -461,7 +461,7 @@ provider hashes, normalizes ranking out of the pin, and omits upstream image
 object URLs:
 
 ```bash
-uv run python scripts/compose_rufous_media_pin.py \
+uv run python scripts/rufous_media/compose_rufous_media_pin.py \
   --base config/rufous-pinned-public-media.json \
   --prepared build/rufous-wikimedia-media/manifest.json \
   --approvals /tmp/rufous-media-visual-decisions.json \
@@ -503,7 +503,7 @@ pinned SHA-256. The workflow's reviewed, committed source metadata points to USG
 both the archive and extracted-text SHA-256 values before publishing anything:
 
 ```bash
-uv run python scripts/export_rufous_public.py \
+uv run python scripts/rufous_media/export_rufous_public.py \
   --mode production \
   --database data/databox.duckdb \
   --gnis data/DomesticNames_AZ.txt \

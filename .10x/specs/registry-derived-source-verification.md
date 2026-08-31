@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-12
-Updated: 2026-07-12
+Updated: 2026-08-31
 
 # Registry-derived source verification
 
@@ -16,7 +16,7 @@ Every source MUST declare exactly one profile in the canonical registry.
 
 ### HTTP profile
 
-Applies to eBird, GBIF, NOAA, USGS, USGS Earthquakes, and Xeno-canto.
+Applies to eBird, GBIF, NOAA, USFWS, USGS, USGS Earthquakes, and Xeno-canto.
 
 Each HTTP source MUST have profile-equivalent coverage for:
 
@@ -79,7 +79,7 @@ A source-related change MUST run the complete source matrix. Source-related scop
 - source-related CI workflow changes;
 - dependency changes capable of affecting dlt, Dagster, DuckDB, Quack, VCR, or source tests.
 
-At seven sources, fine-grained changed-source skipping is explicitly excluded. Matrix jobs SHOULD remain independent so VCR/dlt client state cannot leak across sources and all source failures are visible.
+At eight sources, fine-grained changed-source skipping is explicitly excluded. Matrix jobs SHOULD remain independent so VCR/dlt client state cannot leak across sources and all source failures are visible.
 
 The aggregate coverage job MUST execute every registered source suite in isolated sequential pytest processes and combine coverage. It MUST NOT enumerate only a subset of source directories.
 
@@ -100,7 +100,7 @@ Given a change only under `databox_sources/gbif`, `databox_sources/xeno_canto`, 
 
 ### New registry entry
 
-Given a future eighth source is added to the registry but no workflow source list is edited, when CI builds its matrix, then that source appears automatically. If its profile tests are incomplete, CI fails.
+Given a future ninth source is added to the registry but no workflow source list is edited, when CI builds its matrix, then that source appears automatically. If its profile tests are incomplete, CI fails.
 
 ### Offline replay
 
@@ -108,7 +108,7 @@ Given no provider credentials and network access denied, when the routine source
 
 ### Aggregate coverage
 
-Given all seven active sources, when the aggregate coverage job runs, then each source test directory contributes coverage through an isolated pytest process before the workspace threshold is evaluated.
+Given all eight active sources, when the aggregate coverage job runs, then each source test directory contributes coverage through an isolated pytest process before the workspace threshold is evaluated.
 
 ## Explicit exclusions
 

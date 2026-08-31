@@ -16,7 +16,7 @@ task init -- \
   --copyright-holder "Alice Example"
 ```
 
-`task init` delegates to `scripts/bootstrap.py`, which:
+`task init` delegates to `scripts/platform/bootstrap.py`, which:
 
 1. Reads the current identity from `scaffold.yaml`.
 2. Applies your overrides to compute a new identity.
@@ -35,16 +35,16 @@ Running it twice with the same arguments is a no-op.
 | `LICENSE` | Copyright holder line |
 | `CLAUDE.md` | Title + project-identity sentences |
 | `docs/*.md`, `docs/adr/*.md` | GitHub hyperlinks, brand name mentions |
-| `scripts/generate_docs.py` | `REPO_BLOB_URL` constant used in dictionary links |
+| `scripts/platform/generate_docs.py` | `REPO_BLOB_URL` constant used in dictionary links |
 
-Auto-generated files under `docs/dictionary/` are *not* rewritten directly — their generator reads the updated URL, so the next `python scripts/generate_docs.py` regenerates them with the new identity.
+Auto-generated files under `docs/dictionary/` are *not* rewritten directly — their generator reads the updated URL, so the next `python scripts/platform/generate_docs.py` regenerates them with the new identity.
 
 ## What does NOT change
 
 - **Python package name.** `packages/databox/` stays `databox`, because `from databox.config import …` imports appear in every source package. Renaming the Python package would cascade through every source, test, and Dagster wiring — far outside the scope of a one-command rebrand.
 - **External dependencies.** `dagster-sqlmesh` is pinned to its public PyPI release in
   `packages/databox/pyproject.toml`; update the pin and lockfile together when upgrading it.
-- **The three example sources.** eBird, NOAA, USGS stay as working examples. Delete them (or replace them) at your own pace — the layout lint (`python scripts/check_source_layout.py`) enforces the shape new sources must follow.
+- **The three example sources.** eBird, NOAA, USGS stay as working examples. Delete them (or replace them) at your own pace — the layout lint (`python scripts/sources/check_source_layout.py`) enforces the shape new sources must follow.
 - **`.loom/` history.** The `.loom/` records document how this scaffold was built; they are historical artifacts, not project identity.
 
 ## Verifying the rename
@@ -53,7 +53,7 @@ After `task init`, run the full gates:
 
 ```bash
 task ci                                # ruff + mypy + pytest + drift check
-python scripts/check_source_layout.py  # every source still satisfies the layout
+python scripts/sources/check_source_layout.py  # every source still satisfies the layout
 task verify                            # smoke full-refresh (DATABOX_SMOKE=1) — all three sources through Dagster
 ```
 
@@ -67,7 +67,7 @@ If anything remains outside `.loom/`, either add the file to `scaffold.yaml`'s `
 
 ## Adding your own templated values
 
-`scaffold.yaml` is editable. Add a new field under `project:` or `github:`, then teach `scripts/bootstrap.py` how to substitute it by extending `compute_substitutions`. The rule: substitutions must be *specific enough not to collide with Python identifiers*. Full URLs, qualified paths like `{org}/{repo}`, composite tokens like `{slug}-workspace`, and the capitalized brand name are all safe. Bare lowercase slugs are not.
+`scaffold.yaml` is editable. Add a new field under `project:` or `github:`, then teach `scripts/platform/bootstrap.py` how to substitute it by extending `compute_substitutions`. The rule: substitutions must be *specific enough not to collide with Python identifiers*. Full URLs, qualified paths like `{org}/{repo}`, composite tokens like `{slug}-workspace`, and the capitalized brand name are all safe. Bare lowercase slugs are not.
 
 ## Deleting the example sources
 
@@ -78,6 +78,6 @@ Out of scope for `task init` — that command only renames. To remove a source:
 3. Delete `packages/databox/databox/orchestration/domains/<source>.py`
 4. Remove the source from `packages/databox/databox/config/sources.py`
 5. Update `.schema/<cdm-name>/` artifacts and SQLMesh CDM models if the source contributed CDM tables
-6. Run `python scripts/check_source_layout.py` — should report no missing layout for the remaining sources
+6. Run `python scripts/sources/check_source_layout.py` — should report no missing layout for the remaining sources
 
 A dedicated `task rm-source <name>` wrapper is planned but not yet shipped.

@@ -763,7 +763,7 @@ def audit_workflow_runners(workflow_root: Path) -> list[str]:
         if media_publishers:
             required_markers = (
                 "config/rufous-media-visual-approvals.json",
-                "python scripts/verify_rufous_media_approvals.py",
+                "python scripts/rufous_media/verify_rufous_media_approvals.py",
                 "--media-approvals config/rufous-media-visual-approvals.json",
             )
             for marker in required_markers:
@@ -778,8 +778,10 @@ def audit_workflow_runners(workflow_root: Path) -> list[str]:
                         f"{path.name}:{line_number} media publisher omits the committed "
                         "human approval ledger"
                     )
-            gate_position = text.find("python scripts/verify_rufous_media_approvals.py")
-            first_publisher = text.find("python scripts/publish_rufous_media.py")
+            gate_position = text.find(
+                "python scripts/rufous_media/verify_rufous_media_approvals.py"
+            )
+            first_publisher = text.find("python scripts/rufous_media/publish_rufous_media.py")
             if gate_position < 0 or gate_position > first_publisher:
                 findings.append(
                     f"{path.name} must run the human media approval gate before cloud publishers"
@@ -831,7 +833,7 @@ def _workflow_media_publisher_commands(text: str) -> list[tuple[int, str]]:
     lines = text.splitlines()
     commands: list[tuple[int, str]] = []
     for index, line in enumerate(lines):
-        if line.strip() != "python scripts/publish_rufous_media.py":
+        if line.strip() != "python scripts/rufous_media/publish_rufous_media.py":
             continue
         arguments: list[str] = []
         for following in lines[index + 1 :]:

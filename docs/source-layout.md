@@ -4,7 +4,7 @@ Every registered dlt source in Databox follows the same ingestion shape.
 SQLMesh CDM models are not per-source required files; they live under the CDM
 schema after the `.schema` workflow is reviewed.
 
-`scripts/check_source_layout.py` enforces this convention locally and in CI.
+`scripts/sources/check_source_layout.py` enforces this convention locally and in CI.
 
 ## The shape
 
@@ -15,7 +15,7 @@ packages/databox-sources/databox_sources/<name>/
   └── source.py              # dlt @source / @resource definitions
 
 packages/databox/databox/orchestration/domains/<name>.py
-                             # Dagster dlt asset and independent ingest job;
+                             # Source builder and registry-governed Dagster exports;
                              # recurring sources also expose a schedule
 ```
 
@@ -46,8 +46,8 @@ drift in a finished source.
 | Component | Why it is required |
 |---|---|
 | `source.py` | Anchor file — if this doesn't exist, the source isn't loadable. |
-| `databox.config.sources.SOURCES` | Canonical identity, raw-table inventory, cadence flags, freshness, domain identity, and verification profile. |
-| `domains/<name>.py` | Exactly one callable source builder, Dagster dlt assets/keys/checks, and independent ingest job; recurring sources also expose a daily job and schedule. |
+| `databox.config.sources.SOURCES` | Canonical identity, raw-table inventory, cadence flags, freshness, domain identity, verification profile, and orchestration mode. |
+| `domains/<name>.py` | Exactly one callable source builder and exports matching the orchestration mode. Default sources expose Dagster dlt assets/keys/checks and an independent ingest job; recurring sources also expose a daily job and schedule. Explicit-target sources expose empty asset/key lists and no ingest job. |
 | `tests/<name>/` | Profile-required resource, schema, smoke, idempotency, and (for file snapshots) staged-publication coverage. |
 
 Static pinned sources set `scheduled=False`, `parallel_refresh=False`, and the
@@ -61,6 +61,14 @@ does not invent integrity values. Its dlt load targets transient
 `raw_avonet_staging`; final `raw_avonet` is published atomically only after the
 independent Quack server stops.
 
+Sources with `orchestration_mode="explicit_targets"` have no safe unconfigured
+input snapshot. They must also be unscheduled and absent from shared parallel
+refresh. Their domain module retains a callable builder for authorized callers,
+but the contract requires empty `assets` and `dlt_asset_keys`, `ingest_job =
+None`, and no default dlt asset function. USFWS is the current example: its
+public-media release workflow derives and validates a caller-owned target list.
+Do not invent an implicit target set merely to expose a Dagster job.
+
 ## Adding model behavior
 
 After a source lands and raw dlt schemas exist, use the project skills in order:
@@ -73,8 +81,8 @@ After a source lands and raw dlt schemas exist, use the project skills in order:
 `create-transformation` writes SQLMesh CDM models; it does not create dlt
 transformation scripts.
 
-`scripts/check_source_modeling.py` and
-`tests/test_source_modeling_contract.py` enforce this chain for every registry
+`scripts/sources/check_source_modeling.py` and
+`tests/sources/test_source_modeling_contract.py` enforce this chain for every registry
 source. Every registered raw table must be modeled or explicitly excluded with
 a reason; modeled concepts must reach the ontology and CDM; modeled tables must
 have AST-parsed SQLMesh `FROM`/`JOIN` dependencies in CDM-declared models with

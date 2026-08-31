@@ -37,30 +37,30 @@ on:
       - "packages/databox/databox/public_restricted_marks.py"
       - "packages/databox/databox/public_release.py"
       - "packages/databox/databox/public_release_hydrate.py"
-      - "scripts/load_dlt_quack.py"
-      - "scripts/*rufous_public.py"
-      - "scripts/*rufous*media.py"
-      - "scripts/build_rufous_media_review.py"
-      - "scripts/compose_rufous_media_pin.py"
-      - "scripts/verify_rufous_media_approvals.py"
-      - "scripts/sqlmesh_plan_rufous_public.sh"
-      - "scripts/sqlmesh_plan_rufous_media.sh"
-      - "scripts/sqlmesh_plan_rufous_inaturalist_media.sh"
+      - "scripts/sources/load_dlt_quack.py"
+      - "scripts/rufous_media/*rufous_public.py"
+      - "scripts/rufous_media/*rufous*media.py"
+      - "scripts/rufous_media/build_rufous_media_review.py"
+      - "scripts/rufous_media/compose_rufous_media_pin.py"
+      - "scripts/rufous_media/verify_rufous_media_approvals.py"
+      - "scripts/rufous_media/sqlmesh_plan_rufous_public.sh"
+      - "scripts/rufous_media/sqlmesh_plan_rufous_media.sh"
+      - "scripts/rufous_media/sqlmesh_plan_rufous_inaturalist_media.sh"
       - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
-      - "tests/test_public_avonet_model.py"
-      - "tests/test_public_export*.py"
-      - "tests/test_public_audio*.py"
-      - "tests/test_public_release.py"
-      - "tests/test_public_release_hydrate.py"
-      - "tests/test_rufous_public_workflow.py"
-      - "tests/test_rufous_wikimedia_public_media.py"
-      - "tests/test_public_media*.py"
-      - "tests/test_public_inaturalist_media_ingest.py"
-      - "tests/test_settings.py"
-      - "tests/test_source_builders.py"
-      - "tests/test_source_registry.py"
+      - "tests/rufous_media/test_public_avonet_model.py"
+      - "tests/rufous_media/test_public_export*.py"
+      - "tests/rufous_media/test_public_audio*.py"
+      - "tests/rufous_media/test_public_release.py"
+      - "tests/rufous_media/test_public_release_hydrate.py"
+      - "tests/rufous_media/test_rufous_public_workflow.py"
+      - "tests/rufous_media/test_rufous_wikimedia_public_media.py"
+      - "tests/rufous_media/test_public_media*.py"
+      - "tests/rufous_media/test_public_inaturalist_media_ingest.py"
+      - "tests/platform/test_settings.py"
+      - "tests/sources/test_source_builders.py"
+      - "tests/sources/test_source_registry.py"
       - "transforms/main/models/birding_agent/**"
       - "transforms/main/models/environmental_observations/**"
       - "transforms/main/models/rufous_public/**"
@@ -112,30 +112,30 @@ on:
       - "packages/databox/databox/public_restricted_marks.py"
       - "packages/databox/databox/public_release.py"
       - "packages/databox/databox/public_release_hydrate.py"
-      - "scripts/load_dlt_quack.py"
-      - "scripts/*rufous_public.py"
-      - "scripts/*rufous*media.py"
-      - "scripts/build_rufous_media_review.py"
-      - "scripts/compose_rufous_media_pin.py"
-      - "scripts/verify_rufous_media_approvals.py"
-      - "scripts/sqlmesh_plan_rufous_public.sh"
-      - "scripts/sqlmesh_plan_rufous_media.sh"
-      - "scripts/sqlmesh_plan_rufous_inaturalist_media.sh"
+      - "scripts/sources/load_dlt_quack.py"
+      - "scripts/rufous_media/*rufous_public.py"
+      - "scripts/rufous_media/*rufous*media.py"
+      - "scripts/rufous_media/build_rufous_media_review.py"
+      - "scripts/rufous_media/compose_rufous_media_pin.py"
+      - "scripts/rufous_media/verify_rufous_media_approvals.py"
+      - "scripts/rufous_media/sqlmesh_plan_rufous_public.sh"
+      - "scripts/rufous_media/sqlmesh_plan_rufous_media.sh"
+      - "scripts/rufous_media/sqlmesh_plan_rufous_inaturalist_media.sh"
       - "soda/contracts/birding_agent/gbif_occurrence_evidence.yaml"
       - "soda/contracts/environmental_observations/fact_bird_occurrence.yaml"
       - "soda/contracts/rufous_public/**"
-      - "tests/test_public_avonet_model.py"
-      - "tests/test_public_export*.py"
-      - "tests/test_public_audio*.py"
-      - "tests/test_public_release.py"
-      - "tests/test_public_release_hydrate.py"
-      - "tests/test_rufous_public_workflow.py"
-      - "tests/test_rufous_wikimedia_public_media.py"
-      - "tests/test_public_media*.py"
-      - "tests/test_public_inaturalist_media_ingest.py"
-      - "tests/test_settings.py"
-      - "tests/test_source_builders.py"
-      - "tests/test_source_registry.py"
+      - "tests/rufous_media/test_public_avonet_model.py"
+      - "tests/rufous_media/test_public_export*.py"
+      - "tests/rufous_media/test_public_audio*.py"
+      - "tests/rufous_media/test_public_release.py"
+      - "tests/rufous_media/test_public_release_hydrate.py"
+      - "tests/rufous_media/test_rufous_public_workflow.py"
+      - "tests/rufous_media/test_rufous_wikimedia_public_media.py"
+      - "tests/rufous_media/test_public_media*.py"
+      - "tests/rufous_media/test_public_inaturalist_media_ingest.py"
+      - "tests/platform/test_settings.py"
+      - "tests/sources/test_source_builders.py"
+      - "tests/sources/test_source_registry.py"
       - "transforms/main/models/birding_agent/**"
       - "transforms/main/models/environmental_observations/**"
       - "transforms/main/models/rufous_public/**"
@@ -250,7 +250,7 @@ jobs:
                   config/rufous-pinned-public-audio.json|\
                   config/rufous-public-audio-selection.json|\
                   packages/databox/databox/public_audio*.py|\
-                  tests/test_public_audio*.py)
+                  tests/rufous_media/test_public_audio*.py)
                     audio_maintenance_change=true
                     ;;
                 esac
@@ -365,21 +365,21 @@ jobs:
           uv run pytest packages/databox-sources/tests/avonet
           packages/databox-sources/tests/usfws
           packages/databox-sources/tests/inaturalist
-          tests/test_analytics_contract_inventory.py
-          tests/test_public_avonet_model.py
-          tests/test_public_export.py tests/test_public_export_audit.py
-          tests/test_public_audio_export.py tests/test_public_audio_release.py
-          tests/test_public_audio_selection.py
-          tests/test_public_release.py tests/test_public_media.py
-          tests/test_public_release_hydrate.py
-          tests/test_rufous_public_workflow.py
-          tests/test_public_media_approval.py
-          tests/test_public_media_ingest.py tests/test_public_inaturalist_media_ingest.py
-          tests/test_public_media_release.py
-          tests/test_public_media_review.py
-          tests/test_public_wikimedia_media_ingest.py
-          tests/test_rufous_wikimedia_public_media.py
-          tests/test_source_builders.py tests/test_source_registry.py
+          tests/analytics/test_analytics_contract_inventory.py
+          tests/rufous_media/test_public_avonet_model.py
+          tests/rufous_media/test_public_export.py tests/rufous_media/test_public_export_audit.py
+          tests/rufous_media/test_public_audio_export.py tests/rufous_media/test_public_audio_release.py
+          tests/rufous_media/test_public_audio_selection.py
+          tests/rufous_media/test_public_release.py tests/rufous_media/test_public_media.py
+          tests/rufous_media/test_public_release_hydrate.py
+          tests/rufous_media/test_rufous_public_workflow.py
+          tests/rufous_media/test_public_media_approval.py
+          tests/rufous_media/test_public_media_ingest.py tests/rufous_media/test_public_inaturalist_media_ingest.py
+          tests/rufous_media/test_public_media_release.py
+          tests/rufous_media/test_public_media_review.py
+          tests/rufous_media/test_public_wikimedia_media_ingest.py
+          tests/rufous_media/test_rufous_wikimedia_public_media.py
+          tests/sources/test_source_builders.py tests/sources/test_source_registry.py
           -o "addopts=-v --tb=short"
       - name: Test public SQLMesh publication model
         working-directory: transforms/main
@@ -394,11 +394,11 @@ jobs:
           npm --prefix app test -- --reporter=dot
       - name: Export fictional public data
         run: >-
-          uv run python scripts/export_rufous_public.py
+          uv run python scripts/rufous_media/export_rufous_public.py
           --mode synthetic --output build/rufous-public-data
       - name: Exercise the atomic object-store release locally
         run: >-
-          uv run python scripts/publish_rufous_public.py
+          uv run python scripts/rufous_media/publish_rufous_public.py
           --source build/rufous-public-data
           --local-root build/rufous-r2-preview
           --prefix rufous-public
@@ -410,7 +410,7 @@ jobs:
           cp -R build/rufous-public-data/data app/dist/data
       - name: Enforce public release boundary
         run: >-
-          uv run python scripts/audit_rufous_public.py app/dist
+          uv run python scripts/rufous_media/audit_rufous_public.py app/dist
           --workflows .github/workflows
           --repository-root .
 
@@ -442,8 +442,8 @@ jobs:
       - name: Test the shell-only release contract and public browser application
         run: |
           uv run pytest \
-            tests/test_public_export_audit.py \
-            tests/test_rufous_public_workflow.py \
+            tests/rufous_media/test_public_export_audit.py \
+            tests/rufous_media/test_rufous_public_workflow.py \
             -o "addopts=-v --tb=short"
           npm --prefix app run typecheck
           npm --prefix app test -- --reporter=dot
@@ -456,10 +456,10 @@ jobs:
       - name: Remove bundled fixture data from the R2-only production shell
         run: rm -rf app/dist/data
       - name: Audit browser bundle configuration
-        run: uv run python scripts/audit_app_bundle.py
+        run: uv run python scripts/rufous_media/audit_app_bundle.py
       - name: Enforce the shell-only public release boundary
         run: >-
-          uv run python scripts/audit_rufous_public.py app/dist --shell-only
+          uv run python scripts/rufous_media/audit_rufous_public.py app/dist --shell-only
           --workflows .github/workflows
           --repository-root .
       - name: Verify this revision is still the main branch head
@@ -518,14 +518,14 @@ jobs:
       - name: Test the bounded media-delta release path
         run: >-
           uv run pytest packages/databox-sources/tests/inaturalist
-          tests/test_public_export.py tests/test_public_export_audit.py
-          tests/test_public_release.py tests/test_public_release_hydrate.py
-          tests/test_public_inaturalist_media_ingest.py
-          tests/test_public_wikimedia_media_ingest.py
-          tests/test_public_media.py tests/test_public_media_approval.py
-          tests/test_public_media_delta.py tests/test_public_media_pin.py
-          tests/test_public_media_release.py
-          tests/test_rufous_public_workflow.py
+          tests/rufous_media/test_public_export.py tests/rufous_media/test_public_export_audit.py
+          tests/rufous_media/test_public_release.py tests/rufous_media/test_public_release_hydrate.py
+          tests/rufous_media/test_public_inaturalist_media_ingest.py
+          tests/rufous_media/test_public_wikimedia_media_ingest.py
+          tests/rufous_media/test_public_media.py tests/rufous_media/test_public_media_approval.py
+          tests/rufous_media/test_public_media_delta.py tests/rufous_media/test_public_media_pin.py
+          tests/rufous_media/test_public_media_release.py
+          tests/rufous_media/test_rufous_public_workflow.py
           -o "addopts=-v --tb=short"
       - name: Test the iNaturalist publication model
         working-directory: transforms/main
@@ -541,10 +541,10 @@ jobs:
           VITE_RUFOUS_TURNSTILE_SITE_KEY: ${{ vars.RUF_AI_TURNSTILE_SITE_KEY }}
         run: npm --prefix app run build:public
       - name: Hydrate the verified active production snapshot
-        run: uv run python scripts/hydrate_rufous_public.py app/dist
+        run: uv run python scripts/rufous_media/hydrate_rufous_public.py app/dist
       - name: Verify the complete pinned immutable media catalog
         run: >-
-          uv run python scripts/verify_rufous_media_approvals.py
+          uv run python scripts/rufous_media/verify_rufous_media_approvals.py
           --manifest config/rufous-pinned-public-media.json
           --approvals config/rufous-media-visual-approvals.json
       - id: pending-media
@@ -569,7 +569,7 @@ jobs:
             --database data/databox.duckdb \
             --approvals config/rufous-media-visual-approvals.json \
             --targets-from-public-output app/dist
-          bash scripts/sqlmesh_plan_rufous_inaturalist_media.sh
+          bash scripts/rufous_media/sqlmesh_plan_rufous_inaturalist_media.sh
       - name: Initialize the isolated Wikimedia media warehouse
         if: >-
           steps.pending-media.outputs.pending_count != '0' &&
@@ -582,14 +582,14 @@ jobs:
           steps.pending-media.outputs.pending_count != '0' &&
           env.RUFOUS_MEDIA_PROVIDER == 'wikimedia'
         run: >-
-          uv run python scripts/load_rufous_wikimedia_media.py
+          uv run python scripts/rufous_media/load_rufous_wikimedia_media.py
           --database data/databox.duckdb
           --input config/rufous-wikimedia-public-media.json
           --targets-from-public-output app/dist
       - name: Prepare only approved provider WebP candidates
         if: steps.pending-media.outputs.pending_count != '0'
         run: |
-          uv run python scripts/prepare_rufous_media.py \
+          uv run python scripts/rufous_media/prepare_rufous_media.py \
             --database-path data/databox.duckdb \
             --output-dir build/rufous-selected-media \
             --provider "$RUFOUS_MEDIA_PROVIDER" \
@@ -597,14 +597,14 @@ jobs:
       - name: Verify provider-scoped human image approvals
         if: steps.pending-media.outputs.pending_count != '0'
         run: >-
-          uv run python scripts/verify_rufous_media_approvals.py
+          uv run python scripts/rufous_media/verify_rufous_media_approvals.py
           --manifest build/rufous-selected-media/manifest.json
           --approvals config/rufous-media-visual-approvals.json
           --provider "$RUFOUS_MEDIA_PROVIDER"
       - name: Bind prepared provider media to the committed public pin
         if: steps.pending-media.outputs.pending_count != '0'
         run: >-
-          uv run python scripts/compose_rufous_media_pin.py
+          uv run python scripts/rufous_media/compose_rufous_media_pin.py
           --verify-pinned config/rufous-pinned-public-media.json
           --prepared build/rufous-selected-media/manifest.json
           --approvals config/rufous-media-visual-approvals.json
@@ -612,7 +612,7 @@ jobs:
       - name: Apply the bounded media delta to the active snapshot
         if: steps.pending-media.outputs.pending_count != '0'
         run: >-
-          uv run python scripts/apply_rufous_media_delta.py
+          uv run python scripts/rufous_media/apply_rufous_media_delta.py
           --active-root app/dist
           --prepared-media-dir build/rufous-selected-media
           --approvals config/rufous-media-visual-approvals.json
@@ -625,11 +625,11 @@ jobs:
           cp -R build/rufous-public-data/data app/dist/data
       - name: Audit browser bundle configuration
         if: steps.pending-media.outputs.pending_count != '0'
-        run: uv run python scripts/audit_app_bundle.py
+        run: uv run python scripts/rufous_media/audit_app_bundle.py
       - name: Enforce the complete public release boundary
         if: steps.pending-media.outputs.pending_count != '0'
         run: >-
-          uv run python scripts/audit_rufous_public.py app/dist
+          uv run python scripts/rufous_media/audit_rufous_public.py app/dist
           --workflows .github/workflows
           --repository-root .
       - name: Verify this revision is still the main branch head
@@ -649,7 +649,7 @@ jobs:
           RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
         run: >-
           uv run --package databox --extra r2 --locked
-          python scripts/publish_rufous_public.py
+          python scripts/rufous_media/publish_rufous_public.py
           --source build/rufous-public-data
           --r2
           --prefix rufous-public
@@ -665,7 +665,7 @@ jobs:
           RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
         run: >-
           uv run --package databox --extra r2 --locked
-          python scripts/publish_rufous_media.py
+          python scripts/rufous_media/publish_rufous_media.py
           --source build/rufous-selected-media
           --approvals config/rufous-media-visual-approvals.json
           --provider "$RUFOUS_MEDIA_PROVIDER"
@@ -689,7 +689,7 @@ jobs:
           RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
         run: >-
           uv run --package databox --extra r2 --locked
-          python scripts/publish_rufous_media.py
+          python scripts/rufous_media/publish_rufous_media.py
           --source build/rufous-selected-media
           --approvals config/rufous-media-visual-approvals.json
           --provider "$RUFOUS_MEDIA_PROVIDER"
@@ -734,7 +734,7 @@ jobs:
           RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
         run: >-
           uv run --package databox --extra r2 --locked
-          python scripts/publish_rufous_public.py
+          python scripts/rufous_media/publish_rufous_public.py
           --source build/rufous-public-data
           --r2
           --prefix rufous-public
@@ -812,10 +812,10 @@ jobs:
         if: steps.audio_cache.outputs.cache-hit != 'true'
         run: >-
           uv run pytest
-          tests/test_public_audio_export.py
-          tests/test_public_audio_release.py
-          tests/test_public_audio_selection.py
-          tests/test_rufous_public_workflow.py
+          tests/rufous_media/test_public_audio_export.py
+          tests/rufous_media/test_public_audio_release.py
+          tests/rufous_media/test_public_audio_selection.py
+          tests/rufous_media/test_rufous_public_workflow.py
           -o "addopts=-v --tb=short"
       - name: Verify this revision is still the main branch head
         shell: bash
@@ -939,17 +939,17 @@ jobs:
           npm --prefix app ci
       - name: Test public exporter and release invariant
         run: >-
-          uv run pytest tests/test_analytics_contract_inventory.py
-          tests/test_public_avonet_model.py
-          tests/test_public_export.py tests/test_public_export_audit.py
-          tests/test_public_audio_export.py tests/test_public_audio_release.py
-          tests/test_public_audio_selection.py
-          tests/test_public_release.py tests/test_public_media.py
-          tests/test_rufous_public_workflow.py
-          tests/test_public_media_approval.py
-          tests/test_public_media_pin.py
-          tests/test_rufous_pinned_public_media.py
-          tests/test_source_builders.py tests/test_source_registry.py
+          uv run pytest tests/analytics/test_analytics_contract_inventory.py
+          tests/rufous_media/test_public_avonet_model.py
+          tests/rufous_media/test_public_export.py tests/rufous_media/test_public_export_audit.py
+          tests/rufous_media/test_public_audio_export.py tests/rufous_media/test_public_audio_release.py
+          tests/rufous_media/test_public_audio_selection.py
+          tests/rufous_media/test_public_release.py tests/rufous_media/test_public_media.py
+          tests/rufous_media/test_rufous_public_workflow.py
+          tests/rufous_media/test_public_media_approval.py
+          tests/rufous_media/test_public_media_pin.py
+          tests/rufous_media/test_rufous_pinned_public_media.py
+          tests/sources/test_source_builders.py tests/sources/test_source_registry.py
           -o "addopts=-v --tb=short"
       - name: Test public occurrence and trait publication models
         working-directory: transforms/main
@@ -971,14 +971,14 @@ jobs:
           DATABOX_GBIF_MAX_RECORDS: "3000"
           DATABOX_GBIF_PUBLIC_RELEASE: "true"
         run: |
-          uv run python scripts/load_dlt_quack.py \
+          uv run python scripts/sources/load_dlt_quack.py \
             --source gbif \
             --database data/databox.duckdb \
             --skip-sqlmesh
-          bash scripts/sqlmesh_plan_rufous_public.sh
+          bash scripts/rufous_media/sqlmesh_plan_rufous_public.sh
       - name: Verify the pinned immutable media catalog
         run: >-
-          uv run python scripts/verify_rufous_media_approvals.py
+          uv run python scripts/rufous_media/verify_rufous_media_approvals.py
           --manifest config/rufous-pinned-public-media.json
           --approvals config/rufous-media-visual-approvals.json
       - name: Verify the pinned immutable audio catalog without provider contact
@@ -1015,7 +1015,7 @@ jobs:
           Text/DomesticNames_AZ.txt -d data
       - name: Export licensed static public projection
         run: >-
-          uv run python scripts/export_rufous_public.py
+          uv run python scripts/rufous_media/export_rufous_public.py
           --mode production
           --database data/databox.duckdb
           --gnis data/DomesticNames_AZ.txt
@@ -1033,15 +1033,15 @@ jobs:
       - name: Remove bundled fixture data from the R2-only production shell
         run: rm -rf app/dist/data
       - name: Audit browser bundle configuration
-        run: uv run python scripts/audit_app_bundle.py
+        run: uv run python scripts/rufous_media/audit_app_bundle.py
       - name: Enforce the shell-only public release boundary
         run: >-
-          uv run python scripts/audit_rufous_public.py app/dist --shell-only
+          uv run python scripts/rufous_media/audit_rufous_public.py app/dist --shell-only
           --workflows .github/workflows
           --repository-root .
       - name: Enforce the generated public data boundary
         run: >-
-          uv run python scripts/audit_rufous_public.py build/rufous-public-data
+          uv run python scripts/rufous_media/audit_rufous_public.py build/rufous-public-data
           --workflows .github/workflows
           --repository-root .
       - name: Verify this revision is still the main branch head
@@ -1059,7 +1059,7 @@ jobs:
           RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
         run: >-
           uv run --package databox --extra r2 --locked
-          python scripts/publish_rufous_public.py
+          python scripts/rufous_media/publish_rufous_public.py
           --source build/rufous-public-data
           --r2
           --prefix rufous-public
@@ -1114,7 +1114,7 @@ jobs:
           RUFOUS_R2_SECRET_ACCESS_KEY: ${{ secrets.RUF_R2_SECRET_ACCESS_KEY }}
         run: >-
           uv run --package databox --extra r2 --locked
-          python scripts/publish_rufous_public.py
+          python scripts/rufous_media/publish_rufous_public.py
           --source build/rufous-public-data
           --r2
           --prefix rufous-public

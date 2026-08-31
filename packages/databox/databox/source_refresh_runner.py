@@ -187,7 +187,7 @@ def run_refresh(
 
     orchestration_command = [
         str(PROJECT_ROOT / ".venv" / "bin" / "python"),
-        str(PROJECT_ROOT / "scripts" / "load_dlt_quack.py"),
+        str(PROJECT_ROOT / "scripts" / "sources" / "load_dlt_quack.py"),
         "--database",
         str(settings.database_path),
     ]

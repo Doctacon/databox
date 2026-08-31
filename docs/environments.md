@@ -30,7 +30,7 @@ promotion can reuse already-materialized snapshots.
 | Task | What it runs |
 |---|---|
 | `task plan:dev` | `sqlmesh plan dev` — interactive model-change plan |
-| `task verify:dev` | `scripts/verify_dev.py` — Soda contracts against `__dev` schemas |
+| `task verify:dev` | `scripts/platform/verify_dev.py` — Soda contracts against `__dev` schemas |
 | `task plan:prod` | `sqlmesh plan prod` — interactive production plan |
 | `task promote` | `sqlmesh plan prod --auto-apply` — verified dev-to-prod promotion |
 
@@ -40,12 +40,12 @@ Virtual environments share the local DuckDB file and buffer pool.
 ## Soda contracts and schema suffixes
 
 Every Soda contract under `soda/contracts/` names a production dataset.
-`scripts/verify_dev.py` rewrites that name to the corresponding `__dev` schema
+`scripts/platform/verify_dev.py` rewrites that name to the corresponding `__dev` schema
 in memory before passing YAML to Soda. Committed contract files are unchanged.
 
 ## Schema-contract gate vs SQLMesh environments
 
-The schema-contract gate (`scripts/schema_gate.py`) checks contract files in
+The schema-contract gate (`scripts/platform/schema_gate.py`) checks contract files in
 git without running SQLMesh. It catches incompatible contract changes before a
 dev plan. `task verify:dev` separately confirms that dev materializations
 satisfy those contracts.

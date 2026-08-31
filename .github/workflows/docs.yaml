@@ -29,9 +29,9 @@ jobs:
       - name: Install
         run: uv sync --all-extras --dev
       - name: Check committed dictionary is fresh
-        run: uv run python scripts/generate_docs.py --check
+        run: uv run python scripts/platform/generate_docs.py --check
       - name: Generate data dictionary
-        run: uv run python scripts/generate_docs.py
+        run: uv run python scripts/platform/generate_docs.py
       - name: Build MkDocs site
         run: uv run mkdocs build --strict
       - name: Upload Pages artifact

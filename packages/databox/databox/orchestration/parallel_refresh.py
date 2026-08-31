@@ -192,7 +192,9 @@ def run_source_dagster_job(
 
 
 def run_sqlmesh_prod() -> None:
-    subprocess.run([str(PROJECT_ROOT / "scripts" / "sqlmesh_plan_prod.sh")], check=True)
+    subprocess.run(
+        [str(PROJECT_ROOT / "scripts" / "analytics" / "sqlmesh_plan_prod.sh")], check=True
+    )
 
 
 def inspect_refresh_state(database_path: str, source_names: Sequence[str]) -> WarehouseInspection:

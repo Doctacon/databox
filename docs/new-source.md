@@ -46,7 +46,7 @@ task new-source -- weather --shape rest
 
 # 4. Add the profile tests (and a pinned config.yaml + staged-publication test
 #    for file_snapshot), then remove the scaffold-lint marker only when this passes.
-python scripts/check_source_layout.py
+python scripts/sources/check_source_layout.py
 
 # 5. Run the source explicitly through its bounded source job when authorized so
 #    local dlt schema JSON exists under data/dlt/.
@@ -56,7 +56,7 @@ python scripts/check_source_layout.py
 #    create-transformation writes SQLMesh models, not dlt transformation scripts.
 
 # 7. Regenerate docs after SQLMesh models/contracts change.
-uv run python scripts/generate_docs.py
+uv run python scripts/platform/generate_docs.py
 ```
 
 ## Flags

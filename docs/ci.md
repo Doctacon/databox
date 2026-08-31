@@ -7,7 +7,7 @@ maintains a per-source job or path list.
 
 The workflow lives in `.github/workflows/ci.yaml`. The executable source
 contract lives in `packages/databox/databox/config/sources.py` and is exposed to
-CI by `scripts/source_ci.py`.
+CI by `scripts/sources/source_ci.py`.
 
 ## Classifier
 
@@ -32,7 +32,7 @@ the same source verification as eBird, NOAA, or USGS.
 
 ## Registry-derived matrix
 
-`python scripts/source_ci.py matrix` performs two operations atomically:
+`python scripts/sources/source_ci.py matrix` performs two operations atomically:
 
 1. validates registry, package, domain, source-builder, raw-table, verification
    profile, manifest, and required-test-file coherence;
@@ -72,7 +72,7 @@ install the Python/data stack.
 The aggregate coverage job first runs core tests, then calls:
 
 ```bash
-python scripts/source_ci.py coverage
+python scripts/sources/source_ci.py coverage
 ```
 
 The command validates the same canonical contract, executes root-level shared
@@ -86,13 +86,13 @@ process uses `--record-mode=none --block-network`.
 
 ```bash
 # Validate and inspect the matrix
-uv run python scripts/source_ci.py matrix --pretty
+uv run python scripts/sources/source_ci.py matrix --pretty
 
 # Validate source layout/profile artifacts
-uv run python scripts/check_source_layout.py
+uv run python scripts/sources/check_source_layout.py
 
 # Run all source suites offline without combining their HTTP clients
-uv run python scripts/source_ci.py coverage
+uv run python scripts/sources/source_ci.py coverage
 ```
 
 Local YAML/static tests validate matrix determinism, workflow consumption,

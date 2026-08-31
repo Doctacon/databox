@@ -1,6 +1,6 @@
 # Data dictionary
 
-Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/generate_docs.py`.
+Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/platform/generate_docs.py`.
 
 - **Models:** 22
 - **Soda contracts:** 29

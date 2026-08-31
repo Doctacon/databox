@@ -54,7 +54,7 @@ print(available_metrics())
 2. Fully qualify column references with
    `environmental_observations.fact_bird_observation.<col>` or another active
    CDM model.
-3. Add the metric name to `REQUIRED_METRICS` in `tests/test_metrics.py` if it is
+3. Add the metric name to `REQUIRED_METRICS` in `tests/platform/test_metrics.py` if it is
    required behavior.
 4. Document the metric in the registry table above.
-5. Run `uv run pytest tests/test_metrics.py`.
+5. Run `uv run pytest tests/platform/test_metrics.py`.

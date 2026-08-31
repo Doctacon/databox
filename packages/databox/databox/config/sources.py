@@ -20,6 +20,7 @@ from typing import Literal
 import dagster as dg
 
 VerificationProfile = Literal["http", "file_snapshot"]
+OrchestrationMode = Literal["default", "explicit_targets"]
 
 SOURCE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 
@@ -45,6 +46,8 @@ class Source:
       scheduled: whether the source has a recurring daily pipeline and schedule.
       parallel_refresh: whether the source participates in the shared full refresh.
       verification_profile: profile enforced by the registry-derived source test contract.
+      orchestration_mode: whether Dagster may expose the normal unconfigured
+        source asset/job or the source requires caller-owned explicit targets.
     """
 
     name: str
@@ -54,6 +57,7 @@ class Source:
     scheduled: bool = True
     parallel_refresh: bool = True
     verification_profile: VerificationProfile = "http"
+    orchestration_mode: OrchestrationMode = "default"
 
     @property
     def raw_catalog(self) -> str:
@@ -97,6 +101,7 @@ SOURCES: list[Source] = [
         raw_tables=("image_search_runs", "image_records"),
         scheduled=False,
         parallel_refresh=False,
+        orchestration_mode="explicit_targets",
     ),
 ]
 

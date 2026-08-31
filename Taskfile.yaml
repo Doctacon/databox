@@ -16,13 +16,13 @@ tasks:
       - test -d {{.VENV_DIR}} || uv venv {{.VENV_DIR}}
       - test -f .env || cp .env.example .env
       - uv sync
-      - ./scripts/setup_pre_commit.sh
+      - ./scripts/operations/setup_pre_commit.sh
       # Route SQLMesh's hard-coded `logs/` dir into `.logs/sqlmesh/` so the
       # repo keeps one log root. No equivalent env var / config knob exists
       # in SQLMesh — the symlink is the least-ugly option.
       - mkdir -p .logs/sqlmesh
       - test -e transforms/main/logs || ln -s ../../.logs/sqlmesh transforms/main/logs
-    sources: [pyproject.toml, uv.lock, scripts/setup_pre_commit.sh]
+    sources: [pyproject.toml, uv.lock, scripts/operations/setup_pre_commit.sh]
 
   ci:
     desc: "Every CI gate: ruff + mypy + pytest + secret scan + staging drift"
@@ -32,15 +32,15 @@ tasks:
       - "{{.VENV_DIR}}/bin/ruff format --check ."
       - "{{.VENV_DIR}}/bin/mypy packages/"
       - "{{.VENV_DIR}}/bin/pytest"
-      - "{{.VENV_DIR}}/bin/python scripts/check_secrets.py ."
-      - "{{.VENV_DIR}}/bin/python scripts/generate_staging.py --check"
-      - "{{.VENV_DIR}}/bin/python scripts/generate_platform_health.py --check"
+      - "{{.VENV_DIR}}/bin/python scripts/platform/check_secrets.py ."
+      - "{{.VENV_DIR}}/bin/python scripts/analytics/generate_staging.py --check"
+      - "{{.VENV_DIR}}/bin/python scripts/analytics/generate_platform_health.py --check"
 
   docs:build:
     desc: "Generate dictionary, build MkDocs (strict)"
     deps: [install]
     cmds:
-      - "{{.VENV_DIR}}/bin/python scripts/generate_docs.py"
+      - "{{.VENV_DIR}}/bin/python scripts/platform/generate_docs.py"
       - "{{.VENV_DIR}}/bin/mkdocs build --strict"
 
   plan:dev:
@@ -57,7 +57,7 @@ tasks:
     cmds: ["../../{{.VENV_DIR}}/bin/sqlmesh plan prod --auto-apply {{.CLI_ARGS}}"]
   verify:dev:
     desc: "Run every Soda contract against the __dev schemas"
-    cmds: ["{{.VENV_DIR}}/bin/python scripts/verify_dev.py"]
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/verify_dev.py"]
   eval:agent:
     desc: "Run deterministic DeepEval checks for Rufous"
     env:
@@ -68,18 +68,18 @@ tasks:
     cmds: ["{{.VENV_DIR}}/bin/deepeval test run tests/evals/test_birding_trip_copilot_deepeval.py"]
   smoke:cloudflare-ai:
     desc: "Opt-in three-schema Cloudflare Workers AI smoke using only @cf/zai-org/glm-4.7-flash"
-    cmds: ["{{.VENV_DIR}}/bin/python scripts/smoke_cloudflare_ai.py"]
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/cloudflare/smoke_cloudflare_ai.py"]
 
   full-refresh:
     desc: "Concurrent Dagster dlt source jobs through one Quack server, then native SQLMesh — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
     cmds:
-      - "./scripts/run-logged.sh full-refresh -- {{.VENV_DIR}}/bin/python scripts/load_dlt_quack.py"
+      - "./scripts/operations/run-logged.sh full-refresh -- {{.VENV_DIR}}/bin/python scripts/sources/load_dlt_quack.py"
   verify:
     desc: "Smoke concurrent Dagster source jobs through one Quack server, then native SQLMesh — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_SMOKE: "1" }
     cmds:
-      - "./scripts/run-logged.sh verify -- {{.VENV_DIR}}/bin/python scripts/load_dlt_quack.py"
+      - "./scripts/operations/run-logged.sh verify -- {{.VENV_DIR}}/bin/python scripts/sources/load_dlt_quack.py"
   dagster:dev:
     desc: "Launch Dagster UI on the default Quack backend"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
@@ -111,14 +111,14 @@ tasks:
       - "npm run typecheck"
       - "npm test"
       - "npm run build"
-      - "../{{.VENV_DIR}}/bin/python ../scripts/audit_app_bundle.py"
+      - "../{{.VENV_DIR}}/bin/python ../scripts/rufous_media/audit_app_bundle.py"
   app:audit-bundle:
     desc: "Audit the built browser bundle for configured Cloudflare names and values"
-    cmds: ["{{.VENV_DIR}}/bin/python scripts/audit_app_bundle.py"]
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/rufous_media/audit_app_bundle.py"]
   app:dev:
     desc: "Launch the loopback Rufous API and web app"
     deps: ["app:install"]
-    cmds: ["{{.VENV_DIR}}/bin/python scripts/run_local_app.py"]
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/birding/run_local_app.py"]
   media:backfill:
     desc: "Dry-run or apply persisted recommendation media backfill"
     cmds: ["{{.VENV_DIR}}/bin/python -m databox.agent_tools.recommendation_media_backfill {{.CLI_ARGS}}"]
@@ -128,10 +128,10 @@ tasks:
     cmds: ["{{.VENV_DIR}}/bin/uvicorn databox.api:app --host 127.0.0.1 --port 8000"]
   init:
     desc: "Rebrand a fresh fork from scaffold.yaml (see docs/template.md)"
-    cmds: ["{{.VENV_DIR}}/bin/python scripts/bootstrap.py {{.CLI_ARGS}}"]
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/bootstrap.py {{.CLI_ARGS}}"]
   new-source:
     desc: "Scaffold a new dlt source (see docs/new-source.md)"
-    cmds: ["{{.VENV_DIR}}/bin/python scripts/new_source.py {{.CLI_ARGS}}"]
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/sources/new_source.py {{.CLI_ARGS}}"]
 
   db:reset:
     desc: "Delete local DuckDB files, including persisted trip plans"

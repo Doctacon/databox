@@ -26,5 +26,5 @@ repos:
     hooks:
       - id: check-secrets
         name: Scan for committed credentials
-        entry: python3 scripts/check_secrets.py
+        entry: python3 scripts/platform/check_secrets.py
         language: system

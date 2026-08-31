@@ -79,16 +79,16 @@ uv run pre-commit run ruff-check     # run one hook
 ## Secret scan
 
 ```bash
-python scripts/check_secrets.py      # scan eligible tracked files from repo root
-python scripts/check_secrets.py path/to/file.py
+python scripts/platform/check_secrets.py      # scan eligible tracked files from repo root
+python scripts/platform/check_secrets.py path/to/file.py
 ```
 
 ## Source layout + staging codegen
 
 ```bash
-python scripts/check_source_layout.py        # lint per-source directory layout
-python scripts/generate_staging.py           # regenerate trivial-rename stg_* SQL
-python scripts/generate_staging.py --check   # fail on drift (also runs in task ci)
+python scripts/sources/check_source_layout.py        # lint per-source directory layout
+python scripts/analytics/generate_staging.py           # regenerate trivial-rename stg_* SQL
+python scripts/analytics/generate_staging.py --check   # fail on drift (also runs in task ci)
 ```
 
 ## Watching

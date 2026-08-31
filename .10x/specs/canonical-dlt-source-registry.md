@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-12
-Updated: 2026-07-12
+Updated: 2026-08-31
 
 # Canonical dlt source registry
 
@@ -24,9 +24,10 @@ Each registered source MUST expose or deterministically derive:
 - whether it is eligible for a recurring schedule;
 - whether it participates in the shared parallel Quack refresh;
 - whether it is the single analytics freshness anchor;
-- one verification profile: `http` or `file_snapshot`.
+- one verification profile: `http` or `file_snapshot`;
+- one orchestration mode: `default` or `explicit_targets`.
 
-The active registry MUST contain exactly the seven current sources unless separately changed by an approved source addition/removal:
+The active registry MUST contain exactly the eight current sources unless separately changed by an approved source addition/removal:
 
 - `avonet`
 - `ebird`
@@ -34,6 +35,7 @@ The active registry MUST contain exactly the seven current sources unless separa
 - `noaa`
 - `usgs`
 - `usgs_earthquakes`
+- `usfws`
 - `xeno_canto`
 
 ## Domain-module contract
@@ -41,7 +43,8 @@ The active registry MUST contain exactly the seven current sources unless separa
 For each registered source `<name>`:
 
 - `databox.orchestration.domains.<name>` MUST exist;
-- the module MUST expose the dlt assets and ingest job required by the installed Dagster/dagster-dlt integration;
+- a `default` module MUST expose the dlt assets and ingest job required by the installed Dagster/dagster-dlt integration;
+- an `explicit_targets` module MUST expose a callable builder but MUST omit an unconfigured dlt asset, expose empty asset/dlt-key lists, and set its ingest job to `None`; this mode is allowed only when the source is unscheduled and excluded from shared parallel refresh;
 - scheduled sources MUST expose their current daily job and schedule; unscheduled sources MUST NOT gain one;
 - the module MUST use one local source builder for both definition-time metadata and execution-time source construction;
 - source constructor literals MUST NOT be repeated between decorator setup and runtime execution;
@@ -73,23 +76,24 @@ The new-source scaffold MUST:
 1. create the source package and Dagster domain module;
 2. add one canonical registry entry with an explicit verification profile;
 3. create or clearly require the profile's test skeleton;
-4. avoid editing a manual source list in Dagster definitions or CI;
-5. fail its verification instructions until real raw tables and profile obligations are completed;
-6. not create generic pipeline YAML or a legacy wrapper/factory.
+4. declare the orchestration mode explicitly when the source cannot have safe default inputs;
+5. avoid editing a manual source list in Dagster definitions or CI;
+6. fail its verification instructions until real raw tables and profile obligations are completed;
+7. not create generic pipeline YAML or a legacy wrapper/factory.
 
 The source-layout/contract checker MUST reject:
 
 - a registered source without its package/domain/tests;
 - an implemented source package/domain absent from the registry, except an explicitly marked scaffold with a bounded reason;
 - duplicate names, invalid profiles, missing raw tables for completed sources, or multiple analytics anchors;
-- a domain module whose scheduling exports conflict with registry flags;
+- a domain module whose asset/job exports conflict with its orchestration mode or whose scheduling exports conflict with registry flags;
 - legacy generic registry/config artifacts reintroduced as active authority.
 
 ## Acceptance scenarios
 
 ### Existing source
 
-Given any of the seven active registry entries, when the contract checker runs, then it resolves exactly one source package, one domain module, one source builder, and one verification profile.
+Given any of the eight active registry entries, when the contract checker runs, then it resolves exactly one source package, one domain module, one source builder, and one verification profile.
 
 ### New source
 

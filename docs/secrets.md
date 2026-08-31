@@ -147,7 +147,7 @@ decides what string to accept.
 
 ## Secret-scanner hygiene
 
-`scripts/check_secrets.py` runs as a pre-commit hook and in CI. It treats
+`scripts/platform/check_secrets.py` runs as a pre-commit hook and in CI. It treats
 external-ref schemes (`op://`, `vault://`, `aws-secrets://`, `doppler://`)
 as pointers, not plaintext. Committing `openlineage_api_key: "op://databox/openlineage/api-key"`
 in `secret_refs.yaml` is safe — the string is a lookup key, not a credential.
@@ -162,7 +162,7 @@ synthetic fixture may use `secret-scan: allow` on the same line. Do not use that
 directive for application or configuration data.
 
 If you introduce a new external reference scheme, add its exact prefix to
-`REFERENCE_PREFIXES` in `scripts/check_secrets.py` and document it here.
+`REFERENCE_PREFIXES` in `scripts/platform/check_secrets.py` and document it here.
 
 ## When to migrate
 

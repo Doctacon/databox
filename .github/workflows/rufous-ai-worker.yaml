@@ -42,8 +42,8 @@ jobs:
         run: uv sync --all-extras --dev --locked
       - name: Enforce the static Pages and Workers Free boundaries
         run: >-
-          uv run pytest tests/test_public_export_audit.py
-          tests/test_rufous_ai_workflow.py
+          uv run pytest tests/rufous_media/test_public_export_audit.py
+          tests/cloudflare/test_rufous_ai_workflow.py
           -o "addopts=-v --tb=short"
       - name: Test the fixed request, fallback, and quota-exhaustion contracts
         run: npm --prefix workers/rufous-ai test
