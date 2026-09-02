@@ -20,7 +20,7 @@ SELECT
   _loaded_at::TIMESTAMP AS loaded_at,
   _dlt_load_id AS dlt_load_id,
   _dlt_id AS dlt_id
-FROM raw_ebird.region_stats
+FROM polaris_aws.raw_ebird.region_stats
 WHERE region_code IS NOT NULL
   AND year IS NOT NULL
   AND month IS NOT NULL

@@ -12,7 +12,7 @@ What are the three highest-leverage improvements to Databox's current dlt ingest
 
 This was a read-only architecture assessment. It inspected:
 
-- active architecture/specification records under `.10x/`, especially `.10x/specs/parallel-quack-local-refresh.md` and `.10x/specs/local-only-databox-platform.md`;
+- active architecture/specification records under `.10x/`, especially `.10x/specs/parallel-quack-local-refresh.md` and `.10x/specs/superseded/local-only-databox-platform.md`;
 - prior implementation evidence and reviews for the shared Quack refresh and CDM workflow;
 - `packages/databox-sources/databox_sources/` and its source tests;
 - `packages/databox/databox/orchestration/`, source registries, and pipeline configuration;

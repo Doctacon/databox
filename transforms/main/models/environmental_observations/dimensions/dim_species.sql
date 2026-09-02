@@ -21,7 +21,7 @@ WITH ebird_taxonomy_ranked AS (
     extinct_year,
     _loaded_at::TIMESTAMP AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY species_code ORDER BY _loaded_at DESC) AS rn
-  FROM raw_ebird.taxonomy
+  FROM polaris_aws.raw_ebird.taxonomy
   WHERE species_code IS NOT NULL
 ),
 ebird_species_list_ranked AS (
@@ -31,7 +31,7 @@ ebird_species_list_ranked AS (
     "order"::DOUBLE AS taxonomic_order,
     _loaded_at::TIMESTAMP AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY species_code ORDER BY _loaded_at DESC) AS rn
-  FROM raw_ebird.species_list
+  FROM polaris_aws.raw_ebird.species_list
   WHERE species_code IS NOT NULL
 ),
 ebird_species_all AS (
@@ -203,7 +203,7 @@ xeno_ranked AS (
       )
       ORDER BY quality ASC NULLS LAST, _loaded_at DESC, id DESC
     ) AS rn
-  FROM raw_xeno_canto.recordings
+  FROM polaris_aws.raw_xeno_canto.recordings
   WHERE id IS NOT NULL
 ),
 xeno_species AS (

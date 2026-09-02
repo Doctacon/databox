@@ -27,7 +27,7 @@ WITH observations AS (
     _loaded_at::TIMESTAMP AS loaded_at,
     _dlt_load_id,
     _dlt_id
-  FROM raw_ebird.recent_observations
+  FROM polaris_aws.raw_ebird.recent_observations
   WHERE sub_id IS NOT NULL AND species_code IS NOT NULL
 
   UNION ALL
@@ -53,7 +53,7 @@ WITH observations AS (
     _loaded_at::TIMESTAMP AS loaded_at,
     _dlt_load_id,
     _dlt_id
-  FROM raw_ebird.notable_observations
+  FROM polaris_aws.raw_ebird.notable_observations
   WHERE sub_id IS NOT NULL AND species_code IS NOT NULL
 ),
 ranked AS (

@@ -9,7 +9,7 @@ WITH ranked AS (
   SELECT
     *,
     ROW_NUMBER() OVER (PARTITION BY id ORDER BY event_updated_at DESC, _loaded_at DESC) AS rn
-  FROM raw_usgs_earthquakes.events
+  FROM polaris_aws.raw_usgs_earthquakes.events
   WHERE id IS NOT NULL
 )
 SELECT

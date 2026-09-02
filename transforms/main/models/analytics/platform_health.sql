@@ -13,7 +13,7 @@ WITH ebird_loads AS (
     schema_name,
     status,
     inserted_at::TIMESTAMP AS completed_at
-  FROM raw_ebird._dlt_loads
+  FROM polaris_aws.raw_ebird._dlt_loads
 ),
 gbif_loads AS (
   SELECT
@@ -22,7 +22,7 @@ gbif_loads AS (
     schema_name,
     status,
     inserted_at::TIMESTAMP AS completed_at
-  FROM raw_gbif._dlt_loads
+  FROM polaris_aws.raw_gbif._dlt_loads
 ),
 xeno_canto_loads AS (
   SELECT
@@ -31,7 +31,7 @@ xeno_canto_loads AS (
     schema_name,
     status,
     inserted_at::TIMESTAMP AS completed_at
-  FROM raw_xeno_canto._dlt_loads
+  FROM polaris_aws.raw_xeno_canto._dlt_loads
 ),
 noaa_loads AS (
   SELECT
@@ -40,7 +40,7 @@ noaa_loads AS (
     schema_name,
     status,
     inserted_at::TIMESTAMP AS completed_at
-  FROM raw_noaa._dlt_loads
+  FROM polaris_aws.raw_noaa._dlt_loads
 ),
 usgs_loads AS (
   SELECT
@@ -49,7 +49,7 @@ usgs_loads AS (
     schema_name,
     status,
     inserted_at::TIMESTAMP AS completed_at
-  FROM raw_usgs._dlt_loads
+  FROM polaris_aws.raw_usgs._dlt_loads
 ),
 usgs_earthquakes_loads AS (
   SELECT
@@ -58,7 +58,7 @@ usgs_earthquakes_loads AS (
     schema_name,
     status,
     inserted_at::TIMESTAMP AS completed_at
-  FROM raw_usgs_earthquakes._dlt_loads
+  FROM polaris_aws.raw_usgs_earthquakes._dlt_loads
 ),
 all_loads AS (
   SELECT * FROM ebird_loads
@@ -70,40 +70,40 @@ all_loads AS (
 ),
 ebird_rows AS (
   SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
-    SELECT _dlt_load_id, COUNT(*) AS n FROM raw_ebird.recent_observations GROUP BY 1
-    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.notable_observations GROUP BY 1
-    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.hotspots GROUP BY 1
-    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.species_list GROUP BY 1
-    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.taxonomy GROUP BY 1
-    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_ebird.region_stats GROUP BY 1
+    SELECT _dlt_load_id, COUNT(*) AS n FROM polaris_aws.raw_ebird.recent_observations GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM polaris_aws.raw_ebird.notable_observations GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM polaris_aws.raw_ebird.hotspots GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM polaris_aws.raw_ebird.species_list GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM polaris_aws.raw_ebird.taxonomy GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM polaris_aws.raw_ebird.region_stats GROUP BY 1
   ) t GROUP BY 1
 ),
 gbif_rows AS (
   SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
-    SELECT _dlt_load_id, COUNT(*) AS n FROM raw_gbif.occurrences GROUP BY 1
+    SELECT _dlt_load_id, COUNT(*) AS n FROM polaris_aws.raw_gbif.occurrences GROUP BY 1
   ) t GROUP BY 1
 ),
 xeno_canto_rows AS (
   SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
-    SELECT _dlt_load_id, COUNT(*) AS n FROM raw_xeno_canto.recordings GROUP BY 1
+    SELECT _dlt_load_id, COUNT(*) AS n FROM polaris_aws.raw_xeno_canto.recordings GROUP BY 1
   ) t GROUP BY 1
 ),
 noaa_rows AS (
   SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
-    SELECT _dlt_load_id, COUNT(*) AS n FROM raw_noaa.daily_weather GROUP BY 1
-    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_noaa.stations GROUP BY 1
-    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_noaa.datasets GROUP BY 1
+    SELECT _dlt_load_id, COUNT(*) AS n FROM polaris_aws.raw_noaa.daily_weather GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM polaris_aws.raw_noaa.stations GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM polaris_aws.raw_noaa.datasets GROUP BY 1
   ) t GROUP BY 1
 ),
 usgs_rows AS (
   SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
-    SELECT _dlt_load_id, COUNT(*) AS n FROM raw_usgs.daily_values GROUP BY 1
-    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM raw_usgs.sites GROUP BY 1
+    SELECT _dlt_load_id, COUNT(*) AS n FROM polaris_aws.raw_usgs.daily_values GROUP BY 1
+    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM polaris_aws.raw_usgs.sites GROUP BY 1
   ) t GROUP BY 1
 ),
 usgs_earthquakes_rows AS (
   SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (
-    SELECT _dlt_load_id, COUNT(*) AS n FROM raw_usgs_earthquakes.events GROUP BY 1
+    SELECT _dlt_load_id, COUNT(*) AS n FROM polaris_aws.raw_usgs_earthquakes.events GROUP BY 1
   ) t GROUP BY 1
 ),
 all_rows AS (

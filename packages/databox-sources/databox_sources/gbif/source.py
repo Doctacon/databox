@@ -298,6 +298,7 @@ def gbif_source(
     @dlt.resource(
         primary_key="key",
         write_disposition="merge",
+        table_format="iceberg",
         columns=_OCCURRENCE_COLUMNS,
     )
     def occurrences() -> Iterator[dict[str, Any]]:

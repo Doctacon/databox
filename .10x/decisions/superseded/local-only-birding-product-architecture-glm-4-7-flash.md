@@ -4,7 +4,7 @@ Updated: 2026-07-09
 
 # Local-only Birding Trip Copilot architecture — GLM 4.7 Flash
 
-Superseded by `.10x/decisions/local-only-birding-product-architecture.md` after the user replaced the sole model with `@cf/zai-org/glm-5.2`. Retained as historical rationale.
+Superseded by `.10x/decisions/superseded/local-only-birding-product-architecture.md` after the user replaced the sole model with `@cf/zai-org/glm-5.2`. Retained as historical rationale.
 
 
 ## Context

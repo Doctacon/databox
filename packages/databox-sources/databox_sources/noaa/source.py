@@ -124,6 +124,7 @@ def noaa_source(
     @dlt.resource(
         primary_key=["date", "datatype", "station"],
         write_disposition="merge",
+        table_format="iceberg",
         columns={
             "date": {"data_type": "text"},
             "datatype": {"data_type": "text"},
@@ -156,6 +157,7 @@ def noaa_source(
     @dlt.resource(
         primary_key="id",
         write_disposition="merge",
+        table_format="iceberg",
         columns={
             "id": {"data_type": "text"},
             "name": {"data_type": "text"},
@@ -184,6 +186,7 @@ def noaa_source(
     @dlt.resource(
         primary_key="id",
         write_disposition="replace",
+        table_format="iceberg",
         columns={
             "id": {"data_type": "text"},
             "name": {"data_type": "text"},

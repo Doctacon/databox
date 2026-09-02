@@ -56,7 +56,7 @@ Record:
 
 ## References
 
-- `.10x/decisions/local-only-birding-product-architecture.md`
+- `.10x/decisions/superseded/local-only-birding-product-architecture.md`
 - `.10x/specs/cloudflare-workers-ai-local-agent.md`
 - `.10x/specs/birding-trip-copilot.md`
 - `.10x/specs/birding-agent-evaluations.md`

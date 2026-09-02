@@ -96,7 +96,7 @@ Recommended architecture:
 
 ## Subsequent direction
 
-After reviewing the deployment, synchronization, and Dive write-boundary implications, the user rejected MotherDuck and deployment in favor of `.10x/decisions/local-only-birding-product-architecture.md`. The cloud findings remain useful rationale, but they are not active implementation direction.
+After reviewing the deployment, synchronization, and Dive write-boundary implications, the user rejected MotherDuck and deployment in favor of `.10x/decisions/superseded/local-only-birding-product-architecture.md`. The cloud findings remain useful rationale, but they are not active implementation direction.
 
 ## Limits and blockers
 

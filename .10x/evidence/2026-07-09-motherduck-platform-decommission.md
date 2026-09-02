@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-decommission-motherduck-platform-support.md, .10x/specs/local-only-databox-platform.md
+Relates-To: .10x/tickets/done/2026-07-09-decommission-motherduck-platform-support.md, .10x/specs/superseded/local-only-databox-platform.md
 
 # MotherDuck platform decommission evidence
 

@@ -13,8 +13,8 @@ Closure readiness of the local-only product graph against:
 - `.10x/tickets/done/2026-07-09-build-local-birding-copilot-product.md`
 - `.10x/tickets/done/2026-07-09-verify-local-birding-product.md`
 - the four completed implementation children,
-- `.10x/decisions/local-only-birding-product-architecture.md`,
-- `.10x/specs/local-only-databox-platform.md`,
+- `.10x/decisions/superseded/local-only-birding-product-architecture.md`,
+- `.10x/specs/superseded/local-only-databox-platform.md`,
 - `.10x/specs/parallel-quack-local-refresh.md`,
 - `.10x/specs/cloudflare-workers-ai-local-agent.md`,
 - `.10x/specs/local-birding-trip-copilot-app.md`,

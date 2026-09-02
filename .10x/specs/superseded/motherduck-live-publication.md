@@ -4,7 +4,7 @@ Updated: 2026-07-09
 
 # MotherDuck Live Publication
 
-Superseded by `.10x/specs/local-only-databox-platform.md` after the user removed MotherDuck and deployment from the product architecture.
+Superseded by `.10x/specs/superseded/local-only-databox-platform.md` after the user removed MotherDuck and deployment from the product architecture.
 
 ## Purpose and scope
 

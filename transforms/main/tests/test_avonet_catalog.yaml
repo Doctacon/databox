@@ -122,7 +122,7 @@ test_dim_bird_species_traits_exact_match_and_codebook:
 test_arizona_species_catalog_membership_privacy_and_optional_evidence:
   model: birding_agent.arizona_species_catalog
   inputs:
-    raw_ebird.species_list:
+    polaris_aws.raw_ebird.species_list:
       rows:
         - species_code: "norcar"
           region: "US-AZ"
@@ -160,7 +160,7 @@ test_arizona_species_catalog_membership_privacy_and_optional_evidence:
           _loaded_at: "2025-07-22T10:00:00+00:00"
           _dlt_load_id: "list-new"
           _dlt_id: "list-outside"
-    raw_ebird.taxonomy:
+    polaris_aws.raw_ebird.taxonomy:
       rows:
         - species_code: "norcar"
           com_name: "Old Northern Cardinal"

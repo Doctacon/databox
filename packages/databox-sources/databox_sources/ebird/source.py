@@ -55,6 +55,7 @@ def ebird_source(
     @dlt.resource(
         primary_key=["subId", "speciesCode"],
         write_disposition="merge",
+        table_format="iceberg",
         columns={
             "howMany": {"data_type": "bigint"},
             "lat": {"data_type": "double"},
@@ -84,6 +85,7 @@ def ebird_source(
     @dlt.resource(
         primary_key=["subId", "speciesCode"],
         write_disposition="merge",
+        table_format="iceberg",
         columns={
             "howMany": {"data_type": "bigint"},
             "lat": {"data_type": "double"},
@@ -110,7 +112,7 @@ def ebird_source(
                 error=str(e),
             )
 
-    @dlt.resource(primary_key="speciesCode", write_disposition="replace")
+    @dlt.resource(primary_key="speciesCode", write_disposition="replace", table_format="iceberg")
     def species_list(region: str = region_code) -> Iterator[dict[str, Any]]:
         url = f"{EBIRD_API_BASE}/product/spplist/{region}"
 
@@ -137,6 +139,7 @@ def ebird_source(
     @dlt.resource(
         primary_key="locId",
         write_disposition="merge",
+        table_format="iceberg",
         columns={
             "lat": {"data_type": "double"},
             "lng": {"data_type": "double"},
@@ -163,7 +166,7 @@ def ebird_source(
                 error=str(e),
             )
 
-    @dlt.resource(primary_key="sciName", write_disposition="replace")
+    @dlt.resource(primary_key="sciName", write_disposition="replace", table_format="iceberg")
     def taxonomy() -> Iterator[dict[str, Any]]:
         url = f"{EBIRD_API_BASE}/ref/taxonomy/ebird"
         params = {"fmt": "json", "locale": "en"}
@@ -182,7 +185,11 @@ def ebird_source(
                 error=str(e),
             )
 
-    @dlt.resource(primary_key=["regionCode", "year", "month", "day"], write_disposition="merge")
+    @dlt.resource(
+        primary_key=["regionCode", "year", "month", "day"],
+        write_disposition="merge",
+        table_format="iceberg",
+    )
     def region_stats(region: str = region_code, back: int = days_back) -> Iterator[dict[str, Any]]:
         end_date = pendulum.now()
 

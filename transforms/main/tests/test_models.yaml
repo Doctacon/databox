@@ -1,7 +1,7 @@
 test_dim_species:
   model: environmental_observations.dim_species
   inputs:
-    raw_ebird.taxonomy:
+    polaris_aws.raw_ebird.taxonomy:
       rows:
         - species_code: "norcar"
           com_name: "Northern Cardinal"
@@ -21,7 +21,7 @@ test_dim_species:
           taxon_order: 1002
           category: "hybrid"
           _loaded_at: "2025-07-21T10:00:00+00:00"
-    raw_ebird.species_list:
+    polaris_aws.raw_ebird.species_list:
       rows:
         - species_code: "norcar"
           region: "US-AZ"
@@ -44,7 +44,7 @@ test_dim_species:
         - key: 9002
           vernacular_name: "Mystery GBIF bird"
           _loaded_at: "2025-07-19T11:00:00+00:00"
-    raw_xeno_canto.recordings:
+    polaris_aws.raw_xeno_canto.recordings:
       rows:
         - id: "XC123"
           genus: "Cardinalis"
@@ -206,7 +206,7 @@ test_fact_weather_observation:
           data_coverage: 0.95
           location_id: "FIPS:04"
           loaded_at: "2025-07-20 10:00:00"
-    raw_noaa.daily_weather:
+    polaris_aws.raw_noaa.daily_weather:
       rows:
         - date: "2025-07-20"
           datatype: "TMAX"
@@ -660,7 +660,7 @@ test_birding_agent_gbif_authority_free_conformance:
 test_birding_agent_xeno_canto_media_evidence:
   model: birding_agent.xeno_canto_media_evidence
   inputs:
-    raw_xeno_canto.recordings:
+    polaris_aws.raw_xeno_canto.recordings:
       rows:
         - id: "XC123"
           genus: "Cardinalis"
@@ -925,7 +925,7 @@ test_fact_bird_sound_recording:
           species_natural_key: "cardinalis cardinalis"
           source_pipeline: "ebird_api"
           source_id: "norcar"
-    raw_xeno_canto.recordings:
+    polaris_aws.raw_xeno_canto.recordings:
       rows:
         - id: "XC123"
           genus: "Cardinalis"
@@ -2089,7 +2089,7 @@ test_fact_bird_observation_uses_natural_key_without_duplicate_fallback_join:
         - bird_hotspot_sk: "hotspot-sk"
           source_pipeline: "ebird_api"
           source_id: "L1"
-    raw_ebird.recent_observations:
+    polaris_aws.raw_ebird.recent_observations:
       rows:
         - sub_id: "S1"
           species_code: "norcar"
@@ -2109,7 +2109,7 @@ test_fact_bird_observation_uses_natural_key_without_duplicate_fallback_join:
           _loaded_at: "2025-07-20T10:00:00+00:00"
           _dlt_load_id: "load-1"
           _dlt_id: "row-1"
-    raw_ebird.notable_observations:
+    polaris_aws.raw_ebird.notable_observations:
       columns:
         how_many: bigint
         lat: double

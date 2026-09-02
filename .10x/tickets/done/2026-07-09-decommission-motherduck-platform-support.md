@@ -29,7 +29,7 @@ Required changes include:
 
 ## Acceptance criteria
 
-- `.10x/specs/local-only-databox-platform.md` is satisfied for the decommissioned surfaces.
+- `.10x/specs/superseded/local-only-databox-platform.md` is satisfied for the decommissioned surfaces.
 - Runtime settings expose only the supported local Quack data path.
 - SQLMesh and dlt cannot select MotherDuck.
 - Dagster startup performs no MotherDuck connection/bootstrap.

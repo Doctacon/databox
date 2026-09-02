@@ -28,7 +28,7 @@ This is a parent plan and is not executable directly.
 - `.10x/specs/target-bird-planning.md`
 - `.10x/specs/watched-bird-matching-and-reports.md`
 - `.10x/specs/bird-alert-calendar-and-smtp-delivery.md`
-- `.10x/specs/local-only-databox-platform.md`
+- `.10x/specs/superseded/local-only-databox-platform.md`
 - `.10x/specs/local-birding-trip-copilot-app.md`
 - `.10x/specs/birding-agent-data-integrations.md`
 

@@ -30,7 +30,7 @@ def _loads_cte(src: Source) -> str:
         f"    schema_name,\n"
         f"    status,\n"
         f"    inserted_at::TIMESTAMP AS completed_at\n"
-        f"  FROM {src.raw_catalog}._dlt_loads\n"
+        f"  FROM {src.analytics_raw_catalog}._dlt_loads\n"
         f")"
     )
 
@@ -45,7 +45,7 @@ def _rows_cte(src: Source) -> str:
     first = "    SELECT _dlt_load_id, COUNT(*) AS n FROM"
     rest = "    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM"
     table_lines = [
-        f"{(first if i == 0 else rest)} {src.raw_catalog}.{table} GROUP BY 1"
+        f"{(first if i == 0 else rest)} {src.analytics_raw_catalog}.{table} GROUP BY 1"
         for i, table in enumerate(src.raw_tables)
     ]
     return (

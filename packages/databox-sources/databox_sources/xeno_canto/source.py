@@ -170,6 +170,7 @@ def xeno_canto_source(
     @dlt.resource(
         primary_key="id",
         write_disposition="merge",
+        table_format="iceberg",
         columns=_RECORDING_COLUMNS,
     )
     def recordings() -> Iterator[dict[str, Any]]:

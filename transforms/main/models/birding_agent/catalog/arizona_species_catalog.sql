@@ -11,7 +11,7 @@ WITH species_list_snapshots AS (
   SELECT
     _loaded_at::TIMESTAMP AS snapshot_loaded_at,
     _dlt_load_id AS snapshot_load_id
-  FROM raw_ebird.species_list
+  FROM polaris_aws.raw_ebird.species_list
   WHERE
     region = 'US-AZ'
   GROUP BY
@@ -32,7 +32,7 @@ WITH species_list_snapshots AS (
     s.region,
     s."order"::DOUBLE AS regional_taxonomic_order,
     s._loaded_at::TIMESTAMP AS species_list_loaded_at
-  FROM raw_ebird.species_list AS s
+  FROM polaris_aws.raw_ebird.species_list AS s
   INNER JOIN latest_species_list_snapshot AS snapshot
     ON s._loaded_at::TIMESTAMP = snapshot.snapshot_loaded_at
     AND s._dlt_load_id = snapshot.snapshot_load_id
@@ -58,7 +58,7 @@ WITH species_list_snapshots AS (
   SELECT
     _loaded_at::TIMESTAMP AS snapshot_loaded_at,
     _dlt_load_id AS snapshot_load_id
-  FROM raw_ebird.taxonomy
+  FROM polaris_aws.raw_ebird.taxonomy
   GROUP BY
     _loaded_at,
     _dlt_load_id
@@ -86,7 +86,7 @@ WITH species_list_snapshots AS (
     t.extinct,
     t.extinct_year,
     t._loaded_at::TIMESTAMP AS taxonomy_loaded_at
-  FROM raw_ebird.taxonomy AS t
+  FROM polaris_aws.raw_ebird.taxonomy AS t
   INNER JOIN latest_taxonomy_snapshot AS snapshot
     ON t._loaded_at::TIMESTAMP = snapshot.snapshot_loaded_at
     AND t._dlt_load_id = snapshot.snapshot_load_id
