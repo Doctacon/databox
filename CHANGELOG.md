@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/Doctacon/databox/compare/v0.7.0...v0.8.0) (2026-09-02)
+
+
+### Features
+
+* **iceberg:** complete Polaris source migration ([446e2bb](https://github.com/Doctacon/databox/commit/446e2bbdfccee021b6abc09628eca30d448cb0af))
+* **polaris-console:** add local apache polaris console ([156dbc0](https://github.com/Doctacon/databox/commit/156dbc07d0b857bf562cd6a5b8ba00410bd1e03e))
+
 ## [0.7.0](https://github.com/Doctacon/databox/compare/v0.6.0...v0.7.0) (2026-08-31)
 
 
