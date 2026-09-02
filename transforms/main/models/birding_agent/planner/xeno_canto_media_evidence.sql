@@ -53,5 +53,5 @@ SELECT
   _loaded_at::TIMESTAMP AS loaded_at,
   _dlt_load_id AS dlt_load_id,
   _dlt_id AS dlt_id
-FROM raw_xeno_canto.recordings
+FROM polaris_aws.raw_xeno_canto.recordings
 WHERE id IS NOT NULL

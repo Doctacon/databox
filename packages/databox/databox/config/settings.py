@@ -46,6 +46,19 @@ class DataboxSettings(BaseSettings):
         default="", alias="CF_WORKERS_AI_MODEL_BASE_URL", repr=False
     )
 
+    polaris_url: str = Field(default="http://127.0.0.1:8181", alias="DATABOX_POLARIS_URL")
+    polaris_client_id: SecretStr = Field(default=SecretStr(""), alias="DATABOX_POLARIS_CLIENT_ID")
+    polaris_client_secret: SecretStr = Field(
+        default=SecretStr(""), alias="DATABOX_POLARIS_CLIENT_SECRET"
+    )
+    iceberg_catalog: str = Field(default="databox_lake", alias="DATABOX_ICEBERG_CATALOG")
+    aws_s3_bucket: str = Field(default="", alias="DATABOX_AWS_S3_BUCKET", repr=False)
+    aws_access_key_id: SecretStr = Field(default=SecretStr(""), alias="DATABOX_AWS_ACCESS_KEY_ID")
+    aws_secret_access_key: SecretStr = Field(
+        default=SecretStr(""), alias="DATABOX_AWS_SECRET_ACCESS_KEY"
+    )
+    aws_region: str = Field(default="us-west-1", alias="DATABOX_AWS_REGION")
+
     # Local generic SMTP delivery; every value is redacted and validated only by
     # the explicit alert sender/preflight, never during application startup.
     alert_smtp_enabled: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_ENABLED")
@@ -59,6 +72,54 @@ class DataboxSettings(BaseSettings):
         default=SecretStr(""), alias="BIRD_ALERT_RECIPIENT_EMAIL"
     )
     alert_smtp_ca_file: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_CA_FILE")
+
+    def pyiceberg_catalog(self) -> Any:
+        """Return the shared client for the pre-provisioned Polaris catalog."""
+        from pyiceberg.catalog.rest import RestCatalog
+
+        client_id = self.polaris_client_id.get_secret_value()
+        client_secret = self.polaris_client_secret.get_secret_value()
+        if not client_id or not client_secret:
+            raise ValueError("Polaris client credentials are required")
+        polaris_url = self.polaris_url.rstrip("/")
+        return RestCatalog(
+            name="databox_iceberg",
+            uri=f"{polaris_url}/api/catalog",
+            warehouse=self.iceberg_catalog,
+            credential=f"{client_id}:{client_secret}",
+            scope="PRINCIPAL_ROLE:ALL",
+            **{"oauth2-server-uri": f"{polaris_url}/api/catalog/v1/oauth/tokens"},
+        )
+
+    def attach_iceberg_to_duckdb(self, cursor: Any) -> None:
+        """Attach the shared Polaris catalog to a DuckDB connection as polaris_aws."""
+
+        def quote(value: str) -> str:
+            return value.replace("'", "''")
+
+        client_id = quote(self.polaris_client_id.get_secret_value())
+        client_secret = quote(self.polaris_client_secret.get_secret_value())
+        if not client_id or not client_secret:
+            raise ValueError("Polaris client credentials are required")
+        polaris_url = quote(self.polaris_url.rstrip("/"))
+        catalog = quote(self.iceberg_catalog)
+        cursor.execute("LOAD iceberg")
+        cursor.execute(
+            "CREATE OR REPLACE SECRET polaris_aws (TYPE ICEBERG, CLIENT_ID '"
+            + client_id
+            + "', CLIENT_SECRET '"
+            + client_secret
+            + "', OAUTH2_SERVER_URI '"
+            + polaris_url
+            + "/api/catalog/v1/oauth/tokens', OAUTH2_SCOPE 'PRINCIPAL_ROLE:ALL')"
+        )
+        cursor.execute(
+            "ATTACH IF NOT EXISTS '"
+            + catalog
+            + "' AS polaris_aws (TYPE ICEBERG, ENDPOINT '"
+            + polaris_url
+            + "/api/catalog', SECRET polaris_aws)"
+        )
 
     @property
     def gateway(self) -> str:
@@ -93,12 +154,25 @@ class DataboxSettings(BaseSettings):
             ModelDefaultsConfig,
         )
 
+        class PolarisDuckDBConnectionConfig(DuckDBConnectionConfig):
+            @property
+            def _cursor_init(self) -> Any:
+                base_init = super()._cursor_init
+
+                def init(cursor: Any) -> None:
+                    if base_init:
+                        base_init(cursor)
+                    self_settings.attach_iceberg_to_duckdb(cursor)
+
+                return init
+
+        self_settings = self
         state_connection = DuckDBConnectionConfig(database=str(DATA_DIR / "sqlmesh_state.duckdb"))
         gateways = {
             "local": GatewayConfig(
-                connection=DuckDBConnectionConfig(
+                connection=PolarisDuckDBConnectionConfig(
                     catalogs={"databox": self.database_path},
-                    extensions=[{"name": "h3", "repository": "community"}],
+                    extensions=[{"name": "h3", "repository": "community"}, "iceberg"],
                 ),
                 state_connection=state_connection,
             )

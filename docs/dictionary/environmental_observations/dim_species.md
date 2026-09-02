@@ -55,9 +55,9 @@ Conformed CDM species dimension from eBird taxonomy, GBIF occurrence taxonomy, a
 
 **Upstream**
 
+- `raw_gbif.occurrences` (external)
 - `raw_ebird.species_list` (external)
 - `raw_ebird.taxonomy` (external)
-- `raw_gbif.occurrences` (external)
 - `raw_xeno_canto.recordings` (external)
 
 **Downstream**

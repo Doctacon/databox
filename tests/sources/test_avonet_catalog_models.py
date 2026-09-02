@@ -21,7 +21,8 @@ _TYPE_SQL = {
 
 
 def _model_query() -> str:
-    return _MODEL.read_text().split(");", maxsplit=1)[1].strip()
+    query = _MODEL.read_text().split(");", maxsplit=1)[1].strip()
+    return query.replace("polaris_aws.raw_avonet.", "raw_avonet.")
 
 
 def _connection() -> duckdb.DuckDBPyConnection:

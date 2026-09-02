@@ -116,6 +116,7 @@ def usgs_source(
     @dlt.resource(
         primary_key=["site_no", "parameter_cd", "observation_date"],
         write_disposition="merge",
+        table_format="iceberg",
         columns={
             "site_no": {"data_type": "text"},
             "site_name": {"data_type": "text"},
@@ -142,6 +143,7 @@ def usgs_source(
     @dlt.resource(
         primary_key="site_no",
         write_disposition="merge",
+        table_format="iceberg",
         columns={
             "site_no": {"data_type": "text"},
             "site_name": {"data_type": "text"},
@@ -172,14 +174,19 @@ def usgs_source(
         if len(lines) < 2:
             return
         headers = lines[0].split("\t")
+        seen_site_numbers: set[str] = set()
         # skip format-description line (all dashes)
         for row in lines[2:]:
             cols = row.split("\t")
             if len(cols) < len(headers):
                 continue
             rec = dict(zip(headers, cols, strict=False))
+            site_no = rec.get("site_no")
+            if not site_no or site_no in seen_site_numbers:
+                continue
+            seen_site_numbers.add(site_no)
             yield {
-                "site_no": rec.get("site_no"),
+                "site_no": site_no,
                 "site_name": rec.get("station_nm"),
                 "site_type": rec.get("site_tp_cd"),
                 "latitude": _safe_float(rec.get("dec_lat_va")),

@@ -209,7 +209,7 @@ AVONET v7 eBird-aligned species-average morphology, ecology, measurement provena
 - Blank and exact `NA` values are null; categorical/code values otherwise remain exact.
 - Traits are global AVONET species averages and MUST NOT be represented as Arizona-specific range or phenotype claims.
 - No taxonomy mapping is guessed during ingestion; the modeled exact normalized-name join is separately governed.
-- The authoritative table is published only after a complete Quack staging load passes exact row, unique-key, column, and metadata validation; transient staging is not a business entity.
+- The authoritative table is published directly through dlt only after pinned file, exact row, unique-key, column, provenance, and metadata validation; the committed Polaris-managed Iceberg replacement snapshot is the atomic boundary.
 - The modeled dimension contains only exact governed normalized-name matches to `Species`; duplicate AVONET normalized keys or duplicate matched species fail instead of selecting a row.
 
 ## ArizonaBirdCatalog

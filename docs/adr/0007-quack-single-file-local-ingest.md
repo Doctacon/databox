@@ -1,6 +1,6 @@
 # ADR-0007: Quack single-file local ingest
 
-**Status:** Accepted · 2026-07 · amended 2026-07 for the local-only platform
+**Status:** Superseded · 2026-09 by [ADR-0008](0008-polaris-iceberg-raw-authority.md)
 
 ## Context
 
@@ -31,6 +31,9 @@ only supported warehouse and application-state database.
 - SQLMesh runs only after every required source job succeeds.
 - SQLMesh uses only its local gateway and reads source schemas from the shared
   warehouse.
+
+This decision is retained as history. Quack is no longer part of the active raw
+ingestion or primary refresh path.
 
 ## Consequences
 

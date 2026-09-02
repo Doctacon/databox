@@ -71,17 +71,17 @@ tasks:
     cmds: ["{{.VENV_DIR}}/bin/python scripts/cloudflare/smoke_cloudflare_ai.py"]
 
   full-refresh:
-    desc: "Concurrent Dagster dlt source jobs through one Quack server, then native SQLMesh — logs to .logs/"
+    desc: "Concurrent Dagster dlt source jobs through Polaris Iceberg, then native SQLMesh — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
     cmds:
-      - "./scripts/operations/run-logged.sh full-refresh -- {{.VENV_DIR}}/bin/python scripts/sources/load_dlt_quack.py"
+      - "./scripts/operations/run-logged.sh full-refresh -- {{.VENV_DIR}}/bin/python scripts/sources/load_dlt_iceberg.py"
   verify:
-    desc: "Smoke concurrent Dagster source jobs through one Quack server, then native SQLMesh — logs to .logs/"
+    desc: "Smoke concurrent Dagster source jobs through Polaris Iceberg, then native SQLMesh — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster", DATABOX_SMOKE: "1" }
     cmds:
-      - "./scripts/operations/run-logged.sh verify -- {{.VENV_DIR}}/bin/python scripts/sources/load_dlt_quack.py"
+      - "./scripts/operations/run-logged.sh verify -- {{.VENV_DIR}}/bin/python scripts/sources/load_dlt_iceberg.py"
   dagster:dev:
-    desc: "Launch Dagster UI on the default Quack backend"
+    desc: "Launch the local Dagster UI for Polaris Iceberg pipelines"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
     cmds:
       - |

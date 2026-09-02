@@ -145,6 +145,18 @@ class HealthResponse(BaseModel):
     model_ready: bool
 
 
+class GbifOccurrence(BaseModel):
+    key: int
+    scientific_name: str | None
+    decimal_latitude: float | None
+    decimal_longitude: float | None
+    event_date: str | None
+
+
+class GbifOccurrenceResponse(BaseModel):
+    occurrences: list[GbifOccurrence]
+
+
 class LocationSuggestionResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
@@ -1754,6 +1766,37 @@ def create_app(
             database_ready=database_ready,
             model_ready=model_ready,
         )
+
+    @app.get(
+        "/api/v1/gbif-occurrences",
+        response_model=GbifOccurrenceResponse,
+        responses={503: {"model": ErrorResponse}},
+    )
+    async def gbif_occurrences() -> GbifOccurrenceResponse | JSONResponse:
+        connection: duckdb.DuckDBPyConnection | None = None
+        try:
+            connection = duckdb.connect(db_path, read_only=True)
+            rows = connection.execute(
+                "SELECT key, scientific_name, decimal_latitude, decimal_longitude, event_date "
+                "FROM birding_agent.gbif_iceberg_occurrences ORDER BY key"
+            ).fetchall()
+            return GbifOccurrenceResponse(
+                occurrences=[
+                    GbifOccurrence(
+                        key=row[0],
+                        scientific_name=row[1],
+                        decimal_latitude=row[2],
+                        decimal_longitude=row[3],
+                        event_date=row[4],
+                    )
+                    for row in rows
+                ]
+            )
+        except duckdb.Error:
+            return _error("database_unavailable", "GBIF occurrence data is unavailable", 503)
+        finally:
+            if connection is not None:
+                connection.close()
 
     @app.get(
         "/api/map-snapshot",

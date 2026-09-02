@@ -16,4 +16,5 @@ to be wrong would be marked **Superseded** and keep its number.
 | [ADR-0004](0004-per-source-raw-catalogs.md) | Per-source raw DuckDB catalogs | Superseded by ADR-0007 |
 | [ADR-0005](0005-dagster-as-sole-orchestrator.md) | Dagster as the sole orchestrator | Accepted |
 | [ADR-0006](0006-motherduck-as-cloud-path.md) | MotherDuck as the cloud path | Superseded; historical |
-| [ADR-0007](0007-quack-single-file-local-ingest.md) | Quack single-file local ingest | Accepted |
+| [ADR-0007](0007-quack-single-file-local-ingest.md) | Quack single-file local ingest | Superseded by ADR-0008 |
+| [ADR-0008](0008-polaris-iceberg-raw-authority.md) | Polaris Iceberg raw authority | Accepted |

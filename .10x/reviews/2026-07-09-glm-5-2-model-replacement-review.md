@@ -11,7 +11,7 @@ Verdict: pass
 The sole-model replacement governed by:
 
 - `.10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md`
-- `.10x/decisions/local-only-birding-product-architecture.md`
+- `.10x/decisions/superseded/local-only-birding-product-architecture.md`
 - `.10x/specs/cloudflare-workers-ai-local-agent.md`
 - `.10x/evidence/2026-07-09-glm-5-2-compatibility-probe.md`
 - `.10x/evidence/2026-07-09-glm-5-2-model-replacement.md`

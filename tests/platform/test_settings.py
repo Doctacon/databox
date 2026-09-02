@@ -23,7 +23,7 @@ def test_alert_smtp_settings_are_secret_in_runtime_repr() -> None:
         _env_file=None,
         BIRD_ALERT_SMTP_ENABLED="true",
         BIRD_ALERT_SMTP_SECURITY="starttls",
-        BIRD_ALERT_SMTP_HOST="127.0.0.1",
+        BIRD_ALERT_SMTP_HOST="smtp.synthetic.invalid",
         BIRD_ALERT_SMTP_PORT="1025",
         BIRD_ALERT_SMTP_USERNAME="synthetic-user",
         BIRD_ALERT_SMTP_PASSWORD="synthetic-password",
@@ -33,7 +33,7 @@ def test_alert_smtp_settings_are_secret_in_runtime_repr() -> None:
     )
     rendered = repr(configured)
     for value in (
-        "127.0.0.1",
+        "smtp.synthetic.invalid",
         "1025",
         "synthetic-user",
         "synthetic-password",

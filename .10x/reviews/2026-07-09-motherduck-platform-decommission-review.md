@@ -11,7 +11,7 @@ Verdict: pass
 The MotherDuck/Dive decommission implementation and closure records against:
 
 - `.10x/tickets/done/2026-07-09-decommission-motherduck-platform-support.md`
-- `.10x/specs/local-only-databox-platform.md`
+- `.10x/specs/superseded/local-only-databox-platform.md`
 - `.10x/specs/birding-trip-copilot.md`
 - `.10x/evidence/2026-07-09-motherduck-platform-decommission.md`
 

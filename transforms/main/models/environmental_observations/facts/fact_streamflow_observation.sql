@@ -9,7 +9,7 @@ WITH ranked AS (
   SELECT
     *,
     ROW_NUMBER() OVER (PARTITION BY site_no, observation_date, parameter_cd ORDER BY _loaded_at DESC) AS rn
-  FROM raw_usgs.daily_values
+  FROM polaris_aws.raw_usgs.daily_values
   WHERE site_no IS NOT NULL AND observation_date IS NOT NULL AND parameter_cd IS NOT NULL
 )
 SELECT

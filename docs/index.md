@@ -1,8 +1,9 @@
 # Databox
 
-Databox is a local-first data warehouse built around DuckDB. dlt ingests public
-data, SQLMesh transforms it, Soda validates it, and Dagster orchestrates the
-workflow. Quack coordinates safe access to the single local DuckDB file.
+Databox is a local-first warehouse with dlt-managed Iceberg raw tables on AWS
+S3, a local Apache Polaris catalog, and DuckDB transformations and product
+state. SQLMesh transforms data, Soda validates it, and Dagster orchestrates the
+workflow.
 
 <a id="whats-here"></a>
 
@@ -20,15 +21,18 @@ It does not require a provider refresh or populated warehouse.
 
 ### Build and inspect the warehouse
 
-Configure source credentials in the `.env` created by `task install`, then run:
+Configure source, Polaris, and AWS S3 writer values in the `.env` created by
+`task install`, then run:
 
 ```bash
 $EDITOR .env
-task full-refresh   # ingest → transform → quality
+docker-compose --env-file .env -f compose.iceberg.yml up -d
+task full-refresh   # ingest Iceberg raw tables → local models → quality
 task dagster:dev    # inspect assets at localhost:3000
 ```
 
-The result is `data/databox.duckdb`. See [configuration](configuration.md), the
+Raw tables live in S3 and are registered by local Polaris; modeled and product
+data lives in `data/databox.duckdb`. See [configuration](configuration.md), the
 [commands reference](commands.md), and the [operations runbook](runbook.md).
 
 ### Understand the data

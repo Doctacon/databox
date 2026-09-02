@@ -20,7 +20,7 @@ WITH ranked AS (
     end_date::DATE AS end_date,
     _loaded_at::TIMESTAMP AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY site_no ORDER BY _loaded_at DESC) AS rn
-  FROM raw_usgs.sites
+  FROM polaris_aws.raw_usgs.sites
   WHERE site_no IS NOT NULL
 )
 SELECT

@@ -95,7 +95,6 @@ def test_config_identity_matches_runtime_contract() -> None:
     assert config == {
         "name": "avonet",
         "dataset_name": "raw_avonet",
-        "internal_staging_schema": "raw_avonet_staging",
         "doi": source.AVONET_DOI,
         "version": source.AVONET_VERSION,
         "license": source.AVONET_LICENSE,

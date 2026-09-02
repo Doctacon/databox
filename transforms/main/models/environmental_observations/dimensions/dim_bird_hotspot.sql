@@ -20,7 +20,7 @@ WITH ranked AS (
     num_checklists_all_time,
     _loaded_at::TIMESTAMP AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY loc_id ORDER BY _loaded_at DESC) AS rn
-  FROM raw_ebird.hotspots
+  FROM polaris_aws.raw_ebird.hotspots
   WHERE loc_id IS NOT NULL
 )
 SELECT

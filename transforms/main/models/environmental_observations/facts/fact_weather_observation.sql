@@ -9,7 +9,7 @@ WITH ranked AS (
   SELECT
     *,
     ROW_NUMBER() OVER (PARTITION BY station, date, datatype ORDER BY _loaded_at DESC) AS rn
-  FROM raw_noaa.daily_weather
+  FROM polaris_aws.raw_noaa.daily_weather
   WHERE station IS NOT NULL AND date IS NOT NULL AND datatype IS NOT NULL
 )
 SELECT

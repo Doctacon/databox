@@ -1,8 +1,10 @@
-Status: active
+Status: superseded
 Created: 2026-07-10
-Updated: 2026-07-10
+Updated: 2026-09-02
 
 # Use AVONET with atomic staged publication
+
+Superseded by `.10x/decisions/avonet-polaris-iceberg-publication.md`.
 
 ## Context
 

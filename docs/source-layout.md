@@ -47,8 +47,8 @@ drift in a finished source.
 |---|---|
 | `source.py` | Anchor file — if this doesn't exist, the source isn't loadable. |
 | `databox.config.sources.SOURCES` | Canonical identity, raw-table inventory, cadence flags, freshness, domain identity, verification profile, and orchestration mode. |
-| `domains/<name>.py` | Exactly one callable source builder and exports matching the orchestration mode. Default sources expose Dagster dlt assets/keys/checks and an independent ingest job; recurring sources also expose a daily job and schedule. Explicit-target sources expose empty asset/key lists and no ingest job. |
-| `tests/<name>/` | Profile-required resource, schema, smoke, idempotency, and (for file snapshots) staged-publication coverage. |
+| `domains/<name>.py` | Exactly one callable source builder and exports matching the orchestration mode. Default sources expose Dagster dlt assets/keys/checks and an independent ingest job; recurring sources also expose a daily job and schedule. Explicit-target sources may expose a manual job only when targets come fail-closed from an explicit modeled dependency. |
+| `tests/<name>/` | Profile-required resource, schema, smoke, idempotency, and (for file snapshots) fail-closed replacement coverage. |
 
 Static pinned sources set `scheduled=False`, `parallel_refresh=False`, and the
 `file_snapshot` verification profile in the source registry. AVONET is the
@@ -56,18 +56,20 @@ current example: `avonet_ingest` is independently runnable, has no daily
 schedule, and is intentionally absent from the shared full refresh. Its
 source-specific `config.yaml` remains a pinned integrity manifest rather than
 generic pipeline configuration. Every future `file_snapshot` source must add an
-equivalent source-specific manifest plus `test_staged_publish.py`; the scaffold
-does not invent integrity values. Its dlt load targets transient
-`raw_avonet_staging`; final `raw_avonet` is published atomically only after the
-independent Quack server stops.
+equivalent source-specific manifest plus fail-closed replacement coverage; the
+scaffold does not invent integrity values. AVONET publishes the validated full
+snapshot directly through dlt as a Polaris-managed Iceberg replacement; the
+committed Iceberg snapshot is the atomic publication boundary.
 
 Sources with `orchestration_mode="explicit_targets"` have no safe unconfigured
-input snapshot. They must also be unscheduled and absent from shared parallel
-refresh. Their domain module retains a callable builder for authorized callers,
-but the contract requires empty `assets` and `dlt_asset_keys`, `ingest_job =
-None`, and no default dlt asset function. USFWS is the current example: its
-public-media release workflow derives and validates a caller-owned target list.
-Do not invent an implicit target set merely to expose a Dagster job.
+input snapshot. They must remain unscheduled and absent from shared parallel
+refresh. Their domain module retains a callable builder and may expose a
+manually launched Dagster job only when the target set is derived fail-closed
+from an explicit modeled dependency. USFWS is the current example:
+`usfws_ingest` reads the configured local `rufous_public.gbif_eod_occurrence`
+relation, validates the complete target snapshot before provider contact, and
+materializes its Polaris Iceberg records and load status. Do not embed or
+invent an implicit species target set.
 
 ## Adding model behavior
 

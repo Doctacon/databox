@@ -222,21 +222,25 @@ this GBIF release. It remains a fail-closed gate for any future release that
 would add direct eBird data or eBird hotspots under Cornell's separate [data-use
 terms](https://support.ebird.org/en/support/solutions/articles/48001078113).
 
-The production warehouse refresh is intentionally source-scoped:
+The production deployment is currently paused while its source-scoped refresh
+is adapted to the Polaris Iceberg authority. The intended local operator sequence
+requires the configured Polaris/S3 stack:
 
 ```bash
 mkdir -p data .dagster
 DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
   uv run dg launch --target-path packages/databox --job avonet_ingest
-uv run python scripts/sources/load_dlt_quack.py \
+uv run python scripts/sources/load_dlt_iceberg.py \
   --source gbif \
   --database data/databox.duckdb --skip-sqlmesh
 bash scripts/rufous_media/sqlmesh_plan_rufous_public.sh
 ```
 
-AVONET is loaded first through its independent, atomic snapshot job; it is not
-passed to the parallel routine-source loader. Both commands target the same
-`data/databox.duckdb` warehouse before SQLMesh builds the public projections.
+AVONET is loaded first through its independent validated Iceberg replacement
+job; it is not passed to the parallel routine-source loader. AVONET and GBIF raw
+tables are authoritative in Polaris-managed Iceberg on S3. SQLMesh attaches
+that catalog and writes only the downstream public projections to
+`data/databox.duckdb`.
 
 The release sets `DATABOX_GBIF_MAX_RECORDS=3000`. The dlt source requests only
 CC BY 4.0 records marked present, reserves 300 rows for Rufous Hummingbird, and
@@ -263,7 +267,7 @@ needs private eBird, Xeno-canto, NOAA, or application models to exist.
 Media discovery is an explicit local or manually dispatched maintenance task;
 it is not part of an automatic production deploy. When a reviewer deliberately
 looks for a new image, the maintenance path derives exact target species from
-the public model and runs the normal dlt → Quack/DuckDB path. The USFWS source calls the official
+the public model and runs the normal dlt → Polaris Iceberg path. The USFWS source calls the official
 image search used by <https://www.fws.gov/search/images>, fetches canonical
 `/media/<slug>` pages with bounded concurrency and retries, and records raw
 metadata without deciding whether it may be published. It is an offline
@@ -273,11 +277,14 @@ USFWS's species and media-type controls are multi-select filters. Rufous sends
 their values as compact JSON arrays and, for every nonempty response, requires
 the returned facet count to equal the declared result total. This prevents a
 silently ignored filter from turning a targeted refresh into a crawl of the
-full USFWS catalog. Because the target list is derived from the reviewed public
-model, this source is invoked only by the explicit maintenance script; it is not
-exposed as an unconfigured Dagster job and is never invoked by a push or schedule.
+full USFWS catalog. Because the target list is derived fail-closed from the reviewed public model,
+Dagster exposes `usfws_ingest` as a manual, unscheduled job. It is excluded from
+shared refresh and never invoked by a push or schedule. The direct maintenance
+script remains available as an explicit diagnostic alternative.
 
 ```bash
+# Preferred: launch usfws_ingest manually in Dagster.
+# Diagnostic alternative:
 uv run python scripts/rufous_media/load_rufous_usfws_media.py \
   --database data/databox.duckdb \
   --max-images-per-target 500
@@ -597,16 +604,16 @@ ledger; they do not execute a live media source or the offline Wikimedia loader.
 ## Deployment controls
 
 The `Rufous public R2-backed release` workflow builds a synthetic, credentialless
-preview on pull requests. A relevant push to `main`, a manual dispatch from
-`main`, or the monthly schedule may run production. Monthly is deliberate: the
-allowlisted EOD dataset is an annual release, so a six-hour occurrence crawl
-would add provider load without making this snapshot fresher.
+preview on pull requests. Production deployment is currently disabled
+fail-closed while the workflow is adapted to the Polaris Iceberg source path;
+push, schedule, and manual dispatch cannot run the production job. The existing
+public Pages/R2 release remains untouched.
 
-The automatic production sequence is fail-closed:
+When production is restored, its sequence remains fail-closed:
 
-1. Run the licensed GBIF occurrence snapshot and pinned AVONET v7 workbook in
-   parallel through dlt and DuckDB, build both public SQLMesh models, and verify
-   the pinned GNIS archive.
+1. Publish the licensed GBIF occurrence snapshot and pinned AVONET v7 workbook
+   through dlt-managed Polaris Iceberg, build both public SQLMesh projections in
+   DuckDB, and verify the pinned GNIS archive.
 2. Verify `config/rufous-pinned-public-media.json` against every committed human
    selection. All 207 selected hashes, species identities, source pages,
    licenses, credits, and immutable R2 URLs must match exactly.

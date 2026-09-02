@@ -14,7 +14,7 @@ WITH ranked AS (
       ELSE NULL
     END AS species_natural_key,
     ROW_NUMBER() OVER (PARTITION BY id ORDER BY _loaded_at DESC) AS rn
-  FROM raw_xeno_canto.recordings
+  FROM polaris_aws.raw_xeno_canto.recordings
   WHERE id IS NOT NULL
 )
 SELECT

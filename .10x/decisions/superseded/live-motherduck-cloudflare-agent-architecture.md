@@ -4,7 +4,7 @@ Updated: 2026-07-09
 
 # Live MotherDuck + Cloudflare agent architecture
 
-Superseded by `.10x/decisions/local-only-birding-product-architecture.md` after the user rejected deployment and MotherDuck in favor of a local-only React + Python/ADK product.
+Superseded by `.10x/decisions/superseded/local-only-birding-product-architecture.md` after the user rejected deployment and MotherDuck in favor of a local-only React + Python/ADK product.
 
 ## Context
 

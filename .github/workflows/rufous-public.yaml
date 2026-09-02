@@ -906,12 +906,8 @@ jobs:
   production:
     name: Build and deploy production R2-backed release
     needs: [production_readiness, route]
-    if: >-
-      needs.production_readiness.outputs.production_ready == 'true' &&
-      needs.route.outputs.release_mode == 'full' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-       github.event_name == 'schedule' ||
-       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    # 10x: paused until the public release build supports the Polaris Iceberg source path.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:

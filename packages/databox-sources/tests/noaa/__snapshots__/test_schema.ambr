@@ -40,6 +40,7 @@
         load_id:
           data_type: text
           nullable: false
+          precision: 64
         schema_name:
           data_type: text
           nullable: true
@@ -62,6 +63,7 @@
         _dlt_load_id:
           data_type: text
           nullable: false
+          precision: 64
         created_at:
           data_type: timestamp
           nullable: false
@@ -139,6 +141,7 @@
         value:
           data_type: double
       resource: daily_weather
+      table_format: iceberg
       write_disposition: merge
     datasets:
       columns:
@@ -165,6 +168,7 @@
         name:
           data_type: text
       resource: datasets
+      table_format: iceberg
       write_disposition: replace
     stations:
       columns:
@@ -201,7 +205,7 @@
         name:
           data_type: text
       resource: stations
+      table_format: iceberg
       write_disposition: merge
-
   '''
 # ---

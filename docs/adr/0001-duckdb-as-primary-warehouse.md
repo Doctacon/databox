@@ -1,6 +1,6 @@
 # ADR-0001: DuckDB as the primary warehouse
 
-**Status:** Accepted · 2026-02 · reaffirmed 2026-07 for the local-only platform.
+**Status:** Accepted · 2026-02 · amended 2026-09 by ADR-0008.
 
 ## Context
 
@@ -21,8 +21,10 @@ BigQuery (free tier), ClickHouse, DuckDB, Parquet-on-S3 + Athena.
 
 ## Decision
 
-Use DuckDB as the primary warehouse. All transformations run against
-DuckDB; all marts live in DuckDB files under `data/`.
+Use DuckDB as the local transformation, application-state, and product-serving
+warehouse. All transformations run against DuckDB and all marts live in DuckDB
+files under `data/`. ADR-0008 moves authoritative raw source tables to
+Polaris-managed Iceberg in S3, attached read-only to local DuckDB consumers.
 
 ## Consequences
 
@@ -37,8 +39,8 @@ DuckDB; all marts live in DuckDB files under `data/`.
 - Open source (MIT). No vendor lock-in.
 
 **Negative:**
-- Direct multi-process writes to the same `.duckdb` file are still not the
-  local model; concurrent local ingest goes through Quack (ADR-0007).
+- Raw ingestion requires the local Polaris/PostgreSQL stack and configured S3
+  access (ADR-0008); the DuckDB file alone is not a complete warehouse rebuild.
 - No row-level security, no fine-grained access control. Out of scope
   for this project; would be disqualifying at enterprise scale.
 - The `.duckdb` file is binary and doesn't diff cleanly — source of

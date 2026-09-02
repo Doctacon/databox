@@ -19,7 +19,7 @@ WITH ranked AS (
     _location_id AS location_id,
     _loaded_at::TIMESTAMP AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY id ORDER BY _loaded_at DESC) AS rn
-  FROM raw_noaa.stations
+  FROM polaris_aws.raw_noaa.stations
   WHERE id IS NOT NULL
 )
 SELECT

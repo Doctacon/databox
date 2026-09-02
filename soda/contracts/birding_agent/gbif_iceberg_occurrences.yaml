@@ -1,0 +1,17 @@
+dataset: databox/birding_agent/gbif_iceberg_occurrences
+
+columns:
+  - name: key
+    checks:
+      - missing:
+          must_be: 0
+      - duplicate:
+          must_be: 0
+  - name: scientific_name
+  - name: decimal_latitude
+  - name: decimal_longitude
+  - name: event_date
+
+checks:
+  - row_count:
+      must_be_greater_than: 0

@@ -62,6 +62,7 @@ def usgs_earthquakes_source() -> Any:
     @dlt.resource(
         primary_key="id",
         write_disposition="merge",
+        table_format="iceberg",
         columns={
             "id": {"data_type": "text"},
             "magnitude": {"data_type": "double"},

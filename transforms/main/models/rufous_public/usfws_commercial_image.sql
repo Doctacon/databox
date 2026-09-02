@@ -9,7 +9,7 @@ WITH persisted_records AS (
   SELECT
     run_id,
     COUNT(DISTINCT (species_code, source_page_url)) AS persisted_record_count
-  FROM raw_usfws.image_records
+  FROM polaris_aws.raw_usfws.image_records
   WHERE NULLIF(TRIM(species_code), '') IS NOT NULL
     AND NULLIF(TRIM(source_page_url), '') IS NOT NULL
   GROUP BY run_id
@@ -20,7 +20,7 @@ complete_runs AS (
     ROW_NUMBER() OVER (
       ORDER BY runs.completed_at DESC, runs._loaded_at DESC, runs.run_id DESC
     ) AS run_rank
-  FROM raw_usfws.image_search_runs AS runs
+  FROM polaris_aws.raw_usfws.image_search_runs AS runs
   LEFT JOIN persisted_records AS persisted
     ON runs.run_id = persisted.run_id
   WHERE LOWER(TRIM(COALESCE(runs.status, ''))) = 'complete'
@@ -63,7 +63,7 @@ normalized AS (
       PARTITION BY records.species_code, records.source_page_url
       ORDER BY records._loaded_at DESC, records.media_id DESC
     ) AS record_rank
-  FROM raw_usfws.image_records AS records
+  FROM polaris_aws.raw_usfws.image_records AS records
   INNER JOIN latest_complete AS snapshot
     ON records.run_id = snapshot.run_id
 ),

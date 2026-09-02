@@ -2,8 +2,8 @@
 
 Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/platform/generate_docs.py`.
 
-- **Models:** 22
-- **Soda contracts:** 29
+- **Models:** 23
+- **Soda contracts:** 30
 - **Lineage:** [browse the dependency graph](lineage.md)
 
 ## `analytics`
@@ -21,6 +21,7 @@ Planner-ready SQL interfaces for the Birding Trip Copilot agent and local produc
 | Model | Contract | Description |
 | --- | --- | --- |
 | [`birding_agent.arizona_species_catalog`](birding_agent/arizona_species_catalog.md) | yes | One row per taxon from the single latest complete eBird US-AZ snapshot, with latest complete taxonomy, exact AVONET traits, and coherent public evidence aggregates. |
+| [`birding_agent.gbif_iceberg_occurrences`](birding_agent/gbif_iceberg_occurrences.md) | yes | Local SQLMesh materialization of the AWS Polaris Iceberg GBIF occurrence table. |
 | [`birding_agent.gbif_occurrence_evidence`](birding_agent/gbif_occurrence_evidence.md) | yes | Planner-ready GBIF bird occurrence evidence conformed to eBird-first species names with location, license, and source provenance. |
 | [`birding_agent.recent_observation_evidence`](birding_agent/recent_observation_evidence.md) | yes | Planner-ready recent eBird observation evidence from the environmental observations CDM. |
 | [`birding_agent.species_lookup`](birding_agent/species_lookup.md) | yes | Planner-ready bird species lookup from the conformed environmental observations species dimension. |

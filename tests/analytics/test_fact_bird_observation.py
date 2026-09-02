@@ -12,7 +12,8 @@ MODEL = (
 
 def _model_query() -> str:
     sql = MODEL.read_text()
-    return "WITH observations AS" + sql.split("WITH observations AS", maxsplit=1)[1]
+    query = "WITH observations AS" + sql.split("WITH observations AS", maxsplit=1)[1]
+    return query.replace("polaris_aws.raw_ebird.", "raw_ebird.")
 
 
 def test_checklist_species_identity_uses_freshest_cross_feed_quality_state() -> None:

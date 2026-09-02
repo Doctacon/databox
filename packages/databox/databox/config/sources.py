@@ -48,6 +48,8 @@ class Source:
       verification_profile: profile enforced by the registry-derived source test contract.
       orchestration_mode: whether Dagster may expose the normal unconfigured
         source asset/job or the source requires caller-owned explicit targets.
+      iceberg_authoritative: whether SQLMesh observability consumers must read
+        the Polaris Iceberg catalog rather than legacy local raw tables.
     """
 
     name: str
@@ -58,10 +60,15 @@ class Source:
     parallel_refresh: bool = True
     verification_profile: VerificationProfile = "http"
     orchestration_mode: OrchestrationMode = "default"
+    iceberg_authoritative: bool = False
 
     @property
     def raw_catalog(self) -> str:
         return f"raw_{self.name}"
+
+    @property
+    def analytics_raw_catalog(self) -> str:
+        return f"polaris_aws.{self.raw_catalog}" if self.iceberg_authoritative else self.raw_catalog
 
     @property
     def domain_module(self) -> str:
@@ -79,29 +86,33 @@ SOURCES: list[Source] = [
             "taxonomy",
             "region_stats",
         ),
+        iceberg_authoritative=True,
     ),
-    Source(name="gbif", raw_tables=("occurrences",)),
+    Source(name="gbif", raw_tables=("occurrences",), iceberg_authoritative=True),
     Source(
         name="avonet",
         raw_tables=("species_traits",),
         scheduled=False,
         parallel_refresh=False,
         verification_profile="file_snapshot",
+        iceberg_authoritative=True,
     ),
-    Source(name="xeno_canto", raw_tables=("recordings",)),
+    Source(name="xeno_canto", raw_tables=("recordings",), iceberg_authoritative=True),
     Source(
         name="noaa",
         raw_tables=("daily_weather", "stations", "datasets"),
         analytics_anchor=True,
+        iceberg_authoritative=True,
     ),
-    Source(name="usgs", raw_tables=("daily_values", "sites")),
-    Source(name="usgs_earthquakes", raw_tables=("events",)),
+    Source(name="usgs", raw_tables=("daily_values", "sites"), iceberg_authoritative=True),
+    Source(name="usgs_earthquakes", raw_tables=("events",), iceberg_authoritative=True),
     Source(
         name="usfws",
         raw_tables=("image_search_runs", "image_records"),
         scheduled=False,
         parallel_refresh=False,
         orchestration_mode="explicit_targets",
+        iceberg_authoritative=True,
     ),
 ]
 

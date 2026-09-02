@@ -32,26 +32,14 @@ Per-source load observability — most recent dlt load id, completion time, stat
 
 **Upstream**
 
-- `raw_ebird._dlt_loads` (external)
-- `raw_ebird.hotspots` (external)
-- `raw_ebird.notable_observations` (external)
-- `raw_ebird.recent_observations` (external)
-- `raw_ebird.region_stats` (external)
-- `raw_ebird.species_list` (external)
-- `raw_ebird.taxonomy` (external)
-- `raw_gbif._dlt_loads` (external)
-- `raw_gbif.occurrences` (external)
-- `raw_noaa._dlt_loads` (external)
-- `raw_noaa.daily_weather` (external)
-- `raw_noaa.datasets` (external)
-- `raw_noaa.stations` (external)
-- `raw_usgs._dlt_loads` (external)
-- `raw_usgs.daily_values` (external)
-- `raw_usgs.sites` (external)
-- `raw_usgs_earthquakes._dlt_loads` (external)
-- `raw_usgs_earthquakes.events` (external)
-- `raw_xeno_canto._dlt_loads` (external)
-- `raw_xeno_canto.recordings` (external)
+- `raw_avonet._dlt_load_status` (external)
+- `raw_ebird._dlt_load_status` (external)
+- `raw_gbif._dlt_load_status` (external)
+- `raw_noaa._dlt_load_status` (external)
+- `raw_usfws._dlt_load_status` (external)
+- `raw_usgs._dlt_load_status` (external)
+- `raw_usgs_earthquakes._dlt_load_status` (external)
+- `raw_xeno_canto._dlt_load_status` (external)
 
 ## Example query
 

@@ -33,6 +33,7 @@
         load_id:
           data_type: text
           nullable: false
+          precision: 64
         schema_name:
           data_type: text
           nullable: true
@@ -55,6 +56,7 @@
         _dlt_load_id:
           data_type: text
           nullable: false
+          precision: 64
         created_at:
           data_type: timestamp
           nullable: false
@@ -206,6 +208,7 @@
         wing_length_mm:
           data_type: double
       resource: species_traits
+      table_format: iceberg
       write_disposition: replace
   '''
 # ---

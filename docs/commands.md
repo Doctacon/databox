@@ -56,6 +56,22 @@ uv run sqlmesh ui                    # start SQLMesh UI
 uv run sqlmesh plan dev              # plan into dev env
 ```
 
+## Source refresh
+
+Start the local Polaris stack and configure the Polaris/AWS values from
+`.env.example` before running either command:
+
+```bash
+docker-compose --env-file .env -f compose.iceberg.yml up -d
+task full-refresh   # all routine sources → Iceberg, then SQLMesh
+task verify         # bounded DATABOX_SMOKE=1 refresh, then SQLMesh
+```
+
+The underlying entrypoint is `scripts/sources/load_dlt_iceberg.py`. It validates
+catalog/storage configuration before launching concurrent Dagster source jobs,
+checks authoritative Iceberg tables and `_dlt_load_status`, and does not run
+SQLMesh after a source failure.
+
 ## Dagster (beyond `dagster:dev` / `full-refresh` / `verify`)
 
 ```bash
