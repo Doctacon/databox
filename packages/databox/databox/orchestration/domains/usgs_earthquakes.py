@@ -16,6 +16,7 @@ from databox.destinations.iceberg import (
     iceberg_destination,
     iceberg_dlt_pipeline,
     polaris_dlt_catalog,
+    publish_dlt_load_status,
 )
 from databox.orchestration._factories import dlt_translator
 
@@ -24,14 +25,17 @@ def _build_source() -> t.Any:
     return usgs_earthquakes_source()
 
 
+_usgs_earthquakes_dlt_pipeline = iceberg_dlt_pipeline(
+    pipeline_name="usgs_earthquakes_iceberg",
+    destination=iceberg_destination(),
+    dataset_name="raw_usgs_earthquakes",
+    pipelines_dir=settings.dlt_data_dir,
+)
+
+
 @dlt_assets(
     dlt_source=_build_source(),
-    dlt_pipeline=iceberg_dlt_pipeline(
-        pipeline_name="usgs_earthquakes_iceberg",
-        destination=iceberg_destination(),
-        dataset_name="raw_usgs_earthquakes",
-        pipelines_dir=settings.dlt_data_dir,
-    ),
+    dlt_pipeline=_usgs_earthquakes_dlt_pipeline,
     group_name="usgs_earthquakes_ingestion",
     dagster_dlt_translator=dlt_translator("raw_usgs_earthquakes"),
 )
@@ -43,6 +47,11 @@ def usgs_earthquakes_dlt_assets(
         source.add_limit(max_items=5)
     with polaris_dlt_catalog():
         yield from dlt.run(context=context, dlt_source=source)
+        publish_dlt_load_status(
+            _usgs_earthquakes_dlt_pipeline,
+            dataset_name="raw_usgs_earthquakes",
+            table_names=("events",),
+        )
 
 
 @dg.asset(

@@ -15,6 +15,7 @@ import pkgutil
 import pytest
 from databox.config.settings import settings
 from databox.config.sources import SOURCES
+from databox.quality.platform_health_codegen import render as render_platform_health
 
 EXPECTED_DOMAIN_EXPORTS = (
     "assets",
@@ -126,6 +127,9 @@ def test_explicit_target_source_is_declared_and_has_no_unsafe_default() -> None:
     assert set(explicit) == {"usfws"}
     assert all(source.scheduled is False for source in explicit.values())
     assert all(source.parallel_refresh is False for source in explicit.values())
+    assert all(source.iceberg_authoritative is True for source in explicit.values())
+    platform_health = render_platform_health()
+    assert "polaris_aws.raw_usfws._dlt_load_status" in platform_health
 
 
 def test_analytics_anchor_is_single() -> None:

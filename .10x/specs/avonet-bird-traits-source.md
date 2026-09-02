@@ -1,16 +1,16 @@
 Status: active
 Created: 2026-07-09
-Updated: 2026-07-10
+Updated: 2026-09-02
 
 # AVONET bird-traits source and model
 
 ## Purpose and scope
 
-This specification governs ingestion of the pinned AVONET v7 eBird-aligned species-average dataset through dlt/Quack and its SQLMesh trait model for Arizona bird profiles.
+This specification governs ingestion of the pinned AVONET v7 eBird-aligned species-average dataset through dlt-managed Polaris Iceberg and its SQLMesh trait model for Arizona bird profiles.
 
 ## Source contract
 
-The source MUST use the exact dataset identity in `.10x/decisions/avonet-atomic-staged-publication.md` and MUST:
+The source MUST use the exact dataset identity and publication boundary in `.10x/decisions/avonet-polaris-iceberg-publication.md` and MUST:
 
 - fetch only the fixed HTTPS Figshare file URL for file ID `34480856`,
 - use bounded connect/read timeouts and a response cap above the expected 21,524,673-byte file but no greater than 24 MiB,
@@ -40,14 +40,14 @@ Units and codebook meanings MUST be documented in `.schema/environmental_observa
 ## Pipeline behavior
 
 - `avonet` MUST be registered as an independently runnable source and Dagster ingest job.
-- dlt MUST use the existing Quack destination and append only into transient internal schema `raw_avonet_staging`; it MUST NOT write directly to authoritative `raw_avonet`.
-- Before each run, crash residue in `raw_avonet_staging` MUST be removed before the independent Quack server starts.
-- After a successful dlt load and Quack server stop, one direct single-writer DuckDB transaction MUST validate exactly 10,661 rows, 10,661 distinct non-null Avibase IDs, 10,661 distinct non-null source scientific names, the exact normalized business-table columns, and required source-scoped dlt metadata. Only then may it atomically create or replace `raw_avonet.species_traits` and its metadata from staging.
-- Successful publication MUST remove `raw_avonet_staging`. Download, parse, extraction, dlt load, validation, or publication failure MUST leave authoritative `raw_avonet` unchanged and remove staging best-effort; any crash residue MUST be safely cleared before the next run.
-- This post-Quack transaction is the only direct DuckDB write allowed for AVONET and MUST occur only after Quack releases ownership. Generic raw deduplication MUST NOT substitute for complete-snapshot publication.
+- dlt MUST publish directly to `raw_avonet.species_traits` through the shared Polaris Iceberg destination with `write_disposition="replace"` and `table_format="iceberg"`.
+- Before dlt publication, source validation MUST establish exactly 10,661 rows, 10,661 distinct non-null Avibase IDs, 10,661 distinct non-null source scientific names, and the exact normalized business columns.
+- The committed Iceberg snapshot is the atomic authoritative publication boundary. Download, hash, schema, parsing, validation, or commit failure MUST fail the job; validation failure MUST occur before publication, and failed commit MUST leave the prior snapshot authoritative.
+- The table MUST retain dlt `_dlt_load_id` and `_dlt_id` lineage and destination-side dlt metadata.
+- No `raw_avonet_staging`, manual DuckDB publication transaction, Quack destination, or independent Quack server is permitted in the active path.
 - The static pinned source MUST NOT add a redundant daily schedule. It MAY run explicitly and as a required bootstrap/precondition for catalog modeling.
-- Existing six-source parallel refresh overlap/schedules MUST remain unchanged unless a later active decision adds AVONET to that lifecycle.
-- Failed download/hash/schema/parsing/load/validation/publication MUST fail the source job and preserve the last successful physical table and metadata; partial staging data MUST NOT become authoritative.
+- Existing scheduled parallel refresh overlap/schedules MUST remain unchanged unless a later active decision adds AVONET to that lifecycle.
+- SQLMesh direct consumers and generated platform health MUST read `polaris_aws.raw_avonet` and refresh only after a successful Iceberg commit.
 
 ## SQLMesh model
 
@@ -78,11 +78,11 @@ Given any of the 82 Arizona hybrid taxa, when the catalog model runs, then the h
 
 ### Tampered source
 
-Given a response with the wrong size/hash, unapproved redirect, missing worksheet, duplicate source key, changed column contract, incomplete staging load, or failed publication, when ingestion runs, then the job fails before authoritative replacement, preserves any prior final snapshot, removes staging best-effort, and logs no workbook content.
+Given a response with the wrong size/hash, unapproved redirect, missing worksheet, duplicate source key, changed column contract, or failed Iceberg commit, when ingestion runs, then the job fails, preserves any prior authoritative snapshot, and logs no workbook content.
 
 ## Explicit exclusions
 
 - No Wikipedia, turbo-search bird corpus, EOL, AVONICHE, AvianHWI, EltonTraits, Birds of the World, All About Birds, or inferred visual field marks.
 - No raw individual specimen table.
 - No automatic taxonomy crosswalk beyond exact governed normalization.
-- No new daily schedule, concurrent/direct ingestion bypass, direct DuckDB write while Quack owns the file, or browser/request-time download. The bounded post-Quack atomic publication transaction specified above is required.
+- No new daily schedule, non-dlt ingestion bypass, DuckDB staging publisher, or browser/request-time download.

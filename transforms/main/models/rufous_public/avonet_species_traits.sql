@@ -59,7 +59,7 @@ WITH normalized AS (
     source_file_md5,
     source_url,
     loaded_at::TIMESTAMP AS loaded_at
-  FROM raw_avonet.species_traits
+  FROM polaris_aws.raw_avonet.species_traits
 ), contract_violations AS (
   SELECT species_natural_key
   FROM normalized

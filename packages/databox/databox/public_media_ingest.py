@@ -9,13 +9,14 @@ from pathlib import Path
 
 import duckdb
 from databox_sources.usfws.source import USFWS_MAX_TARGET_SPECIES, usfws_source
+from pyiceberg.expressions import EqualTo
 
 from databox.config.settings import settings
-from databox.destinations import (
-    dlt_destination,
-    dlt_pipeline,
-    prepare_dlt_source,
-    quack_ingest_session,
+from databox.destinations.iceberg import (
+    iceberg_destination,
+    iceberg_dlt_pipeline,
+    polaris_dlt_catalog,
+    publish_dlt_load_status,
 )
 from databox.public_export import GBIF_EBIRD_EOD_TABLE, PublicExportError
 
@@ -85,36 +86,33 @@ def ingest_public_usfws_media(
     *,
     max_images_per_target: int = 500,
 ) -> MediaIngestResult:
-    """Run the normal dlt → Quack/DuckDB path with explicit public targets."""
+    """Run the dlt → Polaris Iceberg path with explicit public targets."""
     targets = load_public_species_targets(database_path)
     source = usfws_source(
         target_species=targets,
         max_images_per_target=max_images_per_target,
     )
-    pipeline = dlt_pipeline(
-        pipeline_name="usfws_media",
-        destination=dlt_destination(str(database_path)),
-        dataset_name=settings.raw_dataset_name("usfws"),
+    pipeline = iceberg_dlt_pipeline(
+        pipeline_name="usfws_media_iceberg",
+        destination=iceberg_destination(),
+        dataset_name="raw_usfws",
         pipelines_dir=settings.dlt_data_dir,
     )
-    with quack_ingest_session(
-        settings.raw_dataset_name("usfws"),
-        db_path=str(database_path),
-    ):
-        pipeline.run(prepare_dlt_source(source))
+    with polaris_dlt_catalog():
+        pipeline.run(source)
+        publish_dlt_load_status(
+            pipeline,
+            dataset_name="raw_usfws",
+            table_names=("image_search_runs", "image_records"),
+        )
 
-    connection = duckdb.connect(str(database_path), read_only=True)
-    try:
-        raw_record_row = connection.execute(
-            "SELECT COUNT(*) FROM raw_usfws.image_records"
-        ).fetchone()
-        complete_run_row = connection.execute(
-            "SELECT COUNT(*) FROM raw_usfws.image_search_runs WHERE status = 'complete'"
-        ).fetchone()
-        raw_records = int(raw_record_row[0]) if raw_record_row is not None else 0
-        completed_runs = int(complete_run_row[0]) if complete_run_row is not None else 0
-    finally:
-        connection.close()
+    catalog = settings.pyiceberg_catalog()
+    raw_records = catalog.load_table("raw_usfws.image_records").scan().count()
+    completed_runs = (
+        catalog.load_table("raw_usfws.image_search_runs")
+        .scan(row_filter=EqualTo("status", "complete"), selected_fields=("run_id",))
+        .count()
+    )
     if raw_records <= 0 or completed_runs <= 0:
         raise PublicExportError("USFWS media ingestion did not produce a complete snapshot")
     return MediaIngestResult(

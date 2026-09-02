@@ -409,6 +409,7 @@ def parse_avonet_workbook(
 @dlt.resource(
     name="species_traits",
     write_disposition="replace",
+    table_format="iceberg",
     primary_key="avibase_id",
     columns=_COLUMNS,
 )

@@ -15,7 +15,7 @@ test_dim_bird_species_traits_exact_match_and_codebook:
           species_natural_key: null
           source_pipeline: "sentinel"
           loaded_at: null
-    raw_avonet.species_traits:
+    polaris_aws.raw_avonet.species_traits:
       rows:
         - source_scientific_name: "Cardinalis cardinalis (Linnaeus)"
           family: "Cardinalidae"

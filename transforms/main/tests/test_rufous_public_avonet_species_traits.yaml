@@ -1,7 +1,7 @@
 test_rufous_public_avonet_species_traits:
   model: rufous_public.avonet_species_traits
   inputs:
-    raw_avonet.species_traits:
+    polaris_aws.raw_avonet.species_traits:
       rows:
         - source_scientific_name: "Cardinalis cardinalis (Linnaeus)"
           family: "Cardinalidae"

@@ -1117,7 +1117,7 @@ test_rufous_public_gbif_eod_occurrence:
 test_rufous_public_usfws_commercial_image:
   model: rufous_public.usfws_commercial_image
   inputs:
-    raw_usfws.image_search_runs:
+    polaris_aws.raw_usfws.image_search_runs:
       rows:
         - run_id: "older-complete"
           status: "complete"
@@ -1147,7 +1147,7 @@ test_rufous_public_usfws_commercial_image:
           record_count: 2
           completed_at: "2026-08-04 10:00:00"
           _loaded_at: "2026-08-04 10:00:00"
-    raw_usfws.image_records:
+    polaris_aws.raw_usfws.image_records:
       rows:
         - run_id: "selected-complete"
           species_code: "rufhum"
@@ -1729,7 +1729,7 @@ test_rufous_public_usfws_commercial_image:
 test_rufous_public_usfws_zero_record_complete_snapshot:
   model: rufous_public.usfws_commercial_image
   inputs:
-    raw_usfws.image_search_runs:
+    polaris_aws.raw_usfws.image_search_runs:
       rows:
         - run_id: "older-with-image"
           status: "complete"
@@ -1745,7 +1745,7 @@ test_rufous_public_usfws_zero_record_complete_snapshot:
           record_count: 0
           completed_at: "2026-08-02 10:00:00"
           _loaded_at: "2026-08-02 10:00:00"
-    raw_usfws.image_records:
+    polaris_aws.raw_usfws.image_records:
       rows:
         - run_id: "older-with-image"
           species_code: "rufhum"

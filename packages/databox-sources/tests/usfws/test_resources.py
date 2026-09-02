@@ -64,6 +64,25 @@ def test_source_searches_facet_and_exact_names_and_preserves_raw_rights(
     assert not any("images.example.invalid" in call["url"] for call in usfws_transport)
 
 
+def test_resources_preserve_merge_keys_and_use_iceberg() -> None:
+    source = usfws_module.usfws_source(target_species=[])
+
+    runs = source.resources["image_search_runs"]
+    records = source.resources["image_records"]
+    assert runs.table_format == records.table_format == "iceberg"
+    assert runs.write_disposition == records.write_disposition == "merge"
+    assert [
+        name
+        for name, column in runs.compute_table_schema()["columns"].items()
+        if column.get("primary_key")
+    ] == ["run_id"]
+    assert [
+        name
+        for name, column in records.compute_table_schema()["columns"].items()
+        if column.get("primary_key")
+    ] == ["run_id", "species_code", "source_page_url"]
+
+
 def test_missing_targets_fail_only_when_resource_is_evaluated() -> None:
     source = usfws_module.usfws_source()
     assert set(source.resources) == {"image_search_runs", "image_records"}

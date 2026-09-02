@@ -21,6 +21,7 @@ from databox.destinations.iceberg import (
     iceberg_destination,
     iceberg_dlt_pipeline,
     polaris_dlt_catalog,
+    publish_dlt_load_status,
 )
 from databox.orchestration._factories import dlt_translator
 
@@ -63,6 +64,11 @@ def gbif_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> 
         source.add_limit(max_items=5)
     with polaris_dlt_catalog():
         yield from dlt.run(context=context, dlt_source=source)
+        publish_dlt_load_status(
+            _gbif_dlt_pipeline,
+            dataset_name="raw_gbif",
+            table_names=("occurrences",),
+        )
 
 
 dlt_asset_keys = [spec.key for spec in gbif_dlt_assets.specs]

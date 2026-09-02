@@ -53,7 +53,7 @@ WITH avonet_normalized AS (
     loaded_at,
     _dlt_load_id,
     _dlt_id
-  FROM raw_avonet.species_traits
+  FROM polaris_aws.raw_avonet.species_traits
 ), duplicate_avonet_keys AS (
   SELECT
     species_natural_key

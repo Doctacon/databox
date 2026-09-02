@@ -95,6 +95,7 @@ SOURCES: list[Source] = [
         scheduled=False,
         parallel_refresh=False,
         verification_profile="file_snapshot",
+        iceberg_authoritative=True,
     ),
     Source(name="xeno_canto", raw_tables=("recordings",), iceberg_authoritative=True),
     Source(
@@ -111,6 +112,7 @@ SOURCES: list[Source] = [
         scheduled=False,
         parallel_refresh=False,
         orchestration_mode="explicit_targets",
+        iceberg_authoritative=True,
     ),
 ]
 

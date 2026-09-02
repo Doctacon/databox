@@ -1,7 +1,6 @@
 source:
   name: avonet
   dataset_name: raw_avonet
-  internal_staging_schema: raw_avonet_staging
   doi: 10.6084/m9.figshare.16586228.v7
   version: v7
   license: CC BY 4.0

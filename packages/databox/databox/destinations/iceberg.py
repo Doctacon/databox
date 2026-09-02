@@ -9,8 +9,14 @@ from contextlib import contextmanager
 from typing import Any
 
 import dlt
+import pyarrow as pa
+from pyiceberg.expressions import EqualTo
+from pyiceberg.schema import Schema
+from pyiceberg.types import LongType, NestedField, StringType, TimestampType
 
 from databox.config.settings import settings
+
+DLT_LOAD_STATUS_TABLE = "_dlt_load_status"
 
 
 @contextmanager
@@ -50,6 +56,62 @@ def iceberg_dlt_pipeline(*args: Any, **kwargs: Any) -> Any:
     """Create a Polaris-backed dlt pipeline with catalog config applied at construction."""
     with polaris_dlt_catalog():
         return dlt.pipeline(*args, **kwargs)
+
+
+def publish_dlt_load_status(
+    pipeline: Any,
+    *,
+    dataset_name: str,
+    table_names: tuple[str, ...],
+) -> None:
+    """Publish one successful dlt load summary as a Polaris Iceberg row."""
+    load_info = pipeline.last_trace.last_load_info if pipeline.last_trace is not None else None
+    if load_info is None or load_info.has_failed_jobs or len(load_info.loads_ids) != 1:
+        raise RuntimeError("A single successful dlt load is required for load-status publication")
+    load_id = load_info.loads_ids[0]
+    package = next(
+        (item for item in load_info.load_packages if item.load_id == load_id),
+        None,
+    )
+    if package is None or package.completed_at is None:
+        raise RuntimeError("Completed dlt load metadata is required for load-status publication")
+
+    catalog = settings.pyiceberg_catalog()
+    rows_loaded = 0
+    for table_name in table_names:
+        table = catalog.load_table(f"{dataset_name}.{table_name}")
+        rows_loaded += table.scan(
+            row_filter=EqualTo("_dlt_load_id", load_id),
+            selected_fields=("_dlt_load_id",),
+        ).count()
+
+    status_schema = Schema(
+        NestedField(1, "load_id", StringType(), required=True),
+        NestedField(2, "schema_name", StringType(), required=True),
+        NestedField(3, "status", LongType(), required=True),
+        NestedField(4, "inserted_at", TimestampType(), required=True),
+        NestedField(5, "rows_loaded", LongType(), required=True),
+        identifier_field_ids=[1],
+    )
+    status_table = catalog.create_table_if_not_exists(
+        f"{dataset_name}.{DLT_LOAD_STATUS_TABLE}",
+        schema=status_schema,
+    )
+    completed_at = package.completed_at.replace(tzinfo=None)
+    status_table.upsert(
+        pa.Table.from_pylist(
+            [
+                {
+                    "load_id": load_id,
+                    "schema_name": dataset_name,
+                    "status": 0,
+                    "inserted_at": completed_at,
+                    "rows_loaded": rows_loaded,
+                }
+            ],
+            schema=status_table.schema().as_arrow(),
+        )
+    )
 
 
 def iceberg_destination() -> dlt.destinations.filesystem:

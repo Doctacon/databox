@@ -992,6 +992,7 @@ def usfws_source(
     @dlt.resource(
         primary_key="run_id",
         write_disposition="merge",
+        table_format="iceberg",
         columns=_RUN_COLUMNS,
     )
     def image_search_runs() -> Iterator[dict[str, Any]]:
@@ -1000,6 +1001,7 @@ def usfws_source(
     @dlt.resource(
         primary_key=["run_id", "species_code", "source_page_url"],
         write_disposition="merge",
+        table_format="iceberg",
         columns=_IMAGE_COLUMNS,
     )
     def image_records() -> Iterator[dict[str, Any]]:

@@ -30,29 +30,17 @@ def _loads_cte(src: Source) -> str:
         f"    schema_name,\n"
         f"    status,\n"
         f"    inserted_at::TIMESTAMP AS completed_at\n"
-        f"  FROM {src.analytics_raw_catalog}._dlt_loads\n"
+        f"  FROM {src.analytics_raw_catalog}._dlt_load_status\n"
         f")"
     )
 
 
 def _rows_cte(src: Source) -> str:
-    if not src.raw_tables:
-        return (
-            f"{src.name}_rows AS (\n"
-            f"  SELECT CAST(NULL AS VARCHAR) AS load_id, CAST(0 AS BIGINT) AS rows WHERE 1=0\n"
-            f")"
-        )
-    first = "    SELECT _dlt_load_id, COUNT(*) AS n FROM"
-    rest = "    UNION ALL SELECT _dlt_load_id, COUNT(*) FROM"
-    table_lines = [
-        f"{(first if i == 0 else rest)} {src.analytics_raw_catalog}.{table} GROUP BY 1"
-        for i, table in enumerate(src.raw_tables)
-    ]
     return (
         f"{src.name}_rows AS (\n"
-        "  SELECT _dlt_load_id AS load_id, SUM(n)::BIGINT AS rows FROM (\n"
-        + "\n".join(table_lines)
-        + "\n  ) t GROUP BY 1\n)"
+        f"  SELECT load_id, rows_loaded AS rows\n"
+        f"  FROM {src.analytics_raw_catalog}._dlt_load_status\n"
+        f")"
     )
 
 
@@ -60,7 +48,9 @@ def render(sources: list[Source] | None = None) -> str:
     srcs = (
         sources
         if sources is not None
-        else [source for source in SOURCES if source.parallel_refresh]
+        else [
+            source for source in SOURCES if source.parallel_refresh or source.iceberg_authoritative
+        ]
     )
     loads_ctes = ",\n".join(_loads_cte(s) for s in srcs)
     all_loads = "\n  UNION ALL ".join(f"SELECT * FROM {s.name}_loads" for s in srcs)
