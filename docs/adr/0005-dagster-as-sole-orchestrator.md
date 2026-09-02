@@ -23,9 +23,10 @@ quality checks, schedules, sensors, and asset-observability workflows. A thin
 `Taskfile.yml` wraps the common commands (`task dagster:dev`, source ingest
 jobs, `task full-refresh`) for ergonomics.
 
-ADR-0007 narrows this for the local Quack full-refresh path: each dlt source
-still runs as a Dagster asset job, but SQLMesh transformations are invoked with
-the native SQLMesh CLI after Quack shuts down so SQLMesh owns its own planning,
+ADR-0008 narrows this for the Polaris Iceberg full-refresh path: each eligible
+dlt source still runs as a Dagster asset job, but SQLMesh transformations are
+invoked with the native SQLMesh CLI only after every source and authoritative
+Iceberg load-status inspection succeeds. SQLMesh continues to own its planning,
 state, and restatement semantics directly.
 
 ## Consequences

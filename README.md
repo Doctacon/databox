@@ -4,8 +4,8 @@
 [![Docs](https://github.com/Doctacon/databox/actions/workflows/docs.yaml/badge.svg?branch=main)](https://doctacon.github.io/databox/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A local-first data warehouse built around DuckDB. Databox ingests public data
-with dlt, coordinates concurrent writes through Quack, transforms it with
+A local-first data warehouse with dlt-managed Iceberg tables on AWS S3, an
+Apache Polaris catalog, and local DuckDB analytics. Databox transforms data with
 SQLMesh, validates it with Soda, and orchestrates the workflow with
 Dagster—without always-on infrastructure.
 
@@ -20,10 +20,13 @@ planning.
 
 `React/TypeScript -> typed FastAPI APIs -> DuckDB warehouse -> bounded Google ADK workflow and strict-schema model inference`
 
-The full Rufous warehouse experience is local-first and loopback-only; DuckDB
-and model credentials stay behind the local typed API. A separate browser-only
+The full Rufous warehouse experience is local-first and loopback-only; modeled
+and application data live in `data/databox.duckdb`, and database/model credentials
+stay behind the local typed API. A separate browser-only
 public export is deployed at [rufous.loughondata.com](https://rufous.loughondata.com/)
-with static, privacy-reviewed data and no database or model credentials.
+with static, privacy-reviewed data and no database or model credentials. Its
+existing release remains available, but new production deployment is currently
+paused while the release workflow is adapted to the Iceberg source path.
 
 Rufous does not estimate encounter probability. Its recently reported group
 contains species with distinct eBird submissions in the configured eBird
@@ -53,8 +56,11 @@ operator-only delivery procedures.
 ```mermaid
 flowchart LR
     sources[Public sources] --> dlt[dlt]
-    dlt -->|writes through Quack| duckdb[(DuckDB)]
-    duckdb --> sqlmesh[SQLMesh]
+    dlt --> iceberg[Iceberg tables on S3]
+    dlt -->|commits metadata| polaris[Apache Polaris]
+    polaris -->|catalog discovery| duckdb[(Local DuckDB)]
+    iceberg -->|table data| duckdb
+    duckdb --> sqlmesh[SQLMesh models]
     soda[Soda] -. validates .-> duckdb
     dagster[Dagster] -. orchestrates .-> dlt
     dagster -. orchestrates .-> sqlmesh
@@ -100,27 +106,32 @@ After the initial dependency install, source tests replay recorded responses, so
 
 ### Build the local warehouse
 
-After `task install`, configure `EBIRD_API_TOKEN`, `NOAA_API_TOKEN`, and
-`XENO_CANTO_API_KEY` in `.env`. Live trip-plan synthesis also requires
+After `task install`, configure the Polaris client, AWS S3 bucket/writer,
+`EBIRD_API_TOKEN`, `NOAA_API_TOKEN`, and `XENO_CANTO_API_KEY` values documented
+in `.env.example`. Live trip-plan synthesis also requires
 `CF_WORKERS_AI_API_KEY` and `CF_WORKERS_AI_ACCOUNT_ID`; keep the example's
-allowlisted model selector. For a new database, bootstrap the pinned AVONET
+allowlisted model selector. Start the local catalog, bootstrap the pinned AVONET
 snapshot once, then refresh the routine sources:
 
 ```bash
 $EDITOR .env
 mkdir -p data .dagster
+docker-compose --env-file .env -f compose.iceberg.yml up -d
+curl --fail --silent http://127.0.0.1:8182/q/health/ready
 DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
   uv run dg launch --target-path packages/databox --job avonet_ingest
-task full-refresh   # ingest and transform into data/databox.duckdb
+task full-refresh   # ingest Iceberg raw tables, then build local SQLMesh models
 task app            # build and serve Rufous at http://127.0.0.1:8000
 ```
 
 AVONET is intentionally excluded from routine refreshes. See the
 [operations runbook](docs/runbook.md#rebuild-local-warehouse-from-sources).
 
-The Iceberg Compose stack includes the official open-source Polaris Console at
-<http://127.0.0.1:8080>. It is built from a pinned Apache `polaris-tools`
-revision and connects to the localhost-only Polaris API on port 8181.
+The Compose stack runs localhost-only Polaris with a PostgreSQL metadata backend;
+the authoritative Iceberg data and metadata files remain in AWS S3. It also
+includes the official open-source Polaris Console at <http://127.0.0.1:8080>,
+built from a pinned Apache `polaris-tools` revision and connected to the Polaris
+API on port 8181.
 
 ## Learn more
 

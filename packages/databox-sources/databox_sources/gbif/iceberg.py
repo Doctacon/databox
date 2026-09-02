@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
-import pyarrow as pa
+import pyarrow as pa  # type: ignore[import-untyped]
 from pyiceberg.catalog.rest import RestCatalog
 from pyiceberg.exceptions import NamespaceAlreadyExistsError, NoSuchTableError
 from pyiceberg.schema import Schema
@@ -29,7 +30,8 @@ def _schemas() -> tuple[Schema, pa.Schema]:
         data_type = definition["data_type"]
         required = name == "key"
         if data_type == "bigint":
-            iceberg_type, arrow_type = LongType(), pa.int64()
+            iceberg_type: Any = LongType()
+            arrow_type: Any = pa.int64()
         elif data_type == "double":
             iceberg_type, arrow_type = DoubleType(), pa.float64()
         elif data_type == "timestamp":

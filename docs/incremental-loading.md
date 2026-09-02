@@ -1,8 +1,8 @@
 # Incremental Loading
 
-Every dlt source in Databox writes through Quack to the local DuckDB warehouse
-using a declared primary key and write disposition. This page documents, per
-resource:
+Every dlt source in Databox writes a Polaris-managed Iceberg table in S3 using
+a declared primary key and write disposition. Local DuckDB consumes those raw
+tables through the attached Polaris catalog. This page documents, per resource:
 
 - **write disposition** — how new rows land: `merge`, `replace`, or `append`
 - **primary / merge key** — how dlt deduplicates on re-run
@@ -26,32 +26,30 @@ resource:
 | noaa | `datasets` | replace | `id` | none — full snapshot |
 | usgs | `daily_values` | merge | `(site_no, parameter_cd, observation_date)` | rolling `days_back` window, chunked to 90-day API calls |
 | usgs | `sites` | merge | `site_no` | none — full snapshot |
-| avonet | `species_traits` | Quack append to transient staging, atomic snapshot publish | `avibase_id` plus unique source scientific name | none — pinned full snapshot |
+| avonet | `species_traits` | Iceberg replace | `avibase_id` plus unique source scientific name | none — pinned full snapshot |
 
 ## Idempotency model
 
 No resource uses dlt's `dlt.sources.incremental` cursor. Instead, every
-resource re-fetches a bounded window on each run. The Quack path append-loads
-and then deduplicates known raw tables directly after the server stops.
-Consequences:
+resource re-fetches a bounded window on each run, and dlt commits declared
+merge or replacement semantics through Iceberg. Consequences:
 
 - **merge-disposition resources** are fully idempotent: re-running with the
   same API responses leaves the final table untouched.
 - **replace-disposition resources** (`species_list`, `taxonomy`, `datasets`)
   drop and reload the table every run; idempotency is trivial because the
   row set is always "whatever the API returned this time."
-- **AVONET complete snapshot** is a deliberate exception to generic dedupe:
-  Quack append-loads only into freshly cleared `raw_avonet_staging`. After
-  Quack stops, a single-writer transaction validates exact row count, unique
-  identifiers/names, columns, and dlt metadata before atomically replacing
-  final `raw_avonet` and dropping staging. Any failure preserves the prior
-  final snapshot and cleans staging best-effort.
+- **AVONET complete snapshot** validates its pinned file identity, row count,
+  unique identifiers/names, columns, provenance, and dlt metadata before direct
+  replacement. The committed Iceberg snapshot is the atomic boundary; failed
+  validation cannot publish, and a failed commit leaves the prior snapshot
+  authoritative.
 
 The merge-disposition guarantee is validated in CI by
 `packages/databox-sources/tests/<source>/test_idempotency.py`: each test
 runs the merge-backed resource twice against the same VCR cassette and
-asserts the primary-key set and row count are identical. The Quack loader's
-post-load dedupe uses the same primary keys for the current source set.
+asserts the primary-key set and row count are identical. The Iceberg merge uses
+the same declared primary keys for the current source set.
 
 ## Backfill procedure
 
@@ -91,20 +89,20 @@ in place.
 - **replace resources**: the entire table is dropped and reloaded on every
   run, so a backfill on `days_back` has no effect on these (they always
   reflect the current full snapshot). AVONET reaches the same authoritative
-  snapshot result through its separately validated staging/publish transaction.
+  result through its separately validated Iceberg replacement.
 - **downstream SQLMesh CDM models**: all are declarative views/tables over the
   raw layer. A backfill at the source layer is picked up on the next
   `task full-refresh` (or native SQLMesh restatement).
 
 ## Dagster backfill
 
-A partitioned Dagster backfill is not wired yet, but each registered source has
-an independent dlt ingest asset job. `task full-refresh` starts one Quack server,
-runs only sources marked `parallel_refresh=True` concurrently as clients,
-validates the raw row
-counts and absence of persistent `main._dlt*` relations, then uses the native
-SQLMesh CLI to rebuild modeled tables only after every source succeeds. Static
-AVONET remains an explicit `avonet_ingest` bootstrap job with no daily schedule.
+A partitioned Dagster backfill is not wired yet, but each default registered
+source has an independent dlt ingest asset job. `task full-refresh` validates
+Polaris/S3 configuration, runs sources marked `parallel_refresh=True`
+concurrently, verifies registry-declared Iceberg tables and explicit load
+status, then uses the native SQLMesh CLI only after every source succeeds.
+Static AVONET remains an explicit `avonet_ingest` bootstrap job with no daily
+schedule; explicit-target USFWS has no unconfigured ingest job.
 
 ## When to rely on merge vs replace
 

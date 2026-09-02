@@ -3,7 +3,6 @@ from __future__ import annotations
 from contextlib import redirect_stdout
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Any
 
 import pytest
 from databox import source_refresh_api, source_refresh_runner
@@ -108,7 +107,7 @@ def test_runner_pins_exact_scope_recovers_success_and_sanitizes_log(tmp_path: Pa
     separator = command.index("--")
     assert command[separator + 1 : separator + 4] == [
         str(source_refresh_runner.PROJECT_ROOT / ".venv" / "bin" / "python"),
-        str(source_refresh_runner.PROJECT_ROOT / "scripts" / "sources" / "load_dlt_quack.py"),
+        str(source_refresh_runner.PROJECT_ROOT / "scripts" / "sources" / "load_dlt_iceberg.py"),
         "--database",
     ]
     assert [
@@ -389,18 +388,11 @@ def test_runner_rejects_noncanonical_scope_without_starting(tmp_path: Path) -> N
     assert not called
 
 
-def test_connected_exact_six_api_runner_uses_real_one_quack_orchestration_order(
+def test_connected_exact_six_api_runner_uses_iceberg_orchestration_order(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
     events: list[str] = []
-
-    class FakeServer:
-        def __enter__(self) -> None:
-            events.append("server-start")
-
-        def __exit__(self, *args: Any) -> None:
-            events.append("server-stop")
 
     def source(source: str, workdir: Path, env: dict[str, str]) -> SourceRunResult:
         _ = workdir, env
@@ -441,16 +433,10 @@ def test_connected_exact_six_api_runner_uses_real_one_quack_orchestration_order(
             list(api_sources),
             database_path=str(tmp_path / "warehouse.duckdb"),
             source_runner=source,
-            server_factory=lambda _: FakeServer(),
-            dedupe_runner=lambda _: events.append("dedupe") or [],
-            cleanup_runner=lambda: events.append("cleanup"),
             inspection_runner=lambda *_: events.append("inspect") or WarehouseInspection((), ()),
             transform_runner=lambda: events.append("sqlmesh"),
         )
-    assert events.count("server-start") == 1
-    assert events.index("server-stop") < events.index("dedupe")
-    assert events.index("dedupe") < events.index("inspect") < events.index("sqlmesh")
-    assert events.index("cleanup") < events.index("inspect")
+    assert events == ["inspect", "sqlmesh"]
     rendered = output.getvalue()
     assert rendered.count("SOURCE_START source=") == len(api_sources)
     assert rendered.index("PHASE_START phase=sqlmesh") > rendered.rindex("SOURCE_END source=")
@@ -473,13 +459,6 @@ def test_connected_exact_six_api_runner_uses_real_one_quack_orchestration_order(
 
 def test_connected_exact_six_source_failure_suppresses_sqlmesh(tmp_path: Path, monkeypatch) -> None:
     events: list[str] = []
-
-    class FakeServer:
-        def __enter__(self) -> None:
-            events.append("server-start")
-
-        def __exit__(self, *args: Any) -> None:
-            events.append("server-stop")
 
     def source(source: str, workdir: Path, env: dict[str, str]) -> SourceRunResult:
         _ = workdir, env
@@ -531,9 +510,6 @@ def test_connected_exact_six_source_failure_suppresses_sqlmesh(tmp_path: Path, m
                 list(api_sources),
                 database_path=str(tmp_path / "warehouse.duckdb"),
                 source_runner=source,
-                server_factory=lambda _: FakeServer(),
-                dedupe_runner=lambda _: events.append("dedupe") or [],
-                cleanup_runner=lambda: events.append("cleanup"),
                 inspection_runner=lambda *_: (
                     events.append("inspect") or WarehouseInspection((), ())
                 ),
@@ -543,9 +519,6 @@ def test_connected_exact_six_source_failure_suppresses_sqlmesh(tmp_path: Path, m
         assert "gbif" in str(error)
     else:
         raise AssertionError("failed exact-six orchestration unexpectedly succeeded")
-    assert events.count("server-start") == 1
-    assert events.index("server-stop") < events.index("dedupe")
-    assert events.index("dedupe") < events.index("cleanup")
     assert "inspect" not in events
     assert "sqlmesh" not in events
     assert "PHASE_START phase=sqlmesh" not in output.getvalue()

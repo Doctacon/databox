@@ -21,9 +21,8 @@ from databox.destinations.iceberg import (
     iceberg_destination,
     iceberg_dlt_pipeline,
     polaris_dlt_catalog,
-    publish_dlt_load_status,
 )
-from databox.orchestration._factories import dlt_translator
+from databox.orchestration._factories import dlt_load_status_asset, dlt_translator
 
 
 def _build_source(*, max_records: int | None = None, public_release: bool | None = None) -> t.Any:
@@ -64,22 +63,30 @@ def gbif_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> 
         source.add_limit(max_items=5)
     with polaris_dlt_catalog():
         yield from dlt.run(context=context, dlt_source=source)
-        publish_dlt_load_status(
-            _gbif_dlt_pipeline,
-            dataset_name="raw_gbif",
-            table_names=("occurrences",),
-        )
 
 
 dlt_asset_keys = [spec.key for spec in gbif_dlt_assets.specs]
+gbif_load_status = dlt_load_status_asset(
+    pipeline=_gbif_dlt_pipeline,
+    dataset_name="raw_gbif",
+    table_names=("occurrences",),
+    deps=dlt_asset_keys,
+    group_name="gbif_ingestion",
+)
+gbif_load_status_key = gbif_load_status.key
 
 
 @dg.asset(
     key=dg.AssetKey(["birding_agent", "gbif_iceberg_occurrences_refresh"]),
-    deps=[dg.AssetKey(["sqlmesh", "raw_gbif", "occurrences"])],
+    deps=[
+        dg.AssetKey(["sqlmesh", "raw_gbif", "occurrences"]),
+        dg.AssetKey(["sqlmesh", "raw_gbif", "_dlt_load_status"]),
+    ],
     group_name="gbif_ingestion",
 )
-def gbif_iceberg_occurrences_refresh(context: AssetExecutionContext) -> dg.MaterializeResult:
+def gbif_iceberg_occurrences_refresh(
+    context: AssetExecutionContext,
+) -> dg.MaterializeResult[t.Any]:
     """Refresh the local GBIF projection after dlt commits its Iceberg snapshot."""
     subprocess.run(
         [
@@ -104,18 +111,20 @@ def gbif_iceberg_occurrences_refresh(context: AssetExecutionContext) -> dg.Mater
     return dg.MaterializeResult(metadata={"sqlmesh_refreshed": True})
 
 
-assets = [gbif_dlt_assets, gbif_iceberg_occurrences_refresh]
-sqlmesh_asset_keys: list[dg.AssetKey] = []
+assets = [gbif_dlt_assets, gbif_load_status, gbif_iceberg_occurrences_refresh]
+sqlmesh_asset_keys = [gbif_iceberg_occurrences_refresh.key]
 asset_checks: list[dg.AssetChecksDefinition] = []
 
 ingest_job = dg.define_asset_job(
     name="gbif_ingest",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, gbif_iceberg_occurrences_refresh.key),
+    selection=dg.AssetSelection.assets(*dlt_asset_keys, gbif_load_status_key),
     executor_def=dg.in_process_executor,
 )
 daily_pipeline = dg.define_asset_job(
     name="gbif_daily_pipeline",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, gbif_iceberg_occurrences_refresh.key),
+    selection=dg.AssetSelection.assets(
+        *dlt_asset_keys, gbif_load_status_key, gbif_iceberg_occurrences_refresh.key
+    ),
     executor_def=dg.in_process_executor,
 )
 schedule = dg.ScheduleDefinition(job=daily_pipeline, cron_schedule="0 6 * * *")

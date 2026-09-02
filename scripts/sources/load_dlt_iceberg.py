@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run registered Dagster source jobs in parallel through one Quack server."""
+"""Run registered Dagster source jobs in parallel through Polaris Iceberg."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--database",
         default=settings.database_path,
-        help="DuckDB file owned by the shared Quack server.",
+        help="Local DuckDB file transformed by SQLMesh after Iceberg ingestion.",
     )
     parser.add_argument("--max-workers", type=int)
     parser.add_argument(
@@ -54,13 +54,10 @@ def main() -> int:
 
     for source in result.sources:
         print(f"✓ {source.source}: {source.finished_monotonic - source.started_monotonic:.3f}s")
-    for item in result.deduped:
-        print(f"dedupe {item}")
     for table, count in result.inspection.row_counts:
         print(f"row_count {table}={count}")
-    print(f"main_dlt_relations={len(result.inspection.main_dlt_relations)}")
     print(f"overlap_pairs={result.overlap_pairs}")
-    print("Parallel Quack refresh complete.")
+    print("Parallel Iceberg refresh complete.")
     return 0
 
 

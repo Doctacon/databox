@@ -1,16 +1,16 @@
-"""Shared-server parallel Quack refresh orchestration tests."""
+"""Parallel Polaris Iceberg refresh orchestration tests."""
 
 from __future__ import annotations
 
-import json
 import subprocess
 import threading
 import time
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 
-import duckdb
 import pytest
+from databox.config.sources import SOURCES
 from databox.orchestration.parallel_refresh import (
     ParallelRefreshError,
     SourceRunResult,
@@ -19,6 +19,17 @@ from databox.orchestration.parallel_refresh import (
     inspect_refresh_state,
     run_source_dagster_job,
 )
+
+
+def test_parallel_source_jobs_select_only_dlt_ingestion_assets() -> None:
+    for source in SOURCES:
+        if not source.parallel_refresh:
+            continue
+        module = import_module(source.domain_module)
+        selection = str(module.ingest_job.selection)
+        assert all(key.to_user_string() in selection for key in module.dlt_asset_keys)
+        assert getattr(module, f"{source.name}_load_status_key").to_user_string() in selection
+        assert all(key.to_user_string() not in selection for key in module.sqlmesh_asset_keys)
 
 
 def _result(source: str, start: float, end: float, returncode: int = 0) -> SourceRunResult:
@@ -33,7 +44,7 @@ def _result(source: str, start: float, end: float, returncode: int = 0) -> Sourc
     )
 
 
-def test_parallel_refresh_uses_one_server_observes_overlap_then_transforms(
+def test_parallel_refresh_observes_overlap_then_transforms(
     tmp_path: Path,
 ) -> None:
     events: list[str] = []
@@ -86,17 +97,16 @@ def test_parallel_refresh_uses_one_server_observes_overlap_then_transforms(
         evaluation_runner=lambda path, refresh_id: events.append(f"evaluate:{path}:{refresh_id}"),
     )
 
-    assert events.count("server-start") == 1
-    assert events.count("server-stop") == 1
-    assert events.index("server-stop") < events.index("dedupe")
-    assert events.index("dedupe") < events.index("transform")
-    assert events.index("cleanup") < events.index("transform")
+    assert "server-start" not in events
+    assert "server-stop" not in events
+    assert "dedupe" not in events
+    assert "cleanup" not in events
     evaluation_event = next(item for item in events if item.startswith("evaluate:"))
     assert events.index("transform") < events.index(evaluation_event)
     assert evaluation_event.startswith(f"evaluate:{tmp_path / 'databox.duckdb'}:parallel_refresh_")
     assert result.overlap_pairs
-    assert result.deduped == ("raw_ebird.recent_observations: 2 -> 1",)
-    assert all(env["DATABOX_QUACK_SHARED_SERVER"] == "true" for env in seen_environments)
+    assert result.deduped == ()
+    assert all("DATABOX_QUACK_SHARED_SERVER" not in env for env in seen_environments)
 
 
 def test_parallel_source_imports_use_isolated_sqlmesh_caches(
@@ -179,33 +189,30 @@ def test_parallel_refresh_failure_preserves_source_attribution_when_maintenance_
         )
 
     assert [item.source for item in exc_info.value.result.sources if not item.ok] == ["gbif"]
-    assert isinstance(exc_info.value.__cause__, RuntimeError)
-    assert any("cleanup failed" in note for note in exc_info.value.__notes__)
-    assert events == ["server-start", "server-stop", "dedupe", "cleanup"]
+    assert exc_info.value.__cause__ is None
+    assert events == []
 
 
-def test_dagster_runner_uses_actual_ingest_timeline(tmp_path: Path, monkeypatch) -> None:
-    timeline_dir = tmp_path / "timelines"
-    timeline_dir.mkdir()
-    env = {"DATABOX_QUACK_TIMELINE_DIR": str(timeline_dir)}
+def test_dagster_runner_uses_worker_process_timeline(tmp_path: Path, monkeypatch) -> None:
+    moments = iter([20.0, 21.5])
+    timestamps = iter(["start", "finish"])
 
     def fake_run(command, *, cwd, env, check):
-        _ = cwd, check
-        (Path(env["DATABOX_QUACK_TIMELINE_DIR"]) / "raw_ebird.json").write_text(
-            json.dumps(
-                {
-                    "started_monotonic": 20.0,
-                    "finished_monotonic": 21.5,
-                    "started_at": "start",
-                    "finished_at": "finish",
-                }
-            )
-        )
+        _ = cwd, env, check
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-    result = run_source_dagster_job("ebird", tmp_path, env)
+    monkeypatch.setattr(
+        "databox.orchestration.parallel_refresh.time.monotonic",
+        lambda: next(moments),
+    )
+    monkeypatch.setattr(
+        "databox.orchestration.parallel_refresh._iso_now",
+        lambda: next(timestamps),
+    )
+    result = run_source_dagster_job("ebird", tmp_path, {})
 
+    assert result.ok
     assert (result.started_monotonic, result.finished_monotonic) == (20.0, 21.5)
     assert (result.started_at, result.finished_at) == ("start", "finish")
 
@@ -313,27 +320,55 @@ def test_parallel_refresh_rejects_sequential_worker_count() -> None:
         )
 
 
-def test_refresh_inspection_reports_rows_and_rejects_main_dlt(tmp_path: Path) -> None:
-    db_path = tmp_path / "databox.duckdb"
-    con = duckdb.connect(str(db_path))
-    con.execute("CREATE SCHEMA raw_gbif")
-    con.execute("CREATE TABLE raw_gbif.occurrences (id INTEGER)")
-    con.execute("INSERT INTO raw_gbif.occurrences VALUES (1), (2)")
-    con.close()
+class _FakeScan:
+    def __init__(self, count: int) -> None:
+        self._count = count
 
-    inspection = inspect_refresh_state(str(db_path), ["gbif"])
+    def count(self) -> int:
+        return self._count
+
+
+class _FakeTable:
+    def __init__(self, count: int) -> None:
+        self._count = count
+
+    def scan(self) -> _FakeScan:
+        return _FakeScan(self._count)
+
+
+class _FakeCatalog:
+    def __init__(self, counts: dict[str, int]) -> None:
+        self._counts = counts
+
+    def load_table(self, name: str) -> _FakeTable:
+        return _FakeTable(self._counts[name])
+
+
+def test_refresh_inspection_reports_iceberg_rows_and_requires_load_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from databox.orchestration import parallel_refresh
+
+    counts = {"raw_gbif.occurrences": 2, "raw_gbif._dlt_load_status": 1}
+    monkeypatch.setattr(
+        type(parallel_refresh.settings),
+        "pyiceberg_catalog",
+        lambda _settings: _FakeCatalog(counts),
+    )
+    inspection = inspect_refresh_state(str(tmp_path / "databox.duckdb"), ["gbif"])
     assert inspection.row_counts == (("raw_gbif.occurrences", 2),)
     assert inspection.main_dlt_relations == ()
 
-    con = duckdb.connect(str(db_path))
-    con.execute("CREATE TABLE main._dlt_bad (id INTEGER)")
-    con.close()
-    with pytest.raises(RuntimeError, match="Persistent main._dlt"):
-        inspect_refresh_state(str(db_path), ["gbif"])
+    counts["raw_gbif._dlt_load_status"] = 0
+    with pytest.raises(RuntimeError, match="No completed Iceberg load status found for gbif"):
+        inspect_refresh_state(str(tmp_path / "databox.duckdb"), ["gbif"])
 
 
-def test_refresh_inspection_uses_complete_ebird_and_noaa_inventories(tmp_path: Path) -> None:
-    db_path = tmp_path / "databox.duckdb"
+def test_refresh_inspection_uses_complete_ebird_and_noaa_inventories(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from databox.orchestration import parallel_refresh
+
     tables = {
         "ebird": (
             "recent_observations",
@@ -345,15 +380,19 @@ def test_refresh_inspection_uses_complete_ebird_and_noaa_inventories(tmp_path: P
         ),
         "noaa": ("daily_weather", "stations", "datasets"),
     }
-    con = duckdb.connect(str(db_path))
-    for source, source_tables in tables.items():
-        con.execute(f"CREATE SCHEMA raw_{source}")
-        for table in source_tables:
-            con.execute(f"CREATE TABLE raw_{source}.{table} (id INTEGER)")
-            con.execute(f"INSERT INTO raw_{source}.{table} VALUES (1)")
-    con.close()
+    counts = {
+        f"raw_{source}.{table}": 1
+        for source, source_tables in tables.items()
+        for table in source_tables
+    }
+    counts.update({f"raw_{source}._dlt_load_status": 1 for source in tables})
+    monkeypatch.setattr(
+        type(parallel_refresh.settings),
+        "pyiceberg_catalog",
+        lambda _settings: _FakeCatalog(counts),
+    )
 
-    inspection = inspect_refresh_state(str(db_path), ["ebird", "noaa"])
+    inspection = inspect_refresh_state(str(tmp_path / "databox.duckdb"), ["ebird", "noaa"])
     assert inspection.row_counts == tuple(
         (f"raw_{source}.{table}", 1)
         for source, source_tables in tables.items()

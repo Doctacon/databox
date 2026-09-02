@@ -74,12 +74,18 @@ def test_publish_dlt_load_status_upserts_dlt_metadata_and_rows(
     catalog = _Catalog()
     monkeypatch.setattr(type(iceberg.settings), "pyiceberg_catalog", lambda self: catalog)
 
-    iceberg.publish_dlt_load_status(
+    status = iceberg.publish_dlt_load_status(
         _pipeline(),
         dataset_name="raw_test",
         table_names=("first", "second"),
     )
 
+    assert status == iceberg.DltLoadStatus(
+        load_id="123.45",
+        dataset_name="raw_test",
+        completed_at=datetime(2026, 9, 2, 4, 0),
+        rows_loaded=7,
+    )
     assert catalog.created_identifier == "raw_test._dlt_load_status"
     assert catalog.created_schema.identifier_field_ids == [1]
     assert catalog.status_table.rows == [

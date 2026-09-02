@@ -572,6 +572,12 @@ def test_explicit_audio_refresh_separates_untrusted_media_from_r2_credentials() 
     assert not [token for token in forbidden if token in combined_commands]
 
 
+def test_production_deployment_is_paused_fail_closed() -> None:
+    workflow = _workflow()
+
+    assert workflow["jobs"]["production"]["if"] == "${{ false }}"
+
+
 def test_automatic_releases_verify_audio_without_contacting_sources() -> None:
     workflow = _workflow()
     production = workflow["jobs"]["production"]

@@ -16,9 +16,8 @@ from databox.destinations.iceberg import (
     iceberg_destination,
     iceberg_dlt_pipeline,
     polaris_dlt_catalog,
-    publish_dlt_load_status,
 )
-from databox.orchestration._factories import dlt_translator
+from databox.orchestration._factories import dlt_load_status_asset, dlt_translator
 
 
 def _build_source() -> t.Any:
@@ -47,26 +46,17 @@ def ebird_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) ->
         source.add_limit(max_items=5)
     with polaris_dlt_catalog():
         yield from dlt.run(context=context, dlt_source=source)
-        publish_dlt_load_status(
-            _ebird_dlt_pipeline,
-            dataset_name="raw_ebird",
-            table_names=(
-                "recent_observations",
-                "notable_observations",
-                "hotspots",
-                "species_list",
-                "taxonomy",
-                "region_stats",
-            ),
-        )
 
 
 @dg.asset(
     key=dg.AssetKey(["environmental_observations", "ebird_iceberg_refresh"]),
-    deps=[dg.AssetKey(["sqlmesh", "raw_ebird", "recent_observations"])],
+    deps=[
+        dg.AssetKey(["sqlmesh", "raw_ebird", "recent_observations"]),
+        dg.AssetKey(["sqlmesh", "raw_ebird", "_dlt_load_status"]),
+    ],
     group_name="ebird_ingestion",
 )
-def ebird_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResult:
+def ebird_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResult[t.Any]:
     """Refresh local eBird consumers after the Iceberg snapshots commit."""
     models = (
         "environmental_observations.dim_species",
@@ -94,20 +84,37 @@ def ebird_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResul
     return dg.MaterializeResult(metadata={"sqlmesh_refreshed": True})
 
 
-assets = [ebird_dlt_assets, ebird_iceberg_refresh]
 dlt_asset_keys = [spec.key for spec in ebird_dlt_assets.specs]
+ebird_load_status = dlt_load_status_asset(
+    pipeline=_ebird_dlt_pipeline,
+    dataset_name="raw_ebird",
+    table_names=(
+        "recent_observations",
+        "notable_observations",
+        "hotspots",
+        "species_list",
+        "taxonomy",
+        "region_stats",
+    ),
+    deps=dlt_asset_keys,
+    group_name="ebird_ingestion",
+)
+ebird_load_status_key = ebird_load_status.key
+assets = [ebird_dlt_assets, ebird_load_status, ebird_iceberg_refresh]
 sqlmesh_asset_keys = [ebird_iceberg_refresh.key]
 asset_checks: list[dg.AssetChecksDefinition] = []
 
 ingest_job = dg.define_asset_job(
     name="ebird_ingest",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, ebird_iceberg_refresh.key),
+    selection=dg.AssetSelection.assets(*dlt_asset_keys, ebird_load_status_key),
     executor_def=dg.in_process_executor,
 )
 
 daily_pipeline = dg.define_asset_job(
     name="ebird_daily_pipeline",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, ebird_iceberg_refresh.key),
+    selection=dg.AssetSelection.assets(
+        *dlt_asset_keys, ebird_load_status_key, ebird_iceberg_refresh.key
+    ),
     executor_def=dg.in_process_executor,
 )
 

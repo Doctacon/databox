@@ -10,24 +10,24 @@ task db:reset
 task full-refresh
 ```
 
-`task full-refresh` starts one Quack server, launches every source marked
-`parallel_refresh=True` concurrently as an independent Dagster job, waits for
-all jobs, stops
-and deduplicates the warehouse, then invokes native SQLMesh only if every source
-succeeded. `SOURCE_START`/`SOURCE_END` lines and Dagster run IDs attribute the
-interleaved logs; overlap is calculated from cross-process timestamps around
-each actual dlt/Quack ingest session, not process startup time. The command also
-prints core raw row counts and requires `main_dlt_relations=0` before SQLMesh.
-The expected local layout is one `data/databox.duckdb` with raw schemas plus
+`task full-refresh` validates the configured Polaris catalog and AWS S3 writer,
+launches every source marked `parallel_refresh=True` concurrently as an
+independent Dagster job, verifies each authoritative Iceberg table and explicit
+`_dlt_load_status`, then invokes native SQLMesh only if every source succeeded.
+`SOURCE_START`/`SOURCE_END` lines and Dagster run IDs attribute interleaved logs;
+overlap is calculated from timestamps around each source's `dg launch`
+subprocess, proving worker-process overlap while including subprocess startup time. Raw data lives in S3-backed
+Iceberg tables registered by Polaris; `data/databox.duckdb` contains the local
 SQLMesh schemas such as `environmental_observations` and `analytics`.
 
-Static pinned AVONET is deliberately not part of this six-source refresh. Run
-its independent `avonet_ingest` Dagster job explicitly when a validated
-`raw_avonet.species_traits` bootstrap is required; it has no recurring schedule.
-The job clears crash residue, append-loads Quack-owned `raw_avonet_staging`,
-stops Quack, then validates and atomically publishes the complete final snapshot
-in one single-writer transaction. Failures preserve the prior final snapshot and
-remove staging best-effort; generic raw dedupe is not used for AVONET.
+Before refreshing, start `compose.iceberg.yml` and configure the Polaris client,
+AWS region, S3 bucket, and AWS writer credentials documented in `.env.example`.
+
+Static pinned AVONET is deliberately excluded from routine refresh. Run its
+independent `avonet_ingest` Dagster job explicitly when a validated
+`raw_avonet.species_traits` replacement is required; it has no recurring
+schedule. The job preserves the pinned file/hash/schema checks and publishes the
+complete validated snapshot directly as a dlt-managed Polaris Iceberg table.
 
 ## Smoke verification
 
@@ -36,7 +36,7 @@ task verify
 cd transforms/main && ../../.venv/bin/sqlmesh test
 ```
 
-`task verify` uses `DATABOX_SMOKE=1` with the same shared-server concurrent
+`task verify` uses `DATABOX_SMOKE=1` with the same concurrent Polaris Iceberg
 source path, then restates SQLMesh prod through the native CLI.
 
 ## SQLMesh dev loop

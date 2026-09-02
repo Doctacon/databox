@@ -9,8 +9,13 @@ code imports it rather than redeclaring values.
 
 | Setting | Env var | Source | Notes |
 |---|---|---|---|
-| Quack URI | `DATABOX_QUACK_URI` | `settings.quack_uri` | Default `quack:localhost:9494` |
-| Quack token | `DATABOX_QUACK_TOKEN` | `settings.quack_token` | Local client/server token |
+| Polaris URL | `DATABOX_POLARIS_URL` | `settings.polaris_url` | Local REST catalog; default `http://127.0.0.1:8181` |
+| Polaris client ID | `DATABOX_POLARIS_CLIENT_ID` | `settings.polaris_client_id` | Secret; local catalog principal |
+| Polaris client secret | `DATABOX_POLARIS_CLIENT_SECRET` | `settings.polaris_client_secret` | Secret |
+| S3 bucket | `DATABOX_AWS_S3_BUCKET` | `settings.aws_s3_bucket` | Iceberg warehouse bucket |
+| AWS writer key | `DATABOX_AWS_ACCESS_KEY_ID` | `settings.aws_access_key_id` | Secret; scoped S3 writer |
+| AWS writer secret | `DATABOX_AWS_SECRET_ACCESS_KEY` | `settings.aws_secret_access_key` | Secret |
+| AWS region | `DATABOX_AWS_REGION` | `settings.aws_region` | Default `us-west-1` |
 | Log level | `LOG_LEVEL` | `settings.log_level` | Default `INFO` |
 | Smoke mode | `DATABOX_SMOKE` | `settings.smoke` | Limits source rows for verification |
 | eBird window | `DATABOX_EBIRD_DAYS_BACK` | `settings.ebird_days_back` | Default 30; provider range 1–30 |
@@ -27,18 +32,18 @@ code imports it rather than redeclaring values.
 |---|---|
 | `settings.gateway` | Always `local` |
 | `settings.database_path` | `data/databox.duckdb` |
-| `settings.raw_catalog_path(name)` | `data/databox.duckdb` for every source |
-| `settings.raw_dataset_name(name)` | Source-specific `raw_<name>` schema |
+| `settings.pyiceberg_catalog()` | Authenticated Polaris REST catalog |
+| `settings.raw_dataset_name(name)` | Source-specific `raw_<name>` Iceberg namespace |
 | `settings.soda_datasource_yaml` | DuckDB datasource using `database_path` |
 | `settings.sqlmesh_config()` | One local DuckDB gateway plus separate local SQLMesh state DB |
 
 ## Where it is read
 
 - **SQLMesh** — `transforms/main/config.py` returns `settings.sqlmesh_config()`.
-- **Dagster dlt assets** — source jobs use Quack over `settings.database_path`
-  and write physical `raw_<source>` schemas.
-- **Dagster resources** — orchestration reads the local path, dlt data directory,
-  source windows, and Soda datasource.
+- **Dagster dlt assets** — source jobs write dlt-managed Iceberg tables in S3
+  and commit their catalog metadata through Polaris.
+- **Dagster resources** — orchestration reads Polaris/S3 configuration, the local
+  modeled-data path, dlt data directory, source windows, and Soda datasource.
 - **Local application** — local server-side code uses `settings.database_path` and reads Cloudflare Workers AI credentials. Browser code never receives these values.
 - **Data dictionary** — `scripts/platform/generate_docs.py` uses the local gateway.
 

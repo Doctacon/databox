@@ -6,10 +6,12 @@ import json
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import dlt
-import pyarrow as pa
+import pyarrow as pa  # type: ignore[import-untyped]
 from pyiceberg.expressions import EqualTo
 from pyiceberg.schema import Schema
 from pyiceberg.types import LongType, NestedField, StringType, TimestampType
@@ -17,6 +19,16 @@ from pyiceberg.types import LongType, NestedField, StringType, TimestampType
 from databox.config.settings import settings
 
 DLT_LOAD_STATUS_TABLE = "_dlt_load_status"
+
+
+@dataclass(frozen=True)
+class DltLoadStatus:
+    """Metadata for one successfully published dlt load-status row."""
+
+    load_id: str
+    dataset_name: str
+    completed_at: datetime
+    rows_loaded: int
 
 
 @contextmanager
@@ -63,8 +75,8 @@ def publish_dlt_load_status(
     *,
     dataset_name: str,
     table_names: tuple[str, ...],
-) -> None:
-    """Publish one successful dlt load summary as a Polaris Iceberg row."""
+) -> DltLoadStatus:
+    """Publish one successful dlt load summary and return its materialization metadata."""
     load_info = pipeline.last_trace.last_load_info if pipeline.last_trace is not None else None
     if load_info is None or load_info.has_failed_jobs or len(load_info.loads_ids) != 1:
         raise RuntimeError("A single successful dlt load is required for load-status publication")
@@ -81,7 +93,7 @@ def publish_dlt_load_status(
     for table_name in table_names:
         table = catalog.load_table(f"{dataset_name}.{table_name}")
         rows_loaded += table.scan(
-            row_filter=EqualTo("_dlt_load_id", load_id),
+            row_filter=EqualTo(term="_dlt_load_id", value=load_id),
             selected_fields=("_dlt_load_id",),
         ).count()
 
@@ -111,6 +123,12 @@ def publish_dlt_load_status(
             ],
             schema=status_table.schema().as_arrow(),
         )
+    )
+    return DltLoadStatus(
+        load_id=load_id,
+        dataset_name=dataset_name,
+        completed_at=completed_at,
+        rows_loaded=rows_loaded,
     )
 
 

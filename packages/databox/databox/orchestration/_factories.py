@@ -21,6 +21,7 @@ from sqlglot import exp
 
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.config.sources import SOURCES, raw_catalogs
+from databox.destinations.iceberg import publish_dlt_load_status
 
 log = logging.getLogger(__name__)
 
@@ -189,6 +190,36 @@ def openlineage_sensor_or_none() -> dg.SensorDefinition | None:
         return _openlineage_emit_tick(context, client, namespace)
 
     return _openlineage_sensor
+
+
+def dlt_load_status_asset(
+    *,
+    pipeline: t.Any,
+    dataset_name: str,
+    table_names: tuple[str, ...],
+    deps: t.Sequence[dg.AssetKey],
+    group_name: str,
+) -> dg.AssetsDefinition:
+    """Build the Dagster-owned status asset committed after a successful dlt load."""
+    key = dg.AssetKey(["sqlmesh", dataset_name, "_dlt_load_status"])
+
+    @dg.asset(key=key, deps=deps, group_name=group_name)
+    def _load_status() -> dg.MaterializeResult[t.Any]:
+        status = publish_dlt_load_status(
+            pipeline,
+            dataset_name=dataset_name,
+            table_names=table_names,
+        )
+        return dg.MaterializeResult(
+            metadata={
+                "load_id": status.load_id,
+                "dataset_name": status.dataset_name,
+                "completed_at": status.completed_at.isoformat(),
+                "rows_loaded": status.rows_loaded,
+            }
+        )
+
+    return _load_status
 
 
 def dlt_translator(raw_schema: str) -> DagsterDltTranslator:

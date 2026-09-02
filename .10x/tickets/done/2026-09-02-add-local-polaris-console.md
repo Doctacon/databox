@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-02
 Updated: 2026-09-02
 Parent: None
@@ -38,6 +38,8 @@ Record Compose validation and a successful localhost HTTP response.
 - 2026-09-02: User explicitly authorized implementation with a five-minute execution bound.
 - 2026-09-02: Added the localhost-only console service, pinned its source revision, enabled narrowly scoped Polaris CORS, documented the URL, and worked around the host's missing BuildKit support with a minimal local Dockerfile preserving the upstream image procedure.
 - 2026-09-02: `docker-compose config --quiet` passed; the stack built and started; `http://127.0.0.1:8080/` returned the console HTML successfully.
+
+- 2026-09-02: Final adversarial closure review passed. The host BuildKit compatibility workaround is preserved in the pinned Dockerfile and evidence; end-to-end login remains outside acceptance and no additional follow-up is required.
 
 ## Blockers
 

@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-12
-Updated: 2026-08-31
+Updated: 2026-09-02
 
 # Canonical dlt source registry
 
@@ -8,7 +8,7 @@ Updated: 2026-08-31
 
 This specification defines the single executable contract for active dlt ingestion sources and how Dagster discovers them. It governs source identity, operational metadata, domain-module construction, composition, scaffolding, and retirement of duplicate legacy configuration.
 
-It does not change provider queries, data meaning, raw table schemas, dlt write dispositions, source cadence values, Quack concurrency, SQLMesh models, Soda contracts, or dlt schema-evolution behavior.
+It does not change provider queries, data meaning, raw table schemas, dlt write dispositions, source cadence values, SQLMesh models, Soda contracts, or dlt schema-evolution behavior. Source ingestion is Polaris Iceberg-authoritative; local DuckDB remains the SQLMesh transformation and product-serving store.
 
 ## Canonical registry
 
@@ -22,7 +22,8 @@ Each registered source MUST expose or deterministically derive:
 - its Dagster domain module identity;
 - freshness policy;
 - whether it is eligible for a recurring schedule;
-- whether it participates in the shared parallel Quack refresh;
+- whether it participates in the shared parallel Iceberg refresh;
+- whether its raw tables are Iceberg-authoritative and which attached analytics catalog exposes them;
 - whether it is the single analytics freshness anchor;
 - one verification profile: `http` or `file_snapshot`;
 - one orchestration mode: `default` or `explicit_targets`.
@@ -44,7 +45,7 @@ For each registered source `<name>`:
 
 - `databox.orchestration.domains.<name>` MUST exist;
 - a `default` module MUST expose the dlt assets and ingest job required by the installed Dagster/dagster-dlt integration;
-- an `explicit_targets` module MUST expose a callable builder but MUST omit an unconfigured dlt asset, expose empty asset/dlt-key lists, and set its ingest job to `None`; this mode is allowed only when the source is unscheduled and excluded from shared parallel refresh;
+- an `explicit_targets` module MUST expose a callable builder and MAY expose a manually launched asset job only when its target set is derived fail-closed from an explicit modeled dependency; it MUST remain unscheduled and excluded from the shared parallel refresh;
 - scheduled sources MUST expose their current daily job and schedule; unscheduled sources MUST NOT gain one;
 - the module MUST use one local source builder for both definition-time metadata and execution-time source construction;
 - source constructor literals MUST NOT be repeated between decorator setup and runtime execution;
@@ -52,7 +53,7 @@ For each registered source `<name>`:
 
 Dagster `Definitions` MUST derive source assets, checks, jobs, and schedules from the registry/domain contract. It MUST NOT contain a manually enumerated import/list entry for every source. Cross-domain analytics/SQLMesh assets MAY remain explicitly composed because they are not ingestion sources.
 
-The shared Quack refresh MUST continue to derive eligible source names from the registry and MUST preserve one-server ownership, process isolation, cleanup, inspection, and SQLMesh-after-success behavior.
+The shared Iceberg refresh MUST derive eligible source names from the registry, validate Polaris and S3 writer configuration before launching workers, preserve per-source process and SQLMesh-cache isolation, and retain source-attributed failure reporting. After every source succeeds, it MUST inspect each registry-declared authoritative Iceberg table and explicit `_dlt_load_status` through Polaris before running SQLMesh. It MUST NOT run SQLMesh after a source or inspection failure. It MUST NOT start Quack, deduplicate local raw tables, or inspect local DuckDB raw schemas.
 
 ## Legacy retirement
 
@@ -105,7 +106,7 @@ Given a source directory or domain module with no active registry owner, when va
 
 ### AVONET
 
-Given the AVONET pinned-file source, when generic configuration is retired, then its manifest integrity fields and atomic publication behavior remain unchanged.
+Given the AVONET pinned-file source, when generic configuration is retired, then its manifest integrity fields and atomic Iceberg snapshot-replacement behavior remain unchanged.
 
 ## Explicit exclusions
 
@@ -113,4 +114,4 @@ Given the AVONET pinned-file source, when generic configuration is retired, then
 - No raw or modeled database row may be changed.
 - No source may be added, removed, enabled, disabled, or rescheduled.
 - No dlt `schema_contract` mode may be added or changed.
-- No SQLMesh model or Dagster full-refresh lifecycle may be redesigned under this specification.
+- No SQLMesh model, source semantics, or source scheduling lifecycle may be redesigned under this specification.

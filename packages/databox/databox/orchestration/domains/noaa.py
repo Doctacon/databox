@@ -16,9 +16,8 @@ from databox.destinations.iceberg import (
     iceberg_destination,
     iceberg_dlt_pipeline,
     polaris_dlt_catalog,
-    publish_dlt_load_status,
 )
-from databox.orchestration._factories import dlt_translator
+from databox.orchestration._factories import dlt_load_status_asset, dlt_translator
 
 
 def _build_source() -> t.Any:
@@ -50,19 +49,17 @@ def noaa_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> 
         source.add_limit(max_items=5)
     with polaris_dlt_catalog():
         yield from dlt.run(context=context, dlt_source=source)
-        publish_dlt_load_status(
-            _noaa_dlt_pipeline,
-            dataset_name="raw_noaa",
-            table_names=("daily_weather", "stations", "datasets"),
-        )
 
 
 @dg.asset(
     key=dg.AssetKey(["environmental_observations", "noaa_iceberg_refresh"]),
-    deps=[dg.AssetKey(["sqlmesh", "raw_noaa", "daily_weather"])],
+    deps=[
+        dg.AssetKey(["sqlmesh", "raw_noaa", "daily_weather"]),
+        dg.AssetKey(["sqlmesh", "raw_noaa", "_dlt_load_status"]),
+    ],
     group_name="noaa_ingestion",
 )
-def noaa_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResult:
+def noaa_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResult[t.Any]:
     """Refresh local NOAA consumers after the dlt Iceberg snapshot commits."""
     subprocess.run(
         [
@@ -91,20 +88,30 @@ def noaa_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResult
     return dg.MaterializeResult(metadata={"sqlmesh_refreshed": True})
 
 
-assets = [noaa_dlt_assets, noaa_iceberg_refresh]
 dlt_asset_keys = [spec.key for spec in noaa_dlt_assets.specs]
+noaa_load_status = dlt_load_status_asset(
+    pipeline=_noaa_dlt_pipeline,
+    dataset_name="raw_noaa",
+    table_names=("daily_weather", "stations", "datasets"),
+    deps=dlt_asset_keys,
+    group_name="noaa_ingestion",
+)
+noaa_load_status_key = noaa_load_status.key
+assets = [noaa_dlt_assets, noaa_load_status, noaa_iceberg_refresh]
 sqlmesh_asset_keys = [noaa_iceberg_refresh.key]
 asset_checks: list[dg.AssetChecksDefinition] = []
 
 ingest_job = dg.define_asset_job(
     name="noaa_ingest",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, noaa_iceberg_refresh.key),
+    selection=dg.AssetSelection.assets(*dlt_asset_keys, noaa_load_status_key),
     executor_def=dg.in_process_executor,
 )
 
 daily_pipeline = dg.define_asset_job(
     name="noaa_daily_pipeline",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, noaa_iceberg_refresh.key),
+    selection=dg.AssetSelection.assets(
+        *dlt_asset_keys, noaa_load_status_key, noaa_iceberg_refresh.key
+    ),
     executor_def=dg.in_process_executor,
 )
 

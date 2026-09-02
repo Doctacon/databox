@@ -17,7 +17,8 @@ _TYPE_SQL = {
 
 
 def _model_query() -> str:
-    return _MODEL.read_text(encoding="utf-8").split(");", maxsplit=1)[1].strip()
+    query = _MODEL.read_text(encoding="utf-8").split(");", maxsplit=1)[1].strip()
+    return query.replace("polaris_aws.raw_avonet.", "raw_avonet.")
 
 
 def test_public_avonet_model_has_an_explicit_final_projection() -> None:

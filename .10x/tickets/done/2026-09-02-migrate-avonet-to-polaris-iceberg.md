@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-02
 Updated: 2026-09-02
 Parent: None
@@ -44,6 +44,10 @@ Record the Iceberg row/uniqueness/lineage checks, SQLMesh consumer counts, platf
 - 2026-09-02: User ratified explicit `_dlt_load_status` Iceberg publication for migrated-source observability. Added shared publication and updated every migrated source plus generated platform health.
 - 2026-09-02: Restored full eBird authority after the earlier smoke snapshot (`taxonomy=17,891`, `species_list=707`) and refreshed AVONET traits, public traits, catalog, and platform health.
 - 2026-09-02: Final verification observed 10,661 AVONET rows, 10,661 unique Avibase IDs, 10,661 unique scientific names, complete dlt lineage, 10,073 modeled trait rows, 10,661 public trait rows, and 707 catalog rows. All seven migrated sources expose one load-status row and platform health reports success. Focused tests passed (32), all SQLMesh tests passed (18), platform-health codegen matched, pre-commit passed, and `git diff --check` passed.
+- 2026-09-02: Reconciled stale source-layout, incremental-loading, and generated ontology descriptions with direct dlt-managed Polaris Iceberg replacement; removed obsolete Quack staging/manual-publication guidance.
+- 2026-09-02: Reconciled the active public-release procedure: AVONET/GBIF raw authority is Polaris Iceberg, DuckDB holds downstream projections, the obsolete Quack command is removed, and production deployment is documented as paused fail-closed.
+
+- 2026-09-02: Final adversarial closure review passed after all active documentation was reconciled. Retrospective learning is preserved in the cutover knowledge, migration evidence, fail-closed tests, and active Iceberg publication specification; no migration follow-up remains.
 
 ## Blockers
 

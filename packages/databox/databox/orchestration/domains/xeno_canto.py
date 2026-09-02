@@ -16,9 +16,8 @@ from databox.destinations.iceberg import (
     iceberg_destination,
     iceberg_dlt_pipeline,
     polaris_dlt_catalog,
-    publish_dlt_load_status,
 )
-from databox.orchestration._factories import dlt_translator
+from databox.orchestration._factories import dlt_load_status_asset, dlt_translator
 
 
 def _build_source(*, max_records: int = 1000, per_page: int = 100) -> t.Any:
@@ -51,19 +50,19 @@ def xeno_canto_dlt_assets(
         source.add_limit(max_items=5)
     with polaris_dlt_catalog():
         yield from dlt.run(context=context, dlt_source=source)
-        publish_dlt_load_status(
-            _xeno_canto_dlt_pipeline,
-            dataset_name="raw_xeno_canto",
-            table_names=("recordings",),
-        )
 
 
 @dg.asset(
     key=dg.AssetKey(["birding_agent", "xeno_canto_iceberg_refresh"]),
-    deps=[dg.AssetKey(["sqlmesh", "raw_xeno_canto", "recordings"])],
+    deps=[
+        dg.AssetKey(["sqlmesh", "raw_xeno_canto", "recordings"]),
+        dg.AssetKey(["sqlmesh", "raw_xeno_canto", "_dlt_load_status"]),
+    ],
     group_name="xeno_canto_ingestion",
 )
-def xeno_canto_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResult:
+def xeno_canto_iceberg_refresh(
+    context: AssetExecutionContext,
+) -> dg.MaterializeResult[t.Any]:
     """Refresh local Xeno-canto consumers after the Iceberg snapshot commits."""
     models = (
         "environmental_observations.dim_species",
@@ -89,20 +88,30 @@ def xeno_canto_iceberg_refresh(context: AssetExecutionContext) -> dg.Materialize
     return dg.MaterializeResult(metadata={"sqlmesh_refreshed": True})
 
 
-assets = [xeno_canto_dlt_assets, xeno_canto_iceberg_refresh]
 dlt_asset_keys = [spec.key for spec in xeno_canto_dlt_assets.specs]
+xeno_canto_load_status = dlt_load_status_asset(
+    pipeline=_xeno_canto_dlt_pipeline,
+    dataset_name="raw_xeno_canto",
+    table_names=("recordings",),
+    deps=dlt_asset_keys,
+    group_name="xeno_canto_ingestion",
+)
+xeno_canto_load_status_key = xeno_canto_load_status.key
+assets = [xeno_canto_dlt_assets, xeno_canto_load_status, xeno_canto_iceberg_refresh]
 sqlmesh_asset_keys = [xeno_canto_iceberg_refresh.key]
 asset_checks: list[dg.AssetChecksDefinition] = []
 
 ingest_job = dg.define_asset_job(
     name="xeno_canto_ingest",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, xeno_canto_iceberg_refresh.key),
+    selection=dg.AssetSelection.assets(*dlt_asset_keys, xeno_canto_load_status_key),
     executor_def=dg.in_process_executor,
 )
 
 daily_pipeline = dg.define_asset_job(
     name="xeno_canto_daily_pipeline",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys, xeno_canto_iceberg_refresh.key),
+    selection=dg.AssetSelection.assets(
+        *dlt_asset_keys, xeno_canto_load_status_key, xeno_canto_iceberg_refresh.key
+    ),
     executor_def=dg.in_process_executor,
 )
 

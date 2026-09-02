@@ -6,6 +6,7 @@ import argparse
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from uuid import uuid4
 
 import duckdb
 from databox_sources.usfws.source import USFWS_MAX_TARGET_SPECIES, usfws_source
@@ -23,6 +24,7 @@ from databox.public_export import GBIF_EBIRD_EOD_TABLE, PublicExportError
 
 @dataclass(frozen=True)
 class MediaIngestResult:
+    run_id: str
     target_species: int
     raw_records: int
     completed_runs: int
@@ -88,9 +90,11 @@ def ingest_public_usfws_media(
 ) -> MediaIngestResult:
     """Run the dlt → Polaris Iceberg path with explicit public targets."""
     targets = load_public_species_targets(database_path)
+    run_id = uuid4().hex
     source = usfws_source(
         target_species=targets,
         max_images_per_target=max_images_per_target,
+        run_id=run_id,
     )
     pipeline = iceberg_dlt_pipeline(
         pipeline_name="usfws_media_iceberg",
@@ -107,15 +111,40 @@ def ingest_public_usfws_media(
         )
 
     catalog = settings.pyiceberg_catalog()
-    raw_records = catalog.load_table("raw_usfws.image_records").scan().count()
-    completed_runs = (
-        catalog.load_table("raw_usfws.image_search_runs")
-        .scan(row_filter=EqualTo("status", "complete"), selected_fields=("run_id",))
+    run_filter = EqualTo(term="run_id", value=run_id)
+    raw_records = (
+        catalog.load_table("raw_usfws.image_records")
+        .scan(row_filter=run_filter, selected_fields=("run_id",))
         .count()
     )
-    if raw_records <= 0 or completed_runs <= 0:
-        raise PublicExportError("USFWS media ingestion did not produce a complete snapshot")
+    run_rows = (
+        catalog.load_table("raw_usfws.image_search_runs")
+        .scan(
+            row_filter=run_filter,
+            selected_fields=(
+                "run_id",
+                "status",
+                "target_species_count",
+                "completed_target_species_count",
+                "record_count",
+            ),
+        )
+        .to_arrow()
+        .to_pylist()
+    )
+    completed_runs = len(run_rows)
+    expected_targets = len(targets)
+    valid_run = (
+        completed_runs == 1
+        and run_rows[0]["status"] == "complete"
+        and run_rows[0]["target_species_count"] == expected_targets
+        and run_rows[0]["completed_target_species_count"] == expected_targets
+        and run_rows[0]["record_count"] == raw_records
+    )
+    if raw_records <= 0 or not valid_run:
+        raise PublicExportError("USFWS media ingestion did not produce a complete current snapshot")
     return MediaIngestResult(
+        run_id=run_id,
         target_species=len(targets),
         raw_records=raw_records,
         completed_runs=completed_runs,

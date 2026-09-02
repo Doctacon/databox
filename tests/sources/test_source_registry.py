@@ -3,8 +3,8 @@
 The registry at `databox.config.sources.SOURCES` is the single declaration of
 every active source. Every registered source must have a matching domain
 module, and every orchestration domain module (minus `analytics`) must have a
-registry entry. Explicit caller-owned sources may deliberately omit Dagster
-assets and jobs when no safe default input snapshot exists.
+registry entry. Explicit-target sources expose only manually launched, modeled-target Dagster
+workflows and remain excluded from schedules and shared refresh.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib
 import pkgutil
 
+import dagster as dg
 import pytest
 from databox.config.settings import settings
 from databox.config.sources import SOURCES
@@ -43,10 +44,10 @@ def test_every_registered_source_has_a_domain_module(source) -> None:
     for attr in EXPECTED_DOMAIN_EXPORTS:
         assert hasattr(module, attr), f"{source_name}.py missing `{attr}`"
     if source.orchestration_mode == "explicit_targets":
-        assert module.assets == []
-        assert module.dlt_asset_keys == []
-        assert module.ingest_job is None
-        assert not hasattr(module, f"{source_name}_dlt_assets")
+        assert module.assets
+        assert module.dlt_asset_keys
+        assert module.ingest_job.name == f"{source_name}_ingest"
+        assert hasattr(module, f"{source_name}_dlt_assets")
     else:
         assert hasattr(module, f"{source_name}_dlt_assets"), (
             f"{source_name}.py must export `{source_name}_dlt_assets` "
@@ -120,7 +121,7 @@ def test_nonrecurring_sources_are_not_scheduled_or_parallel() -> None:
     assert all(source.parallel_refresh is False for source in nonrecurring.values())
 
 
-def test_explicit_target_source_is_declared_and_has_no_unsafe_default() -> None:
+def test_explicit_target_source_is_declared_manual_and_unscheduled() -> None:
     explicit = {
         source.name: source for source in SOURCES if source.orchestration_mode == "explicit_targets"
     }
@@ -128,8 +129,32 @@ def test_explicit_target_source_is_declared_and_has_no_unsafe_default() -> None:
     assert all(source.scheduled is False for source in explicit.values())
     assert all(source.parallel_refresh is False for source in explicit.values())
     assert all(source.iceberg_authoritative is True for source in explicit.values())
+    module = importlib.import_module(explicit["usfws"].domain_module)
+    assert module.ingest_job.name == "usfws_ingest"
+    assert not hasattr(module, "daily_pipeline")
+    assert not hasattr(module, "schedule")
+    assert {
+        "sqlmesh/raw_usfws/image_search_runs",
+        "sqlmesh/raw_usfws/image_records",
+        "sqlmesh/raw_usfws/_dlt_load_status",
+    } == {key.to_user_string() for key in module.dlt_asset_keys}
     platform_health = render_platform_health()
     assert "polaris_aws.raw_usfws._dlt_load_status" in platform_health
+
+
+def test_platform_health_load_status_dependencies_are_materializable_assets() -> None:
+    from databox.orchestration.definitions import defs
+
+    graph = defs.resolve_asset_graph()
+    platform_health = graph.get(dg.AssetKey(["sqlmesh", "analytics", "platform_health"]))
+    status_parents = {
+        parent.key.to_user_string()
+        for parent in graph.get_parents(platform_health)
+        if parent.key.path[-1] == "_dlt_load_status"
+    }
+    expected = {f"sqlmesh/raw_{source.name}/_dlt_load_status" for source in SOURCES}
+    assert status_parents == expected
+    assert all(graph.get(dg.AssetKey.from_user_string(key)).is_materializable for key in expected)
 
 
 def test_analytics_anchor_is_single() -> None:

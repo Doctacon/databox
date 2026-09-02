@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-02
 Updated: 2026-09-02
 Parent: None
@@ -43,6 +43,9 @@ Record focused source/orchestration tests, Iceberg table schema/lineage checks f
 - 2026-09-02: Migrated both resources and the explicit ingest runner to dlt-managed Polaris Iceberg, added load-status publication and Polaris verification, updated SQLMesh/fixtures, and marked USFWS Iceberg-authoritative without adding a Dagster job or schedule.
 - 2026-09-02: The cap-one live attempt failed closed because the single Rufous target had 26 search results, proving incomplete snapshots remain rejected. A temporary caller-owned database with exactly the validated Rufous target and cap 50 then succeeded: one completed run, 40 raw records, dlt lineage on both tables, one load-status row, 25 eligible commercial-image rows, and platform health `success` with 41 committed rows.
 - 2026-09-02: Focused tests passed (45), all SQLMesh tests passed (18), platform-health generation matched, pre-commit passed, and `git diff --check` passed.
+- 2026-09-02: Closure review found aggregate historical rows could mask an empty current ingestion. The caller now supplies a generated run ID, and Polaris verification filters both tables to that run, requires exactly one complete run, matches both target counts to the submitted target set, matches persisted `record_count` to current-run image rows, and still requires at least one current-run record. Added a regression proving historical aggregates cannot mask an empty current run.
+
+- 2026-09-02: Final adversarial closure review passed after current-run verification and the historical-masking regression were strengthened. Retrospective learning is preserved in the focused regression and migration evidence; no additional follow-up remains.
 
 ## Blockers
 

@@ -1,4 +1,4 @@
-"""Shared-server parallel Quack refresh orchestration."""
+"""Parallel refresh orchestration for Polaris-authoritative Iceberg sources."""
 
 import hashlib
 import json
@@ -13,17 +13,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TypedDict
 
 import dagster as dg
 from dagster import OpExecutionContext
 
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.config.sources import SOURCES
-from databox.destinations import QuackServer, cleanup_quack_clients, dedupe_quack_raw_tables
 
-_SHARED_SERVER_ENV = "DATABOX_QUACK_SHARED_SERVER"
-_TIMELINE_DIR_ENV = "DATABOX_QUACK_TIMELINE_DIR"
 _SQLMESH_CACHE_DIR_ENV = "SQLMESH__CACHE_DIR"
 
 
@@ -79,11 +75,9 @@ class ParallelRefreshError(RuntimeError):
 
 
 SourceRunner = Callable[[str, Path, Mapping[str, str]], SourceRunResult]
-ServerFactory = Callable[[str], QuackServer]
-DedupeRunner = Callable[[str], list[str]]
 TransformRunner = Callable[[], None]
-CleanupRunner = Callable[[], None]
 InspectionRunner = Callable[[str, Sequence[str]], WarehouseInspection]
+PreflightRunner = Callable[[], None]
 EvaluationRunner = Callable[[str, str], object]
 
 
@@ -103,39 +97,12 @@ def _dagster_command(source: str) -> list[str]:
     ]
 
 
-class IngestTimeline(TypedDict):
-    started_monotonic: float
-    finished_monotonic: float
-    started_at: str
-    finished_at: str
-
-
-def _read_ingest_timeline(source: str, env: Mapping[str, str]) -> IngestTimeline | None:
-    timeline_dir = env.get(_TIMELINE_DIR_ENV)
-    if not timeline_dir:
-        return None
-    path = Path(timeline_dir) / f"raw_{source}.json"
-    if not path.exists():
-        return None
-    payload = json.loads(path.read_text())
-    started = float(payload["started_monotonic"])
-    finished = float(payload["finished_monotonic"])
-    if finished < started:
-        raise ValueError(f"Invalid ingest timeline for {source}")
-    return IngestTimeline(
-        started_monotonic=started,
-        finished_monotonic=finished,
-        started_at=str(payload["started_at"]),
-        finished_at=str(payload["finished_at"]),
-    )
-
-
 def run_source_dagster_job(
     source: str,
     workdir: Path,
     env: Mapping[str, str],
 ) -> SourceRunResult:
-    """Launch one Dagster source job and report its actual ingest-session interval."""
+    """Launch one Dagster source job and report its worker-process interval."""
     process_started = time.monotonic()
     process_started_at = _iso_now()
     print(f"SOURCE_START source={source} at={process_started_at}", flush=True)
@@ -154,39 +121,18 @@ def run_source_dagster_job(
     process_finished = time.monotonic()
     process_finished_at = _iso_now()
 
-    try:
-        timeline = _read_ingest_timeline(source, env)
-    except Exception as exc:  # noqa: BLE001 - malformed evidence fails the source
-        timeline = None
-        returncode = 1
-        message = f"Invalid ingest timeline: {type(exc).__name__}: {exc}"
-    if timeline is None:
-        if returncode == 0:
-            returncode = 1
-            message = "Dagster succeeded without an ingest timeline"
-        started_monotonic = process_started
-        finished_monotonic = process_started
-        started_at = process_started_at
-        finished_at = process_started_at
-    else:
-        started_monotonic = timeline["started_monotonic"]
-        finished_monotonic = timeline["finished_monotonic"]
-        started_at = str(timeline["started_at"])
-        finished_at = str(timeline["finished_at"])
-
     print(
         f"SOURCE_END source={source} at={process_finished_at} status={returncode} "
-        f"process_seconds={process_finished - process_started:.3f} "
-        f"ingest_seconds={finished_monotonic - started_monotonic:.3f}",
+        f"process_seconds={process_finished - process_started:.3f}",
         flush=True,
     )
     return SourceRunResult(
         source=source,
         returncode=returncode,
-        started_monotonic=started_monotonic,
-        finished_monotonic=finished_monotonic,
-        started_at=started_at,
-        finished_at=finished_at,
+        started_monotonic=process_started,
+        finished_monotonic=process_finished,
+        started_at=process_started_at,
+        finished_at=process_finished_at,
         message=message,
     )
 
@@ -197,45 +143,37 @@ def run_sqlmesh_prod() -> None:
     )
 
 
-def inspect_refresh_state(database_path: str, source_names: Sequence[str]) -> WarehouseInspection:
-    import duckdb
+def validate_iceberg_refresh_config() -> None:
+    """Fail before workers start when Polaris or S3 writer config is unavailable."""
+    if not settings.aws_s3_bucket:
+        raise ValueError("DATABOX_AWS_S3_BUCKET is required for Iceberg refresh")
+    if (
+        not settings.aws_access_key_id.get_secret_value()
+        or not settings.aws_secret_access_key.get_secret_value()
+    ):
+        raise ValueError("AWS writer credentials are required for Iceberg refresh")
+    settings.pyiceberg_catalog()
 
+
+def inspect_refresh_state(_database_path: str, source_names: Sequence[str]) -> WarehouseInspection:
+    """Count authoritative Iceberg tables and require explicit load status."""
     source_by_name = {source.name: source for source in SOURCES}
-    con = duckdb.connect(database_path, read_only=True)
-    try:
-        row_counts: list[tuple[str, int]] = []
-        for source_name in source_names:
-            source = source_by_name[source_name]
-            for table in source.raw_tables:
-                qualified = f"raw_{source_name}.{table}"
-                row = con.execute(f"SELECT COUNT(*) FROM {qualified}").fetchone()
-                row_counts.append((qualified, int(row[0]) if row else 0))
-        main_dlt = tuple(
-            str(row[0])
-            for row in con.execute(
-                """
-                SELECT table_name
-                FROM information_schema.tables
-                WHERE table_schema = 'main' AND table_name LIKE '\\_dlt%' ESCAPE '\\'
-                ORDER BY table_name
-                """
-            ).fetchall()
-        )
-    finally:
-        con.close()
-    if main_dlt:
-        raise RuntimeError(f"Persistent main._dlt relations found: {', '.join(main_dlt)}")
-    return WarehouseInspection(row_counts=tuple(row_counts), main_dlt_relations=main_dlt)
+    catalog = settings.pyiceberg_catalog()
+    row_counts: list[tuple[str, int]] = []
+    for source_name in source_names:
+        source = source_by_name[source_name]
+        dataset = f"raw_{source_name}"
+        for table_name in source.raw_tables:
+            qualified = f"{dataset}.{table_name}"
+            row_counts.append((qualified, catalog.load_table(qualified).scan().count()))
+        status_count = catalog.load_table(f"{dataset}._dlt_load_status").scan().count()
+        if status_count < 1:
+            raise RuntimeError(f"No completed Iceberg load status found for {source_name}")
+    return WarehouseInspection(row_counts=tuple(row_counts), main_dlt_relations=())
 
 
-def _default_server_factory(database_path: str) -> QuackServer:
-    return QuackServer(db_path=database_path)
-
-
-def _shared_client_environment(timeline_dir: Path) -> dict[str, str]:
+def _shared_client_environment() -> dict[str, str]:
     env = os.environ.copy()
-    env[_SHARED_SERVER_ENV] = "true"
-    env[_TIMELINE_DIR_ENV] = str(timeline_dir)
     env.setdefault("RUNTIME__DLTHUB_TELEMETRY", "false")
     env.setdefault("SQLMESH__DISABLE_ANONYMIZED_ANALYTICS", "true")
     python_path = env.get("PYTHONPATH")
@@ -252,15 +190,17 @@ def execute_parallel_refresh(
     database_path: str | None = None,
     max_workers: int | None = None,
     source_runner: SourceRunner = run_source_dagster_job,
-    server_factory: ServerFactory = _default_server_factory,
-    dedupe_runner: DedupeRunner = dedupe_quack_raw_tables,
+    server_factory: object | None = None,
+    dedupe_runner: object | None = None,
+    cleanup_runner: object | None = None,
     transform_runner: TransformRunner = run_sqlmesh_prod,
-    cleanup_runner: CleanupRunner = cleanup_quack_clients,
     inspection_runner: InspectionRunner = inspect_refresh_state,
+    preflight_runner: PreflightRunner = validate_iceberg_refresh_config,
     run_transform: bool = True,
     evaluation_runner: EvaluationRunner | None = None,
 ) -> ParallelRefreshResult:
-    """Run registered Dagster source jobs concurrently against one Quack server."""
+    """Run registered Dagster source jobs concurrently against Polaris Iceberg."""
+    _ = server_factory, dedupe_runner, cleanup_runner  # Removed Quack compatibility kwargs.
     eligible_sources = [source for source in SOURCES if source.parallel_refresh]
     names = list(source_names or [source.name for source in eligible_sources])
     if not names:
@@ -279,86 +219,53 @@ def execute_parallel_refresh(
         raise ValueError("Parallel refresh requires at least two workers")
 
     target = database_path or settings.database_path
+    preflight_runner()
     results_by_name: dict[str, SourceRunResult] = {}
-    deduped: list[str] = []
-    post_errors: list[BaseException] = []
-    server_started = False
-
-    try:
-        with tempfile.TemporaryDirectory(prefix="databox-parallel-refresh-") as temp_dir:
-            work_root = Path(temp_dir)
-            timeline_dir = work_root / "timelines"
-            timeline_dir.mkdir()
-            env = _shared_client_environment(timeline_dir)
-            with server_factory(target):
-                server_started = True
-                with ThreadPoolExecutor(max_workers=worker_count) as pool:
-                    future_sources = {}
-                    for name in names:
-                        workdir = work_root / name
-                        workdir.mkdir()
-                        source_env = dict(env)
-                        # Loading any Dagster source job imports the SQLMesh-backed
-                        # asset definitions. SQLMesh's file cache writes directly to
-                        # its final gzip/pickle path, so concurrent imports must not
-                        # share a cache directory. The production transform runs only
-                        # after these workers finish and continues to use its normal
-                        # project cache.
-                        source_env[_SQLMESH_CACHE_DIR_ENV] = str(workdir / "sqlmesh-cache")
-                        future = pool.submit(source_runner, name, workdir, source_env)
-                        future_sources[future] = name
-                    for future in as_completed(future_sources):
-                        name = future_sources[future]
-                        try:
-                            results_by_name[name] = future.result()
-                        except Exception as exc:  # noqa: BLE001 - preserve all peer results
-                            now = time.monotonic()
-                            timestamp = _iso_now()
-                            results_by_name[name] = SourceRunResult(
-                                source=name,
-                                returncode=1,
-                                started_monotonic=now,
-                                finished_monotonic=now,
-                                started_at=timestamp,
-                                finished_at=timestamp,
-                                message=f"{type(exc).__name__}: {exc}",
-                            )
-    finally:
-        if server_started:
-            try:
-                deduped = dedupe_runner(target)
-            except BaseException as exc:  # noqa: BLE001 - preserve source failures
-                post_errors.append(exc)
-        try:
-            cleanup_runner()
-        except BaseException as exc:  # noqa: BLE001 - preserve source failures
-            post_errors.append(exc)
+    with tempfile.TemporaryDirectory(prefix="databox-parallel-refresh-") as temp_dir:
+        work_root = Path(temp_dir)
+        env = _shared_client_environment()
+        with ThreadPoolExecutor(max_workers=worker_count) as pool:
+            future_sources = {}
+            for name in names:
+                workdir = work_root / name
+                workdir.mkdir()
+                source_env = dict(env)
+                source_env[_SQLMESH_CACHE_DIR_ENV] = str(workdir / "sqlmesh-cache")
+                future_sources[pool.submit(source_runner, name, workdir, source_env)] = name
+            for future in as_completed(future_sources):
+                name = future_sources[future]
+                try:
+                    results_by_name[name] = future.result()
+                except Exception as exc:  # noqa: BLE001
+                    now = time.monotonic()
+                    timestamp = _iso_now()
+                    results_by_name[name] = SourceRunResult(
+                        name,
+                        1,
+                        now,
+                        now,
+                        timestamp,
+                        timestamp,
+                        f"{type(exc).__name__}: {exc}",
+                    )
 
     ordered_results = tuple(results_by_name[name] for name in names)
     empty_inspection = WarehouseInspection(row_counts=(), main_dlt_relations=())
     result = ParallelRefreshResult(
         sources=ordered_results,
-        deduped=tuple(deduped),
+        deduped=(),
         inspection=empty_inspection,
     )
     failures = [source for source in result.sources if not source.ok]
     if failures:
-        error = ParallelRefreshError(result)
-        for post_error in post_errors:
-            error.add_note(f"Post-refresh error: {type(post_error).__name__}: {post_error}")
-        if post_errors:
-            raise error from post_errors[0]
-        raise error
-    if post_errors:
-        details = "; ".join(f"{type(exc).__name__}: {exc}" for exc in post_errors)
-        raise RuntimeError(f"Post-refresh maintenance failed: {details}") from post_errors[0]
+        raise ParallelRefreshError(result)
     if len(names) > 1 and not result.overlap_pairs:
         raise RuntimeError("Source ingest sessions completed without an observed overlap interval")
 
     inspection = inspection_runner(target, names)
     result = ParallelRefreshResult(
         sources=ordered_results,
-        deduped=tuple(deduped),
+        deduped=(),
         inspection=inspection,
     )
     if run_transform:
