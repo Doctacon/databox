@@ -118,6 +118,10 @@ task app            # build and serve Rufous at http://127.0.0.1:8000
 AVONET is intentionally excluded from routine refreshes. See the
 [operations runbook](docs/runbook.md#rebuild-local-warehouse-from-sources).
 
+The Iceberg Compose stack includes the official open-source Polaris Console at
+<http://127.0.0.1:8080>. It is built from a pinned Apache `polaris-tools`
+revision and connects to the localhost-only Polaris API on port 8181.
+
 ## Learn more
 
 - [Documentation and data dictionary](https://doctacon.github.io/databox/)
