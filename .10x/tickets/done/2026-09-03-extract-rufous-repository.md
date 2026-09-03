@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
@@ -41,7 +41,9 @@ Later child tickets MUST be opened from the completed inventory rather than gues
 
 - 2026-09-03: User selected a new sibling `rufous` repository, Databox-owned data products, Rufous-owned product schemas and USFWS orchestration, a versioned DuckDB handoff, a pinned Git dependency for `databox-sources`, and fresh destination history.
 - 2026-09-03: Inventory completed at `.10x/research/2026-09-03-rufous-extraction-inventory.md`; it proposes the exact artifact, package boundary, ownership manifest, and bounded sequence.
+- 2026-09-03: The user ratified Rufous-owned iNaturalist, removal of source-refresh controls, local-only v1 distribution, `databox_product_meta`/`rufous_inputs_v1`, public-safe observations only, and Rufous ownership of all target-bearing USFWS runs. All boundary, bootstrap, model/backend, web/deployment, record-transfer, and prune child tickets closed with evidence and review.
+- 2026-09-03: Final independent gates passed in both repositories. Runtime coupling is restricted to the validated DuckDB artifact and GitHub SHA-pinned public package. Public production remains disabled. Review: `.10x/reviews/2026-09-03-rufous-record-transfer-and-databox-prune-review.md`.
 
 ## Blockers
 
-Ratify the inventory's six decisions: iNaturalist ownership, source-refresh UI, artifact distribution, artifact namespaces, private-location posture, and post-split Databox USFWS orchestration.
+None.
