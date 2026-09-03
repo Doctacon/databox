@@ -82,6 +82,20 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     assert "allowedLocations: [$warehouse]" in provision_step["run"]
     assert "roleArn: $role_arn" in provision_step["run"]
     assert "::add-mask::%s" in provision_step["run"]
+    provision_script = provision_step["run"]
+    create_catalog_role = provision_script.index(
+        '"${management_url}/catalogs/databox_lake/catalog-roles"'
+    )
+    grant_content = provision_script.index(
+        '"${management_url}/catalogs/databox_lake/catalog-roles/integration_writer/grants"'
+    )
+    assign_to_service_admin = provision_script.index(
+        '"${management_url}/principal-roles/service_admin/catalog-roles/databox_lake"'
+    )
+    assert create_catalog_role < grant_content < assign_to_service_admin
+    assert '{"catalogRole":{"name":"integration_writer","properties":{}}}' in provision_script
+    assert '{"type":"catalog","privilege":"CATALOG_MANAGE_CONTENT"}' in provision_script
+    assert '{"catalogRole":{"name":"integration_writer"}}' in provision_script
     task_setup_index = next(
         index
         for index, step in enumerate(steps)

@@ -74,13 +74,34 @@ jobs:
             '{catalog: {name: "databox_lake", type: "INTERNAL", readOnly: false,
               properties: {"default-base-location": $warehouse},
               storageConfigInfo: {storageType: "S3", allowedLocations: [$warehouse], roleArn: $role_arn}}}')
+          management_url=http://127.0.0.1:8181/api/management/v1
           curl --fail-with-body --silent --show-error --output /dev/null \
             -H "Authorization: Bearer ${token}" \
             -H 'Accept: application/json' \
             -H 'Content-Type: application/json' \
             -H 'Polaris-Realm: POLARIS' \
             -d "$payload" \
-            http://127.0.0.1:8181/api/management/v1/catalogs
+            "${management_url}/catalogs"
+          curl --fail-with-body --silent --show-error --output /dev/null \
+            -H "Authorization: Bearer ${token}" \
+            -H 'Content-Type: application/json' \
+            -H 'Polaris-Realm: POLARIS' \
+            -d '{"catalogRole":{"name":"integration_writer","properties":{}}}' \
+            "${management_url}/catalogs/databox_lake/catalog-roles"
+          curl --fail-with-body --silent --show-error --output /dev/null \
+            -X PUT \
+            -H "Authorization: Bearer ${token}" \
+            -H 'Content-Type: application/json' \
+            -H 'Polaris-Realm: POLARIS' \
+            -d '{"type":"catalog","privilege":"CATALOG_MANAGE_CONTENT"}' \
+            "${management_url}/catalogs/databox_lake/catalog-roles/integration_writer/grants"
+          curl --fail-with-body --silent --show-error --output /dev/null \
+            -X PUT \
+            -H "Authorization: Bearer ${token}" \
+            -H 'Content-Type: application/json' \
+            -H 'Polaris-Realm: POLARIS' \
+            -d '{"catalogRole":{"name":"integration_writer"}}' \
+            "${management_url}/principal-roles/service_admin/catalog-roles/databox_lake"
       - name: Preflight AWS identity and isolated S3 prefix
         shell: bash
         run: |
