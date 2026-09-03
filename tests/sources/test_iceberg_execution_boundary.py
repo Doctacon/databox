@@ -26,6 +26,7 @@ _EMPTY_CREDENTIALS = {
     "DATABOX_AWS_S3_BUCKET": "",
     "DATABOX_AWS_ACCESS_KEY_ID": "",
     "DATABOX_AWS_SECRET_ACCESS_KEY": "",
+    "DATABOX_AWS_SESSION_TOKEN": "",
 }
 
 
@@ -70,15 +71,31 @@ def test_source_layout_is_credential_free() -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_iceberg_destination_uses_normalized_warehouse_prefix() -> None:
+@pytest.mark.parametrize(
+    ("session_token", "expected_token"),
+    [("temporary-session-token", "temporary-session-token"), ("", None)],
+)
+def test_iceberg_destination_uses_normalized_warehouse_prefix_and_optional_session_token(
+    session_token: str, expected_token: str | None
+) -> None:
     with (
         patch.object(settings, "aws_s3_bucket", "databox-bucket"),
         patch.object(settings, "iceberg_warehouse_prefix", "/warehouse/"),
+        patch.object(settings, "aws_access_key_id", SecretStr("access-key")),
+        patch.object(settings, "aws_secret_access_key", SecretStr("secret-key")),
+        patch.object(settings, "aws_session_token", SecretStr(session_token)),
         patch("databox.destinations.iceberg.dlt.destinations.filesystem") as filesystem,
     ):
         iceberg_destination()
 
-    assert filesystem.call_args.kwargs["bucket_url"] == "s3://databox-bucket/warehouse"
+    kwargs = filesystem.call_args.kwargs
+    assert kwargs["bucket_url"] == "s3://databox-bucket/warehouse"
+    assert kwargs["credentials"]["aws_access_key_id"] == "access-key"
+    assert kwargs["credentials"]["aws_secret_access_key"] == "secret-key"
+    if expected_token is None:
+        assert "aws_session_token" not in kwargs["credentials"]
+    else:
+        assert kwargs["credentials"]["aws_session_token"] == expected_token
 
 
 def test_iceberg_execution_requires_writer_credentials_before_publication() -> None:
