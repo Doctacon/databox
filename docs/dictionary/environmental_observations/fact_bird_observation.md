@@ -57,11 +57,6 @@ CDM fact: one row per eBird checklist submission and species across recent and n
 - `raw_ebird.notable_observations` (external)
 - `raw_ebird.recent_observations` (external)
 
-**Downstream**
-
-- [`birding_agent.arizona_species_catalog`](../birding_agent/arizona_species_catalog.md)
-- [`birding_agent.recent_observation_evidence`](../birding_agent/recent_observation_evidence.md)
-
 ## Example query
 
 ```sql

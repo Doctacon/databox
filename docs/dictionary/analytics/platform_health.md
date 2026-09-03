@@ -36,7 +36,6 @@ Per-source load observability — most recent dlt load id, completion time, stat
 - `raw_ebird._dlt_load_status` (external)
 - `raw_gbif._dlt_load_status` (external)
 - `raw_noaa._dlt_load_status` (external)
-- `raw_usfws._dlt_load_status` (external)
 - `raw_usgs._dlt_load_status` (external)
 - `raw_usgs_earthquakes._dlt_load_status` (external)
 - `raw_xeno_canto._dlt_load_status` (external)

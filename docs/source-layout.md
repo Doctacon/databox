@@ -61,15 +61,7 @@ scaffold does not invent integrity values. AVONET publishes the validated full
 snapshot directly through dlt as a Polaris-managed Iceberg replacement; the
 committed Iceberg snapshot is the atomic publication boundary.
 
-Sources with `orchestration_mode="explicit_targets"` have no safe unconfigured
-input snapshot. They must remain unscheduled and absent from shared parallel
-refresh. Their domain module retains a callable builder and may expose a
-manually launched Dagster job only when the target set is derived fail-closed
-from an explicit modeled dependency. USFWS is the current example:
-`usfws_ingest` reads the configured local `rufous_public.gbif_eod_occurrence`
-relation, validates the complete target snapshot before provider contact, and
-materializes its Polaris Iceberg records and load status. Do not embed or
-invent an implicit species target set.
+Provider-only packages that require caller-owned targets are intentionally absent from Databox orchestration. The public `databox_sources.usfws` interface remains available to consumers, while target derivation and every target-bearing run belong to Rufous.
 
 ## Adding model behavior
 

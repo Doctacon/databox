@@ -403,7 +403,7 @@ def test_refresh_inspection_uses_complete_ebird_and_noaa_inventories(
 def test_parallel_refresh_job_is_available_in_dagster_definitions() -> None:
     from databox.orchestration.definitions import defs
 
-    assert defs.get_job_def("parallel_quack_full_refresh").name == "parallel_quack_full_refresh"
+    assert defs.get_job_def("parallel_iceberg_full_refresh").name == "parallel_iceberg_full_refresh"
     expected_schedules = {
         "ebird_daily_pipeline_schedule",
         "gbif_daily_pipeline_schedule",
@@ -411,7 +411,7 @@ def test_parallel_refresh_job_is_available_in_dagster_definitions() -> None:
         "noaa_daily_pipeline_schedule",
         "usgs_daily_pipeline_schedule",
         "usgs_earthquakes_daily_pipeline_schedule",
-        "parallel_quack_full_refresh_schedule",
+        "parallel_iceberg_full_refresh_schedule",
     }
     schedule_names = {schedule.name for schedule in defs.get_repository_def().schedule_defs}
     assert schedule_names == expected_schedules

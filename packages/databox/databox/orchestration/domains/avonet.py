@@ -55,8 +55,6 @@ def avonet_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResu
     """Refresh local AVONET consumers after the Iceberg snapshot commits."""
     models = (
         "environmental_observations.dim_bird_species_traits",
-        "rufous_public.avonet_species_traits",
-        "birding_agent.arizona_species_catalog",
         "analytics.platform_health",
     )
     command = [

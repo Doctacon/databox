@@ -1,7 +1,0 @@
-{
-  "schema_version": 1,
-  "prefix": "sa",
-  "places": [
-    { "public_id": "gnis-synthetic-san-pedro", "name": "San Pedro Valley, Arizona", "kind": "Valley", "source": "usgs_gnis", "latitude": 31.9430, "longitude": -110.1430, "timezone": "America/Phoenix", "timezone_source": "fixture" }
-  ]
-}

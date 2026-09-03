@@ -53,7 +53,7 @@ def xeno_canto_dlt_assets(
 
 
 @dg.asset(
-    key=dg.AssetKey(["birding_agent", "xeno_canto_iceberg_refresh"]),
+    key=dg.AssetKey(["environmental_observations", "xeno_canto_iceberg_refresh"]),
     deps=[
         dg.AssetKey(["sqlmesh", "raw_xeno_canto", "recordings"]),
         dg.AssetKey(["sqlmesh", "raw_xeno_canto", "_dlt_load_status"]),
@@ -67,7 +67,6 @@ def xeno_canto_iceberg_refresh(
     models = (
         "environmental_observations.dim_species",
         "environmental_observations.fact_bird_sound_recording",
-        "birding_agent.xeno_canto_media_evidence",
         "analytics.platform_health",
     )
     command = [

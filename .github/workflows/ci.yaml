@@ -24,11 +24,9 @@ jobs:
       notebooks: ${{ steps.filter.outputs.notebooks }}
       source_related: ${{ steps.filter.outputs.source_related }}
       cross_cutting: ${{ steps.filter.outputs.cross_cutting }}
-      frontend: ${{ steps.filter.outputs.frontend }}
       ci_config: ${{ steps.filter.outputs.ci_config }}
       needs_full: ${{ steps.compose.outputs.needs_full }}
       needs_any_source: ${{ steps.compose.outputs.needs_any_source }}
-      needs_frontend: ${{ steps.compose.outputs.needs_frontend }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706  # v4.0.2
@@ -66,14 +64,6 @@ jobs:
               - 'uv.lock'
               - 'Taskfile.yaml'
               - '.pre-commit-config.yaml'
-            frontend:
-              - 'app/**'
-              - 'app/package.json'
-              - 'app/package-lock.json'
-              - 'scripts/rufous_media/audit_app_bundle.py'
-              - 'tests/rufous_media/test_audit_app_bundle.py'
-              - 'Taskfile.yaml'
-              - '.github/workflows/ci.yaml'
             ci_config:
               - '.github/workflows/**'
       - id: compose
@@ -86,13 +76,7 @@ jobs:
             echo "needs_full=false" >> "$GITHUB_OUTPUT"
           fi
           echo "needs_any_source=${{ steps.filter.outputs.source_related }}" >> "$GITHUB_OUTPUT"
-          if [[ "${{ github.event_name }}" != "pull_request" \
-              || "${{ steps.filter.outputs.frontend }}" == "true" \
-              || "${{ steps.filter.outputs.ci_config }}" == "true" ]]; then
-            echo "needs_frontend=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "needs_frontend=false" >> "$GITHUB_OUTPUT"
-          fi
+
 
   secret-scan:
     name: Secret scan
@@ -101,36 +85,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Scan tracked repository files
         run: python3 scripts/platform/check_secrets.py .
-
-  frontend:
-    name: Frontend (typecheck, test, build, audit)
-    needs: changes
-    if: needs.changes.outputs.needs_frontend == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-      - name: Install frontend dependencies
-        working-directory: app
-        run: npm ci
-      - name: Audit frontend dependencies
-        working-directory: app
-        run: npm audit --audit-level=high
-      - name: TypeScript check
-        working-directory: app
-        run: npm run typecheck
-      - name: Vitest
-        working-directory: app
-        run: npm test
-      - name: Production build
-        working-directory: app
-        run: npm run build
-      - name: Audit compiled bundle
-        run: python3 scripts/rufous_media/audit_app_bundle.py
 
   lint:
     name: Ruff (lint + format)

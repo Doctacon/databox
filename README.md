@@ -9,49 +9,16 @@ Apache Polaris catalog, and local DuckDB analytics. Databox transforms data with
 SQLMesh, validates it with Soda, and orchestrates the workflow with
 Dagster—without always-on infrastructure.
 
-## Rufous
+## Data products
 
-![Rufous trip planner showing a real Willcox plan, its enforced 50 km evidence map, evidence-ranked recommendations, and coherent weather](docs/images/rufous-trip-planner.jpg)
+Databox publishes bounded, versioned DuckDB artifacts for independent consumers.
+The standalone [Rufous](https://github.com/Doctacon/rufous) birding application
+consumes `rufous_inputs_v1` read-only and keeps its application state, models,
+APIs, media workflows, web app, and deployment in its own repository. Databox
+does not launch or deploy Rufous.
 
-Rufous is the user-facing birding product built on Databox: a React/TypeScript
-interface for interactive Arizona encounter maps, personal collections,
-explicit source refresh, watched-bird alerts, and evidence-grounded trip
-planning.
-
-`React/TypeScript -> typed FastAPI APIs -> DuckDB warehouse -> bounded Google ADK workflow and strict-schema model inference`
-
-The full Rufous warehouse experience is local-first and loopback-only; modeled
-and application data live in `data/databox.duckdb`, and database/model credentials
-stay behind the local typed API. A separate browser-only
-public export is deployed at [rufous.loughondata.com](https://rufous.loughondata.com/)
-with static, privacy-reviewed data and no database or model credentials. Its
-existing release remains available, but new production deployment is currently
-paused while the release workflow is adapted to the Iceberg source path.
-
-Rufous does not estimate encounter probability. Its recently reported group
-contains species with distinct eBird submissions in the configured eBird
-lookback (30 days back by default, with both boundary dates included); its GBIF
-occurrence-context group contains species without qualifying eBird submissions
-in that lookback. The first group sorts by eligible submission count, newest
-report, then species name; the
-second sorts by distinct occurrence count, newest occurrence date or year, then
-species name. Each source record counts once. The planner records the exact date
-range in its trace; all eBird and GBIF evidence used for ranking is within the
-enforced 50 km radius.
-
-```bash
-task full-refresh       # populate routine sources after the one-time bootstrap below
-task app:dev           # FastAPI :8000 + Vite :5173 with hot reload
-task app:check         # typecheck + tests + build + configured bundle audit
-task app:audit-bundle  # audit an existing build
-task app               # build and serve at http://127.0.0.1:8000
-```
-
-`task verify` is a bounded smoke refresh for pipeline verification; it is not the
-data-population step for Rufous.
-
-See the [Rufous operations guide](docs/rufous-operations.md) for local setup and
-operator-only delivery procedures.
+See the [data-product boundary](.10x/specs/databox-rufous-data-product-boundary.md)
+and [artifact exporter](scripts/platform/export_rufous_product.py).
 
 ```mermaid
 flowchart LR
@@ -89,8 +56,7 @@ written. [See the workflow](docs/source-layout.md#adding-model-behavior).
 ## Quickstart
 
 Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), and
-[Task](https://taskfile.dev/). Node.js 22+ and npm are only needed for
-Rufous.
+[Task](https://taskfile.dev/).
 
 ### Evaluate without live providers
 
@@ -108,10 +74,8 @@ After the initial dependency install, source tests replay recorded responses, so
 
 After `task install`, configure the Polaris client, AWS S3 bucket/writer,
 `EBIRD_API_TOKEN`, `NOAA_API_TOKEN`, and `XENO_CANTO_API_KEY` values documented
-in `.env.example`. Live trip-plan synthesis also requires
-`CF_WORKERS_AI_API_KEY` and `CF_WORKERS_AI_ACCOUNT_ID`; keep the example's
-allowlisted model selector. Start the local catalog, bootstrap the pinned AVONET
-snapshot once, then refresh the routine sources:
+in `.env.example`. Start the local catalog, bootstrap the pinned AVONET snapshot
+once, then refresh the routine sources:
 
 ```bash
 $EDITOR .env
@@ -121,7 +85,7 @@ curl --fail --silent http://127.0.0.1:8182/q/health/ready
 DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
   uv run dg launch --target-path packages/databox --job avonet_ingest
 task full-refresh   # ingest Iceberg raw tables, then build local SQLMesh models
-task app            # build and serve Rufous at http://127.0.0.1:8000
+uv run python scripts/platform/export_rufous_product.py  # optional consumer artifact
 ```
 
 AVONET is intentionally excluded from routine refreshes. See the

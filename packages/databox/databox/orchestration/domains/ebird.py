@@ -63,7 +63,6 @@ def ebird_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResul
         "environmental_observations.dim_bird_hotspot",
         "environmental_observations.fact_bird_observation",
         "environmental_observations.fact_region_daily_stats",
-        "birding_agent.arizona_species_catalog",
         "analytics.platform_health",
     )
     command = [

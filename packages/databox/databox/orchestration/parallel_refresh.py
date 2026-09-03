@@ -290,25 +290,23 @@ def execute_parallel_refresh(
     return result
 
 
-@dg.op(name="parallel_quack_refresh")
-def parallel_quack_refresh_op(context: OpExecutionContext) -> None:
-    from databox.watched_bird_evaluator import run_watched_bird_evaluator
-
-    result = execute_parallel_refresh(evaluation_runner=run_watched_bird_evaluator)
+@dg.op(name="parallel_iceberg_refresh")
+def parallel_iceberg_refresh_op(context: OpExecutionContext) -> None:
+    result = execute_parallel_refresh()
     context.log.info(
-        "parallel Quack refresh complete: sources=%s overlap_pairs=%s deduped=%s",
+        "parallel Iceberg refresh complete: sources=%s overlap_pairs=%s deduped=%s",
         [item.source for item in result.sources],
         result.overlap_pairs,
         result.deduped,
     )
 
 
-@dg.job(name="parallel_quack_full_refresh", executor_def=dg.in_process_executor)
-def parallel_quack_full_refresh() -> None:
-    parallel_quack_refresh_op()
+@dg.job(name="parallel_iceberg_full_refresh", executor_def=dg.in_process_executor)
+def parallel_iceberg_full_refresh() -> None:
+    parallel_iceberg_refresh_op()
 
 
-parallel_quack_schedule = dg.ScheduleDefinition(
-    job=parallel_quack_full_refresh,
+parallel_iceberg_schedule = dg.ScheduleDefinition(
+    job=parallel_iceberg_full_refresh,
     cron_schedule="0 6 * * *",
 )

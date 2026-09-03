@@ -44,7 +44,6 @@ code imports it rather than redeclaring values.
   and commit their catalog metadata through Polaris.
 - **Dagster resources** — orchestration reads Polaris/S3 configuration, the local
   modeled-data path, dlt data directory, source windows, and Soda datasource.
-- **Local application** — local server-side code uses `settings.database_path` and reads Cloudflare Workers AI credentials. Browser code never receives these values.
 - **Data dictionary** — `scripts/platform/generate_docs.py` uses the local gateway.
 
 ## Out-of-surface configuration
@@ -53,27 +52,10 @@ Per-source API tokens are read at request time in the source packages so dlt
 and pytest environment overrides work cleanly. Build metadata and tool settings
 remain in `pyproject.toml`.
 
-## Cloudflare Workers AI
-
-The local Python/Google ADK planner uses Cloudflare only for remote model
-inference. The runtime hard-allows exactly `@cf/zai-org/glm-4.7-flash`; it has
-no fallback model and does not deploy a Worker. `CF_WORKERS_AI_MODEL_BASE_URL`
-accepts either that exact identifier, which derives Cloudflare's official
-account-specific `/ai/v1/chat/completions` endpoint from
-`CF_WORKERS_AI_ACCOUNT_ID`, or an explicit HTTPS `api.cloudflare.com` Workers AI
-base/endpoint URL. Every other host, plain HTTP URL, and non-URL value is
-rejected. Requests use Cloudflare's OpenAI-compatible strict JSON Schema
-response format and retain local Pydantic plus exact-grounding validation.
-Validate configured credentials and the distinct trip-plan, target-bird, and
-watched-report schemas explicitly with `task smoke:cloudflare-ai`. This opt-in
-check makes three bounded live requests and prints no credential values.
-Default unit tests and `task eval:agent` use deterministic fake model clients
-and make no paid/live calls.
-
 ## SQLMesh state
 
 SQLMesh state lives in `data/sqlmesh_state.duckdb`, separate from
 `data/databox.duckdb`. The data connection loads the `h3` extension while the
 state connection does not; separating them avoids incompatible concurrent
 DuckDB connection configuration. `task db:reset` removes both local database
-files and all persisted trip-plan state.
+files.

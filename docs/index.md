@@ -61,8 +61,7 @@ completes this chain.
 - [Freshness](freshness.md)
 - [Observability](observability.md)
 - [CI routing](ci.md)
-- [Rufous operations](rufous-operations.md) — reference-consumer application
-  commands and recovery procedures
+- [Rufous data-product boundary](https://github.com/Doctacon/databox/blob/main/.10x/specs/databox-rufous-data-product-boundary.md) — versioned consumer artifact contract
 - [Architecture decisions](adr/README.md)
 
 <a id="regenerate"></a>

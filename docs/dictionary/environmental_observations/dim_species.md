@@ -62,10 +62,6 @@ Conformed CDM species dimension from eBird taxonomy, GBIF occurrence taxonomy, a
 
 **Downstream**
 
-- [`birding_agent.arizona_species_catalog`](../birding_agent/arizona_species_catalog.md)
-- [`birding_agent.gbif_occurrence_evidence`](../birding_agent/gbif_occurrence_evidence.md)
-- [`birding_agent.recent_observation_evidence`](../birding_agent/recent_observation_evidence.md)
-- [`birding_agent.species_lookup`](../birding_agent/species_lookup.md)
 - [`environmental_observations.dim_bird_species_traits`](dim_bird_species_traits.md)
 - [`environmental_observations.fact_bird_observation`](fact_bird_observation.md)
 - [`environmental_observations.fact_bird_occurrence`](fact_bird_occurrence.md)

@@ -69,15 +69,6 @@ usgs_earthquakes_loads AS (
     inserted_at::TIMESTAMP AS completed_at
   FROM polaris_aws.raw_usgs_earthquakes._dlt_load_status
 ),
-usfws_loads AS (
-  SELECT
-    'usfws'             AS source,
-    load_id,
-    schema_name,
-    status,
-    inserted_at::TIMESTAMP AS completed_at
-  FROM polaris_aws.raw_usfws._dlt_load_status
-),
 all_loads AS (
   SELECT * FROM ebird_loads
   UNION ALL SELECT * FROM gbif_loads
@@ -86,7 +77,6 @@ all_loads AS (
   UNION ALL SELECT * FROM noaa_loads
   UNION ALL SELECT * FROM usgs_loads
   UNION ALL SELECT * FROM usgs_earthquakes_loads
-  UNION ALL SELECT * FROM usfws_loads
 ),
 ebird_rows AS (
   SELECT load_id, rows_loaded AS rows
@@ -116,10 +106,6 @@ usgs_earthquakes_rows AS (
   SELECT load_id, rows_loaded AS rows
   FROM polaris_aws.raw_usgs_earthquakes._dlt_load_status
 ),
-usfws_rows AS (
-  SELECT load_id, rows_loaded AS rows
-  FROM polaris_aws.raw_usfws._dlt_load_status
-),
 all_rows AS (
   SELECT 'ebird' AS source, load_id, rows FROM ebird_rows
   UNION ALL SELECT 'gbif' AS source, load_id, rows FROM gbif_rows
@@ -128,7 +114,6 @@ all_rows AS (
   UNION ALL SELECT 'noaa' AS source, load_id, rows FROM noaa_rows
   UNION ALL SELECT 'usgs' AS source, load_id, rows FROM usgs_rows
   UNION ALL SELECT 'usgs_earthquakes' AS source, load_id, rows FROM usgs_earthquakes_rows
-  UNION ALL SELECT 'usfws' AS source, load_id, rows FROM usfws_rows
 ),
 latest_per_source AS (
   SELECT

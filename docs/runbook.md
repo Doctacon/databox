@@ -104,10 +104,3 @@ task dagster:dev
 
 This command is intentionally long-running. Stop it with Ctrl-C after manual UI
 inspection.
-
-## Rufous operations
-
-<a id="trip-plan-calendar-invitations"></a>
-
-Trip-calendar invitation and delivery recovery procedures are in
-[Rufous operations](rufous-operations.md#trip-plan-calendar-invitations).

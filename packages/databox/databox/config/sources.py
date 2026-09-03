@@ -106,14 +106,6 @@ SOURCES: list[Source] = [
     ),
     Source(name="usgs", raw_tables=("daily_values", "sites"), iceberg_authoritative=True),
     Source(name="usgs_earthquakes", raw_tables=("events",), iceberg_authoritative=True),
-    Source(
-        name="usfws",
-        raw_tables=("image_search_runs", "image_records"),
-        scheduled=False,
-        parallel_refresh=False,
-        orchestration_mode="explicit_targets",
-        iceberg_authoritative=True,
-    ),
 ]
 
 

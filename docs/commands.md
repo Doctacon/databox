@@ -32,15 +32,6 @@ uv run pytest --cov=. --cov-report=html
 
 Test markers are defined in `pyproject.toml` under `[tool.pytest.ini_options]`.
 
-## Rufous operations
-
-<a id="agent-evaluations"></a>
-<a id="rufous-local-birding-app"></a>
-<a id="bird-alert-delivery-operations"></a>
-
-Rufous application, evaluation, media, privacy, collection, target-planning,
-and alert-delivery commands are in [Rufous operations](rufous-operations.md).
-
 ## SQLMesh
 
 Run from `transforms/main/` — SQLMesh picks up `config.py` there.
