@@ -1,4 +1,4 @@
-Status: active
+Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
@@ -46,6 +46,4 @@ Record failed CI diagnosis, import/execution boundary tests, empty-environment o
 
 ## Blockers
 
-- 2026-09-03: Hosted PR CI still fails six fake-runner `parallel_refresh` tests because they invoke the real Iceberg preflight without test configuration. Repair must preserve production fail-closed behavior and prove the fake orchestration boundary is explicit.
-- 2026-09-03: Fake-runner tests now explicitly inject a no-op preflight; the production default remains unchanged. Added a regression proving a failing preflight prevents any source runner from starting. In a missing-env-file environment, the exact hosted core command collected and passed 300 tests; focused parallel/boundary tests passed 16/16. Hosted core passed, but aggregate coverage omitted retained public-only USFWS and failed at 67%.
-- 2026-09-03: Added the actual offline USFWS provider suite as an isolated appended coverage step before registry coverage without restoring it as a scheduled source. Exact hosted-equivalent sequence passed locally: core 300, USFWS 28, registry coverage, 85% aggregate; workflow structural tests 30/30 and diff check passed. Evidence updated. Awaiting hosted rerun before closure.
+None. Hosted PR #41 CI passed all required checks, including core, per-source, and aggregate coverage gates.
