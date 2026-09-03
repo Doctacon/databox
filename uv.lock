@@ -875,7 +875,7 @@ wheels = [
 
 [[package]]
 name = "databox"
-version = "0.7.0"
+version = "0.8.0"
 source = { editable = "packages/databox" }
 dependencies = [
     { name = "dagster" },
@@ -933,7 +933,7 @@ provides-extras = ["r2", "lineage"]
 
 [[package]]
 name = "databox-sources"
-version = "0.7.0"
+version = "0.8.0"
 source = { editable = "packages/databox-sources" }
 dependencies = [
     { name = "dlt", extra = ["duckdb", "filesystem", "pyiceberg"] },
@@ -956,7 +956,7 @@ requires-dist = [
 
 [[package]]
 name = "databox-workspace"
-version = "0.7.0"
+version = "0.8.0"
 source = { virtual = "." }
 dependencies = [
     { name = "databox" },

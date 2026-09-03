@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
-from typing import Any
+from typing import Any, TypedDict
 from urllib.parse import urljoin, urlparse
 
 import dlt
@@ -52,6 +52,15 @@ USFWS_RESPONSE_CHUNK_BYTES = 64 * 1024
 USFWS_DETAIL_WORKERS = 3
 USFWS_MAX_DETAIL_WORKERS = 4
 USFWS_USER_AGENT = "loughondata.com Rufous bird-media showcase (connor@loughondata.com)"
+
+
+class UsfwsTarget(TypedDict):
+    """Public caller-supplied identity contract for one targeted species."""
+
+    species_code: str
+    common_name: str
+    scientific_name: str
+
 
 _TEXT_LIMIT = 300
 _SPECIES_CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
