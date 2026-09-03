@@ -15,7 +15,21 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     assert workflow["permissions"] == {"contents": "read", "id-token": "write"}
 
     job = workflow["jobs"]["verify"]
+    assert job["name"] == "Real Polaris/S3 source verification (${{ matrix.source }})"
     assert job["environment"] == "polaris-iceberg-integration"
+    assert job["strategy"] == {
+        "fail-fast": "false",
+        "matrix": {
+            "source": [
+                "ebird",
+                "gbif",
+                "xeno_canto",
+                "noaa",
+                "usgs",
+                "usgs_earthquakes",
+            ]
+        },
+    }
     assert "inputs" not in workflow["on"]["workflow_dispatch"]
     provider_names = (
         "EBIRD" + "_API_" + "TOKEN",
@@ -24,7 +38,7 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     )
     assert job["env"]["DATABOX_AWS_S3_BUCKET"] == "${{ secrets.DATABOX_AWS_S3_BUCKET }}"
     assert job["env"]["DATABOX_ICEBERG_WAREHOUSE_PREFIX"] == (
-        "integration/${{ github.run_id }}/${{ github.run_attempt }}/warehouse"
+        "integration/${{ github.run_id }}/${{ github.run_attempt }}/${{ matrix.source }}/warehouse"
     )
     assert job["env"]["DATABOX_ICEBERG_WAREHOUSE_PREFIX"] != "warehouse"
     assert job["env"]["DATABOX_AWS_REGION"] == "us-west-1"
@@ -96,15 +110,17 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     assert '{"catalogRole":{"name":"integration_writer","properties":{}}}' in provision_script
     assert '{"type":"catalog","privilege":"CATALOG_MANAGE_CONTENT"}' in provision_script
     assert '{"catalogRole":{"name":"integration_writer"}}' in provision_script
-    task_setup_index = next(
+    assert not any(step.get("uses", "").startswith("go-task/setup-task@") for step in steps)
+    verify_index = next(
         index
         for index, step in enumerate(steps)
-        if step.get("uses") == "go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e"
+        if step.get("name") == "Verify real Polaris/S3 source publication"
     )
-    verify_index = next(
-        index for index, step in enumerate(steps) if step.get("run") == "task verify"
+    assert steps[verify_index]["run"] == (
+        ".venv/bin/python scripts/sources/load_dlt_iceberg.py "
+        '--source "${{ matrix.source }}" --skip-sqlmesh'
     )
-    assert start_index < provision_index < task_setup_index < verify_index
+    assert start_index < provision_index < verify_index
 
     cleanup_step = next(
         step for step in steps if step.get("name") == "Stop disposable Polaris catalog"
@@ -135,7 +151,9 @@ def test_s3_preflight_is_read_only_scoped_and_runs_before_source_verification() 
         if step.get("name") == "Preflight AWS identity and isolated S3 prefix"
     )
     verify_index = next(
-        index for index, step in enumerate(steps) if step.get("run") == "task verify"
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Verify real Polaris/S3 source publication"
     )
     preflight_step = steps[preflight_index]
 
