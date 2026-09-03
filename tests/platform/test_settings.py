@@ -56,6 +56,13 @@ def test_gbif_record_cap_rejects_unbounded_values(max_records: int) -> None:
         DataboxSettings(_env_file=None, DATABOX_GBIF_MAX_RECORDS=max_records)
 
 
+def test_iceberg_warehouse_prefix_defaults_to_production_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DATABOX_ICEBERG_WAREHOUSE_PREFIX", raising=False)
+    assert DataboxSettings(_env_file=None).iceberg_warehouse_prefix == "warehouse"
+
+
 def test_gbif_public_release_is_explicit_and_disabled_by_default() -> None:
     assert DataboxSettings(_env_file=None).gbif_public_release is False
     assert (
