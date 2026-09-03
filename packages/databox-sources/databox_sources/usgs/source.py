@@ -66,6 +66,14 @@ def _parse_daily_value_records(
         param_cd = variable.get("variableCode", [{}])[0].get("value")
         param_name = variable.get("variableName")
         unit = variable.get("unit", {}).get("unitCode")
+        statistic_cd = next(
+            (
+                option.get("optionCode")
+                for option in variable.get("options", {}).get("option", [])
+                if option.get("name") == "Statistic"
+            ),
+            None,
+        )
 
         for val_obj in ts.get("values", [{}])[0].get("value", []):
             raw_val = val_obj.get("value")
@@ -80,6 +88,7 @@ def _parse_daily_value_records(
                 "longitude": float(lon) if lon is not None else None,
                 "parameter_cd": param_cd,
                 "parameter_name": param_name,
+                "statistic_cd": statistic_cd,
                 "unit_cd": unit,
                 "observation_date": val_obj.get("dateTime", "")[:10],
                 "value": float(raw_val) if raw_val is not None and raw_val != "" else None,
@@ -114,7 +123,7 @@ def usgs_source(
     end_str = end_date.format("YYYY-MM-DD")
 
     @dlt.resource(
-        primary_key=["site_no", "parameter_cd", "observation_date"],
+        primary_key=["site_no", "parameter_cd", "statistic_cd", "observation_date"],
         write_disposition="merge",
         table_format="iceberg",
         columns={
@@ -124,6 +133,7 @@ def usgs_source(
             "longitude": {"data_type": "double"},
             "parameter_cd": {"data_type": "text"},
             "parameter_name": {"data_type": "text"},
+            "statistic_cd": {"data_type": "text"},
             "unit_cd": {"data_type": "text"},
             "observation_date": {"data_type": "text"},
             "value": {"data_type": "double"},

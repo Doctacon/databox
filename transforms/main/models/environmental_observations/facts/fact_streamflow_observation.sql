@@ -1,27 +1,35 @@
 MODEL (
   name environmental_observations.fact_streamflow_observation,
   kind FULL,
-  description 'CDM fact: one row per USGS streamgage site per observation date per parameter code.',
+  description 'CDM fact: one row per USGS streamgage site, observation date, parameter code, and statistic code.',
   grants (select_ = ['staging_reader', 'domain_reader', 'analyst'])
 );
 
 WITH ranked AS (
   SELECT
     *,
-    ROW_NUMBER() OVER (PARTITION BY site_no, observation_date, parameter_cd ORDER BY _loaded_at DESC) AS rn
+    ROW_NUMBER() OVER (
+      PARTITION BY site_no, observation_date, parameter_cd, statistic_cd
+      ORDER BY _loaded_at DESC
+    ) AS rn
   FROM polaris_aws.raw_usgs.daily_values
-  WHERE site_no IS NOT NULL AND observation_date IS NOT NULL AND parameter_cd IS NOT NULL
+  WHERE
+    site_no IS NOT NULL
+    AND observation_date IS NOT NULL
+    AND parameter_cd IS NOT NULL
+    AND statistic_cd IS NOT NULL
 )
 SELECT
-  md5('environmental_observations|streamflow_observation|usgs_api|' || f.site_no || '|' || f.observation_date || '|' || f.parameter_cd) AS streamflow_observation_sk,
+  md5('environmental_observations|streamflow_observation|usgs_api|' || f.site_no || '|' || f.observation_date || '|' || f.parameter_cd || '|' || f.statistic_cd) AS streamflow_observation_sk,
   COALESCE(ss.streamgage_site_sk, md5('environmental_observations|streamgage_site|UNKNOWN')) AS streamgage_site_sk,
   'usgs_api' AS source_pipeline,
-  f.site_no || '|' || f.observation_date || '|' || f.parameter_cd AS source_id,
+  f.site_no || '|' || f.observation_date || '|' || f.parameter_cd || '|' || f.statistic_cd AS source_id,
   f.site_no,
   f.site_name,
   f.observation_date::DATE AS observation_date,
   f.parameter_cd,
   f.parameter_name,
+  f.statistic_cd,
   f.unit_cd,
   f.value::DOUBLE AS value,
   f.qualifier,

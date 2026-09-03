@@ -2,7 +2,7 @@
 must leave the final row set unchanged.
 
 Uses `daily_values`: write_disposition=merge,
-primary_key=(site_no, parameter_cd, observation_date).
+primary_key=(site_no, parameter_cd, statistic_cd, observation_date).
 """
 
 from __future__ import annotations
@@ -30,9 +30,9 @@ def test_usgs_daily_values_idempotent(memory_duckdb_pipeline_factory):
     with pipeline.sql_client() as client:
         count_a = client.execute_sql("SELECT COUNT(*) FROM daily_values")[0][0]
         pks_a = {
-            (r[0], r[1], r[2])
+            (r[0], r[1], r[2], r[3])
             for r in client.execute_sql(
-                "SELECT site_no, parameter_cd, observation_date FROM daily_values"
+                "SELECT site_no, parameter_cd, statistic_cd, observation_date FROM daily_values"
             )
         }
 
@@ -42,9 +42,9 @@ def test_usgs_daily_values_idempotent(memory_duckdb_pipeline_factory):
     with pipeline.sql_client() as client:
         count_b = client.execute_sql("SELECT COUNT(*) FROM daily_values")[0][0]
         pks_b = {
-            (r[0], r[1], r[2])
+            (r[0], r[1], r[2], r[3])
             for r in client.execute_sql(
-                "SELECT site_no, parameter_cd, observation_date FROM daily_values"
+                "SELECT site_no, parameter_cd, statistic_cd, observation_date FROM daily_values"
             )
         }
 
