@@ -10,7 +10,7 @@ Databox ordinary pull-request CI must validate real source contracts and Dagster
 
 ## Decision
 
-Databox will run the real Polaris/S3 Iceberg integration workflow only through explicit `workflow_dispatch` in a protected GitHub environment. Routine pull-request CI MUST remain credential-free, perform no live source/network/S3 publication, and validate the real asset graph structurally. Execution-boundary tests MUST prove missing Iceberg credentials fail closed before publication.
+Databox will run the real Polaris/S3 Iceberg integration workflow only through explicit `workflow_dispatch` in a protected GitHub environment. The workflow MUST exchange its GitHub OIDC token for `DATABOX_AWS_ROLE_ARN`; it MUST NOT use static AWS access-key secrets. It MUST generate disposable Polaris/Postgres credentials inside the job and must not store Polaris credentials. Routine pull-request CI MUST remain credential-free, perform no live source/network/S3 publication, and validate the real asset graph structurally. Execution-boundary tests MUST prove missing Iceberg credentials fail closed before publication.
 
 ## Alternatives considered
 

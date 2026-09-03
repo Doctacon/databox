@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   verify:
@@ -12,18 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     environment: polaris-iceberg-integration
     env:
-      DATABOX_POLARIS_POSTGRES_PASSWORD: ${{ secrets.DATABOX_POLARIS_POSTGRES_PASSWORD }}
-      DATABOX_POLARIS_CLIENT_ID: ${{ secrets.DATABOX_POLARIS_CLIENT_ID }}
-      DATABOX_POLARIS_CLIENT_SECRET: ${{ secrets.DATABOX_POLARIS_CLIENT_SECRET }}
       DATABOX_AWS_S3_BUCKET: ${{ secrets.DATABOX_AWS_S3_BUCKET }}
-      DATABOX_AWS_ACCESS_KEY_ID: ${{ secrets.DATABOX_AWS_ACCESS_KEY_ID }}
-      DATABOX_AWS_SECRET_ACCESS_KEY: ${{ secrets.DATABOX_AWS_SECRET_ACCESS_KEY }}
-      DATABOX_AWS_REGION: ${{ secrets.DATABOX_AWS_REGION }}
+      DATABOX_AWS_REGION: us-west-1
       EBIRD_API_TOKEN: ${{ secrets.EBIRD_API_TOKEN }}
       NOAA_API_TOKEN: ${{ secrets.NOAA_API_TOKEN }}
       XENO_CANTO_API_KEY: ${{ secrets.XENO_CANTO_API_KEY }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Assume the scoped S3 writer role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          role-to-assume: ${{ secrets.DATABOX_AWS_ROLE_ARN }}
+          role-session-name: databox-polaris-integration
+          aws-region: us-west-1
+      - name: Generate disposable Polaris credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "DATABOX_POLARIS_POSTGRES_PASSWORD=$(openssl rand -hex 32)"
+            echo "DATABOX_POLARIS_CLIENT_ID=github-actions-$(openssl rand -hex 8)"
+            echo "DATABOX_POLARIS_CLIENT_SECRET=$(openssl rand -hex 32)"
+            echo "DATABOX_AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
+            echo "DATABOX_AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
+            echo "DATABOX_AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}"
+            echo "DATABOX_AWS_REGION=${AWS_REGION}"
+          } >> "$GITHUB_ENV"
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: true

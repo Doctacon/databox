@@ -1,4 +1,4 @@
-Status: done
+Status: active
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
@@ -43,7 +43,8 @@ Record failed CI diagnosis, import/execution boundary tests, empty-environment o
 - 2026-09-03: Opened after PR #41 failed schema acknowledgement, source-layout, and pytest collection gates. User selected manual protected dispatch for real Polaris/S3 integration.
 - 2026-09-03: Implemented deferred, fail-closed writer credential validation at real asset execution boundaries; graph import remains real but no-I/O. Repaired post-extraction source-layout invariants and added public-interface-only USFWS recognition, AVONET atomic-replace coverage, empty-credential graph/layout regressions, and a structural manual-workflow test. Added the manual protected Polaris/S3 workflow and exact ten PR #41 acknowledgements. Focused tests passed 54; schema gate acknowledged all removals; `task ci` passed 388 tests at 85.29%. Evidence: `.10x/evidence/2026-09-03-hermetic-ci-and-iceberg-integration-gate.md`.
 - 2026-09-03: Review initially found the empty-environment subprocess could still read local `.env`; `DATABOX_ENV_FILE` now explicitly bypasses it in the regression. Final review passed. Final `task ci` passed 390 tests at 85.31%, with pre-commit, secret, generation, and diff checks; commit `824c8b1` was pushed to PR #41.
+- 2026-09-03: Reopened after confirming the repository has `DATABOX_AWS_ROLE_ARN` rather than static AWS keys. Updated the manual workflow to use GitHub OIDC, short-lived role credentials, and job-generated disposable Polaris/Postgres values. The existing `DATABOX_AWS_S3_BUCKET` secret supplies the bucket; provider tokens remain secret references.
 
 ## Blockers
 
-None. Hosted PR #41 CI passed all required checks, including core, per-source, and aggregate coverage gates.
+Independent review and hosted CI rerun remain required before closure.
