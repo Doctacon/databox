@@ -144,6 +144,10 @@
           data_type: text
           nullable: false
           primary_key: true
+        statistic_cd:
+          data_type: text
+          nullable: false
+          primary_key: true
         unit_cd:
           data_type: text
         value:

@@ -16,6 +16,7 @@ columns:
   - name: site_no
   - name: observation_date
   - name: parameter_cd
+  - name: statistic_cd
   - name: value
   - name: loaded_at
   - name: dlt_load_id

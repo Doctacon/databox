@@ -30,5 +30,5 @@ Canonical environmental-observations CDM models generated from the .schema workf
 | [`environmental_observations.fact_bird_sound_recording`](environmental_observations/fact_bird_sound_recording.md) | yes | CDM fact: one row per Xeno-canto bird sound recording id; media remains externally linked. |
 | [`environmental_observations.fact_earthquake_event`](environmental_observations/fact_earthquake_event.md) | yes | CDM fact: one row per USGS earthquake event id. |
 | [`environmental_observations.fact_region_daily_stats`](environmental_observations/fact_region_daily_stats.md) | yes | CDM fact: one row per eBird region per calendar date. |
-| [`environmental_observations.fact_streamflow_observation`](environmental_observations/fact_streamflow_observation.md) | yes | CDM fact: one row per USGS streamgage site per observation date per parameter code. |
+| [`environmental_observations.fact_streamflow_observation`](environmental_observations/fact_streamflow_observation.md) | yes | CDM fact: one row per USGS streamgage site, observation date, parameter code, and statistic code. |
 | [`environmental_observations.fact_weather_observation`](environmental_observations/fact_weather_observation.md) | yes | CDM fact: one row per NOAA station per observation date per datatype. |
