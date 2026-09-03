@@ -30,10 +30,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          postgres_password=$(openssl rand -hex 32)
+          client_id="github-actions-$(openssl rand -hex 8)"
+          client_secret=$(openssl rand -hex 32)
+          printf '::add-mask::%s\n' "$postgres_password"
+          printf '::add-mask::%s\n' "$client_id"
+          printf '::add-mask::%s\n' "$client_secret"
           {
-            echo "DATABOX_POLARIS_POSTGRES_PASSWORD=$(openssl rand -hex 32)"
-            echo "DATABOX_POLARIS_CLIENT_ID=github-actions-$(openssl rand -hex 8)"
-            echo "DATABOX_POLARIS_CLIENT_SECRET=$(openssl rand -hex 32)"
+            echo "DATABOX_POLARIS_POSTGRES_PASSWORD=$postgres_password"
+            echo "DATABOX_POLARIS_CLIENT_ID=$client_id"
+            echo "DATABOX_POLARIS_CLIENT_SECRET=$client_secret"
             echo "DATABOX_AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
             echo "DATABOX_AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
             echo "DATABOX_AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}"
@@ -47,8 +53,18 @@ jobs:
         run: uv sync --all-extras --dev --locked
       - name: Start disposable Polaris catalog
         run: docker compose -f compose.iceberg.yml up --wait --no-build polaris
+      - uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
       - name: Verify real Polaris/S3 source publication
         run: task verify
       - name: Stop disposable Polaris catalog
         if: always()
-        run: docker compose -f compose.iceberg.yml down --volumes
+        run: |
+          cleanup_variable() {
+            local name="$1"
+            printf '%s=%s' "$name" "${!name:-cleanup}"
+          }
+          env \
+            "$(cleanup_variable DATABOX_POLARIS_POSTGRES_PASSWORD)" \
+            "$(cleanup_variable DATABOX_POLARIS_CLIENT_ID)" \
+            "$(cleanup_variable DATABOX_POLARIS_CLIENT_SECRET)" \
+            docker compose -f compose.iceberg.yml down --volumes

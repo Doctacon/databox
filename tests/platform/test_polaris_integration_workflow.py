@@ -48,6 +48,8 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     )
     assert "openssl rand" in generation_step["run"]
     assert "$GITHUB_ENV" in generation_step["run"]
+    for credential in ("postgres_password", "client_id", "client_secret"):
+        assert f"printf '::add-mask::%s\\n' \"${credential}\"" in generation_step["run"]
     assert "DATABOX_AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" in generation_step["run"]
     assert "DATABOX_AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" in generation_step["run"]
     assert "DATABOX_AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}" in generation_step["run"]
@@ -56,4 +58,25 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     assert "secrets.DATABOX_AWS_ACCESS_KEY_ID" not in WORKFLOW.read_text()
     assert "secrets.DATABOX_AWS_SECRET_ACCESS_KEY" not in WORKFLOW.read_text()
     assert "secrets.DATABOX_POLARIS_" not in WORKFLOW.read_text()
-    assert "task verify" in [step["run"] for step in steps if "run" in step]
+    task_setup_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("uses") == "go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e"
+    )
+    verify_index = next(
+        index for index, step in enumerate(steps) if step.get("run") == "task verify"
+    )
+    assert task_setup_index < verify_index
+
+    cleanup_step = next(
+        step for step in steps if step.get("name") == "Stop disposable Polaris catalog"
+    )
+    assert cleanup_step["if"] == "always()"
+    assert "cleanup_variable()" in cleanup_step["run"]
+    assert '"${!name:-cleanup}"' in cleanup_step["run"]
+    for credential in (
+        "DATABOX_POLARIS_POSTGRES_PASSWORD",
+        "DATABOX_POLARIS_CLIENT_ID",
+        "DATABOX_POLARIS_CLIENT_SECRET",
+    ):
+        assert f"$(cleanup_variable {credential})" in cleanup_step["run"]
