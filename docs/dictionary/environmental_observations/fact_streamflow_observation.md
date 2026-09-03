@@ -1,6 +1,6 @@
 # environmental_observations.fact_streamflow_observation
 
-CDM fact: one row per USGS streamgage site per observation date per parameter code.
+CDM fact: one row per USGS streamgage site, observation date, parameter code, and statistic code.
 
 ## Overview
 
@@ -29,6 +29,7 @@ CDM fact: one row per USGS streamgage site per observation date per parameter co
 | `source_id` | `TEXT` | — | — |
 | `source_pipeline` | `TEXT` | — | — |
 | `state_cd` | `UNKNOWN` | — | — |
+| `statistic_cd` | `UNKNOWN` | — | — |
 | `streamflow_observation_sk` | `TEXT` | missing (must_be=0), duplicate (must_be=0) | — |
 | `streamgage_site_sk` | `UNKNOWN` | missing (must_be=0) | — |
 | `unit_cd` | `UNKNOWN` | — | — |
