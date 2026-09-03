@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-build-arizona-bird-catalog-and-profile.
 
 ## Scope
 
-Implement the runtime DuckDB schema, transactional service, and typed FastAPI endpoints governed by `.10x/specs/personal-bird-collection.md` for observations, derived life list, wishlist, watches, and per-species collection state.
+Implement the runtime DuckDB schema, transactional service, and typed FastAPI endpoints governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/personal-bird-collection.md` for observations, derived life list, wishlist, watches, and per-species collection state.
 
 Validate exact current catalog identity, Arizona watch centers, 1–300-mile radius, bounded text/date inputs, stale catalog references, mutation serialization, atomic edits/hard deletes, independent state, activation/resume boundaries, and safe busy/conflict/not-found errors. Reads remain network-free; mutations cause no matching, weather, model, calendar, or SMTP side effect.
 

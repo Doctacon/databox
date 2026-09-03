@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-08-31
 Updated: 2026-08-31
-Relates-To: .10x/tickets/2026-08-31-organize-root-tests-and-scripts-by-domain.md
+Relates-To: .10x/tickets/done/2026-08-31-organize-root-tests-and-scripts-by-domain.md
 
 # Root test and script domain reorganization evidence
 
@@ -218,7 +218,7 @@ Both the moved checker and the pre-change `HEAD:scripts/check_source_layout.py` 
 - `uv run python scripts/sources/check_source_layout.py` fails with four USFWS asset/job requirements.
 - `uv run python scripts/sources/source_ci.py matrix --pretty` fails on the same requirements.
 
-The byte-for-byte pre-change checker was executed from `/tmp` with only its `PROJECT_ROOT` assignment adapted to the current working directory; it produced the same four failures and exit 1. This proves the failure predates the reorganization. `.10x/tickets/2026-08-31-reconcile-usfws-source-contract-checker.md` records the necessary separate contract decision.
+The byte-for-byte pre-change checker was executed from `/tmp` with only its `PROJECT_ROOT` assignment adapted to the current working directory; it produced the same four failures and exit 1. This proves the failure predates the reorganization. `.10x/tickets/done/2026-08-31-reconcile-usfws-source-contract-checker.md` records the necessary separate contract decision.
 
 ## What this supports or challenges
 

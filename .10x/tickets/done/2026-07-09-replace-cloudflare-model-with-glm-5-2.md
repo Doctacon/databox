@@ -57,9 +57,9 @@ Record:
 ## References
 
 - `.10x/decisions/superseded/local-only-birding-product-architecture.md`
-- `.10x/specs/cloudflare-workers-ai-local-agent.md`
-- `.10x/specs/birding-trip-copilot.md`
-- `.10x/specs/birding-agent-evaluations.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/cloudflare-workers-ai-local-agent.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-evaluations.md`
 - `.10x/tickets/done/2026-07-09-build-local-birding-copilot-product.md`
 - `.10x/tickets/cancelled/2026-07-09-resolve-cloudflare-workers-ai-live-inference-timeout.md`
 

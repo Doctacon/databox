@@ -1,14 +1,14 @@
 Status: recorded
 Created: 2026-08-31
 Updated: 2026-08-31
-Target: .10x/tickets/2026-08-31-organize-root-tests-and-scripts-by-domain.md
+Target: .10x/tickets/done/2026-08-31-organize-root-tests-and-scripts-by-domain.md
 Verdict: concerns
 
 # Root test/script domain reorganization follow-up review
 
 ## Target
 
-The repaired implementation of `.10x/tickets/2026-08-31-organize-root-tests-and-scripts-by-domain.md`, following the first independent review's findings about moved SQLMesh shell-script root resolution and metrics-test allocation.
+The repaired implementation of `.10x/tickets/done/2026-08-31-organize-root-tests-and-scripts-by-domain.md`, following the first independent review's findings about moved SQLMesh shell-script root resolution and metrics-test allocation.
 
 ## Reviewer provenance
 
@@ -49,7 +49,7 @@ No remaining defect introduced by the reorganization was found.
 3. Satisfied: active reference scans are clean; remaining old paths are historical evidence.
 4. Satisfied: path-sensitive consumers and shell root calculations are repaired and regression-tested.
 5. Not literally satisfied: the recorded default suite has three separately owned, pre-existing failures under `.10x/tickets/done/2026-08-31-repair-preexisting-default-python-test-failures.md`.
-6. Not literally satisfied: the separately owned pre-existing USFWS source-contract mismatch under `.10x/tickets/2026-08-31-reconcile-usfws-source-contract-checker.md` keeps source-layout/matrix gates red; other relevant safe gates pass.
+6. Not literally satisfied: the separately owned pre-existing USFWS source-contract mismatch under `.10x/tickets/done/2026-08-31-reconcile-usfws-source-contract-checker.md` keeps source-layout/matrix gates red; other relevant safe gates pass.
 7. Satisfied by implementation evidence and attestation.
 8. Satisfied: independent review found coherent allocation and no orphaned moved command or test after repair.
 

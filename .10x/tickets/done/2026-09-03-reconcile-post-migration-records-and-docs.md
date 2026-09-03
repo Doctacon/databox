@@ -1,4 +1,4 @@
-Status: active
+Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
@@ -37,6 +37,7 @@ Reconcile Databox durable records and public repository documentation with the c
 - 2026-09-03: Moved obsolete Quack refresh, Databox-owned Rufous refresh/USFWS orchestration, and combined Rufous/Polaris architecture records to superseded history. Corrected three older R2 records already under superseded paths whose headers still said active. Updated active source-registry/verification/modeling specs to the actual seven registered sources plus provider-only USFWS boundary.
 - 2026-09-03: Reworked README platform ownership and protected-gate guidance; removed extracted Rufous configuration prose; reconciled configuration, commands, CI, runbook, docs home, environment comments, task description, and Rufous record-ownership pointer.
 - 2026-09-03: Validation passed: 50 focused workflow/registry/docs tests, seven-source layout validation, deterministic matrix output, generated dictionary freshness, strict MkDocs build, internal Markdown link resolution across 43 public docs, terminal/superseded record status checks, pre-commit, secret scan, and `git diff --check`.
+- 2026-09-03: Adversarial review found and repaired unresolved historical record references, an overstated current Task-setup evidence claim, incomplete Compose/catalog prerequisites, and one out-of-bound Taskfile description edit. The final record graph resolves locally, in canonical Rufous, or at immutable Databox revisions; the effective diff contains no implementation or runtime configuration change. Review: `.10x/reviews/2026-09-03-post-migration-records-docs-review.md`.
 
 ## Blockers
-Independent review is required before this ticket moves to `done/`.
+None.

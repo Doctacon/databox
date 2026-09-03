@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-The local FastAPI contract, React product surface, launch paths, tests, and evidence governed by `.10x/specs/local-birding-trip-copilot-app.md`.
+The local FastAPI contract, React product surface, launch paths, tests, and evidence governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md`.
 
 ## Assumptions tested
 

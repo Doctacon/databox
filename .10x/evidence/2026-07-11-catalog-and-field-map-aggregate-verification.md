@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-verify-catalog-and-field-map.md, .10x/tickets/done/2026-07-11-improve-catalog-and-add-field-map.md, .10x/decisions/rufous-catalog-discovery-and-field-map.md
+Relates-To: .10x/tickets/done/2026-07-11-verify-catalog-and-field-map.md, .10x/tickets/done/2026-07-11-improve-catalog-and-add-field-map.md, https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-catalog-discovery-and-field-map.md
 
 # Catalog discovery and Field Map aggregate verification
 

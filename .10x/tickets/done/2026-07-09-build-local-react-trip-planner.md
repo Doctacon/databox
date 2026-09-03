@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-integrate-cloudflare-ai-with-adk.md
 
 ## Scope
 
-Implement `.10x/specs/local-birding-trip-copilot-app.md` as a Vite + React + strict TypeScript frontend and local Python HTTP API.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md` as a Vite + React + strict TypeScript frontend and local Python HTTP API.
 
 Required work:
 

@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-persist-structured-observation-locations.md, .10x/specs/structured-observation-locations.md
+Relates-To: .10x/tickets/done/2026-07-11-persist-structured-observation-locations.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/structured-observation-locations.md
 
 # Structured observation locations verification
 

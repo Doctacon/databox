@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-remove-wishlist-and-consolidate-watches
 
 ## Scope
 
-Audit current selects and implement `.10x/specs/alphabetical-text-dropdown-ordering.md`, especially observation and Watch bird selectors. Use one small deterministic display-label comparator rather than duplicated ordering logic.
+Audit current selects and implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/alphabetical-text-dropdown-ordering.md`, especially observation and Watch bird selectors. Use one small deterministic display-label comparator rather than duplicated ordering logic.
 
 ## Acceptance criteria
 

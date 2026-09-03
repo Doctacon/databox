@@ -14,11 +14,11 @@ This is a parent plan and is not executable directly.
 
 ## Governing records
 
-- `.10x/decisions/rufous-catalog-discovery-and-field-map.md`
-- `.10x/specs/arizona-catalog-discovery-controls.md`
-- `.10x/specs/alphabetical-text-dropdown-ordering.md`
-- `.10x/specs/bird-profile-information-layout.md`
-- `.10x/specs/rufous-field-map.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-catalog-discovery-and-field-map.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-discovery-controls.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/alphabetical-text-dropdown-ordering.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/bird-profile-information-layout.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-field-map.md`
 - `.10x/research/2026-07-11-rufous-catalog-and-field-map.md`
 - Existing catalog, media, privacy, local-platform, accessibility, and exact-taxon contracts remain active.
 

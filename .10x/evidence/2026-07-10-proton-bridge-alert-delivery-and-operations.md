@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-10
 Updated: 2026-07-10
-Relates-To: .10x/tickets/done/2026-07-10-implement-proton-bridge-alert-delivery-and-operations.md, .10x/specs/bird-alert-calendar-and-smtp-delivery.md
+Relates-To: .10x/tickets/done/2026-07-10-implement-proton-bridge-alert-delivery-and-operations.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/bird-alert-calendar-and-smtp-delivery.md
 
 # Proton Bridge alert delivery and operations
 

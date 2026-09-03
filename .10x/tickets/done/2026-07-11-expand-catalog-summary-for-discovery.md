@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-implement-catalog-media-enrichment.md
 
 ## Scope
 
-Add exact nullable `mass_g` and `habitat` fields to the modeled catalog summary query, strict FastAPI response, strict browser validator/types, fixtures, contracts, and tests under `.10x/specs/arizona-catalog-discovery-controls.md`.
+Add exact nullable `mass_g` and `habitat` fields to the modeled catalog summary query, strict FastAPI response, strict browser validator/types, fixtures, contracts, and tests under `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-discovery-controls.md`.
 
 ## Acceptance criteria
 

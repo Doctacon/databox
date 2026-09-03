@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-implement-request-time-recommendation-m
 
 ## Scope
 
-Implement `.10x/specs/recommendation-card-media-layout.md` against the stable persisted recommendation-centric media API.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-card-media-layout.md` against the stable persisted recommendation-centric media API.
 
 Required work:
 

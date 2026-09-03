@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-expand-catalog-summary-for-discovery.md
 
 ## Scope
 
-Implement all deterministic sorts, category/family/habitat/weight intersection filters, A–Z default, reset, paging/audio lifecycle, live count, empty/error, and responsive controls in `.10x/specs/arizona-catalog-discovery-controls.md`.
+Implement all deterministic sorts, category/family/habitat/weight intersection filters, A–Z default, reset, paging/audio lifecycle, live count, empty/error, and responsive controls in `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-discovery-controls.md`.
 
 ## Acceptance criteria
 

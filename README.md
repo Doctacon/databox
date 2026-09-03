@@ -79,10 +79,13 @@ After the initial dependency install, source tests replay recorded responses, so
 
 ### Build the local warehouse
 
-After `task install`, configure the Polaris client, AWS S3 bucket/writer,
+After `task install`, configure the Polaris client, AWS S3 bucket, temporary AWS
+writer credentials (access key, secret key, and session token),
 `EBIRD_API_TOKEN`, `NOAA_API_TOKEN`, and `XENO_CANTO_API_KEY` values documented
-in `.env.example`. Start the local catalog, bootstrap the pinned AVONET snapshot
-once, then refresh the routine sources:
+in `.env.example`. The configured `databox_lake` must already be provisioned with
+`s3://<bucket>/warehouse` and the bucket-scoped role before publication. Start
+the local catalog, bootstrap the pinned AVONET snapshot once, then refresh the
+routine sources:
 
 ```bash
 $EDITOR .env

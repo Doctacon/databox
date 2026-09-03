@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-10
 Updated: 2026-07-10
-Relates-To: .10x/tickets/done/2026-07-09-model-avonet-traits-and-arizona-catalog.md, .10x/specs/avonet-bird-traits-source.md, .10x/specs/arizona-bird-catalog-and-profile.md
+Relates-To: .10x/tickets/done/2026-07-09-model-avonet-traits-and-arizona-catalog.md, .10x/specs/avonet-bird-traits-source.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-catalog-and-profile.md
 
 # AVONET trait and Arizona catalog model evidence
 

@@ -8,7 +8,7 @@ Depends-On: None
 
 ## Scope
 
-Implement `.10x/specs/arizona-trip-location-resolution.md` across the local Python API, planner, and React form.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-trip-location-resolution.md` across the local Python API, planner, and React form.
 
 Required work:
 

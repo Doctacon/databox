@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-10
 Updated: 2026-07-10
-Relates-To: .10x/tickets/done/2026-07-10-implement-personal-bird-collection-storage-and-api.md, .10x/specs/personal-bird-collection.md
+Relates-To: .10x/tickets/done/2026-07-10-implement-personal-bird-collection-storage-and-api.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/personal-bird-collection.md
 
 # Personal bird collection storage and API
 

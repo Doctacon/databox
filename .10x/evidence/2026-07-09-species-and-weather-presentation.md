@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-improve-species-and-weather-presentation.md, .10x/specs/trip-plan-result-presentation.md
+Relates-To: .10x/tickets/done/2026-07-09-improve-species-and-weather-presentation.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-result-presentation.md
 
 # Species and weather presentation evidence
 

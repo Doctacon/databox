@@ -14,13 +14,13 @@ This parent is not executable directly.
 
 ## Governing records
 
-- `.10x/decisions/rufous-local-place-suggestions-and-feedback.md`
-- `.10x/decisions/rufous-local-hotspot-fallback-policy.md`
-- `.10x/specs/arizona-place-suggestions.md`
-- `.10x/specs/structured-observation-locations.md`
-- `.10x/specs/transient-success-feedback.md`
-- `.10x/specs/rufous-field-map-interaction-repair.md`
-- `.10x/specs/personal-bird-collection.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-local-place-suggestions-and-feedback.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-local-hotspot-fallback-policy.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-place-suggestions.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/structured-observation-locations.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/transient-success-feedback.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-field-map-interaction-repair.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/personal-bird-collection.md`
 - `.10x/research/2026-07-11-rufous-place-search-and-map-interaction.md`
 
 ## Child sequence

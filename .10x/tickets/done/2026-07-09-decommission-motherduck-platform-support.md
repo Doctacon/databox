@@ -52,7 +52,7 @@ Record:
 
 - 2026-07-09: Removed active MotherDuck runtime settings, SQLMesh/dlt/Dagster branches, Dive/preview artifacts, tests, commands, configuration, and documentation while preserving the local Quack/DuckDB path and historical records.
 - 2026-07-09: Validation passed: `task ci` (141 tests, 78.20% coverage), `uv lock --check`, strict MkDocs build, secret scan, targeted Ruff checks, and the active-versus-historical reference audit.
-- 2026-07-09: Runtime review passed. Initial closure review then found stale active Dive references in `.10x/specs/birding-trip-copilot.md` and missing settings regression coverage.
+- 2026-07-09: Runtime review passed. Initial closure review then found stale active Dive references in `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md` and missing settings regression coverage.
 - 2026-07-09: Repaired the active spec references and added `tests/test_settings.py`; `uv run pytest --no-cov -q tests/test_settings.py tests/test_source_registry.py tests/test_quack_destinations.py` passed all 18 focused tests.
 - 2026-07-09: Follow-up review inspected both fixes and returned a final verdict of pass.
 

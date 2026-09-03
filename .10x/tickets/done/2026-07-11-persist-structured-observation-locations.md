@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-add-local-hotspot-place-suggestions.md
 
 ## Scope
 
-Implement idempotent private schema migration, storage/service/API contracts, legacy preservation, and strict all-or-none validation from `.10x/specs/structured-observation-locations.md`.
+Implement idempotent private schema migration, storage/service/API contracts, legacy preservation, and strict all-or-none validation from `https://github.com/Doctacon/rufous/blob/main/.10x/specs/structured-observation-locations.md`.
 
 ## Acceptance criteria
 

@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-Pinned AVONET v7 download, parsing, dlt/Quack staging, atomic publication, source schema/ontology/docs, orchestration, and tests governed by `.10x/specs/avonet-bird-traits-source.md` and `.10x/decisions/avonet-atomic-staged-publication.md`.
+Pinned AVONET v7 download, parsing, dlt/Quack staging, atomic publication, source schema/ontology/docs, orchestration, and tests governed by `.10x/specs/avonet-bird-traits-source.md` and `.10x/decisions/superseded/avonet-atomic-staged-publication.md`.
 
 ## Findings
 

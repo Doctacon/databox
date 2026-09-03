@@ -14,23 +14,23 @@ This is a parent plan and is not executable directly.
 
 ## Governing records
 
-- `.10x/decisions/local-single-user-birding-pokedex-expansion.md`
-- `.10x/decisions/arizona-catalog-observation-and-watch-match-boundaries.md`
-- `.10x/decisions/watched-bird-alert-delivery-policy.md`
-- `.10x/decisions/proton-bridge-smtp-for-bird-alerts.md`
-- `.10x/decisions/avonet-atomic-staged-publication.md`
-- `.10x/decisions/personal-collection-and-target-planning-lifecycle.md`
-- `.10x/decisions/bird-alert-retry-and-event-lifecycle.md`
+- `https://github.com/Doctacon/databox/blob/572ca6191f598e323161cdadeec3898f10913d31/.10x/decisions/local-single-user-birding-pokedex-expansion.md`
+- `https://github.com/Doctacon/databox/blob/572ca6191f598e323161cdadeec3898f10913d31/.10x/decisions/arizona-catalog-observation-and-watch-match-boundaries.md`
+- `https://github.com/Doctacon/databox/blob/572ca6191f598e323161cdadeec3898f10913d31/.10x/decisions/watched-bird-alert-delivery-policy.md`
+- `https://github.com/Doctacon/databox/blob/572ca6191f598e323161cdadeec3898f10913d31/.10x/decisions/proton-bridge-smtp-for-bird-alerts.md`
+- `.10x/decisions/superseded/avonet-atomic-staged-publication.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/personal-collection-and-target-planning-lifecycle.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/bird-alert-retry-and-event-lifecycle.md`
 - `.10x/research/2026-07-09-local-birding-pokedex-watch-architecture.md`
 - `.10x/specs/avonet-bird-traits-source.md`
-- `.10x/specs/arizona-bird-catalog-and-profile.md`
-- `.10x/specs/personal-bird-collection.md`
-- `.10x/specs/target-bird-planning.md`
-- `.10x/specs/watched-bird-matching-and-reports.md`
-- `.10x/specs/bird-alert-calendar-and-smtp-delivery.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-catalog-and-profile.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/personal-bird-collection.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/target-bird-planning.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/watched-bird-matching-and-reports.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/bird-alert-calendar-and-smtp-delivery.md`
 - `.10x/specs/superseded/local-only-databox-platform.md`
-- `.10x/specs/local-birding-trip-copilot-app.md`
-- `.10x/specs/birding-agent-data-integrations.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-data-integrations.md`
 
 ## Planned specification and delivery sequence
 

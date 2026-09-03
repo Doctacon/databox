@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-integrate-cloudflare-ai-with-adk.md, .10x/specs/cloudflare-workers-ai-local-agent.md
+Relates-To: .10x/tickets/done/2026-07-09-integrate-cloudflare-ai-with-adk.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/cloudflare-workers-ai-local-agent.md
 
 # Cloudflare Workers AI ADK integration evidence
 
@@ -64,7 +64,7 @@ Result: passed.
 
 ## What this supports
 
-This evidence supports the implementation, allowlist, structured grounding, safe failure behavior, failure persistence semantics, offline fake-client/DeepEval behavior, documentation, and CI criteria in `.10x/specs/cloudflare-workers-ai-local-agent.md` and the owning ticket.
+This evidence supports the implementation, allowlist, structured grounding, safe failure behavior, failure persistence semantics, offline fake-client/DeepEval behavior, documentation, and CI criteria in `https://github.com/Doctacon/rufous/blob/main/.10x/specs/cloudflare-workers-ai-local-agent.md` and the owning ticket.
 
 ## Limits
 

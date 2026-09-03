@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-React implementation and evidence for `.10x/specs/recommendation-card-media-layout.md`.
+React implementation and evidence for `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-card-media-layout.md`.
 
 ## Findings
 

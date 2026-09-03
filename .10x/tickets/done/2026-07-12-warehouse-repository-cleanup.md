@@ -16,7 +16,7 @@ This is a parent plan, not an executable ticket.
 ## Governing context
 
 - `.10x/knowledge/warehouse-first-cleanup.md`
-- `.10x/knowledge/public-readme-details-on-demand.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/knowledge/public-readme-details-on-demand.md`
 - `.10x/decisions/python-source-registry-as-canonical-contract.md`
 - `.10x/specs/canonical-dlt-source-registry.md`
 - `.10x/specs/registry-derived-source-verification.md`

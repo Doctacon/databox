@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-implement-catalog-media-enrichment.md, .10x/specs/arizona-catalog-media.md
+Relates-To: .10x/tickets/done/2026-07-11-implement-catalog-media-enrichment.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md
 
 # Catalog media enrichment
 

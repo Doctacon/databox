@@ -51,7 +51,7 @@ and terminal `.10x` history were not rewritten.
 - `git diff --check` — passed.
 - Repository reference audit found only explicitly superseded/historical ADR
   index and ADR-body references outside terminal records and CHANGELOG. Stale
-  active Dive references in `.10x/specs/birding-trip-copilot.md` were repaired
+  active Dive references in `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md` were repaired
   to name the local React/API product before closure.
 - `git diff --cached --name-only` — empty; no files were staged.
 

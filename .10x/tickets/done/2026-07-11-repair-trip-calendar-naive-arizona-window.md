@@ -10,7 +10,7 @@ Depends-On: None
 
 A real plan created through `POST /api/trip-plans` persists browser-local `window_start` and `window_end` values without offsets, as required by the existing local datetime input contract. Confirmed calendar send for `trip_eaacd4a497e94cea883338744dace56f` returned `409 invalid_plan` before queueing or SMTP because `databox.trip_plan_calendar._parse_arizona_time` requires an explicit `-07:00` offset. The calendar fixture instead seeds offset-aware windows, so verification did not exercise the production persistence contract.
 
-Governing records: `.10x/specs/trip-plan-calendar-invitations.md`, `.10x/decisions/trip-plan-calendar-invitation-lifecycle.md`, and `.10x/specs/local-birding-trip-copilot-app.md`.
+Governing records: `https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-calendar-invitations.md`, `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/trip-plan-calendar-invitation-lifecycle.md`, and `https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md`.
 
 ## Scope
 

@@ -17,7 +17,7 @@ Resolve the two remaining closure blockers and one evidence-order gap:
 ## Governing records
 
 - `.10x/specs/superseded/local-source-refresh-control.md`
-- `.10x/decisions/rufous-wheel-map-preview-and-source-refresh.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-wheel-map-preview-and-source-refresh.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-post-edge-architecture-review.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-post-edge-correctness-review.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-post-edge-privacy-security-source-review.md`

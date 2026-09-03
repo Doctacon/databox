@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-auto-dismiss-rufous-success-messages.md, .10x/specs/transient-success-feedback.md
+Relates-To: .10x/tickets/done/2026-07-11-auto-dismiss-rufous-success-messages.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/transient-success-feedback.md
 
 # Transient success feedback verification
 

@@ -27,7 +27,7 @@ Field Map currently reuses species-keyed catalog photo objects rather than obser
 
 Only validated metadata and bounded provider image URLs may be persisted or exposed. Unknown identity, unsupported licensing, incomplete required attribution, unsafe URLs, or insufficient quality must fail closed. Exact taxonomy drift must remain unavailable unless a separately governed crosswalk is approved.
 
-This decision supersedes only the following photo-specific portions of `.10x/decisions/request-time-recommendation-media-enrichment.md` and `.10x/decisions/catalog-media-and-watch-only-collection.md`:
+This decision supersedes only the following photo-specific portions of `https://github.com/Doctacon/databox/blob/572ca6191f598e323161cdadeec3898f10913d31/.10x/decisions/request-time-recommendation-media-enrichment.md` and `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/catalog-media-and-watch-only-collection.md`:
 
 - GBIF as the first representative catalog-photo source;
 - Arizona occurrence provenance as a requirement for representative catalog/profile photos.

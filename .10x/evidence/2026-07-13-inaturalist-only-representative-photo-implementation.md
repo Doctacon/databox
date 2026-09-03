@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-13
 Updated: 2026-07-13
-Relates-To: `.10x/tickets/done/2026-07-13-implement-inaturalist-only-representative-photos.md`, `.10x/specs/curated-inaturalist-representative-bird-photos.md`
+Relates-To: `.10x/tickets/done/2026-07-13-implement-inaturalist-only-representative-photos.md`, `https://github.com/Doctacon/rufous/blob/main/.10x/specs/curated-inaturalist-representative-bird-photos.md`
 
 # iNaturalist-only representative-photo implementation evidence
 

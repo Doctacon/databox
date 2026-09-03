@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-compact-and-paginate-trip-plan-results.md, .10x/specs/recommendation-card-media-layout.md
+Relates-To: .10x/tickets/done/2026-07-09-compact-and-paginate-trip-plan-results.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-card-media-layout.md
 
 # Trip-plan result pagination
 

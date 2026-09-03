@@ -1,14 +1,14 @@
 Status: recorded
 Created: 2026-08-31
 Updated: 2026-08-31
-Target: .10x/tickets/2026-08-31-organize-root-tests-and-scripts-by-domain.md
+Target: .10x/tickets/done/2026-08-31-organize-root-tests-and-scripts-by-domain.md
 Verdict: pass
 
 # Root test/script domain reorganization final review
 
 ## Target
 
-Final repaired working tree for `.10x/tickets/2026-08-31-organize-root-tests-and-scripts-by-domain.md`, including resolution of the separately owned default-suite and USFWS source-contract blockers.
+Final repaired working tree for `.10x/tickets/done/2026-08-31-organize-root-tests-and-scripts-by-domain.md`, including resolution of the separately owned default-suite and USFWS source-contract blockers.
 
 ## Reviewer provenance
 

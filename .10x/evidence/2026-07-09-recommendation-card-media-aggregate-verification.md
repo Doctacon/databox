@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-verify-recommendation-card-media.md, .10x/tickets/done/2026-07-09-add-recommendation-card-photos-and-calls.md, .10x/specs/recommendation-media-enrichment.md, .10x/specs/recommendation-card-media-layout.md
+Relates-To: .10x/tickets/done/2026-07-09-verify-recommendation-card-media.md, .10x/tickets/done/2026-07-09-add-recommendation-card-photos-and-calls.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-media-enrichment.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-card-media-layout.md
 
 # Recommendation-card media aggregate verification
 

@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-fix-bird-profile-information-layout.md, .10x/specs/bird-profile-information-layout.md
+Relates-To: .10x/tickets/done/2026-07-11-fix-bird-profile-information-layout.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/bird-profile-information-layout.md
 
 # Bird profile information layout evidence
 

@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-12
 Updated: 2026-07-12
-Relates-To: .10x/tickets/done/2026-07-11-implement-curated-photo-selector.md, .10x/specs/superseded/curated-representative-bird-photos.md, .10x/decisions/inaturalist-curated-photo-api-split.md
+Relates-To: .10x/tickets/done/2026-07-11-implement-curated-photo-selector.md, .10x/specs/superseded/curated-representative-bird-photos.md, https://github.com/Doctacon/rufous/blob/main/.10x/decisions/inaturalist-curated-photo-api-split.md
 
 # Curated representative-photo selector implementation
 

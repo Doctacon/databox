@@ -16,11 +16,11 @@ Closure readiness of the local-only product graph against:
 - `.10x/decisions/superseded/local-only-birding-product-architecture.md`,
 - `.10x/specs/superseded/local-only-databox-platform.md`,
 - `.10x/specs/superseded/parallel-quack-local-refresh.md`,
-- `.10x/specs/cloudflare-workers-ai-local-agent.md`,
-- `.10x/specs/local-birding-trip-copilot-app.md`,
-- `.10x/specs/birding-trip-copilot.md`,
-- `.10x/specs/birding-agent-data-integrations.md`,
-- `.10x/specs/birding-agent-evaluations.md`,
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/cloudflare-workers-ai-local-agent.md`,
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md`,
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md`,
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-data-integrations.md`,
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-evaluations.md`,
 - `.10x/evidence/2026-07-09-local-birding-product-aggregate-verification.md`.
 
 ## Assumptions tested

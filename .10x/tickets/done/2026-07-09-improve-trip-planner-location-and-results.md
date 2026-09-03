@@ -14,11 +14,11 @@ This is a parent plan and is not executable directly.
 
 ## Governing specifications
 
-- `.10x/specs/arizona-trip-location-resolution.md`
-- `.10x/specs/trip-plan-result-presentation.md`
-- `.10x/specs/xeno-canto-inline-audio.md`
-- `.10x/specs/local-birding-trip-copilot-app.md`
-- `.10x/specs/birding-trip-copilot.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-trip-location-resolution.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-result-presentation.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/xeno-canto-inline-audio.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md`
 
 ## Child sequence
 

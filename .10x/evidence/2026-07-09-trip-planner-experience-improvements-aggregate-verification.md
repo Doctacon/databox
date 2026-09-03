@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-verify-trip-planner-experience-improvements.md, .10x/tickets/done/2026-07-09-improve-trip-planner-location-and-results.md, .10x/specs/arizona-trip-location-resolution.md, .10x/specs/trip-plan-result-presentation.md, .10x/specs/xeno-canto-inline-audio.md
+Relates-To: .10x/tickets/done/2026-07-09-verify-trip-planner-experience-improvements.md, .10x/tickets/done/2026-07-09-improve-trip-planner-location-and-results.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-trip-location-resolution.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-result-presentation.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/xeno-canto-inline-audio.md
 
 # Trip Planner experience improvements aggregate verification
 

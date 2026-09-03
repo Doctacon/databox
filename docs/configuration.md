@@ -17,7 +17,7 @@ code imports it rather than redeclaring values.
 | S3 bucket | `DATABOX_AWS_S3_BUCKET` | `settings.aws_s3_bucket` | Iceberg warehouse bucket |
 | AWS writer key | `DATABOX_AWS_ACCESS_KEY_ID` | `settings.aws_access_key_id` | Secret; scoped S3 writer |
 | AWS writer secret | `DATABOX_AWS_SECRET_ACCESS_KEY` | `settings.aws_secret_access_key` | Secret |
-| AWS session token | `DATABOX_AWS_SESSION_TOKEN` | `settings.aws_session_token` | Optional for the dlt destination; required with temporary OIDC/STS credentials |
+| AWS session token | `DATABOX_AWS_SESSION_TOKEN` | `settings.aws_session_token` | Required by the current Compose stack and with temporary OIDC/STS credentials; the direct dlt destination accepts long-lived keys without it |
 | AWS region | `DATABOX_AWS_REGION` | `settings.aws_region` | Default `us-west-1` |
 | Log level | `LOG_LEVEL` | `settings.log_level` | Default `INFO` |
 | Smoke mode | `DATABOX_SMOKE` | `settings.smoke` | Limits source rows for verification |

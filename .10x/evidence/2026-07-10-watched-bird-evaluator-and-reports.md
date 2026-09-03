@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-10
 Updated: 2026-07-10
-Relates-To: .10x/tickets/done/2026-07-10-implement-watched-bird-evaluator-and-reports.md, .10x/specs/watched-bird-matching-and-reports.md
+Relates-To: .10x/tickets/done/2026-07-10-implement-watched-bird-evaluator-and-reports.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/watched-bird-matching-and-reports.md
 
 # Watched-bird evaluator and deterministic reports
 

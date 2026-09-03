@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-Backfill implementation, live mutation evidence, and final warehouse state governed by `.10x/specs/recommendation-media-enrichment.md`.
+Backfill implementation, live mutation evidence, and final warehouse state governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-media-enrichment.md`.
 
 ## Findings
 

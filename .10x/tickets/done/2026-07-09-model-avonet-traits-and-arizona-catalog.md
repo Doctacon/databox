@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-add-avonet-bird-traits-source.md
 
 ## Scope
 
-Implement the SQLMesh and warehouse interfaces governed by `.10x/specs/avonet-bird-traits-source.md` and `.10x/specs/arizona-bird-catalog-and-profile.md`:
+Implement the SQLMesh and warehouse interfaces governed by `.10x/specs/avonet-bird-traits-source.md` and `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-catalog-and-profile.md`:
 
 - `environmental_observations.dim_bird_species_traits`,
 - `birding_agent.arizona_species_catalog`,

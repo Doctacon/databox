@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-add-local-hotspot-place-suggestions.md, .10x/specs/arizona-place-suggestions.md, .10x/decisions/rufous-local-hotspot-fallback-policy.md
+Relates-To: .10x/tickets/done/2026-07-11-add-local-hotspot-place-suggestions.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-place-suggestions.md, https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-local-hotspot-fallback-policy.md
 
 # Local hotspot place suggestions verification
 

@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-10-build-my-birds-and-profile-controls.md
 
 ## Scope
 
-Remove wishlist runtime table/state, API endpoints, combined collection field, browser client/types/tests, profile control, and My Birds section under `.10x/specs/personal-bird-collection.md`. Add an explicit idempotent migration that records aggregate preconditions/counts, deletes any stale wishlist rows/table, and never creates watches.
+Remove wishlist runtime table/state, API endpoints, combined collection field, browser client/types/tests, profile control, and My Birds section under `https://github.com/Doctacon/rufous/blob/main/.10x/specs/personal-bird-collection.md`. Add an explicit idempotent migration that records aggregate preconditions/counts, deletes any stale wishlist rows/table, and never creates watches.
 
 ## Acceptance criteria
 

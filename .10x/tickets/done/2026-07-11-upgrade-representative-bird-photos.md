@@ -12,15 +12,15 @@ Replace arbitrary occurrence photos and the superseded Wikimedia dependency with
 
 ## Governing records
 
-- `.10x/decisions/curated-inaturalist-only-representative-photos.md`
-- `.10x/decisions/inaturalist-curated-photo-api-split.md`
-- `.10x/specs/curated-inaturalist-representative-bird-photos.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/curated-inaturalist-only-representative-photos.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/inaturalist-curated-photo-api-split.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/curated-inaturalist-representative-bird-photos.md`
 - `.10x/decisions/superseded/globally-curated-catalog-bird-photos.md` (history)
 - `.10x/specs/superseded/curated-representative-bird-photos.md` (history)
 - `.10x/research/2026-07-11-bird-photo-source-quality.md`
-- `.10x/specs/arizona-catalog-media.md`
-- `.10x/specs/recommendation-media-enrichment.md`
-- `.10x/specs/field-map-encounter-photo-preview.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-media-enrichment.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/field-map-encounter-photo-preview.md`
 
 ## Child plan
 
@@ -64,7 +64,7 @@ No call-media changes, encounter-evidence changes, Macaulay, proprietary source,
 - 2026-07-13: iNaturalist-only implementation child closed with 776 Python and 295 frontend tests plus all static/build/security gates passing. Evidence: `.10x/evidence/2026-07-13-inaturalist-only-representative-photo-implementation.md`. Serialized migration is the remaining implementation child before aggregate verification.
 - 2026-07-13: Exactly-once serialized migration child closed with 706/706 strict catalog results (622 available/84 placeholders), eight/eight saved-plan photos available, zero calls inserted, all protected state unchanged, and all gates passing. Evidence: `.10x/evidence/2026-07-13-inaturalist-only-representative-photo-migration.md`. Aggregate verification is active.
 - 2026-07-13: Final operational hardening and campaign reconciliation closed all review findings. The authoritative run owns all 706 rows with 624 lookups, 1,248 requests, and reconciled outcomes; eight planner singletons remain valid; all protected fingerprints and repository-visible durable artifacts validate. Architecture, correctness, privacy/security/source, and UX/accessibility final reviews pass. Parent closure review: `.10x/reviews/2026-07-13-inaturalist-only-representative-photo-parent-closure-review.md`.
-- 2026-07-13: Retrospective learning preserved in `.10x/knowledge/curated-photo-operation-invariants.md`; remote-provider/physical-browser/assistive-technology limits have recorded no-action rationale. Parent closed.
+- 2026-07-13: Retrospective learning preserved in `https://github.com/Doctacon/rufous/blob/main/.10x/knowledge/curated-photo-operation-invariants.md`; remote-provider/physical-browser/assistive-technology limits have recorded no-action rationale. Parent closed.
 
 ## Blockers
 

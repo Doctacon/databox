@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-10
 Updated: 2026-07-10
-Relates-To: .10x/tickets/done/2026-07-10-implement-target-bird-planning.md, .10x/specs/target-bird-planning.md
+Relates-To: .10x/tickets/done/2026-07-10-implement-target-bird-planning.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/target-bird-planning.md
 
 # Target-bird planning implementation
 

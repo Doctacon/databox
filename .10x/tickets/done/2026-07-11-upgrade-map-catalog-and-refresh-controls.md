@@ -12,9 +12,9 @@ Deliver three independent Rufous improvements: photo-backed encounter previews, 
 
 ## Governing records
 
-- `.10x/decisions/rufous-wheel-map-preview-and-source-refresh.md`
-- `.10x/specs/field-map-encounter-photo-preview.md`
-- `.10x/specs/arizona-bird-wheel-catalog.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-wheel-map-preview-and-source-refresh.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/field-map-encounter-photo-preview.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-wheel-catalog.md`
 - `.10x/specs/superseded/local-source-refresh-control.md`
 
 ## Child plan

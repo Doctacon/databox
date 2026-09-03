@@ -32,7 +32,7 @@ Record schema/run examples with safe counts, isolated cross-process/restart budg
 
 ## References
 
-- `.10x/specs/curated-inaturalist-representative-bird-photos.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/curated-inaturalist-representative-bird-photos.md`
 - `.10x/reviews/2026-07-13-inaturalist-only-final-architecture-review.md`
 - `.10x/reviews/2026-07-13-inaturalist-only-final-privacy-security-source-review.md`
 

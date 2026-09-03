@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-Implementation and evidence for `.10x/specs/recommendation-media-enrichment.md`.
+Implementation and evidence for `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-media-enrichment.md`.
 
 ## Findings
 

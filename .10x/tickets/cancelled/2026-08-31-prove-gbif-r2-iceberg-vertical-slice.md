@@ -17,13 +17,13 @@ This is a parent plan, not an executable implementation ticket.
 - `.10x/decisions/superseded/local-rufous-polaris-r2-iceberg-architecture.md`
 - `.10x/specs/superseded/local-iceberg-databox-r2-platform.md`
 - `.10x/specs/superseded/gbif-r2-iceberg-vertical-slice.md`
-- `.10x/research/2026-08-31-polaris-r2-iceberg-compatibility.md`
+- `.10x/tickets/cancelled/2026-08-31-prove-gbif-r2-iceberg-vertical-slice.md`
 - `.10x/specs/superseded/parallel-quack-local-refresh.md`
 - `.10x/specs/canonical-dlt-source-registry.md`
 
 ## Plan and sequence
 
-1. Execute `.10x/tickets/2026-08-31-prove-polaris-r2-client-compatibility.md`.
+1. Execute the retired Polaris/R2 client-compatibility child.
 2. If the compatibility spike passes, use its exact versions and configuration evidence to open bounded implementation tickets for:
    - pinned Compose infrastructure and durable Polaris/PostgreSQL bootstrap;
    - parallel GBIF dlt/PyIceberg destination wiring;
@@ -88,13 +88,13 @@ The post-spike tickets are intentionally not executable yet: exact released vers
 - 2026-09-01: User simplified R2 authentication to one shared bucket-scoped lake credential pair for PyIceberg and DuckDB; the compatibility child was reactivated to align the harness and attempt the bounded live proof.
 - 2026-08-31: The compatibility harness and all credential-independent validation completed. Reviewer-requested repairs now separate the sole mutating fresh proof from exact read-only restart verification; fail closed on mismatched catalog, namespace, table placement, schema, metadata, snapshot, or row digest; validate a newly created table before append; suppress third-party exception text; and require exact key/value semantics plus an observed DuckDB snapshot transition across fresh clients.
 - 2026-09-01: Shared lake credentials and Docker became available. Presence-only preflight and Compose health passed, but the sole permitted `fresh-proof` attempt failed closed with sanitized `stage=fresh-proof error=VerificationError`. It was not retried, `restart-verify` was not run, normal shutdown preserved the PostgreSQL volume, and no downstream implementation ticket is runnable.
-- 2026-09-01: `.10x/tickets/2026-09-01-diagnose-failed-polaris-r2-proof.md` owns the separately scoped read-only diagnostic/recovery investigation.
+- 2026-09-01: A separately scoped read-only diagnostic/recovery investigation was opened after the failed proof.
 - 2026-09-01: Independent review approved one exact read-only diagnostic invocation. It failed at presence-only preflight because the now-rejected redundant confirmation input was missing and stopped before any volume, Compose, Polaris, or R2 access. No preserved-state finding or new-identity proof recommendation is supported.
 - 2026-09-01: User ratified `DATABOX_ICEBERG_VALIDATION_ID=validation-ticket-20260831` as the sole validation identity. The diagnostic repair retains exact fail-closed scope with that one value.
 - 2026-09-01: After independent approval, the exact diagnostic runner was invoked once. Preflight and preserved-volume checks passed, but no-dependency Compose creation failed with sanitized `diagnostic-compose-create/CreateFailed`. Trapped stop/down completed without `-v` and post-down volume verification passed. No services or Polaris/R2 diagnostic started, so no preserved catalog/R2 structural conclusion or new-identity proof recommendation is supported.
 - 2026-09-01: The Compose option mismatch was repaired and independently approved for one guarded invocation. Preparation, exact postgres/polaris-only service scope, distinct IDs, and stopped-state guards passed, but the PostgreSQL mount failed the reviewed exact tuple guard with sanitized `diagnostic-postgres-mount/UnexpectedMount` before start. Trapped cleanup completed without `-v` and preserved the volume. No Polaris/R2 finding or conditional new-identity proof is supported.
 - 2026-09-01: The mount guard was repaired and independently approved. The next exact diagnostic runner invocation was executed once and reached read-only catalog validation. It failed with sanitized `diagnostic-catalog-storage/VerificationError`, exit `1`; cleanup completed without `ShutdownFailed` or `VolumeMissing`. This supports exact catalog presence, identity, and base location, but not exact storage validity, R2 prefix presence/count, namespace, table, metadata, or snapshot state. No retry or subsequent infrastructure mutation occurred.
-- 2026-09-01: `.10x/tickets/2026-09-01-localize-polaris-catalog-storage-mismatch.md` now owns an offline-implemented, field-name-only localizer and a source-backed three-variant ladder. Polaris 1.7 normalization is classified separately from immutable bucket/prefix, endpoint-host, no-role/STS, and catalog-authority boundaries.
+- 2026-09-01: A field-name-only storage-mismatch localizer then owned the source-backed three-variant ladder. Polaris 1.7 normalization is classified separately from immutable bucket/prefix, endpoint-host, no-role/STS, and catalog-authority boundaries.
 - 2026-09-01: After independent approval, the exact preserved-identity localizer was invoked once and exited `0`. Its only mismatch records were `allowedKmsKeys/server-default/harmless` and `allowedLocations/server-default/harmless`; cleanup completed without `ShutdownFailed` or `VolumeMissing`. No retry or mutation occurred.
 - 2026-09-01: Before any Variant A work, the existing full diagnostic's storage verifier was narrowed to accept only those exact safe server-default shapes and reject every other unknown field, while preserving exact authority/storage guards. Offline focused/full gates passed.
 - 2026-09-01: After independent approval, one full preserved-identity diagnostic exited `0`. The exact catalog and storage are valid; the bounded R2 prefix has zero objects; namespace, table, definition, and snapshot are absent. Cleanup and volume verification passed without fixed errors. No retry or mutation occurred.
@@ -104,6 +104,6 @@ The post-spike tickets are intentionally not executable yet: exact released vers
 
 ## Blockers
 
-- Post-spike implementation decomposition is blocked on `.10x/tickets/2026-08-31-prove-polaris-r2-client-compatibility.md`.
+- Post-spike implementation decomposition was blocked on the retired Polaris/R2 client-compatibility child.
 - Live cross-client compatibility remains unproven.
 - Stop the ladder. A separately reviewed read-only Variant A outcome localizer is required before any next decision. Restart verification, retry, Variant B/C, deletion, and ad hoc inspection are unauthorized.

@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-repair-trip-planner-ebird-evidence-priv
 
 ## Scope
 
-Implement the strict read-only observation snapshot API and bounded official Census-derived Arizona state/county GeoJSON artifact governed by `.10x/specs/rufous-field-map.md`.
+Implement the strict read-only observation snapshot API and bounded official Census-derived Arizona state/county GeoJSON artifact governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-field-map.md`.
 
 ## Acceptance criteria
 

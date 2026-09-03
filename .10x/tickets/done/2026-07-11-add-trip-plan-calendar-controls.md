@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-implement-trip-plan-calendar-invitation
 
 ## Scope
 
-Add strict browser status/allowed-action validation and explicit Send/Update/Retry/Reconcile calendar controls to persisted Trip Planner results under `.10x/specs/trip-plan-calendar-invitations.md`.
+Add strict browser status/allowed-action validation and explicit Send/Update/Retry/Reconcile calendar controls to persisted Trip Planner results under `https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-calendar-invitations.md`.
 
 ## Acceptance criteria
 

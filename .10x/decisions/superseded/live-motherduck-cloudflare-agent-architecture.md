@@ -19,7 +19,7 @@ The completed local Birding Trip Copilot MVP uses local Quack-backed DuckDB, SQL
 This conflicts with two prior constraints:
 
 - `<workspace-parent>/CLAUDE.md` says to always choose open source over proprietary/managed solutions unless explicitly documented.
-- `.10x/specs/birding-trip-copilot.md` says the MVP uses Python with Google ADK and `.10x/specs/superseded/birding-trip-plan-dive.md` says the Dive is not itself the agent runtime.
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md` says the MVP uses Python with Google ADK and `.10x/specs/superseded/birding-trip-plan-dive.md` says the Dive is not itself the agent runtime.
 
 The user explicitly ratified these choices for this workstream:
 

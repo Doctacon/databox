@@ -32,7 +32,7 @@ Record exact repair command, target/request/outcome counts, run ownership query,
 
 ## References
 
-- `.10x/specs/curated-inaturalist-representative-bird-photos.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/curated-inaturalist-representative-bird-photos.md`
 - `.10x/evidence/2026-07-13-inaturalist-only-representative-photo-migration.md`
 - `.10x/reviews/2026-07-13-inaturalist-only-final-correctness-review.md`
 - `.10x/reviews/2026-07-13-inaturalist-only-final-privacy-security-source-review.md`

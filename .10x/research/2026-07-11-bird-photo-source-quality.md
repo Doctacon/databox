@@ -12,8 +12,8 @@ Which open/public photo source and selection strategy should Rufous use when the
 
 - `packages/databox/databox/agent_tools/recommendation_media.py`
 - `packages/databox/databox/catalog_media.py`
-- `.10x/specs/arizona-catalog-media.md`
-- `.10x/decisions/request-time-recommendation-media-enrichment.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md`
+- `https://github.com/Doctacon/databox/blob/572ca6191f598e323161cdadeec3898f10913d31/.10x/decisions/request-time-recommendation-media-enrichment.md`
 - `.10x/research/2026-07-09-recommendation-card-media-enrichment.md`
 - Runtime table `birding_catalog_media.results` in `data/databox.duckdb`, opened read-only.
 

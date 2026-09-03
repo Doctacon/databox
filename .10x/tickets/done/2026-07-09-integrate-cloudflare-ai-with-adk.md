@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-implement-shared-quack-parallel-refresh
 
 ## Scope
 
-Implement `.10x/specs/cloudflare-workers-ai-local-agent.md` in the existing Python/Google ADK Birding Trip Copilot.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/cloudflare-workers-ai-local-agent.md` in the existing Python/Google ADK Birding Trip Copilot.
 
 Required work:
 

@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-The read-only FastAPI and React implementation governed by `.10x/specs/arizona-bird-catalog-and-profile.md`, including review repairs and the user-ratified removal of unavailable global-range metrics from the profile contract.
+The read-only FastAPI and React implementation governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-catalog-and-profile.md`, including review repairs and the user-ratified removal of unavailable global-range metrics from the profile contract.
 
 ## Findings
 

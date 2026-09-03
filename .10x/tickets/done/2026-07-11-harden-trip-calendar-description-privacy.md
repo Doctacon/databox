@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-implement-trip-plan-calendar-invitation
 
 ## Scope
 
-Repair the aggregate privacy-review blocker in trip calendar canonicalization. Before any event/outbox mutation, fail closed when persisted field-plan or caveat text contains recipient/email, credential/token/secret-like material, media or arbitrary URLs, private coordinate pairs, or other prohibited payload named by `.10x/specs/trip-plan-calendar-invitations.md`. Preserve the bounded intended prose/target/weather/local caveat contract and RFC escaping.
+Repair the aggregate privacy-review blocker in trip calendar canonicalization. Before any event/outbox mutation, fail closed when persisted field-plan or caveat text contains recipient/email, credential/token/secret-like material, media or arbitrary URLs, private coordinate pairs, or other prohibited payload named by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-calendar-invitations.md`. Preserve the bounded intended prose/target/weather/local caveat contract and RFC escaping.
 
 ## Acceptance criteria
 

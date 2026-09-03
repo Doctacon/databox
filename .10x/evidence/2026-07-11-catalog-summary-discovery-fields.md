@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-expand-catalog-summary-for-discovery.md, .10x/specs/arizona-catalog-discovery-controls.md
+Relates-To: .10x/tickets/done/2026-07-11-expand-catalog-summary-for-discovery.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-discovery-controls.md
 
 # Catalog summary discovery fields
 

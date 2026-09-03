@@ -2,7 +2,7 @@ Status: done
 Created: 2026-07-08
 Updated: 2026-07-09
 Parent: .10x/tickets/done/2026-07-08-build-birding-trip-copilot.md
-Depends-On: .10x/tickets/2026-07-08-implement-adk-trip-planner-persistence.md
+Depends-On: .10x/tickets/done/2026-07-08-implement-adk-trip-planner-persistence.md
 
 # Build trip-plan MotherDuck Dive
 

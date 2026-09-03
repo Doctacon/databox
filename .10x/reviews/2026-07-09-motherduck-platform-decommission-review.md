@@ -12,7 +12,7 @@ The MotherDuck/Dive decommission implementation and closure records against:
 
 - `.10x/tickets/done/2026-07-09-decommission-motherduck-platform-support.md`
 - `.10x/specs/superseded/local-only-databox-platform.md`
-- `.10x/specs/birding-trip-copilot.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md`
 - `.10x/evidence/2026-07-09-motherduck-platform-decommission.md`
 
 ## Findings
@@ -33,7 +33,7 @@ No runtime blocker was found.
 
 Initial closure review found two blockers:
 
-1. The active `.10x/specs/birding-trip-copilot.md` still referred to a MotherDuck Dive, so active specification language conflicted with the local-only decommission.
+1. The active `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md` still referred to a MotherDuck Dive, so active specification language conflicted with the local-only decommission.
 2. The focused regression suite did not directly test the local-only settings contract.
 
 Both were fixed:

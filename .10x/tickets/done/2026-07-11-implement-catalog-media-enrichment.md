@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-build-arizona-bird-catalog-and-profile.
 
 ## Scope
 
-Implement runtime catalog-media tables, explicit inspect/apply/refresh batch lifecycle, existing-selector reuse, checkpoints/resume/idempotency, and typed list/detail API media objects governed by `.10x/specs/arizona-catalog-media.md`.
+Implement runtime catalog-media tables, explicit inspect/apply/refresh batch lifecycle, existing-selector reuse, checkpoints/resume/idempotency, and typed list/detail API media objects governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md`.
 
 ## Acceptance criteria
 

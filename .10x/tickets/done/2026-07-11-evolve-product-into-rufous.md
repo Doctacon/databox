@@ -14,14 +14,14 @@ This is a parent plan and is not executable directly.
 
 ## Governing records
 
-- `.10x/decisions/rufous-product-identity-and-retro-visual-direction.md`
-- `.10x/decisions/catalog-media-and-watch-only-collection.md`
-- `.10x/decisions/watch-only-collection-supersession-scope.md`
-- `.10x/decisions/trip-plan-calendar-invitation-lifecycle.md`
-- `.10x/specs/arizona-catalog-media.md`
-- `.10x/specs/personal-bird-collection.md`
-- `.10x/specs/trip-plan-calendar-invitations.md`
-- `.10x/specs/rufous-product-shell.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-product-identity-and-retro-visual-direction.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/catalog-media-and-watch-only-collection.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/watch-only-collection-supersession-scope.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/trip-plan-calendar-invitation-lifecycle.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/personal-bird-collection.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-calendar-invitations.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-product-shell.md`
 - Existing media, catalog, planner, calendar/outbox, SMTP, privacy, and accessibility contracts remain active.
 
 ## Delivery sequence

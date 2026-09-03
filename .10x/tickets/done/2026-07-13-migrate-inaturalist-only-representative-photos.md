@@ -32,8 +32,8 @@ Record exact commands, request/provider/status/failure counts, checkpoints, befo
 
 ## References
 
-- `.10x/decisions/curated-inaturalist-only-representative-photos.md`
-- `.10x/specs/curated-inaturalist-representative-bird-photos.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/curated-inaturalist-only-representative-photos.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/curated-inaturalist-representative-bird-photos.md`
 - `.10x/tickets/done/2026-07-13-implement-inaturalist-only-representative-photos.md`
 - `.10x/evidence/2026-07-13-curated-selector-wdqs-retry-blocker.md`
 

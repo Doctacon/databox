@@ -8,7 +8,7 @@ Depends-On: None
 
 ## Scope
 
-Implement one shared 3,000-ms success-status hook/helper and migrate every user-visible Rufous success banner under `.10x/specs/transient-success-feedback.md`.
+Implement one shared 3,000-ms success-status hook/helper and migrate every user-visible Rufous success banner under `https://github.com/Doctacon/rufous/blob/main/.10x/specs/transient-success-feedback.md`.
 
 ## Acceptance criteria
 

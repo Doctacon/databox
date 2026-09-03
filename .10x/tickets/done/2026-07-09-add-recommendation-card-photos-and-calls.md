@@ -14,13 +14,13 @@ This is a parent plan and is not executable directly.
 
 ## Governing records
 
-- `.10x/decisions/request-time-recommendation-media-enrichment.md`
+- `https://github.com/Doctacon/databox/blob/572ca6191f598e323161cdadeec3898f10913d31/.10x/decisions/request-time-recommendation-media-enrichment.md`
 - `.10x/research/2026-07-09-recommendation-card-media-enrichment.md`
-- `.10x/specs/recommendation-media-enrichment.md`
-- `.10x/specs/recommendation-card-media-layout.md`
-- `.10x/specs/xeno-canto-inline-audio.md`
-- `.10x/specs/birding-agent-data-integrations.md`
-- `.10x/specs/local-birding-trip-copilot-app.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-media-enrichment.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-card-media-layout.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/xeno-canto-inline-audio.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-data-integrations.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md`
 
 ## Child sequence
 

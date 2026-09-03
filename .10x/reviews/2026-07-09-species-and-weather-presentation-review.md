@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-Implementation and evidence for `.10x/specs/trip-plan-result-presentation.md`.
+Implementation and evidence for `https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-result-presentation.md`.
 
 ## Findings
 

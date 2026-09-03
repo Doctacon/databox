@@ -21,8 +21,11 @@ time. Raw data lives in S3-backed Iceberg tables registered by Polaris;
 `data/databox.duckdb` contains the local SQLMesh schemas such as
 `environmental_observations` and `analytics`.
 
-Before refreshing, start `compose.iceberg.yml` and configure the Polaris client,
-AWS region, S3 bucket, and AWS writer credentials documented in `.env.example`.
+Before refreshing, configure the Polaris client, AWS region, S3 bucket, and
+temporary AWS writer credentials documented in `.env.example`, including the
+session token required by the current Compose stack. `databox_lake` must already
+be provisioned with `s3://<bucket>/warehouse` as its base location and the
+bucket-scoped IAM role, then start `compose.iceberg.yml`.
 
 Static pinned AVONET is deliberately excluded from routine refresh. Run its
 independent `avonet_ingest` Dagster job explicitly when a validated

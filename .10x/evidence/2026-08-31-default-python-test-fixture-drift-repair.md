@@ -73,7 +73,7 @@ This supports every acceptance criterion in `.10x/tickets/done/2026-08-31-repair
 - the complete default network-blocked Python suite is green;
 - no live provider call or production data mutation occurred.
 
-It also upgrades acceptance criterion 5 of `.10x/tickets/2026-08-31-organize-root-tests-and-scripts-by-domain.md` from the previously recorded red baseline to a complete green default-suite result.
+It also upgrades acceptance criterion 5 of `.10x/tickets/done/2026-08-31-organize-root-tests-and-scripts-by-domain.md` from the previously recorded red baseline to a complete green default-suite result.
 
 ## Limits
 

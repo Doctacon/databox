@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-12
 Updated: 2026-07-12
-Relates-To: `.10x/tickets/2026-07-11-migrate-catalog-and-map-curated-photos.md`, `.10x/specs/superseded/curated-representative-bird-photos.md`
+Relates-To: `.10x/tickets/done/2026-07-11-migrate-catalog-and-map-curated-photos.md`, `.10x/specs/superseded/curated-representative-bird-photos.md`
 
 # Catalog photo resume root cause and focused repair
 

@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-10-implement-personal-bird-collection-stor
 
 ## Scope
 
-Implement runtime evaluator state, post-successful-full-refresh orchestration seam, exact eBird candidate matching, clustering/ranking, freshness-first morning selection, deterministic report, optional strict GLM 5.2 enrichment, event intent, and safe read API governed by `.10x/specs/watched-bird-matching-and-reports.md`.
+Implement runtime evaluator state, post-successful-full-refresh orchestration seam, exact eBird candidate matching, clustering/ranking, freshness-first morning selection, deterministic report, optional strict GLM 5.2 enrichment, event intent, and safe read API governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/watched-bird-matching-and-reports.md`.
 
 ## Acceptance criteria
 

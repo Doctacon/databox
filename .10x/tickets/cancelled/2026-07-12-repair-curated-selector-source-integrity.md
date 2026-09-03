@@ -32,7 +32,7 @@ Record focused/full gate results, deterministic adversarial tests, bounded live 
 ## References
 
 - `.10x/specs/superseded/curated-representative-bird-photos.md`
-- `.10x/decisions/inaturalist-curated-photo-api-split.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/inaturalist-curated-photo-api-split.md`
 - `.10x/reviews/2026-07-12-curated-representative-photo-privacy-security-source-review.md`
 - `.10x/reviews/2026-07-12-curated-representative-photo-architecture-review.md`
 - `.10x/evidence/2026-07-12-curated-representative-photo-aggregate-verification.md`

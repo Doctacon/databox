@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-build-local-react-trip-planner.md, .10x/specs/local-birding-trip-copilot-app.md
+Relates-To: .10x/tickets/done/2026-07-09-build-local-react-trip-planner.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md
 
 # Local React Trip Planner implementation evidence
 
@@ -108,7 +108,7 @@ Result: strict MkDocs build passed; all pre-commit hooks passed.
 
 ## What this supports
 
-- The API contract and persisted-artifact boundary match `.10x/specs/local-birding-trip-copilot-app.md`.
+- The API contract and persisted-artifact boundary match `https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md`.
 - A controlled complete plan can be created and revisited without live model inference.
 - User-visible busy, unavailable, invalid, loading, empty, and completed states have deterministic coverage.
 - The browser bundle does not contain Cloudflare configuration names or configured values.

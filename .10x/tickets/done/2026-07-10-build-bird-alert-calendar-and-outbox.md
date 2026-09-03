@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-10-implement-watched-bird-evaluator-and-re
 
 ## Scope
 
-Implement stable UID/sequence event state, RFC iCalendar REQUEST/CANCEL and MIME builders, transactional durable outbox/attempt schema, canonical payload hashing, atomic claims, supersession, cancellation, and retention governed by `.10x/specs/bird-alert-calendar-and-smtp-delivery.md`. This child does not open an SMTP socket.
+Implement stable UID/sequence event state, RFC iCalendar REQUEST/CANCEL and MIME builders, transactional durable outbox/attempt schema, canonical payload hashing, atomic claims, supersession, cancellation, and retention governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/bird-alert-calendar-and-smtp-delivery.md`. This child does not open an SMTP socket.
 
 ## Acceptance criteria
 

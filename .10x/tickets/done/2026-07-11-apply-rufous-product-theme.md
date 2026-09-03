@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-remove-wishlist-and-consolidate-watches
 
 ## Scope
 
-Implement `.10x/specs/rufous-product-shell.md` across settled routes using one original local CSS/SVG visual system and user-visible naming audit. Repository/package/database/internal identities stay unchanged.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-product-shell.md` across settled routes using one original local CSS/SVG visual system and user-visible naming audit. Repository/package/database/internal identities stay unchanged.
 
 ## Acceptance criteria
 

@@ -14,10 +14,10 @@ This parent ticket is a plan and was not implemented directly; child tickets own
 
 ## Governing specs and research
 
-- `.10x/specs/birding-trip-copilot.md`
-- `.10x/specs/birding-agent-data-integrations.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-data-integrations.md`
 - `.10x/specs/superseded/birding-trip-plan-dive.md`
-- `.10x/specs/birding-agent-evaluations.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-evaluations.md`
 - `.10x/research/2026-07-08-birding-agent-system-shaping.md`
 - `docs/new-source.md`
 - `docs/adr/0001-duckdb-as-primary-warehouse.md`
@@ -47,9 +47,9 @@ Completed in dependency order:
 
 ## Aggregate acceptance criteria
 
-- New source/tool integrations satisfy `.10x/specs/birding-agent-data-integrations.md`: satisfied by child evidence for GBIF, Xeno-canto, Open-Meteo, and planner SQL interfaces.
-- Trip planner behavior satisfies `.10x/specs/birding-trip-copilot.md`: satisfied by ADK runtime/persistence tests, DeepEval scenarios, and aggregate validation.
-- DeepEval suite satisfies `.10x/specs/birding-agent-evaluations.md`: satisfied by `task eval:agent` with 2 passing deterministic scenarios.
+- New source/tool integrations satisfy `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-data-integrations.md`: satisfied by child evidence for GBIF, Xeno-canto, Open-Meteo, and planner SQL interfaces.
+- Trip planner behavior satisfies `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md`: satisfied by ADK runtime/persistence tests, DeepEval scenarios, and aggregate validation.
+- DeepEval suite satisfies `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-evaluations.md`: satisfied by `task eval:agent` with 2 passing deterministic scenarios.
 - MotherDuck Dive satisfies `.10x/specs/superseded/birding-trip-plan-dive.md`: satisfied by Dive SQL contract test and local Vite build.
 - `task ci` passes after all code tickets are complete: satisfied, `145 passed`.
 - A full local run can produce at least one persisted trip plan that the Dive can query: satisfied by ADK planner tests and Dive SQL contract test over the persisted artifact shape.

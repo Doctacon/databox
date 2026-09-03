@@ -31,9 +31,9 @@ Record deleted source surfaces, exact focused/full gate counts, forbidden-Wikime
 
 ## References
 
-- `.10x/decisions/curated-inaturalist-only-representative-photos.md`
-- `.10x/decisions/inaturalist-curated-photo-api-split.md`
-- `.10x/specs/curated-inaturalist-representative-bird-photos.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/curated-inaturalist-only-representative-photos.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/inaturalist-curated-photo-api-split.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/curated-inaturalist-representative-bird-photos.md`
 - `.10x/tickets/cancelled/2026-07-12-repair-curated-selector-source-integrity.md`
 - Screenshot supplied 2026-07-13 showing `invalid unavailable photo` on Arizona Birds.
 

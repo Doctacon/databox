@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md, .10x/specs/cloudflare-workers-ai-local-agent.md
+Relates-To: .10x/tickets/done/2026-07-09-replace-cloudflare-model-with-glm-5-2.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/cloudflare-workers-ai-local-agent.md
 
 # GLM 5.2 fail-fast compatibility probe
 

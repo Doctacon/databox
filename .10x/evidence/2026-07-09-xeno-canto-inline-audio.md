@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-add-inline-xeno-canto-audio.md, .10x/specs/xeno-canto-inline-audio.md
+Relates-To: .10x/tickets/done/2026-07-09-add-inline-xeno-canto-audio.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/xeno-canto-inline-audio.md
 
 # Xeno-canto inline audio evidence
 
