@@ -149,11 +149,15 @@ def iceberg_destination() -> dlt.destinations.filesystem:
     warehouse_prefix = settings.iceberg_warehouse_prefix.strip("/")
     if not warehouse_prefix:
         raise ValueError("DATABOX_ICEBERG_WAREHOUSE_PREFIX must not be empty")
+    credentials = {
+        "aws_access_key_id": settings.aws_access_key_id.get_secret_value(),
+        "aws_secret_access_key": settings.aws_secret_access_key.get_secret_value(),
+        "region_name": settings.aws_region,
+    }
+    session_token = settings.aws_session_token.get_secret_value()
+    if session_token:
+        credentials["aws_session_token"] = session_token
     return dlt.destinations.filesystem(
         bucket_url=f"s3://{settings.aws_s3_bucket}/{warehouse_prefix}",
-        credentials={
-            "aws_access_key_id": settings.aws_access_key_id.get_secret_value(),
-            "aws_secret_access_key": settings.aws_secret_access_key.get_secret_value(),
-            "region_name": settings.aws_region,
-        },
+        credentials=credentials,
     )

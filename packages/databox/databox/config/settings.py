@@ -56,6 +56,7 @@ class DataboxSettings(BaseSettings):
     aws_secret_access_key: SecretStr = Field(
         default=SecretStr(""), alias="DATABOX_AWS_SECRET_ACCESS_KEY"
     )
+    aws_session_token: SecretStr = Field(default=SecretStr(""), alias="DATABOX_AWS_SESSION_TOKEN")
     aws_region: str = Field(default="us-west-1", alias="DATABOX_AWS_REGION")
 
     def pyiceberg_catalog(self) -> Any:
