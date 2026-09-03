@@ -10,7 +10,10 @@ from unittest.mock import patch
 
 import pytest
 from databox.config.settings import settings
-from databox.destinations.iceberg import require_iceberg_write_credentials
+from databox.destinations.iceberg import (
+    iceberg_destination,
+    require_iceberg_write_credentials,
+)
 from pydantic import SecretStr
 
 ROOT = Path(__file__).parents[2]
@@ -65,6 +68,17 @@ def test_source_layout_is_credential_free() -> None:
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_iceberg_destination_uses_normalized_warehouse_prefix() -> None:
+    with (
+        patch.object(settings, "aws_s3_bucket", "databox-bucket"),
+        patch.object(settings, "iceberg_warehouse_prefix", "/warehouse/"),
+        patch("databox.destinations.iceberg.dlt.destinations.filesystem") as filesystem,
+    ):
+        iceberg_destination()
+
+    assert filesystem.call_args.kwargs["bucket_url"] == "s3://databox-bucket/warehouse"
 
 
 def test_iceberg_execution_requires_writer_credentials_before_publication() -> None:

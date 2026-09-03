@@ -23,6 +23,10 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
         "XENO" + "_CANTO_" + "API_" + "KEY",
     )
     assert job["env"]["DATABOX_AWS_S3_BUCKET"] == "${{ secrets.DATABOX_AWS_S3_BUCKET }}"
+    assert job["env"]["DATABOX_ICEBERG_WAREHOUSE_PREFIX"] == (
+        "integration/${{ github.run_id }}/${{ github.run_attempt }}/warehouse"
+    )
+    assert job["env"]["DATABOX_ICEBERG_WAREHOUSE_PREFIX"] != "warehouse"
     assert job["env"]["DATABOX_AWS_REGION"] == "us-west-1"
     assert {key for key in job["env"] if key.startswith(("EBIRD", "NOAA", "XENO"))} == set(
         provider_names

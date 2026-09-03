@@ -48,6 +48,9 @@ class DataboxSettings(BaseSettings):
         default=SecretStr(""), alias="DATABOX_POLARIS_CLIENT_SECRET"
     )
     iceberg_catalog: str = Field(default="databox_lake", alias="DATABOX_ICEBERG_CATALOG")
+    iceberg_warehouse_prefix: str = Field(
+        default="warehouse", alias="DATABOX_ICEBERG_WAREHOUSE_PREFIX"
+    )
     aws_s3_bucket: str = Field(default="", alias="DATABOX_AWS_S3_BUCKET", repr=False)
     aws_access_key_id: SecretStr = Field(default=SecretStr(""), alias="DATABOX_AWS_ACCESS_KEY_ID")
     aws_secret_access_key: SecretStr = Field(
