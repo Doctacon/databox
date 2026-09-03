@@ -205,6 +205,11 @@ jobs:
         run: uv run coverage erase
       - name: Coverage — core (tests/ + packages/databox)
         run: uv run coverage run --append -m pytest tests packages/databox -o "testpaths=tests packages/databox" -o "addopts=-v --tb=short"
+      - name: Coverage — public USFWS provider, isolated and offline
+        run: >-
+          uv run coverage run --append -m pytest packages/databox-sources/tests/usfws
+          -o "testpaths=packages/databox-sources/tests/usfws"
+          -o "addopts=-v --tb=short --record-mode=none --block-network"
       - name: Coverage — all registry sources, isolated and offline
         run: uv run python scripts/sources/source_ci.py coverage
       - name: Coverage report (fail under 70%)

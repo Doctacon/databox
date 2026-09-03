@@ -46,3 +46,7 @@ The current PR #41 body was read through `gh pr view 41 --json body`; it include
 ## Residual risk
 
 The protected GitHub environment and its named secrets must be configured before the manual integration workflow can be dispatched. The manual workflow deliberately performs real smoke publication and requires an operator to initiate and inspect it.
+
+## Hosted coverage follow-up
+
+The first repaired hosted run left the public-only USFWS provider suite outside aggregate coverage, dropping total coverage to 67%. `tests-all` now runs the actual offline `packages/databox-sources/tests/usfws` suite in an isolated appended coverage process before the registry-source loop. It does not register USFWS as a scheduled source. The exact hosted-equivalent sequence passes locally at 85% coverage, and `test_workflow_consumes_registry_matrix_without_source_names` asserts the retained provider path is present.

@@ -209,6 +209,7 @@ def test_workflow_consumes_registry_matrix_without_source_names() -> None:
     assert "fromJSON(needs.source-matrix.outputs.matrix)" in text
     assert "scripts/sources/source_ci.py matrix" in text
     assert "scripts/sources/source_ci.py coverage" in text
+    assert "packages/databox-sources/tests/usfws" in text
     assert "packages/databox-sources/tests/test_*.py" in text
     assert "src_ebird" not in text
     assert "tests-ebird" not in text
