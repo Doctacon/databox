@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.9.0](https://github.com/Doctacon/databox/compare/v0.8.0...v0.9.0) (2026-09-03)
+
+
+### Features
+
+* extract Rufous into standalone repository ([#41](https://github.com/Doctacon/databox/issues/41)) ([4a954a5](https://github.com/Doctacon/databox/commit/4a954a5d386931871a2160285e4add1aa5ac3cdd))
+
+
+### Bug Fixes
+
+* **ci:** grant Polaris integration catalog access ([#48](https://github.com/Doctacon/databox/issues/48)) ([4070d50](https://github.com/Doctacon/databox/commit/4070d500e633a1251164c9758bb24041b54b5707))
+* **ci:** isolate Polaris integration S3 writes ([#44](https://github.com/Doctacon/databox/issues/44)) ([fb9374f](https://github.com/Doctacon/databox/commit/fb9374f4fdeee35fd4c520c4c42ec824d3ae9e01))
+* **ci:** preflight S3 integration access ([#47](https://github.com/Doctacon/databox/issues/47)) ([69f13c0](https://github.com/Doctacon/databox/commit/69f13c0b8af26b16763b53b4b7c8694361760d43))
+* **ci:** prepare Polaris integration runner ([#43](https://github.com/Doctacon/databox/issues/43)) ([559cee2](https://github.com/Doctacon/databox/commit/559cee27f995a66477db9561889d3c4ae33ce86d))
+* **ci:** provision disposable Polaris catalog ([#45](https://github.com/Doctacon/databox/issues/45)) ([4a2daf7](https://github.com/Doctacon/databox/commit/4a2daf7bbee3db81fd278078d3eed567260b2811))
+* **ci:** split Polaris source verification matrix ([#49](https://github.com/Doctacon/databox/issues/49)) ([40b79ba](https://github.com/Doctacon/databox/commit/40b79baa92e1d9358c755f887cc8c16db206d248))
+* **iceberg:** forward AWS session token ([#46](https://github.com/Doctacon/databox/issues/46)) ([dabbf21](https://github.com/Doctacon/databox/commit/dabbf219b630f2beb15be2ec122efe5b051f9bd4))
+* **usgs:** preserve daily statistic identity ([#50](https://github.com/Doctacon/databox/issues/50)) ([1b2e86d](https://github.com/Doctacon/databox/commit/1b2e86d9eaeb783429d532fa40ada8557c28b619))
+
+
+### Documentation
+
+* reconcile completed migration records ([#51](https://github.com/Doctacon/databox/issues/51)) ([c356ecb](https://github.com/Doctacon/databox/commit/c356ecb3d415b34257185335b9fc9701e0677a6e))
+
 ## [0.8.0](https://github.com/Doctacon/databox/compare/v0.7.0...v0.8.0) (2026-09-02)
 
 
