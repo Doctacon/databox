@@ -104,3 +104,34 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
         "DATABOX_POLARIS_CLIENT_SECRET",
     ):
         assert f"$(cleanup_variable {credential})" in cleanup_step["run"]
+
+
+def test_s3_preflight_is_read_only_scoped_and_runs_before_source_verification() -> None:
+    workflow = yaml.load(WORKFLOW.read_text(), Loader=yaml.BaseLoader)
+    steps = workflow["jobs"]["verify"]["steps"]
+
+    provision_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Provision isolated databox_lake catalog"
+    )
+    preflight_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Preflight AWS identity and isolated S3 prefix"
+    )
+    verify_index = next(
+        index for index, step in enumerate(steps) if step.get("run") == "task verify"
+    )
+    preflight_step = steps[preflight_index]
+
+    assert provision_index < preflight_index < verify_index
+    assert preflight_step["shell"] == "bash"
+    assert preflight_step["run"].splitlines() == [
+        "set -euo pipefail",
+        "aws sts get-caller-identity",
+        "aws s3api list-objects-v2 \\",
+        '  --bucket "${DATABOX_AWS_S3_BUCKET}" \\',
+        '  --prefix "${DATABOX_ICEBERG_WAREHOUSE_PREFIX}" \\',
+        "  --max-items 1",
+    ]
