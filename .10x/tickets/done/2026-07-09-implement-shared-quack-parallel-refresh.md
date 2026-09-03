@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-decommission-motherduck-platform-suppor
 
 ## Scope
 
-Implement `.10x/specs/parallel-quack-local-refresh.md` across Quack lifecycle, Dagster/full-refresh orchestration, tests, tasks, and docs.
+Implement `.10x/specs/superseded/parallel-quack-local-refresh.md` across Quack lifecycle, Dagster/full-refresh orchestration, tests, tasks, and docs.
 
 The executor MUST first reproduce and understand current Quack/dlt metadata behavior under two concurrent source clients. Then implement one server lifecycle and safe independent source clients if the protocol supports the required contract.
 

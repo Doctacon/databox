@@ -1,6 +1,6 @@
-Status: active
+Status: cancelled
 Created: 2026-08-31
-Updated: 2026-08-31
+Updated: 2026-09-03
 Parent: None
 Depends-On: None
 
@@ -14,11 +14,11 @@ This is a parent plan, not an executable implementation ticket.
 
 ## Governing records
 
-- `.10x/decisions/local-rufous-polaris-iceberg-architecture.md`
-- `.10x/specs/local-iceberg-databox-platform.md`
-- `.10x/specs/gbif-iceberg-vertical-slice.md`
+- `.10x/decisions/superseded/local-rufous-polaris-r2-iceberg-architecture.md`
+- `.10x/specs/superseded/local-iceberg-databox-r2-platform.md`
+- `.10x/specs/superseded/gbif-r2-iceberg-vertical-slice.md`
 - `.10x/research/2026-08-31-polaris-r2-iceberg-compatibility.md`
-- `.10x/specs/parallel-quack-local-refresh.md`
+- `.10x/specs/superseded/parallel-quack-local-refresh.md`
 - `.10x/specs/canonical-dlt-source-registry.md`
 
 ## Plan and sequence
@@ -36,7 +36,7 @@ The post-spike tickets are intentionally not executable yet: exact released vers
 
 ## Aggregate acceptance criteria
 
-- The compatibility gate in `.10x/specs/gbif-iceberg-vertical-slice.md` passes with reproducible evidence.
+- The compatibility gate in `.10x/specs/superseded/gbif-r2-iceberg-vertical-slice.md` passes with reproducible evidence.
 - Polaris and PostgreSQL use pinned versions and durable state.
 - The GBIF lake table uses the dedicated R2 bucket and Polaris as its only catalog.
 - The existing GBIF DuckDB path remains intact until parity and rollback are demonstrated.
@@ -99,6 +99,8 @@ The post-spike tickets are intentionally not executable yet: exact released vers
 - 2026-09-01: Before any Variant A work, the existing full diagnostic's storage verifier was narrowed to accept only those exact safe server-default shapes and reject every other unknown field, while preserving exact authority/storage guards. Offline focused/full gates passed.
 - 2026-09-01: After independent approval, one full preserved-identity diagnostic exited `0`. The exact catalog and storage are valid; the bounded R2 prefix has zero objects; namespace, table, definition, and snapshot are absent. Cleanup and volume verification passed without fixed errors. No retry or mutation occurred.
 - 2026-09-01: The sole independently approved Variant A runner invocation emitted `stage=variant-a-proof error=ProofFailed` and exited `1`. Cleanup and volume verification passed. The suppressed proof channels leave the internal stage and partial Variant A state unknown; no retry or inspection followed.
+
+- 2026-09-02: Cancelled after the R2 compatibility path was retired and the user ratified AWS S3 as the durable Polaris/Iceberg object store. The later AWS migration supersedes this blocked proof; its failure history remains evidence rather than active work.
 
 ## Blockers
 

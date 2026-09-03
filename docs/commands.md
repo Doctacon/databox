@@ -53,7 +53,7 @@ Start the local Polaris stack and configure the Polaris/AWS values from
 `.env.example` before running either command:
 
 ```bash
-docker-compose --env-file .env -f compose.iceberg.yml up -d
+docker compose --env-file .env -f compose.iceberg.yml up -d
 task full-refresh   # all routine sources → Iceberg, then SQLMesh
 task verify         # bounded DATABOX_SMOKE=1 refresh, then SQLMesh
 ```
@@ -62,6 +62,12 @@ The underlying entrypoint is `scripts/sources/load_dlt_iceberg.py`. It validates
 catalog/storage configuration before launching concurrent Dagster source jobs,
 checks authoritative Iceberg tables and `_dlt_load_status`, and does not run
 SQLMesh after a source failure.
+
+For a real integration check without running a durable full refresh, a
+maintainer can manually dispatch `.github/workflows/polaris-iceberg-integration.yaml`
+through the protected `polaris-iceberg-integration` environment. Its six jobs
+use GitHub OIDC and isolated `integration/` prefixes; ordinary CI never runs it.
+See [CI routing](ci.md#protected-live-integration).
 
 Export the bounded local data product consumed by Rufous after a successful
 refresh. The exporter attaches Polaris read-only, filters observations to the

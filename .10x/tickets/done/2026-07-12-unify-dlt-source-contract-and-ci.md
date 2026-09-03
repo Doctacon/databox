@@ -20,7 +20,7 @@ This is a parent plan, not an executable ticket.
 - `.10x/research/2026-07-12-dlt-sqlmesh-dagster-improvement-assessment.md`
 - `.10x/research/2026-07-12-single-source-contract-and-ci-architecture.md`
 - `.10x/knowledge/dlt-vcr-http-client-isolation.md`
-- `.10x/specs/parallel-quack-local-refresh.md`
+- `.10x/specs/superseded/parallel-quack-local-refresh.md`
 
 ## Child sequence
 

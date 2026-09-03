@@ -1,12 +1,13 @@
 Status: active
 Created: 2026-07-12
-Updated: 2026-07-12
+Updated: 2026-09-03
 
 # Registry source modeling completeness
 
 ## Purpose and scope
 
-Every dlt source registered for ingestion into the Databox DuckDB warehouse MUST pass through the complete governed modeling workflow:
+Every dlt source registered for ingestion into Databox's Polaris-governed
+Iceberg warehouse MUST pass through the complete governed modeling workflow:
 
 1. annotated source DBML;
 2. taxonomy classification;

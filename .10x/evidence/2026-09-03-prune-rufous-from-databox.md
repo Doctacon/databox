@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-03
 Updated: 2026-09-03
-Relates-To: .10x/tickets/2026-09-03-prune-rufous-from-databox.md
+Relates-To: .10x/tickets/done/2026-09-03-prune-rufous-from-databox.md
 
 # Rufous implementation pruning evidence
 

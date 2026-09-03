@@ -12,7 +12,7 @@ Add a durable safe status/lock/launcher around the existing routine full-refresh
 
 ## Acceptance criteria
 
-- Exact routine source scope, one Quack lifecycle, source failure gating, SQLMesh ordering, and temporary-busy contract satisfy `.10x/specs/local-source-refresh-control.md`.
+- Exact routine source scope, one Quack lifecycle, source failure gating, SQLMesh ordering, and temporary-busy contract satisfy `.10x/specs/superseded/local-source-refresh-control.md`.
 - At most one process runs; status survives reload/restart; stale/crashed process status resolves safely.
 - GET/startup cannot launch; confirmation, Host/Origin, JSON shape, command/path/env immutability, redaction, and conflict checks pass.
 - Success/failure simulations prove source attribution, SQLMesh suppression/run ordering, cleanup, and no automatic retry.

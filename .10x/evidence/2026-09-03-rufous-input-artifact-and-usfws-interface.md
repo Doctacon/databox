@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-03
 Updated: 2026-09-03
-Relates-To: .10x/tickets/2026-09-03-export-rufous-input-artifact.md, .10x/tickets/2026-09-03-publish-usfws-source-interface.md
+Relates-To: .10x/tickets/done/2026-09-03-export-rufous-input-artifact.md, .10x/tickets/done/2026-09-03-publish-usfws-source-interface.md
 
 # Rufous input artifact and USFWS interface evidence
 

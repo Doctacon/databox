@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-02
 Updated: 2026-09-02
-Target: .10x/tickets/2026-09-02-migrate-avonet-to-polaris-iceberg.md; .10x/tickets/2026-09-02-migrate-usfws-to-polaris-iceberg.md; .10x/tickets/2026-09-02-add-local-polaris-console.md
+Target: .10x/tickets/done/2026-09-02-migrate-avonet-to-polaris-iceberg.md; .10x/tickets/done/2026-09-02-migrate-usfws-to-polaris-iceberg.md; .10x/tickets/done/2026-09-02-add-local-polaris-console.md
 Verdict: concerns
 
 # AVONET, USFWS, and Polaris Console final closure review

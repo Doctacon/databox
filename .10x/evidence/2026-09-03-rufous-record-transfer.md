@@ -7,7 +7,7 @@ Relates-To: .10x/tickets/done/2026-09-03-transfer-rufous-records-and-docs.md
 
 ## Manifest and authority
 
-The standalone repository contains `.10x/research/2026-09-03-databox-record-transfer-manifest.md`, sourced from Databox revision `572ca6191f598e323161cdadeec3898f10913d31`. It explicitly names 49 active product records moved to their canonical Rufous paths and 283 relevant historical records copied to the clearly non-authoritative `.10x/imported-from-databox/` tree. The manifest also enumerates remain/split classes. Databox retains extraction governance, source/platform contracts, the artifact producer, and provider behavior.
+The standalone repository contains `https://github.com/Doctacon/rufous/blob/main/.10x/research/2026-09-03-databox-record-transfer-manifest.md`, sourced from Databox revision `572ca6191f598e323161cdadeec3898f10913d31`. It explicitly names 49 active product records moved to their canonical Rufous paths and 283 relevant historical records copied to the clearly non-authoritative `.10x/imported-from-databox/` tree. The manifest also enumerates remain/split classes. Databox retains extraction governance, source/platform contracts, the artifact producer, and provider behavior.
 
 Rufous adds `.10x/README.md` as the cold-start record index and a product-only manual USFWS contract. Databox adds `.10x/knowledge/rufous-record-ownership.md` as its thin pointer. No application implementation changed.
 

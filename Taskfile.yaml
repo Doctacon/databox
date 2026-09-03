@@ -94,7 +94,7 @@ tasks:
     cmds: ["{{.VENV_DIR}}/bin/python scripts/sources/new_source.py {{.CLI_ARGS}}"]
 
   db:reset:
-    desc: "Delete local DuckDB files, including persisted trip plans"
+    desc: "Delete local DuckDB model and SQLMesh state files"
     cmds: ["rm -rf data/*.duckdb data/*.duckdb.wal data/.quack-clients"]
   clean:
     desc: "Remove build + test + cache artifacts"

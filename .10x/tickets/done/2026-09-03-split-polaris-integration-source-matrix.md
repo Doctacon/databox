@@ -1,8 +1,8 @@
-Status: active
+Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
-Depends-On: .10x/tickets/2026-09-03-add-s3-integration-preflight.md
+Depends-On: .10x/tickets/done/2026-09-03-add-s3-integration-preflight.md
 
 # Split Polaris integration into a source matrix
 
@@ -26,6 +26,8 @@ Replace the opaque parallel all-source verification step with one protected matr
 ## Progress and notes
 - 2026-09-03: Run 33803401394 proved Xeno-canto end-to-end publication. CloudTrail showed all six Polaris self-assume calls succeeded; combined parallel logs discarded five source-specific failures, motivating independent jobs.
 - 2026-09-03: Split the protected workflow into six independent, non-fail-fast matrix jobs. Each runs one real source without SQLMesh against its own disposable Polaris catalog and source-scoped integration prefix. Focused structural tests, Ruff, pre-commit, secret scan, YAML parse, and diff checks pass; hosted CI and protected matrix execution remain.
+
+- 2026-09-03: PR #49 merged as `40b79baa92e1d9358c755f887cc8c16db206d248`. After PR #50 repaired the source-backed USGS statistic key, protected run 33814484913 passed all six independent jobs: eBird, GBIF, NOAA, USGS, USGS Earthquakes, and Xeno-canto. Evidence: `.10x/evidence/2026-09-03-protected-polaris-source-matrix.md`.
 
 ## Blockers
 None.

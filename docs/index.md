@@ -1,9 +1,9 @@
 # Databox
 
-Databox is a local-first warehouse with dlt-managed Iceberg raw tables on AWS
-S3, a local Apache Polaris catalog, and DuckDB transformations and product
-state. SQLMesh transforms data, Soda validates it, and Dagster orchestrates the
-workflow.
+Databox is a local-first ingestion and data-product platform with dlt-managed
+Iceberg raw tables on AWS S3, a local Apache Polaris catalog, and DuckDB
+transformations. SQLMesh transforms data, Soda validates it, and Dagster
+orchestrates the workflow.
 
 <a id="whats-here"></a>
 
@@ -26,14 +26,15 @@ Configure source, Polaris, and AWS S3 writer values in the `.env` created by
 
 ```bash
 $EDITOR .env
-docker-compose --env-file .env -f compose.iceberg.yml up -d
+docker compose --env-file .env -f compose.iceberg.yml up -d
 task full-refresh   # ingest Iceberg raw tables → local models → quality
 task dagster:dev    # inspect assets at localhost:3000
 ```
 
-Raw tables live in S3 and are registered by local Polaris; modeled and product
-data lives in `data/databox.duckdb`. See [configuration](configuration.md), the
-[commands reference](commands.md), and the [operations runbook](runbook.md).
+Raw tables live in S3 and are registered by local Polaris; modeled data and
+export inputs live in `data/databox.duckdb`. See
+[configuration](configuration.md), the [commands reference](commands.md), and
+the [operations runbook](runbook.md).
 
 ### Understand the data
 
@@ -61,6 +62,7 @@ completes this chain.
 - [Freshness](freshness.md)
 - [Observability](observability.md)
 - [CI routing](ci.md)
+- [Protected Polaris/S3 verification](ci.md#protected-live-integration) — manual real-provider integration gate
 - [Rufous data-product boundary](https://github.com/Doctacon/databox/blob/main/.10x/specs/databox-rufous-data-product-boundary.md) — versioned consumer artifact contract
 - [Architecture decisions](adr/README.md)
 

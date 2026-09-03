@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-03
 Updated: 2026-09-03
-Ticket: .10x/tickets/2026-09-03-repair-hermetic-ci-and-iceberg-integration-gate.md
+Ticket: .10x/tickets/done/2026-09-03-repair-hermetic-ci-and-iceberg-integration-gate.md
 
 # Hermetic CI and protected Iceberg integration gate
 

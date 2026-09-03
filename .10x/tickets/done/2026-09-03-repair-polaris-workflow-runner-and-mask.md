@@ -1,4 +1,4 @@
-Status: active
+Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
@@ -21,6 +21,8 @@ Focused workflow tests and hosted manual rerun after merge.
 ## Progress and notes
 - 2026-09-03: Run 33793123271 successfully assumed OIDC and started the disposable compose stack, then failed at `task verify` with `task: command not found`. Generated values appeared unmasked in logs; the stack was torn down and no verification/publication command ran.
 - 2026-09-03: Added a SHA-pinned Task setup action before verification and GitHub Actions masking for every generated Polaris/Postgres value. Focused structural workflow test passes with coverage disabled; full hosted CI and a new protected manual run remain required.
+
+- 2026-09-03: Protected run 33814484913 passed after the complete workflow repair chain, proving the pinned Task setup, generated-value masking, and failure-safe teardown in all six matrix jobs.
 
 ## Blockers
 None.

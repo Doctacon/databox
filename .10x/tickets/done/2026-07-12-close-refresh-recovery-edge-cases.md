@@ -20,7 +20,7 @@ Resolve all remaining closure-grade review findings without changing ratified pr
 
 ## Governing records
 
-- `.10x/specs/local-source-refresh-control.md`
+- `.10x/specs/superseded/local-source-refresh-control.md`
 - `.10x/specs/arizona-bird-wheel-catalog.md`
 - `.10x/decisions/rufous-wheel-map-preview-and-source-refresh.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-closure-architecture-review.md`

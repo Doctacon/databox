@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-03
 Updated: 2026-09-03
-Relates-To: .10x/tickets/2026-09-03-migrate-rufous-web-public-deployment.md
+Relates-To: .10x/tickets/done/2026-09-03-migrate-rufous-web-public-deployment.md
 
 # Rufous web, public release, and deployment migration evidence
 

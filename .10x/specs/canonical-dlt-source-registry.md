@@ -1,6 +1,6 @@
 Status: active
 Created: 2026-07-12
-Updated: 2026-09-02
+Updated: 2026-09-03
 
 # Canonical dlt source registry
 
@@ -28,7 +28,8 @@ Each registered source MUST expose or deterministically derive:
 - one verification profile: `http` or `file_snapshot`;
 - one orchestration mode: `default` or `explicit_targets`.
 
-The active registry MUST contain exactly the eight current sources unless separately changed by an approved source addition/removal:
+The active registry MUST contain exactly the seven current orchestrated sources
+unless separately changed by an approved source addition/removal:
 
 - `avonet`
 - `ebird`
@@ -36,8 +37,11 @@ The active registry MUST contain exactly the eight current sources unless separa
 - `noaa`
 - `usgs`
 - `usgs_earthquakes`
-- `usfws`
 - `xeno_canto`
+
+`databox_sources.usfws` remains a tested public provider interface but is not an
+orchestrated Databox registry entry. It requires caller-owned targets; all
+target derivation and target-bearing orchestration belong to Rufous.
 
 ## Domain-module contract
 
@@ -94,7 +98,9 @@ The source-layout/contract checker MUST reject:
 
 ### Existing source
 
-Given any of the eight active registry entries, when the contract checker runs, then it resolves exactly one source package, one domain module, one source builder, and one verification profile.
+Given any of the seven active registry entries, when the contract checker runs,
+then it resolves exactly one source package, one domain module, one source
+builder, and one verification profile.
 
 ### New source
 

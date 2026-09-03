@@ -1,8 +1,11 @@
-Status: active
+Status: superseded
 Created: 2026-08-31
-Updated: 2026-08-31
+Updated: 2026-09-03
 
 # Local Rufous with a Polaris-governed Iceberg source lake
+
+Superseded when Polaris credential vending proved incompatible with R2; AWS S3
+became the durable object store and Rufous later moved to its own repository.
 
 ## Context
 

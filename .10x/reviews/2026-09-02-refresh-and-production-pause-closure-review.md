@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-02
 Updated: 2026-09-02
-Target: .10x/tickets/done/2026-09-02-repair-primary-iceberg-refresh-path.md; .10x/tickets/2026-09-02-pause-rufous-public-production-deployment.md
+Target: .10x/tickets/done/2026-09-02-repair-primary-iceberg-refresh-path.md; .10x/tickets/done/2026-09-02-pause-rufous-public-production-deployment.md
 Verdict: fail
 
 # Refresh repair and production-pause closure review

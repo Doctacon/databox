@@ -61,4 +61,4 @@ None.
 - `.10x/decisions/python-source-registry-as-canonical-contract.md`
 - `.10x/specs/canonical-dlt-source-registry.md`
 - `.10x/research/2026-07-12-single-source-contract-and-ci-architecture.md`
-- `.10x/specs/parallel-quack-local-refresh.md`
+- `.10x/specs/superseded/parallel-quack-local-refresh.md`

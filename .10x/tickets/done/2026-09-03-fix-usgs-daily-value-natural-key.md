@@ -2,7 +2,7 @@ Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
-Depends-On: .10x/tickets/2026-09-03-split-polaris-integration-source-matrix.md
+Depends-On: .10x/tickets/done/2026-09-03-split-polaris-integration-source-matrix.md
 
 # Fix USGS daily-value natural key
 

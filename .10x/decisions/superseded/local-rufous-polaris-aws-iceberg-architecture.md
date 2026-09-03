@@ -1,8 +1,10 @@
-Status: active
+Status: superseded
 Created: 2026-09-02
-Updated: 2026-09-02
+Updated: 2026-09-03
 
 # Local Rufous with a Polaris-governed AWS S3 Iceberg lake
+
+Superseded for repository ownership by `.10x/decisions/split-rufous-into-standalone-repository.md`. Databox retains Polaris/S3 Iceberg ingestion and local DuckDB models; Rufous consumes only the versioned DuckDB product artifact.
 
 ## Context
 

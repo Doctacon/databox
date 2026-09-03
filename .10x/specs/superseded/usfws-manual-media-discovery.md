@@ -1,8 +1,10 @@
-Status: active
+Status: superseded
 Created: 2026-09-02
-Updated: 2026-09-02
+Updated: 2026-09-03
 
 # USFWS manual media discovery
+
+Superseded by the standalone Rufous repository, which owns target derivation and all target-bearing manual USFWS orchestration. Databox retains only the provider-level `databox_sources.usfws` interface.
 
 ## Purpose and scope
 

@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-Implementation of `.10x/specs/parallel-quack-local-refresh.md` and `.10x/tickets/done/2026-07-09-implement-shared-quack-parallel-refresh.md`.
+Implementation of `.10x/specs/superseded/parallel-quack-local-refresh.md` and `.10x/tickets/done/2026-07-09-implement-shared-quack-parallel-refresh.md`.
 
 ## Findings
 

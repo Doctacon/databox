@@ -1,8 +1,8 @@
-Status: active
+Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
-Depends-On: .10x/tickets/2026-09-03-isolate-polaris-smoke-s3-prefix.md
+Depends-On: .10x/tickets/done/2026-09-03-isolate-polaris-smoke-s3-prefix.md
 
 # Provision disposable Polaris integration catalog
 
@@ -20,6 +20,8 @@ Provision the canonical `databox_lake` catalog in the workflow's fresh disposabl
 - 2026-09-03: Run 33796171237 failed preflight with `Unable to find warehouse databox_lake`; no source or S3 publication occurred. Repository settings, `.env.example`, and active architecture decision confirm underscore-form `databox_lake` is canonical.
 
 - 2026-09-03: Added authenticated management-API provisioning after compose health and before verification. The canonical `databox_lake` catalog is bound to the exact run-isolated S3 location and configured with the OIDC role ARN; OAuth token output is masked.
+
+- 2026-09-03: Protected run 33814484913 provisioned an isolated `databox_lake` catalog independently in every source job before publication; all six jobs passed.
 
 ## Blockers
 None.

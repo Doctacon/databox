@@ -5,26 +5,30 @@ Databox has one authoritative runtime-config surface:
 The `DataboxSettings` Pydantic object owns every runtime knob. Other runtime
 code imports it rather than redeclaring values.
 
-## Authoritative surface
+## Primary surface
 
 | Setting | Env var | Source | Notes |
 |---|---|---|---|
 | Polaris URL | `DATABOX_POLARIS_URL` | `settings.polaris_url` | Local REST catalog; default `http://127.0.0.1:8181` |
 | Polaris client ID | `DATABOX_POLARIS_CLIENT_ID` | `settings.polaris_client_id` | Secret; local catalog principal |
 | Polaris client secret | `DATABOX_POLARIS_CLIENT_SECRET` | `settings.polaris_client_secret` | Secret |
+| Iceberg catalog | `DATABOX_ICEBERG_CATALOG` | `settings.iceberg_catalog` | Default `databox_lake` |
+| Warehouse prefix | `DATABOX_ICEBERG_WAREHOUSE_PREFIX` | `settings.iceberg_warehouse_prefix` | Default `warehouse`; protected integration uses run/source-isolated prefixes |
 | S3 bucket | `DATABOX_AWS_S3_BUCKET` | `settings.aws_s3_bucket` | Iceberg warehouse bucket |
 | AWS writer key | `DATABOX_AWS_ACCESS_KEY_ID` | `settings.aws_access_key_id` | Secret; scoped S3 writer |
 | AWS writer secret | `DATABOX_AWS_SECRET_ACCESS_KEY` | `settings.aws_secret_access_key` | Secret |
+| AWS session token | `DATABOX_AWS_SESSION_TOKEN` | `settings.aws_session_token` | Optional for the dlt destination; required with temporary OIDC/STS credentials |
 | AWS region | `DATABOX_AWS_REGION` | `settings.aws_region` | Default `us-west-1` |
 | Log level | `LOG_LEVEL` | `settings.log_level` | Default `INFO` |
 | Smoke mode | `DATABOX_SMOKE` | `settings.smoke` | Limits source rows for verification |
 | eBird window | `DATABOX_EBIRD_DAYS_BACK` | `settings.ebird_days_back` | Default 30; provider range 1–30 |
+| GBIF record cap | `DATABOX_GBIF_MAX_RECORDS` | `settings.gbif_max_records` | Default 1,000; allowed range 1–10,000 |
+| GBIF release slice | `DATABOX_GBIF_PUBLIC_RELEASE` | `settings.gbif_public_release` | Default false; retained producer input behavior |
 | NOAA window | `DATABOX_NOAA_DAYS_BACK` | `settings.noaa_days_back` | Default 30 |
 | USGS window | `DATABOX_USGS_DAYS_BACK` | `settings.usgs_days_back` | Default 30 |
 | OpenLineage URL | `OPENLINEAGE_URL` | `settings.openlineage_url` | Optional; disabled when unset |
-| Workers AI API key | `CF_WORKERS_AI_API_KEY` | `settings.cf_workers_ai_api_key` | Secret; required for trip-plan synthesis |
-| Workers AI account | `CF_WORKERS_AI_ACCOUNT_ID` | `settings.cf_workers_ai_account_id` | Required for trip-plan synthesis |
-| Workers AI endpoint selector | `CF_WORKERS_AI_MODEL_BASE_URL` | `settings.cf_workers_ai_model_base_url` | Exact allowlisted model identifier or HTTP(S) Workers AI URL |
+| OpenLineage namespace | `OPENLINEAGE_NAMESPACE` | `settings.openlineage_namespace` | Default `databox` |
+| OpenLineage API key | `OPENLINEAGE_API_KEY` | `settings.openlineage_api_key` | Optional secret |
 
 ## Derived values
 
@@ -49,8 +53,9 @@ code imports it rather than redeclaring values.
 ## Out-of-surface configuration
 
 Per-source API tokens are read at request time in the source packages so dlt
-and pytest environment overrides work cleanly. Build metadata and tool settings
-remain in `pyproject.toml`.
+and pytest environment overrides work cleanly. `DATABOX_ENV_FILE` can select a
+different dotenv path; tests use it to prove credential-empty graph
+construction. Build metadata and tool settings remain in `pyproject.toml`.
 
 ## SQLMesh state
 

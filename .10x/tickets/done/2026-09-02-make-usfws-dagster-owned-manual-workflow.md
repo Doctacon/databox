@@ -8,7 +8,7 @@ Depends-On: None
 
 ## Scope
 
-Implement `.10x/specs/usfws-manual-media-discovery.md`: expose an unscheduled manual Dagster job that derives validated targets from the modeled local public catalog, executes the existing Polaris Iceberg ingestion, and materializes truthful USFWS business/load-status lineage.
+Implement `.10x/specs/superseded/usfws-manual-media-discovery.md`: expose an unscheduled manual Dagster job that derives validated targets from the modeled local public catalog, executes the existing Polaris Iceberg ingestion, and materializes truthful USFWS business/load-status lineage.
 
 ## Acceptance criteria
 
@@ -29,7 +29,7 @@ Implement `.10x/specs/usfws-manual-media-discovery.md`: expose an unscheduled ma
 
 ## References
 
-- `.10x/specs/usfws-manual-media-discovery.md`
+- `.10x/specs/superseded/usfws-manual-media-discovery.md`
 - `.10x/evidence/2026-09-02-usfws-polaris-iceberg-migration.md`
 - `.10x/tickets/done/2026-09-02-migrate-usfws-to-polaris-iceberg.md`
 - `packages/databox/databox/public_media_ingest.py`

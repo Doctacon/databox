@@ -1,8 +1,11 @@
-Status: active
+Status: superseded
 Created: 2026-08-31
-Updated: 2026-08-31
+Updated: 2026-09-03
 
 # Local Iceberg Databox platform
+
+Superseded when the R2 compatibility path was retired in favor of AWS S3 and,
+for product ownership, by the standalone Rufous extraction.
 
 ## Purpose and scope
 
@@ -27,7 +30,7 @@ It does not require every source or transformed model to migrate to Iceberg.
 
 ## Transitional storage contract
 
-- Non-migrated sources MUST continue to obey `.10x/specs/parallel-quack-local-refresh.md` and use the existing local DuckDB path.
+- Non-migrated sources MUST continue to obey `.10x/specs/superseded/parallel-quack-local-refresh.md` and use the existing local DuckDB path.
 - Migrated lake sources MUST write through PyIceberg to Polaris and MUST NOT also treat a filesystem, SQLite, SQL, or in-memory catalog as authoritative.
 - DuckDB MUST resolve managed lake tables through Polaris rather than unsafe metadata-version guessing.
 - SQLMesh MAY read attached Iceberg tables and materialize application-owned outputs into local DuckDB.
