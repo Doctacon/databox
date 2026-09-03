@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-add-catalog-card-and-profile-media.md, .10x/specs/arizona-catalog-media.md
+Relates-To: .10x/tickets/done/2026-07-11-add-catalog-card-and-profile-media.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md
 
 # Catalog card and profile media UI
 
@@ -40,7 +40,7 @@ The 22 focused cases include available/unavailable card media, original placehol
 
 ## What this supports
 
-This evidence supports every acceptance criterion in `.10x/tickets/done/2026-07-11-add-catalog-card-and-profile-media.md` and the browser behaviors in `.10x/specs/arizona-catalog-media.md`. The complete frontend regression, strict TypeScript, production build, bundle privacy audit, repository secret scan, diff check, and no-stage gate passed.
+This evidence supports every acceptance criterion in `.10x/tickets/done/2026-07-11-add-catalog-card-and-profile-media.md` and the browser behaviors in `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md`. The complete frontend regression, strict TypeScript, production build, bundle privacy audit, repository secret scan, diff check, and no-stage gate passed.
 
 ## Limits
 

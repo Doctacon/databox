@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-Frontend-only recommendation-card and evidence compaction governed by `.10x/specs/recommendation-card-media-layout.md`.
+Frontend-only recommendation-card and evidence compaction governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-card-media-layout.md`.
 
 ## Findings
 

@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-build-arizona-bird-catalog-and-profile.
 
 ## Scope
 
-Implement the target-specific persistence/service, typed API, strict GLM workflow, weather integration, and React “Find this bird” flow governed by `.10x/specs/target-bird-planning.md`.
+Implement the target-specific persistence/service, typed API, strict GLM workflow, weather integration, and React “Find this bird” flow governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/target-bird-planning.md`.
 
 Reuse exact Arizona resolution and planner timing boundaries; validate radius 1–300 miles; rank at most ten exact-species valid/reviewed/non-private public location clusters by the specified count/newness/distance/stable ties; persist request, evidence, weather, report, provenance, and sanitized traces atomically.
 

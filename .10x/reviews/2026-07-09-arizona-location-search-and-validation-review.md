@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-Implementation and evidence for `.10x/specs/arizona-trip-location-resolution.md`.
+Implementation and evidence for `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-trip-location-resolution.md`.
 
 ## Assumptions tested
 

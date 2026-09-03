@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
-Parent: .10x/tickets/2026-09-03-extract-rufous-repository.md
+Parent: .10x/tickets/done/2026-09-03-extract-rufous-repository.md
 Depends-On: .10x/tickets/done/2026-09-03-migrate-rufous-models-and-backend.md, .10x/tickets/done/2026-09-03-migrate-rufous-web-public-deployment.md
 
 # Transfer Rufous records and reconcile documentation
@@ -44,7 +44,7 @@ Record exact copy/move/pointer manifest, canonical-authority checks, repaired re
 ## Progress and notes
 
 - 2026-09-03: Opened after standalone product code, models, web, and deployment migrations passed bounded reviews.
-- 2026-09-03: Moved 49 active product records, imported 283 explicitly listed historical records into the non-authoritative destination history tree, added split/boundary indexes, and reconciled Databox README/MkDocs ownership. Bounded diff, secret, pre-commit, and residue checks passed. Evidence: `.10x/evidence/2026-09-03-rufous-record-transfer.md`; destination manifest: `.10x/research/2026-09-03-databox-record-transfer-manifest.md`.
+- 2026-09-03: Moved 49 active product records, imported 283 explicitly listed historical records into the non-authoritative destination history tree, added split/boundary indexes, and reconciled Databox README/MkDocs ownership. Bounded diff, secret, pre-commit, and residue checks passed. Evidence: `.10x/evidence/2026-09-03-rufous-record-transfer.md`; destination manifest: `https://github.com/Doctacon/rufous/blob/main/.10x/research/2026-09-03-databox-record-transfer-manifest.md`.
 
 - 2026-09-03: Post-transfer review found stale shared-database/Quack ownership in six canonical Rufous records. Added the standalone data-product boundary decision, moved two immutable obsolete decisions to `decisions/superseded/`, rewrote four active specs around read-only artifact input and separate writable Rufous state, repaired references, and corrected the residual Databox README sentence.
 

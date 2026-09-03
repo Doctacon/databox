@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-10-implement-personal-bird-collection-stor
 
 ## Scope
 
-Implement the React “My Birds” navigation and Life List, Observations, Wishlist, and Watches surfaces plus explicit species-profile controls governed by `.10x/specs/personal-bird-collection.md`.
+Implement the React “My Birds” navigation and Life List, Observations, Wishlist, and Watches surfaces plus explicit species-profile controls governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/personal-bird-collection.md`.
 
 Use strict runtime API validation, local catalog species selection, native forms/confirmation/dialog semantics, route title/focus/history behavior, responsive states, and clear independence among observed/wishlist/watch state.
 

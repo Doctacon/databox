@@ -1,8 +1,11 @@
-Status: active
+Status: superseded
 Created: 2026-08-31
-Updated: 2026-08-31
+Updated: 2026-09-03
 
 # Local Rufous with a Polaris-governed Iceberg source lake
+
+Superseded when Polaris credential vending proved incompatible with R2; AWS S3
+became the durable object store and Rufous later moved to its own repository.
 
 ## Context
 
@@ -10,7 +13,7 @@ Databox currently uses one local DuckDB file for ingestion, transformed models, 
 
 This decision supersedes `.10x/decisions/superseded/local-only-birding-product-architecture.md`. It preserves that decision's local Rufous, browser/API, model allowlist, and credential boundaries while replacing the single-local-warehouse constraint.
 
-The compatibility basis is `.10x/research/2026-08-31-polaris-r2-iceberg-compatibility.md`.
+The compatibility basis is `.10x/tickets/cancelled/2026-08-31-prove-gbif-r2-iceberg-vertical-slice.md`.
 
 ## Decision
 

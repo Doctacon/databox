@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-10
 Updated: 2026-07-10
-Relates-To: .10x/tickets/done/2026-07-10-build-bird-alert-calendar-and-outbox.md, .10x/specs/bird-alert-calendar-and-smtp-delivery.md
+Relates-To: .10x/tickets/done/2026-07-10-build-bird-alert-calendar-and-outbox.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/bird-alert-calendar-and-smtp-delivery.md
 
 # Bird-alert calendar and durable outbox
 

@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
-Parent: .10x/tickets/2026-09-03-extract-rufous-repository.md
+Parent: .10x/tickets/done/2026-09-03-extract-rufous-repository.md
 Depends-On: .10x/tickets/done/2026-09-03-bootstrap-standalone-rufous.md, .10x/tickets/done/2026-09-03-migrate-rufous-models-and-backend.md
 
 # Migrate Rufous web, public release, and deployment

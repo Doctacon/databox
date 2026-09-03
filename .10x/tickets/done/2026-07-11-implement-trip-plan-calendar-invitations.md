@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-10-implement-proton-bridge-alert-delivery-
 
 ## Scope
 
-Implement trip-plan event identity/state, canonical payload, durable outbox integration, explicit send/update/retry/reconciliation API, and fake-transport verification governed by `.10x/specs/trip-plan-calendar-invitations.md`.
+Implement trip-plan event identity/state, canonical payload, durable outbox integration, explicit send/update/retry/reconciliation API, and fake-transport verification governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-calendar-invitations.md`.
 
 ## Acceptance criteria
 

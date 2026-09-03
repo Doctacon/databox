@@ -69,7 +69,8 @@ install the Python/data stack.
 
 ## Aggregate coverage
 
-The aggregate coverage job first runs core tests, then calls:
+The aggregate coverage job first runs core tests, runs the public provider-only
+USFWS suite in its own offline process, then calls:
 
 ```bash
 python scripts/sources/source_ci.py coverage
@@ -78,9 +79,27 @@ python scripts/sources/source_ci.py coverage
 The command validates the same canonical contract, executes root-level shared
 source-harness tests once, then executes every registered source suite through a
 separate sequential `coverage run --append` process. This preserves the active
-VCR/dlt HTTP-client isolation contract while ensuring shared harness behavior
-and all seven sources contribute to the workspace coverage threshold. Every
-process uses `--record-mode=none --block-network`.
+VCR/dlt HTTP-client isolation contract while ensuring the shared harness, all
+seven registered sources, and the separately invoked public USFWS interface
+contribute to the workspace coverage threshold. Every provider process uses
+`--record-mode=none --block-network`.
+
+## Protected live integration
+
+Ordinary CI is credential-free: it constructs the real Dagster graph and replays
+sanitized source fixtures without provider traffic or destination writes. Real
+publication is intentionally separate in
+`.github/workflows/polaris-iceberg-integration.yaml`.
+
+That workflow has only a manual `workflow_dispatch` trigger and uses the
+protected `polaris-iceberg-integration` environment. Six independent jobs use
+GitHub OIDC, generated disposable Polaris/Postgres credentials, and
+`integration/<run>/<attempt>/<source>/warehouse` S3 prefixes. SQLMesh is skipped
+so failures retain provider/destination attribution. The workflow must not be
+made an automatic PR, push, schedule, or deployment dependency.
+
+The first complete passing matrix is recorded in the
+[protected integration evidence](https://github.com/Doctacon/databox/blob/main/.10x/evidence/2026-09-03-protected-polaris-source-matrix.md).
 
 ## Local verification
 

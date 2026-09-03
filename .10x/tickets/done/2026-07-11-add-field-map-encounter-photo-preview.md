@@ -12,7 +12,7 @@ Extend the map snapshot with bounded deduplicated exact catalog-photo metadata; 
 
 ## Acceptance criteria
 
-- API/media relationships and strict browser validators satisfy `.10x/specs/field-map-encounter-photo-preview.md`.
+- API/media relationships and strict browser validators satisfy `https://github.com/Doctacon/rufous/blob/main/.10x/specs/field-map-encounter-photo-preview.md`.
 - Available, unavailable, hybrid, stale, malformed, load-failure, duplicate, and unrelated-photo cases fail/render as specified.
 - Hover/focus/leave/blur/filter/unmount and same-as-selected behavior pass without stale map generations.
 - Click/Enter persistent selection and existing map filters/layout remain intact.

@@ -25,7 +25,7 @@ The user ratified the operating boundary in the 2026-07-10 workstream: engineeri
 9. Public-source indexing MUST remain same-site and robots-compliant by default, use conservative crawl behavior, and MUST NOT bypass authentication, paywalls, robots controls, or anti-bot protections.
 10. Credentials MUST remain in environment or shell memory and MUST NOT appear in prompts, logs, project records, generated artifacts, or committed files.
 11. For Databox work, this decision supersedes the global `turbopuffer-site-rag` skill's per-live-apply approval requirement only for the bounded, non-deleting operations above. All stricter credential, crawl-ethics, plan/preflight, citation, and evidence guardrails remain in force.
-12. Existing active product specifications that exclude turbo-search content remain authoritative. In particular, `.10x/specs/arizona-bird-catalog-and-profile.md` and `.10x/specs/avonet-bird-traits-source.md` continue to prohibit a turbo-search bird corpus or runtime narrative-profile source.
+12. Existing active product specifications that exclude turbo-search content remain authoritative. In particular, `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-catalog-and-profile.md` and `.10x/specs/avonet-bird-traits-source.md` continue to prohibit a turbo-search bird corpus or runtime narrative-profile source.
 
 ## Alternatives considered
 

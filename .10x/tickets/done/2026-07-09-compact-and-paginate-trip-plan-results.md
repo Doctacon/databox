@@ -8,7 +8,7 @@ Depends-On: None
 
 ## Scope
 
-Implement the accepted planner-result compaction governed by `.10x/specs/recommendation-card-media-layout.md`:
+Implement the accepted planner-result compaction governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-card-media-layout.md`:
 
 - collapse Evidence and Provenance by default,
 - retain Agent Workflow as an independently collapsed nested disclosure,

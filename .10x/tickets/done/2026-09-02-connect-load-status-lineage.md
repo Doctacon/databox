@@ -26,7 +26,7 @@ Represent every registry-managed `_dlt_load_status` Iceberg table as a truthful 
 ## References
 
 - `.10x/specs/canonical-dlt-source-registry.md`
-- `.10x/specs/usfws-manual-media-discovery.md`
+- `.10x/specs/superseded/usfws-manual-media-discovery.md`
 - `transforms/main/models/analytics/platform_health.sql`
 
 ## Evidence expectations

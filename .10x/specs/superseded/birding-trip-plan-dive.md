@@ -4,7 +4,7 @@ Updated: 2026-07-09
 
 # Birding Trip Plan MotherDuck Dive
 
-Superseded by `.10x/specs/local-birding-trip-copilot-app.md` after the user selected a local React product and removed MotherDuck from the repository.
+Superseded by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/local-birding-trip-copilot-app.md` after the user selected a local React product and removed MotherDuck from the repository.
 
 ## Purpose and scope
 
@@ -54,7 +54,7 @@ A first version SHOULD include:
 ## Acceptance criteria
 
 - The Dive can render from persisted trip-plan SQL artifacts without running the Python agent in-browser.
-- The Dive shows the final field plan and recommendation sections from `.10x/specs/birding-trip-copilot.md`.
+- The Dive shows the final field plan and recommendation sections from `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md`.
 - The Dive exposes evidence/provenance, not just the final prose.
 - The Dive handles loading, empty, and error states.
 - The Dive does not include browser-side API secrets.

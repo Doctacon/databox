@@ -16,12 +16,16 @@ independent Dagster job, verifies each authoritative Iceberg table and explicit
 `_dlt_load_status`, then invokes native SQLMesh only if every source succeeded.
 `SOURCE_START`/`SOURCE_END` lines and Dagster run IDs attribute interleaved logs;
 overlap is calculated from timestamps around each source's `dg launch`
-subprocess, proving worker-process overlap while including subprocess startup time. Raw data lives in S3-backed
-Iceberg tables registered by Polaris; `data/databox.duckdb` contains the local
-SQLMesh schemas such as `environmental_observations` and `analytics`.
+subprocess, proving worker-process overlap while including subprocess startup
+time. Raw data lives in S3-backed Iceberg tables registered by Polaris;
+`data/databox.duckdb` contains the local SQLMesh schemas such as
+`environmental_observations` and `analytics`.
 
-Before refreshing, start `compose.iceberg.yml` and configure the Polaris client,
-AWS region, S3 bucket, and AWS writer credentials documented in `.env.example`.
+Before refreshing, configure the Polaris client, AWS region, S3 bucket, and
+temporary AWS writer credentials documented in `.env.example`, including the
+session token required by the current Compose stack. `databox_lake` must already
+be provisioned with `s3://<bucket>/warehouse` as its base location and the
+bucket-scoped IAM role, then start `compose.iceberg.yml`.
 
 Static pinned AVONET is deliberately excluded from routine refresh. Run its
 independent `avonet_ingest` Dagster job explicitly when a validated
@@ -38,6 +42,20 @@ cd transforms/main && ../../.venv/bin/sqlmesh test
 
 `task verify` uses `DATABOX_SMOKE=1` with the same concurrent Polaris Iceberg
 source path, then restates SQLMesh prod through the native CLI.
+
+## Protected live integration
+
+The GitHub workflow `.github/workflows/polaris-iceberg-integration.yaml` is a
+manual, protected diagnostic gate rather than a durable refresh. Each of the six
+routine sources gets an independent job, disposable Polaris/Postgres state, and
+`integration/<run>/<attempt>/<source>/warehouse` S3 prefix. It uses GitHub OIDC;
+do not add static AWS credentials or automatic PR/push/schedule triggers.
+
+Dispatch it from the GitHub Actions UI, approve the
+`polaris-iceberg-integration` environment, and inspect every matrix result. The
+workflow skips SQLMesh and does not delete integration objects. See the
+[verified run record](https://github.com/Doctacon/databox/blob/main/.10x/evidence/2026-09-03-protected-polaris-source-matrix.md)
+for the exact claims and limits.
 
 ## SQLMesh dev loop
 

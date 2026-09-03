@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-02
 Updated: 2026-09-02
-Relates-To: .10x/tickets/2026-09-02-pause-rufous-public-production-deployment.md
+Relates-To: .10x/tickets/done/2026-09-02-pause-rufous-public-production-deployment.md
 
 # Rufous public production-pause evidence
 

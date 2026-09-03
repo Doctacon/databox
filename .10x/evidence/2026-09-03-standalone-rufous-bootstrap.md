@@ -27,4 +27,4 @@ Copied ownership includes app, worker, product Python modules/tests/scripts, pro
 
 ## Deferred work
 
-`.10x/tickets/2026-09-03-migrate-rufous-models-and-backend.md` owns settings completion, destination replacement, artifact SQL rewrites, USFWS orchestration, and all Python test collection/execution. `.10x/tickets/2026-09-03-migrate-rufous-web-public-deployment.md` owns source-refresh UI removal, stale paths/workflow commands, app/worker naming, public checks, and npm audit disposition.
+`.10x/tickets/done/2026-09-03-migrate-rufous-models-and-backend.md` owns settings completion, destination replacement, artifact SQL rewrites, USFWS orchestration, and all Python test collection/execution. `.10x/tickets/done/2026-09-03-migrate-rufous-web-public-deployment.md` owns source-refresh UI removal, stale paths/workflow commands, app/worker naming, public checks, and npm audit disposition.

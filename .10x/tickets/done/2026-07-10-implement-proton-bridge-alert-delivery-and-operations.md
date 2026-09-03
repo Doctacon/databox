@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-10-build-bird-alert-calendar-and-outbox.md
 
 ## Scope
 
-Implement server-only SMTP settings validation, exact-CA loopback STARTTLS transport, durable sender/claim workflow, 1/5/15-minute transient retries, permanent/ambiguous classification, manual reconciliation/retry API/UI, safe status presentation, and 90-day cleanup governed by `.10x/specs/bird-alert-calendar-and-smtp-delivery.md`.
+Implement server-only SMTP settings validation, exact-CA loopback STARTTLS transport, durable sender/claim workflow, 1/5/15-minute transient retries, permanent/ambiguous classification, manual reconciliation/retry API/UI, safe status presentation, and 90-day cleanup governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/bird-alert-calendar-and-smtp-delivery.md`.
 
 Use generic SMTP interfaces; Proton Bridge is configuration, not a proprietary SDK dependency. Preserve the existing one-test-email and one-test-invitation authorization for explicit final verification only.
 

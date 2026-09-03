@@ -181,4 +181,4 @@ A previous immediate rerun failed once with `data/.quack-clients/client-<pid>.du
 
 - The first endpoint is GBIF public occurrence search for Aves in the configured geography (`country_code=US`, `state_province="Arizona"`, `taxon_key=212` mapped to GBIF `classKey=212`). GBIF username/password credentials were not used because this endpoint does not require them.
 - Only a 5-row smoke ingestion was run locally to limit external API usage.
-- No CDM/planner SQLMesh models were added in this ticket; downstream planner-ready SQL interfaces are owned by `.10x/tickets/2026-07-08-model-birding-planner-sql-interfaces.md`.
+- No CDM/planner SQLMesh models were added in this ticket; downstream planner-ready SQL interfaces are owned by `.10x/tickets/done/2026-07-08-model-birding-planner-sql-interfaces.md`.

@@ -12,7 +12,7 @@ Replace the paginated three-column card grid with a subtle vertical single-selec
 
 ## Acceptance criteria
 
-- All interaction, semantic, visual, media, performance, responsive, and reduced-motion behavior in `.10x/specs/arizona-bird-wheel-catalog.md` passes.
+- All interaction, semantic, visual, media, performance, responsive, and reduced-motion behavior in `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-wheel-catalog.md` passes.
 - Wheel/trackpad/touch and Arrow/Page/Home/End interactions deterministically center one taxon.
 - Search/filter/sort/reset semantics remain exact and reset to the first match.
 - Only active preview creates photo/audio elements; no autoplay; changing taxon stops audio.

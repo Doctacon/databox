@@ -2,7 +2,7 @@ Status: done
 Created: 2026-07-08
 Updated: 2026-07-09
 Parent: .10x/tickets/done/2026-07-08-build-birding-trip-copilot.md
-Depends-On: .10x/tickets/2026-07-08-model-birding-planner-sql-interfaces.md
+Depends-On: .10x/tickets/done/2026-07-08-model-birding-planner-sql-interfaces.md
 
 # Implement ADK trip planner and persistence
 
@@ -16,7 +16,7 @@ In scope:
 - Add Google ADK dependency/configuration in the appropriate project dependency group.
 - Implement bounded planner tools for location normalization, observation/context lookup, Open-Meteo context, media lookup, ranking, and persistence.
 - Implement the root trip planner agent using the active specs.
-- Persist trip plan, recommended species, evidence, and tool-trace artifacts into the SQL interfaces defined by `.10x/tickets/2026-07-08-model-birding-planner-sql-interfaces.md`.
+- Persist trip plan, recommended species, evidence, and tool-trace artifacts into the SQL interfaces defined by `.10x/tickets/done/2026-07-08-model-birding-planner-sql-interfaces.md`.
 - Provide a local runnable entrypoint for generating at least one trip plan without the Dive.
 - Add unit tests for deterministic tool behavior and persistence.
 

@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-repair-field-map-interaction-and-layout.md, .10x/specs/rufous-field-map-interaction-repair.md, .10x/specs/rufous-field-map.md
+Relates-To: .10x/tickets/done/2026-07-11-repair-field-map-interaction-and-layout.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-field-map-interaction-repair.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-field-map.md
 
 # Field Map interaction and layout repair verification
 

@@ -4,21 +4,28 @@
 [![Docs](https://github.com/Doctacon/databox/actions/workflows/docs.yaml/badge.svg?branch=main)](https://doctacon.github.io/databox/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A local-first data warehouse with dlt-managed Iceberg tables on AWS S3, an
-Apache Polaris catalog, and local DuckDB analytics. Databox transforms data with
-SQLMesh, validates it with Soda, and orchestrates the workflow with
-Dagster—without always-on infrastructure.
+A local-first ingestion and data-product platform with dlt-managed Iceberg
+tables on AWS S3, an Apache Polaris catalog, and local DuckDB analytics. Databox
+transforms data with SQLMesh, validates it with Soda, and orchestrates the
+workflow with Dagster—without always-on infrastructure.
 
-## Data products
+## Platform boundary
 
-Databox publishes bounded, versioned DuckDB artifacts for independent consumers.
+Databox owns reusable source ingestion, Polaris/Iceberg raw authority, generic
+environmental models, platform health, and bounded versioned DuckDB artifacts.
+Its canonical registry contains seven sources: six routine refresh sources plus
+the explicit pinned AVONET snapshot. The public `databox_sources.usfws`
+interface is provider-only and requires caller-owned targets.
+
 The standalone [Rufous](https://github.com/Doctacon/rufous) birding application
-consumes `rufous_inputs_v1` read-only and keeps its application state, models,
-APIs, media workflows, web app, and deployment in its own repository. Databox
-does not launch or deploy Rufous.
+consumes the twelve-relation `rufous_inputs_v1` artifact read-only and keeps its
+application state, product models, APIs, media workflows, web app, and
+deployment in its own repository. Databox does not launch or deploy Rufous, and
+Rufous production remains disabled pending separate authorization.
 
-See the [data-product boundary](.10x/specs/databox-rufous-data-product-boundary.md)
-and [artifact exporter](scripts/platform/export_rufous_product.py).
+See the [data-product boundary](.10x/specs/databox-rufous-data-product-boundary.md),
+[artifact exporter](scripts/platform/export_rufous_product.py), and
+[repository split decision](.10x/decisions/split-rufous-into-standalone-repository.md).
 
 ```mermaid
 flowchart LR
@@ -72,15 +79,18 @@ After the initial dependency install, source tests replay recorded responses, so
 
 ### Build the local warehouse
 
-After `task install`, configure the Polaris client, AWS S3 bucket/writer,
+After `task install`, configure the Polaris client, AWS S3 bucket, temporary AWS
+writer credentials (access key, secret key, and session token),
 `EBIRD_API_TOKEN`, `NOAA_API_TOKEN`, and `XENO_CANTO_API_KEY` values documented
-in `.env.example`. Start the local catalog, bootstrap the pinned AVONET snapshot
-once, then refresh the routine sources:
+in `.env.example`. The configured `databox_lake` must already be provisioned with
+`s3://<bucket>/warehouse` and the bucket-scoped role before publication. Start
+the local catalog, bootstrap the pinned AVONET snapshot once, then refresh the
+routine sources:
 
 ```bash
 $EDITOR .env
 mkdir -p data .dagster
-docker-compose --env-file .env -f compose.iceberg.yml up -d
+docker compose --env-file .env -f compose.iceberg.yml up -d
 curl --fail --silent http://127.0.0.1:8182/q/health/ready
 DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
   uv run dg launch --target-path packages/databox --job avonet_ingest
@@ -96,6 +106,18 @@ the authoritative Iceberg data and metadata files remain in AWS S3. It also
 includes the official open-source Polaris Console at <http://127.0.0.1:8080>,
 built from a pinned Apache `polaris-tools` revision and connected to the Polaris
 API on port 8181.
+
+## Protected integration verification
+
+Ordinary CI is credential-free and never contacts live providers or publishes to
+S3. Maintainers can manually dispatch
+[`Polaris Iceberg integration`](.github/workflows/polaris-iceberg-integration.yaml)
+through its protected GitHub environment. It runs each of the six routine
+sources independently with GitHub OIDC, disposable Polaris credentials, and a
+source-scoped `integration/<run>/<attempt>/<source>/warehouse` prefix. The
+[first complete passing run](.10x/evidence/2026-09-03-protected-polaris-source-matrix.md)
+verified all six real provider-to-Iceberg paths without targeting the normal
+`warehouse/` prefix.
 
 ## Learn more
 

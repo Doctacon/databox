@@ -4,7 +4,7 @@ Updated: 2026-07-09
 
 # Cloudflare Birding Agent Workflow
 
-Superseded by `.10x/specs/cloudflare-workers-ai-local-agent.md`; Cloudflare now provides model inference only and no Worker product is deployed.
+Superseded by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/cloudflare-workers-ai-local-agent.md`; Cloudflare now provides model inference only and no Worker product is deployed.
 
 ## Purpose and scope
 

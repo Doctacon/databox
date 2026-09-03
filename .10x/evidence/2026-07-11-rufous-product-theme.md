@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-apply-rufous-product-theme.md, .10x/specs/rufous-product-shell.md
+Relates-To: .10x/tickets/done/2026-07-11-apply-rufous-product-theme.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-product-shell.md
 
 # Rufous product theme verification
 

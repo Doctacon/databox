@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target
 
-The catalog-media runtime schema, batch lifecycle, selector reuse, list/detail API output, browser validation, operational preflight, tests, and evidence governed by `.10x/specs/arizona-catalog-media.md`.
+The catalog-media runtime schema, batch lifecycle, selector reuse, list/detail API output, browser validation, operational preflight, tests, and evidence governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md`.
 
 ## Findings
 

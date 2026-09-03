@@ -1,8 +1,10 @@
-Status: active
+Status: superseded
 Created: 2026-07-11
-Updated: 2026-07-11
+Updated: 2026-09-03
 
 # Local source refresh control
+
+Superseded by the completed standalone Rufous extraction: Databox no longer owns an application header or runtime refresh API, and Rufous intentionally has no source-refresh coupling.
 
 ## Purpose and scope
 

@@ -1,14 +1,17 @@
-Status: active
+Status: superseded
 Created: 2026-08-31
-Updated: 2026-08-31
+Updated: 2026-09-03
 
 # GBIF Iceberg vertical slice
+
+Superseded when the R2 compatibility path was retired; GBIF now publishes to
+the Polaris-governed AWS S3 warehouse.
 
 ## Purpose and scope
 
 This specification governs a reversible proof that the existing GBIF source can be loaded through dlt/PyIceberg into a Polaris-governed Iceberg table in Cloudflare R2, read through DuckDB, transformed by SQLMesh into local DuckDB, and consumed by existing local Rufous FastAPI behavior.
 
-The governing platform decision is `.10x/decisions/local-rufous-polaris-iceberg-architecture.md`. Technical uncertainties and proof gates are recorded in `.10x/research/2026-08-31-polaris-r2-iceberg-compatibility.md`.
+The governing platform decision is `.10x/decisions/superseded/local-rufous-polaris-r2-iceberg-architecture.md`. Technical uncertainties and proof gates are recorded in `.10x/tickets/cancelled/2026-08-31-prove-gbif-r2-iceberg-vertical-slice.md`.
 
 ## Required behavior
 

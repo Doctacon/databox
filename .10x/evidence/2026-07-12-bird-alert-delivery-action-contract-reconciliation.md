@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-12
 Updated: 2026-07-12
-Relates-To: .10x/tickets/done/2026-07-12-reconcile-bird-alert-delivery-action-contract.md, .10x/specs/bird-alert-calendar-and-smtp-delivery.md, .10x/decisions/bird-alert-retry-and-event-lifecycle.md
+Relates-To: .10x/tickets/done/2026-07-12-reconcile-bird-alert-delivery-action-contract.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/bird-alert-calendar-and-smtp-delivery.md, https://github.com/Doctacon/rufous/blob/main/.10x/decisions/bird-alert-retry-and-event-lifecycle.md
 
 # Bird-alert delivery action contract reconciliation
 

@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-13
 Updated: 2026-07-13
-Relates-To: `.10x/tickets/done/2026-07-13-reconcile-inaturalist-photo-migration-evidence.md`, `.10x/specs/curated-inaturalist-representative-bird-photos.md`
+Relates-To: `.10x/tickets/done/2026-07-13-reconcile-inaturalist-photo-migration-evidence.md`, `https://github.com/Doctacon/rufous/blob/main/.10x/specs/curated-inaturalist-representative-bird-photos.md`
 
 # iNaturalist photo migration campaign reconciliation evidence
 

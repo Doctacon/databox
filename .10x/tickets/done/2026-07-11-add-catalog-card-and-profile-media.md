@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-implement-catalog-media-enrichment.md
 
 ## Scope
 
-Render strict catalog media on Arizona Birds cards and profiles under `.10x/specs/arizona-catalog-media.md`: lazy photos/placeholders, compact one-active-at-a-time Play/Stop calls, full profile media/attribution, unavailable/load-error states, and strict browser validation.
+Render strict catalog media on Arizona Birds cards and profiles under `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md`: lazy photos/placeholders, compact one-active-at-a-time Play/Stop calls, full profile media/attribution, unavailable/load-error states, and strict browser validation.
 
 ## Acceptance criteria
 

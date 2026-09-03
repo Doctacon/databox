@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-repair-trip-planner-ebird-evidence-privacy.md, .10x/decisions/trip-planner-ebird-evidence-eligibility.md, .10x/specs/birding-trip-copilot.md
+Relates-To: .10x/tickets/done/2026-07-11-repair-trip-planner-ebird-evidence-privacy.md, https://github.com/Doctacon/rufous/blob/main/.10x/decisions/trip-planner-ebird-evidence-eligibility.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md
 
 # Trip Planner eBird evidence privacy repair
 

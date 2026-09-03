@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-build-field-map-data-api.md
 
 ## Scope
 
-Implement `.10x/specs/arizona-place-suggestions.md`: strict local eBird hotspot token search/ranking, source-labeled suggestion contract, bounded zero-local-only Open-Meteo fallback and 0.001° same-label dedup, component display, and reuse across trip/target/Watch workflows.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-place-suggestions.md`: strict local eBird hotspot token search/ranking, source-labeled suggestion contract, bounded zero-local-only Open-Meteo fallback and 0.001° same-label dedup, component display, and reuse across trip/target/Watch workflows.
 
 ## Acceptance criteria
 
@@ -32,7 +32,7 @@ None.
 
 ## Progress and notes
 
-- 2026-07-11: Ratified the zero-local-only fallback and same-normalized-label/0.001° per-coordinate dedup rule in `.10x/decisions/rufous-local-hotspot-fallback-policy.md`; updated the governing spec and removed the contradictory mixed Prescott scenario.
+- 2026-07-11: Ratified the zero-local-only fallback and same-normalized-label/0.001° per-coordinate dedup rule in `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-local-hotspot-fallback-policy.md`; updated the governing spec and removed the contradictory mixed Prescott scenario.
 - 2026-07-11: Implemented strict local hotspot normalization, matching, ranking, validation, local-wins behavior, source-labeled browser contract/display, and metadata-safe reuse for trip, target, and Watch submission flows. Added backend and browser attack, fallback, privacy, keyboard, cancellation, coordinate, and payload tests.
 - 2026-07-11: Recorded live 2,912-hotspot/Watson/no-upstream proof and final gates in `.10x/evidence/2026-07-11-local-hotspot-place-suggestions.md`: backend 705/705 with 86.69% coverage, frontend 249/249, typecheck/build/bundle audit, MyPy, all-files pre-commit, unchanged warehouse, and empty staging.
 - 2026-07-11: Independent review passed. Review: `.10x/reviews/2026-07-11-local-hotspot-place-suggestions-review.md`.

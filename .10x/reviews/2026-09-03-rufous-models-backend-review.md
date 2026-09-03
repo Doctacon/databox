@@ -12,7 +12,7 @@ No unresolved in-scope finding remains. Rufous pins the public `databox-sources`
 
 The USFWS job is manual and unscheduled and retains modeled targets, request bounds, current-run filtering, and fail-closed verification. Eleven product-owned SQLMesh tests are the complete moved set; seven environmental/analytics tests remain correctly owned by Databox.
 
-Five unchanged public-workflow tests remain failing because they assert Databox paths and workflow names. They are within the explicit web/deployment exclusion and are durably owned by `.10x/tickets/2026-09-03-migrate-rufous-web-public-deployment.md`; they were not skipped or weakened.
+Five unchanged public-workflow tests remain failing because they assert Databox paths and workflow names. They are within the explicit web/deployment exclusion and are durably owned by `.10x/tickets/done/2026-09-03-migrate-rufous-web-public-deployment.md`; they were not skipped or weakened.
 
 ## Residual risk
 

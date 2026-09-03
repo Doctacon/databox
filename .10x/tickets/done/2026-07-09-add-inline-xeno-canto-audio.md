@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-improve-species-and-weather-presentatio
 
 ## Scope
 
-Implement `.10x/specs/xeno-canto-inline-audio.md` in the persisted API contract and React result view.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/xeno-canto-inline-audio.md` in the persisted API contract and React result view.
 
 Required work:
 

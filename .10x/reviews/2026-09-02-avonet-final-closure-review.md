@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-02
 Updated: 2026-09-02
-Target: .10x/tickets/2026-09-02-migrate-avonet-to-polaris-iceberg.md
+Target: .10x/tickets/done/2026-09-02-migrate-avonet-to-polaris-iceberg.md
 Verdict: pass
 
 # AVONET final closure review

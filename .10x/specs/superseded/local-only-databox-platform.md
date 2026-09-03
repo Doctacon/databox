@@ -4,7 +4,7 @@ Updated: 2026-08-31
 
 # Local-only Databox Platform
 
-Superseded by `.10x/specs/local-iceberg-databox-platform.md` after the user ratified a local Rufous runtime backed by a durable Polaris catalog and Cloudflare R2 Iceberg warehouse.
+Superseded by `.10x/specs/superseded/local-iceberg-databox-r2-platform.md` after the user ratified a local Rufous runtime backed by a durable Polaris catalog and Cloudflare R2 Iceberg warehouse.
 
 ## Purpose and scope
 

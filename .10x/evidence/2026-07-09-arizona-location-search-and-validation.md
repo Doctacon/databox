@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-add-arizona-location-search-and-validation.md, .10x/specs/arizona-trip-location-resolution.md
+Relates-To: .10x/tickets/done/2026-07-09-add-arizona-location-search-and-validation.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-trip-location-resolution.md
 
 # Arizona location search and validation evidence
 

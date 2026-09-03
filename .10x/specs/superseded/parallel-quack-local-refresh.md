@@ -1,8 +1,10 @@
-Status: active
+Status: superseded
 Created: 2026-07-09
-Updated: 2026-07-09
+Updated: 2026-09-03
 
 # Parallel Quack Local Refresh
+
+Superseded by `.10x/specs/canonical-dlt-source-registry.md` and `docs/adr/0008-polaris-iceberg-raw-authority.md`; the primary refresh now publishes directly to Polaris-governed Iceberg.
 
 ## Purpose and scope
 

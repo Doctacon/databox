@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-build-rufous-field-map-ui.md
 
 ## Scope
 
-Implement `.10x/specs/rufous-field-map-interaction-repair.md`: source-load race fix, filter extent/data/marker refresh, selected highlight and pan/zoom, synchronized selection, and right rail with Selected Encounter above list.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-field-map-interaction-repair.md`: source-load race fix, filter extent/data/marker refresh, selected highlight and pan/zoom, synchronized selection, and right rail with Selected Encounter above list.
 
 ## Acceptance criteria
 

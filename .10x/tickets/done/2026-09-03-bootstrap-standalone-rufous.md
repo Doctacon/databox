@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
-Parent: .10x/tickets/2026-09-03-extract-rufous-repository.md
+Parent: .10x/tickets/done/2026-09-03-extract-rufous-repository.md
 Depends-On: .10x/tickets/done/2026-09-03-export-rufous-input-artifact.md, .10x/tickets/done/2026-09-03-publish-usfws-source-interface.md
 
 # Bootstrap standalone Rufous repository

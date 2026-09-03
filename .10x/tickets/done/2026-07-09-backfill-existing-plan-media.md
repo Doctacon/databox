@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-implement-request-time-recommendation-m
 
 ## Scope
 
-Create and execute the explicit idempotent existing-plan media backfill governed by `.10x/specs/recommendation-media-enrichment.md`.
+Create and execute the explicit idempotent existing-plan media backfill governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-media-enrichment.md`.
 
 Required work:
 

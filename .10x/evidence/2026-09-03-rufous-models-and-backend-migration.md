@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-03
 Updated: 2026-09-03
-Relates-To: .10x/tickets/2026-09-03-migrate-rufous-models-and-backend.md
+Relates-To: .10x/tickets/done/2026-09-03-migrate-rufous-models-and-backend.md
 
 # Rufous models and backend migration evidence
 
@@ -24,7 +24,7 @@ The manual unscheduled `usfws_ingest` multi-asset derives targets from `rufous_p
 - Full collection: 1,071 tests collected with no collection errors.
 - In-scope Python aggregate excluding the web/deployment-owned workflow contract: 1,061 passed.
 - Product SQLMesh: 11/11 passed. Supervisor confirmed the other seven of Databox's former aggregate 18 remain with Databox-owned models and must not be copied.
-- Full destination targeted run: exactly five failures, all in `tests/rufous_media/test_rufous_public_workflow.py`, covering stale destination workflow commands and owned by `.10x/tickets/2026-09-03-migrate-rufous-web-public-deployment.md`; no test was weakened or globally skipped.
+- Full destination targeted run: exactly five failures, all in `tests/rufous_media/test_rufous_public_workflow.py`, covering stale destination workflow commands and owned by `.10x/tickets/done/2026-09-03-migrate-rufous-web-public-deployment.md`; no test was weakened or globally skipped.
 - Ruff and format passed for source/tests/config/scripts.
 - MyPy passed for 53 source files.
 - Secret scan passed for 261 eligible files.

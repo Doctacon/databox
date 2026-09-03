@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-build-field-map-data-api.md
 
 ## Scope
 
-Implement `/map`, navigation, open-source MapLibre local style/geometry, clusters, species/family/current-clock recency controls, selected encounter card, and synchronized accessible list under `.10x/specs/rufous-field-map.md`.
+Implement `/map`, navigation, open-source MapLibre local style/geometry, clusters, species/family/current-clock recency controls, selected encounter card, and synchronized accessible list under `https://github.com/Doctacon/rufous/blob/main/.10x/specs/rufous-field-map.md`.
 
 ## Acceptance criteria
 

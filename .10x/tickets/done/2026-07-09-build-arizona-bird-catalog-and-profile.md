@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-model-avonet-traits-and-arizona-catalog
 
 ## Scope
 
-Implement the read-only API and React pages governed by `.10x/specs/arizona-bird-catalog-and-profile.md`:
+Implement the read-only API and React pages governed by `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-catalog-and-profile.md`:
 
 - native Trip Planner / Arizona Birds navigation and direct/back-forward routes,
 - typed network-free `GET /api/birds` and `GET /api/birds/{species_code}`,

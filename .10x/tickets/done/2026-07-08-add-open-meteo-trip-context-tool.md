@@ -10,7 +10,7 @@ Depends-On: None
 
 Add the first Open-Meteo weather/elevation integration for request-time Birding Trip Copilot context.
 
-Per `.10x/specs/birding-agent-data-integrations.md`, Open-Meteo is an agent tool in the MVP rather than a scheduled dlt pipeline because trip plans use dynamic user-selected locations and future windows.
+Per `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-data-integrations.md`, Open-Meteo is an agent tool in the MVP rather than a scheduled dlt pipeline because trip plans use dynamic user-selected locations and future windows.
 
 In scope:
 

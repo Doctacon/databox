@@ -8,7 +8,7 @@ Depends-On: None
 
 ## Scope
 
-Implement `.10x/specs/recommendation-media-enrichment.md` in the Python planner/API and DuckDB persistence boundary.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-media-enrichment.md` in the Python planner/API and DuckDB persistence boundary.
 
 Required work:
 

@@ -10,7 +10,7 @@ Depends-On: None
 
 Add a first GBIF dlt source integration for the Birding Trip Copilot.
 
-The implementation MUST follow Databox source conventions in `docs/new-source.md` and `.10x/specs/birding-agent-data-integrations.md`.
+The implementation MUST follow Databox source conventions in `docs/new-source.md` and `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-data-integrations.md`.
 
 In scope:
 

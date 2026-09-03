@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-update-cdm-workflow-for-birding-sources.md, .10x/specs/birding-agent-data-integrations.md
+Relates-To: .10x/tickets/done/2026-07-09-update-cdm-workflow-for-birding-sources.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-data-integrations.md
 
 # Evidence: CDM workflow update for GBIF and Xeno-canto
 

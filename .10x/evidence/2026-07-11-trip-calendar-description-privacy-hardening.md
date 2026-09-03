@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-harden-trip-calendar-description-privacy.md, .10x/specs/trip-plan-calendar-invitations.md
+Relates-To: .10x/tickets/done/2026-07-11-harden-trip-calendar-description-privacy.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-calendar-invitations.md
 
 # Trip-calendar description privacy hardening evidence
 

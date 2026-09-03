@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-12
 Updated: 2026-07-12
-Target: `.10x/tickets/2026-07-12-harden-trip-planner-curated-photo-resume.md`, planner media enrichment/backfill/API repair and focused tests
+Target: `.10x/tickets/done/2026-07-12-harden-trip-planner-curated-photo-resume.md`, planner media enrichment/backfill/API repair and focused tests
 Verdict: pass
 
 # Trip Planner curated-photo activation and resume self-review

@@ -17,8 +17,8 @@ Before authoring, the executor MUST verify whether an active skill-writing skill
 - `.10x/decisions/autonomous-turbo-search-engineering-research.md`
 - `.10x/specs/turbo-search-engineering-research-skill.md`
 - `.10x/research/2026-07-09-local-birding-pokedex-watch-architecture.md`
-- `.10x/decisions/local-single-user-birding-pokedex-expansion.md`
-- `.10x/specs/arizona-bird-catalog-and-profile.md`
+- `https://github.com/Doctacon/databox/blob/572ca6191f598e323161cdadeec3898f10913d31/.10x/decisions/local-single-user-birding-pokedex-expansion.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-catalog-and-profile.md`
 - `.10x/specs/avonet-bird-traits-source.md`
 - Global reference skill: `$HOME/.pi/agent/skills/turbo-search-retrieve/SKILL.md`
 - Global operational reference: `$HOME/.pi/agent/skills/turbopuffer-site-rag/SKILL.md`

@@ -12,9 +12,9 @@ What current, supportable architecture can publish the local Quack warehouse to 
 
 Inspected project records/source:
 
-- `.10x/specs/birding-trip-copilot.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md`
 - `.10x/specs/superseded/birding-trip-plan-dive.md`
-- `.10x/specs/birding-agent-data-integrations.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-data-integrations.md`
 - `packages/databox/databox/destinations/quack.py`
 - `packages/databox/databox/agents/birding_trip_planner.py`
 - `dives/birding-trip-plan/`

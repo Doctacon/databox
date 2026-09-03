@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-02
 Updated: 2026-09-02
-Relates-To: .10x/tickets/2026-09-02-migrate-avonet-to-polaris-iceberg.md, .10x/specs/avonet-bird-traits-source.md, .10x/decisions/avonet-polaris-iceberg-publication.md
+Relates-To: .10x/tickets/done/2026-09-02-migrate-avonet-to-polaris-iceberg.md, .10x/specs/avonet-bird-traits-source.md, .10x/decisions/avonet-polaris-iceberg-publication.md
 
 # AVONET Polaris Iceberg migration evidence
 

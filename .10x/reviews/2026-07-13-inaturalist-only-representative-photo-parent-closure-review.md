@@ -8,7 +8,7 @@ Verdict: pass
 
 ## Target and authority
 
-Reviewed the active decision `.10x/decisions/curated-inaturalist-only-representative-photos.md`, endpoint decision `.10x/decisions/inaturalist-curated-photo-api-split.md`, active specification `.10x/specs/curated-inaturalist-representative-bird-photos.md`, parent/aggregate tickets, all done implementation/migration/repair children, aggregate and child evidence, durable fingerprint artifacts, and final multidisciplinary reviews.
+Reviewed the active decision `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/curated-inaturalist-only-representative-photos.md`, endpoint decision `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/inaturalist-curated-photo-api-split.md`, active specification `https://github.com/Doctacon/rufous/blob/main/.10x/specs/curated-inaturalist-representative-bird-photos.md`, parent/aggregate tickets, all done implementation/migration/repair children, aggregate and child evidence, durable fingerprint artifacts, and final multidisciplinary reviews.
 
 The superseded Wikimedia decision/spec and cancelled WDQS repair remain history, not active authority.
 
@@ -21,7 +21,7 @@ The superseded Wikimedia decision/spec and cancelled WDQS repair remain history,
 5. **Prohibited side effects:** command paths, counters, run records, and protected fingerprints support zero model, email, routine source/catalog-fact/AVONET/call refresh, recommendation regeneration, or binary persistence. Saved-plan migration inserted zero calls.
 6. **Protected state:** 86 protected database fingerprints and 20 non-rate-ledger external hashes match. The sanitized procedure and raw artifacts are durable under `.10x/evidence/.storage/`; the checksum manifest passes. Owned rate-state behavior is bounded and test isolation was repaired.
 7. **Independent reviews:** architecture, correctness, privacy/security/source, and UX/accessibility all pass. Earlier fail findings are resolved by done repair tickets and final rerun evidence.
-8. **Record graph and retrospective:** active spec/decisions agree with current behavior; all dependencies are done; superseded/cancelled records are terminal; aggregate evidence includes final closure results; reusable operational learning is preserved in `.10x/knowledge/curated-photo-operation-invariants.md`.
+8. **Record graph and retrospective:** active spec/decisions agree with current behavior; all dependencies are done; superseded/cancelled records are terminal; aggregate evidence includes final closure results; reusable operational learning is preserved in `https://github.com/Doctacon/rufous/blob/main/.10x/knowledge/curated-photo-operation-invariants.md`.
 
 ## Final observed state
 

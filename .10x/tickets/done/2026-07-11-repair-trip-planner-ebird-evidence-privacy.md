@@ -8,7 +8,7 @@ Depends-On: None
 
 ## Scope
 
-Implement `.10x/decisions/trip-planner-ebird-evidence-eligibility.md`: filter the planner eBird model and Python lookup to valid, reviewed, non-private evidence; add adversarial tests; apply the reviewed model change to production; and atomically delete complete saved-plan aggregates influenced by any ineligible authoritative source record.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/trip-planner-ebird-evidence-eligibility.md`: filter the planner eBird model and Python lookup to valid, reviewed, non-private evidence; add adversarial tests; apply the reviewed model change to production; and atomically delete complete saved-plan aggregates influenced by any ineligible authoritative source record.
 
 ## Acceptance criteria
 

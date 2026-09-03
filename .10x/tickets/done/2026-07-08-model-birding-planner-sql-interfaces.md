@@ -2,7 +2,7 @@ Status: done
 Created: 2026-07-08
 Updated: 2026-07-08
 Parent: .10x/tickets/done/2026-07-08-build-birding-trip-copilot.md
-Depends-On: .10x/tickets/2026-07-08-add-gbif-source-pipeline.md, .10x/tickets/2026-07-08-add-xeno-canto-source-pipeline.md, .10x/tickets/2026-07-08-add-open-meteo-trip-context-tool.md
+Depends-On: .10x/tickets/done/2026-07-08-add-gbif-source-pipeline.md, .10x/tickets/done/2026-07-08-add-xeno-canto-source-pipeline.md, .10x/tickets/done/2026-07-08-add-open-meteo-trip-context-tool.md
 
 # Model birding planner SQL interfaces
 

@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-11
 Updated: 2026-07-11
-Relates-To: .10x/tickets/done/2026-07-11-build-catalog-sort-and-filters.md, .10x/specs/arizona-catalog-discovery-controls.md
+Relates-To: .10x/tickets/done/2026-07-11-build-catalog-sort-and-filters.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-discovery-controls.md
 
 # Catalog sort and filter evidence
 

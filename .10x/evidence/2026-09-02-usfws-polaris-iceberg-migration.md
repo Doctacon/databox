@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-02
 Updated: 2026-09-02
-Relates-To: .10x/tickets/2026-09-02-migrate-usfws-to-polaris-iceberg.md, .10x/specs/canonical-dlt-source-registry.md
+Relates-To: .10x/tickets/done/2026-09-02-migrate-usfws-to-polaris-iceberg.md, .10x/specs/canonical-dlt-source-registry.md
 
 # USFWS Polaris Iceberg migration evidence
 

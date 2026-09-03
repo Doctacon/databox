@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-implement-shared-quack-parallel-refresh.md, .10x/specs/parallel-quack-local-refresh.md
+Relates-To: .10x/tickets/done/2026-07-09-implement-shared-quack-parallel-refresh.md, .10x/specs/superseded/parallel-quack-local-refresh.md
 
 # Parallel Quack local refresh evidence
 
@@ -79,7 +79,7 @@ Result: passed.
 
 ## What this supports
 
-This evidence supports every acceptance criterion in `.10x/specs/parallel-quack-local-refresh.md`: real source overlap through one server, independent Dagster attribution, repeat-run metadata behavior, failure propagation, cleanup, raw-schema isolation, no persistent `main._dlt*`, and SQLMesh-after-success ordering.
+This evidence supports every acceptance criterion in `.10x/specs/superseded/parallel-quack-local-refresh.md`: real source overlap through one server, independent Dagster attribution, repeat-run metadata behavior, failure propagation, cleanup, raw-schema isolation, no persistent `main._dlt*`, and SQLMesh-after-success ordering.
 
 ## Limits
 

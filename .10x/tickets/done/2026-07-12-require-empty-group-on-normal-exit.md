@@ -17,7 +17,7 @@ Close the final process-lifecycle proof gap:
 
 ## Governing records
 
-- `.10x/specs/local-source-refresh-control.md`
+- `.10x/specs/superseded/local-source-refresh-control.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-definitive-architecture-review.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-definitive-correctness-review.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-definitive-privacy-security-source-review.md`

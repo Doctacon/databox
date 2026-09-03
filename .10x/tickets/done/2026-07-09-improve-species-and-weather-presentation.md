@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-09-add-arizona-location-search-and-validat
 
 ## Scope
 
-Implement `.10x/specs/trip-plan-result-presentation.md` across SQLMesh planner interfaces, deterministic planner data, and React presentation.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/trip-plan-result-presentation.md` across SQLMesh planner interfaces, deterministic planner data, and React presentation.
 
 Required work:
 

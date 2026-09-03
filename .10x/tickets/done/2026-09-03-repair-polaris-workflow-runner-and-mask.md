@@ -1,4 +1,4 @@
-Status: active
+Status: done
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
@@ -21,6 +21,8 @@ Focused workflow tests and hosted manual rerun after merge.
 ## Progress and notes
 - 2026-09-03: Run 33793123271 successfully assumed OIDC and started the disposable compose stack, then failed at `task verify` with `task: command not found`. Generated values appeared unmasked in logs; the stack was torn down and no verification/publication command ran.
 - 2026-09-03: Added a SHA-pinned Task setup action before verification and GitHub Actions masking for every generated Polaris/Postgres value. Focused structural workflow test passes with coverage disabled; full hosted CI and a new protected manual run remain required.
+
+- 2026-09-03: PR #43 merged the pinned Task setup, generated-value masking, and failure-safe teardown required by this ticket. PR #49 later replaced `task verify` with the direct source-specific Python entrypoint, so the passing protected run 33814484913 no longer exercised Task setup; it did exercise the retained masking and teardown behavior in all six matrix jobs. The superseding command shape is owned and evidenced by the completed matrix ticket.
 
 ## Blockers
 None.

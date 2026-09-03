@@ -20,10 +20,10 @@ Final aggregate full-suite/evidence gaps remain owned by `.10x/tickets/done/2026
 
 ## Governing records
 
-- `.10x/specs/local-source-refresh-control.md`
-- `.10x/specs/field-map-encounter-photo-preview.md`
-- `.10x/specs/arizona-bird-wheel-catalog.md`
-- `.10x/decisions/rufous-wheel-map-preview-and-source-refresh.md`
+- `.10x/specs/superseded/local-source-refresh-control.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/field-map-encounter-photo-preview.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-bird-wheel-catalog.md`
+- `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/rufous-wheel-map-preview-and-source-refresh.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-architecture-review.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-correctness-review.md`
 - `.10x/reviews/2026-07-12-map-wheel-refresh-privacy-security-source-review.md`

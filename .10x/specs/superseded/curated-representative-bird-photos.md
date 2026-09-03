@@ -15,9 +15,9 @@ This specification governs representative bird-photo discovery, validation, rank
 
 It supersedes only the photo-source, photo-geography, photo-ranking, photo-URL, and photo-migration clauses of:
 
-- `.10x/specs/arizona-catalog-media.md`;
-- `.10x/specs/recommendation-media-enrichment.md`;
-- `.10x/specs/field-map-encounter-photo-preview.md`.
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/arizona-catalog-media.md`;
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-media-enrichment.md`;
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/field-map-encounter-photo-preview.md`.
 
 Call media, catalog identity, encounter eligibility, planner recommendation facts/rank, browser discovery prohibition, local persistence, and no-binary-storage rules remain unchanged.
 
@@ -95,7 +95,7 @@ When multiple recognized assessments exist, the strongest tier controls. Unknown
 
 ## iNaturalist discovery, validation, and ranking
 
-Fallback identity resolution MUST use iNaturalist API v2 with a descriptive user agent and explicit requested fields. After v2 establishes exactly one active species-rank taxon with exact scientific-name equality and a numeric stable taxon ID, shortlist discovery MUST use `GET /v1/taxa/{id}` only to retrieve the ordered curated `taxon_photos` metadata. The v1 taxon representation MUST repeat the same numeric taxon ID, exact scientific name, active state, and species rank; any mismatch or malformed/missing identity fails unavailable. Rufous MUST honor the documented maximum of 100 requests/minute across both calls, target no more than 60 requests/minute, remain under 10,000 requests/day, and use explicit timeout, response-byte cap, candidate cap, sequential or tightly bounded concurrency, and resumable checkpoints. This narrow endpoint split is governed by `.10x/decisions/inaturalist-curated-photo-api-split.md`.
+Fallback identity resolution MUST use iNaturalist API v2 with a descriptive user agent and explicit requested fields. After v2 establishes exactly one active species-rank taxon with exact scientific-name equality and a numeric stable taxon ID, shortlist discovery MUST use `GET /v1/taxa/{id}` only to retrieve the ordered curated `taxon_photos` metadata. The v1 taxon representation MUST repeat the same numeric taxon ID, exact scientific name, active state, and species rank; any mismatch or malformed/missing identity fails unavailable. Rufous MUST honor the documented maximum of 100 requests/minute across both calls, target no more than 60 requests/minute, remain under 10,000 requests/day, and use explicit timeout, response-byte cap, candidate cap, sequential or tightly bounded concurrency, and resumable checkpoints. This narrow endpoint split is governed by `https://github.com/Doctacon/rufous/blob/main/.10x/decisions/inaturalist-curated-photo-api-split.md`.
 
 Inspect the curated `taxon_photos` order only. An eligible photo MUST:
 

@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/done/2026-07-11-add-catalog-card-and-profile-media.md
 
 ## Scope
 
-Implement `.10x/specs/bird-profile-information-layout.md`: explicit one-column profile grid, stacked Photo then Call, and full-width Ecology before Physical traits.
+Implement `https://github.com/Doctacon/rufous/blob/main/.10x/specs/bird-profile-information-layout.md`: explicit one-column profile grid, stacked Photo then Call, and full-width Ecology before Physical traits.
 
 ## Acceptance criteria
 

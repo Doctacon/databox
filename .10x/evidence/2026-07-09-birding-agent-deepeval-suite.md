@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-08-add-birding-agent-deepeval-suite.md, .10x/specs/birding-agent-evaluations.md
+Relates-To: .10x/tickets/done/2026-07-08-add-birding-agent-deepeval-suite.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-agent-evaluations.md
 
 # Evidence: Birding Trip Copilot DeepEval suite
 

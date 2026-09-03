@@ -24,7 +24,7 @@ The test files were pure renames in the root layout reorganization, with no test
 
 ## Progress and notes
 
-- 2026-08-31: Discovered while verifying `.10x/tickets/2026-08-31-organize-root-tests-and-scripts-by-domain.md`. Full result was 1,491 passed and 3 failed at 84.89% coverage; all three failures reproduced focused. Their moved files had no implementation/body changes relevant to the assertions at discovery time.
+- 2026-08-31: Discovered while verifying `.10x/tickets/done/2026-08-31-organize-root-tests-and-scripts-by-domain.md`. Full result was 1,491 passed and 3 failed at 84.89% coverage; all three failures reproduced focused. Their moved files had no implementation/body changes relevant to the assertions at discovery time.
 - 2026-08-31: Diagnosed the radius failure as test-clock drift: the fixed 2026-07-08 eBird rows had aged outside the production 30-days-back window by the current date, so the date filter correctly ran before radius assertions. Injected a fixed 2026-07-31 UTC clock in that one test; inside, inclusive-boundary, outside, missing-coordinate, privacy/review, and radius behavior remain unchanged.
 - 2026-08-31: Reconciled the hydrated public-catalog fixture with the current fail-closed export contract by supplying exact `species` category, family/order, empty traits, and explicit zero/null occurrence evidence for both fixture species. No production validator was weakened and no evidence was invented.
 - 2026-08-31: Focused verification passed 3/3. Complete `uv run pytest --block-network` passed 1,498 tests and 7 snapshots at 85.00% coverage. Ruff, format, and diff checks passed; no file is staged. Evidence: `.10x/evidence/2026-08-31-default-python-test-fixture-drift-repair.md`.

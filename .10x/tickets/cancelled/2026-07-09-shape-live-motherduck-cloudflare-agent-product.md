@@ -18,7 +18,7 @@ Shape the product path that turns the current local Birding Trip Copilot MVP int
 
 ## Current inspected state
 
-- `.10x/specs/birding-trip-copilot.md` currently says the MVP MUST use Python with Google ADK for the agent runtime.
+- `https://github.com/Doctacon/rufous/blob/main/.10x/specs/birding-trip-copilot.md` currently says the MVP MUST use Python with Google ADK for the agent runtime.
 - `.10x/specs/superseded/birding-trip-plan-dive.md` currently says the Dive visualizes persisted trip-plan artifacts and is not the agent runtime itself.
 - Local source ingest currently uses Quack-backed `data/databox.duckdb` and physical `raw_<source>` schemas.
 - MotherDuck is currently an alternate backend/publish target, not an automatic attachment of the local DuckDB file.

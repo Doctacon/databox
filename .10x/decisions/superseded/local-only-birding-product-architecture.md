@@ -4,7 +4,7 @@ Updated: 2026-08-31
 
 # Local-only Birding Trip Copilot architecture
 
-Superseded by `.10x/decisions/local-rufous-polaris-iceberg-architecture.md`, which preserves the local Rufous and model-runtime boundaries while replacing the single local warehouse requirement with an R2-backed Iceberg source-data lake governed by Polaris.
+Superseded by `.10x/decisions/superseded/local-rufous-polaris-r2-iceberg-architecture.md`, which preserves the local Rufous and model-runtime boundaries while replacing the single local warehouse requirement with an R2-backed Iceberg source-data lake governed by Polaris.
 
 ## Context
 

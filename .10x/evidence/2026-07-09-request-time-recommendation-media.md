@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-07-09
 Updated: 2026-07-09
-Relates-To: .10x/tickets/done/2026-07-09-implement-request-time-recommendation-media.md, .10x/specs/recommendation-media-enrichment.md
+Relates-To: .10x/tickets/done/2026-07-09-implement-request-time-recommendation-media.md, https://github.com/Doctacon/rufous/blob/main/.10x/specs/recommendation-media-enrichment.md
 
 # Request-time recommendation media implementation evidence
 
