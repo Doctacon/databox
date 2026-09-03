@@ -67,3 +67,16 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
         index for index, step in enumerate(steps) if step.get("run") == "task verify"
     )
     assert task_setup_index < verify_index
+
+    cleanup_step = next(
+        step for step in steps if step.get("name") == "Stop disposable Polaris catalog"
+    )
+    assert cleanup_step["if"] == "always()"
+    assert "cleanup_variable()" in cleanup_step["run"]
+    assert '"${!name:-cleanup}"' in cleanup_step["run"]
+    for credential in (
+        "DATABOX_POLARIS_POSTGRES_PASSWORD",
+        "DATABOX_POLARIS_CLIENT_ID",
+        "DATABOX_POLARIS_CLIENT_SECRET",
+    ):
+        assert f"$(cleanup_variable {credential})" in cleanup_step["run"]

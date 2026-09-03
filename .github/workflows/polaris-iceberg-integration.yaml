@@ -58,4 +58,13 @@ jobs:
         run: task verify
       - name: Stop disposable Polaris catalog
         if: always()
-        run: docker compose -f compose.iceberg.yml down --volumes
+        run: |
+          cleanup_variable() {
+            local name="$1"
+            printf '%s=%s' "$name" "${!name:-cleanup}"
+          }
+          env \
+            "$(cleanup_variable DATABOX_POLARIS_POSTGRES_PASSWORD)" \
+            "$(cleanup_variable DATABOX_POLARIS_CLIENT_ID)" \
+            "$(cleanup_variable DATABOX_POLARIS_CLIENT_SECRET)" \
+            docker compose -f compose.iceberg.yml down --volumes
