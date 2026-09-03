@@ -1,4 +1,4 @@
-Status: done
+Status: active
 Created: 2026-09-03
 Updated: 2026-09-03
 Parent: None
@@ -46,4 +46,5 @@ Record failed CI diagnosis, import/execution boundary tests, empty-environment o
 
 ## Blockers
 
-None.
+- 2026-09-03: Hosted PR CI still fails six fake-runner `parallel_refresh` tests because they invoke the real Iceberg preflight without test configuration. Repair must preserve production fail-closed behavior and prove the fake orchestration boundary is explicit.
+- 2026-09-03: Fake-runner tests now explicitly inject a no-op preflight; the production default remains unchanged. Added a regression proving a failing preflight prevents any source runner from starting. In a missing-env-file environment, the exact hosted core command collected and passed 300 tests; focused parallel/boundary tests passed 16/16. Awaiting the pushed hosted run before closure.
