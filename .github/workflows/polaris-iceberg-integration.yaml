@@ -54,6 +54,33 @@ jobs:
         run: uv sync --all-extras --dev --locked
       - name: Start disposable Polaris catalog
         run: docker compose -f compose.iceberg.yml up --wait --no-build polaris
+      - name: Provision isolated databox_lake catalog
+        env:
+          DATABOX_AWS_ROLE_ARN: ${{ secrets.DATABOX_AWS_ROLE_ARN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          token=$(curl --fail-with-body --silent \
+            --user "${DATABOX_POLARIS_CLIENT_ID}:${DATABOX_POLARIS_CLIENT_SECRET}" \
+            -H 'Polaris-Realm: POLARIS' \
+            -d grant_type=client_credentials \
+            -d scope=PRINCIPAL_ROLE:ALL \
+            http://127.0.0.1:8181/api/catalog/v1/oauth/tokens | jq -er .access_token)
+          printf '::add-mask::%s\n' "$token"
+          warehouse="s3://${DATABOX_AWS_S3_BUCKET}/${DATABOX_ICEBERG_WAREHOUSE_PREFIX}"
+          payload=$(jq -n \
+            --arg warehouse "$warehouse" \
+            --arg role_arn "$DATABOX_AWS_ROLE_ARN" \
+            '{catalog: {name: "databox_lake", type: "INTERNAL", readOnly: false,
+              properties: {"default-base-location": $warehouse},
+              storageConfigInfo: {storageType: "S3", allowedLocations: [$warehouse], roleArn: $role_arn}}}')
+          curl --fail-with-body --silent --show-error --output /dev/null \
+            -H "Authorization: Bearer ${token}" \
+            -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            -H 'Polaris-Realm: POLARIS' \
+            -d "$payload" \
+            http://127.0.0.1:8181/api/management/v1/catalogs
       - uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
       - name: Verify real Polaris/S3 source publication
         run: task verify

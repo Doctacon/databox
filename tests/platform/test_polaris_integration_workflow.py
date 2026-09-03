@@ -62,6 +62,26 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     assert "secrets.DATABOX_AWS_ACCESS_KEY_ID" not in WORKFLOW.read_text()
     assert "secrets.DATABOX_AWS_SECRET_ACCESS_KEY" not in WORKFLOW.read_text()
     assert "secrets.DATABOX_POLARIS_" not in WORKFLOW.read_text()
+    start_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Start disposable Polaris catalog"
+    )
+    provision_index = next(
+        index
+        for index, step in enumerate(steps)
+        if step.get("name") == "Provision isolated databox_lake catalog"
+    )
+    provision_step = steps[provision_index]
+    assert provision_step["env"] == {"DATABOX_AWS_ROLE_ARN": "${{ secrets.DATABOX_AWS_ROLE_ARN }}"}
+    assert 'name: "databox_lake"' in provision_step["run"]
+    assert (
+        'warehouse="s3://${DATABOX_AWS_S3_BUCKET}/${DATABOX_ICEBERG_WAREHOUSE_PREFIX}"'
+        in (provision_step["run"])
+    )
+    assert "allowedLocations: [$warehouse]" in provision_step["run"]
+    assert "roleArn: $role_arn" in provision_step["run"]
+    assert "::add-mask::%s" in provision_step["run"]
     task_setup_index = next(
         index
         for index, step in enumerate(steps)
@@ -70,7 +90,7 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     verify_index = next(
         index for index, step in enumerate(steps) if step.get("run") == "task verify"
     )
-    assert task_setup_index < verify_index
+    assert start_index < provision_index < task_setup_index < verify_index
 
     cleanup_step = next(
         step for step in steps if step.get("name") == "Stop disposable Polaris catalog"
