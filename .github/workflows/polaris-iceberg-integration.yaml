@@ -1,0 +1,39 @@
+name: Polaris Iceberg integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Real Polaris/S3 smoke verification
+    runs-on: ubuntu-latest
+    environment: polaris-iceberg-integration
+    env:
+      DATABOX_POLARIS_POSTGRES_PASSWORD: ${{ secrets.DATABOX_POLARIS_POSTGRES_PASSWORD }}
+      DATABOX_POLARIS_CLIENT_ID: ${{ secrets.DATABOX_POLARIS_CLIENT_ID }}
+      DATABOX_POLARIS_CLIENT_SECRET: ${{ secrets.DATABOX_POLARIS_CLIENT_SECRET }}
+      DATABOX_AWS_S3_BUCKET: ${{ secrets.DATABOX_AWS_S3_BUCKET }}
+      DATABOX_AWS_ACCESS_KEY_ID: ${{ secrets.DATABOX_AWS_ACCESS_KEY_ID }}
+      DATABOX_AWS_SECRET_ACCESS_KEY: ${{ secrets.DATABOX_AWS_SECRET_ACCESS_KEY }}
+      DATABOX_AWS_REGION: ${{ secrets.DATABOX_AWS_REGION }}
+      EBIRD_API_TOKEN: ${{ secrets.EBIRD_API_TOKEN }}
+      NOAA_API_TOKEN: ${{ secrets.NOAA_API_TOKEN }}
+      XENO_CANTO_API_KEY: ${{ secrets.XENO_CANTO_API_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --all-extras --dev --locked
+      - name: Start disposable Polaris catalog
+        run: docker compose -f compose.iceberg.yml up --wait --no-build polaris
+      - name: Verify real Polaris/S3 source publication
+        run: task verify
+      - name: Stop disposable Polaris catalog
+        if: always()
+        run: docker compose -f compose.iceberg.yml down --volumes

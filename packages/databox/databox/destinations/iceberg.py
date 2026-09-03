@@ -132,17 +132,25 @@ def publish_dlt_load_status(
     )
 
 
-def iceberg_destination() -> dlt.destinations.filesystem:
-    """Create a filesystem destination whose Iceberg tables are Polaris-managed."""
+def require_iceberg_write_credentials() -> None:
+    """Fail closed immediately before a real Iceberg publication is attempted."""
     access_key = settings.aws_access_key_id.get_secret_value()
     secret_key = settings.aws_secret_access_key.get_secret_value()
     if not settings.aws_s3_bucket or not access_key or not secret_key:
         raise ValueError("DATABOX_AWS_S3_BUCKET and AWS writer credentials are required")
+
+
+def iceberg_destination() -> dlt.destinations.filesystem:
+    """Construct the real destination without performing publication or I/O.
+
+    Dagster imports this object to build its graph. Credential validation belongs
+    at the asset execution boundary, before dlt can publish anything.
+    """
     return dlt.destinations.filesystem(
         bucket_url=f"s3://{settings.aws_s3_bucket}/warehouse",
         credentials={
-            "aws_access_key_id": access_key,
-            "aws_secret_access_key": secret_key,
+            "aws_access_key_id": settings.aws_access_key_id.get_secret_value(),
+            "aws_secret_access_key": settings.aws_secret_access_key.get_secret_value(),
             "region_name": settings.aws_region,
         },
     )

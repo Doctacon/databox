@@ -16,6 +16,7 @@ from databox.destinations.iceberg import (
     iceberg_destination,
     iceberg_dlt_pipeline,
     polaris_dlt_catalog,
+    require_iceberg_write_credentials,
 )
 from databox.orchestration._factories import dlt_load_status_asset, dlt_translator
 
@@ -47,6 +48,7 @@ def noaa_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> 
     source = _build_source()
     if settings.smoke:
         source.add_limit(max_items=5)
+    require_iceberg_write_credentials()
     with polaris_dlt_catalog():
         yield from dlt.run(context=context, dlt_source=source)
 
