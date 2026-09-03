@@ -1,7 +1,0 @@
-{
-  "schema_version": 1,
-  "prefix": "th",
-  "places": [
-    { "public_id": "gnis-synthetic-thumb-butte", "name": "Thumb Butte, Arizona", "kind": "Summit", "source": "usgs_gnis", "latitude": 34.5409, "longitude": -112.5530, "timezone": "America/Phoenix", "timezone_source": "fixture" }
-  ]
-}

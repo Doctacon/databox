@@ -50,8 +50,6 @@ def test_avonet_refresh_targets_all_local_consumers() -> None:
     restate_command = run.call_args_list[1].args[0]
     for model in (
         "environmental_observations.dim_bird_species_traits",
-        "rufous_public.avonet_species_traits",
-        "birding_agent.arizona_species_catalog",
         "analytics.platform_health",
     ):
         assert bootstrap_command.count(model) == 1

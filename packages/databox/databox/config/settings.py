@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,11 +11,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
+ENV_FILE = Path(os.environ.get("DATABOX_ENV_FILE", PROJECT_ROOT / ".env"))
 
 
 class DataboxSettings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=str(PROJECT_ROOT / ".env"),
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
         populate_by_name=True,
@@ -40,12 +42,6 @@ class DataboxSettings(BaseSettings):
     openlineage_namespace: str = Field(default="databox", alias="OPENLINEAGE_NAMESPACE")
     openlineage_api_key: str = Field(default="", alias="OPENLINEAGE_API_KEY")
 
-    cf_workers_ai_api_key: SecretStr = Field(default=SecretStr(""), alias="CF_WORKERS_AI_API_KEY")
-    cf_workers_ai_account_id: str = Field(default="", alias="CF_WORKERS_AI_ACCOUNT_ID", repr=False)
-    cf_workers_ai_model_base_url: str = Field(
-        default="", alias="CF_WORKERS_AI_MODEL_BASE_URL", repr=False
-    )
-
     polaris_url: str = Field(default="http://127.0.0.1:8181", alias="DATABOX_POLARIS_URL")
     polaris_client_id: SecretStr = Field(default=SecretStr(""), alias="DATABOX_POLARIS_CLIENT_ID")
     polaris_client_secret: SecretStr = Field(
@@ -58,20 +54,6 @@ class DataboxSettings(BaseSettings):
         default=SecretStr(""), alias="DATABOX_AWS_SECRET_ACCESS_KEY"
     )
     aws_region: str = Field(default="us-west-1", alias="DATABOX_AWS_REGION")
-
-    # Local generic SMTP delivery; every value is redacted and validated only by
-    # the explicit alert sender/preflight, never during application startup.
-    alert_smtp_enabled: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_ENABLED")
-    alert_smtp_security: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_SECURITY")
-    alert_smtp_host: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_HOST")
-    alert_smtp_port: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_PORT")
-    alert_smtp_username: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_USERNAME")
-    alert_smtp_password: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_PASSWORD")
-    alert_smtp_organizer: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_FROM_EMAIL")
-    alert_smtp_recipient: SecretStr = Field(
-        default=SecretStr(""), alias="BIRD_ALERT_RECIPIENT_EMAIL"
-    )
-    alert_smtp_ca_file: SecretStr = Field(default=SecretStr(""), alias="BIRD_ALERT_SMTP_CA_FILE")
 
     def pyiceberg_catalog(self) -> Any:
         """Return the shared client for the pre-provisioned Polaris catalog."""

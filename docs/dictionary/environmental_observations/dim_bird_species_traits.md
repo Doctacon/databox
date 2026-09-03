@@ -72,10 +72,6 @@ Exact scientific-name-conformed AVONET v7 species-average bird traits with measu
 - [`environmental_observations.dim_species`](dim_species.md)
 - `raw_avonet.species_traits` (external)
 
-**Downstream**
-
-- [`birding_agent.arizona_species_catalog`](../birding_agent/arizona_species_catalog.md)
-
 ## Example query
 
 ```sql

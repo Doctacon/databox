@@ -4,9 +4,15 @@ dlt ingestion sources for Databox. The canonical inventory and verification
 profile for every active source live in `databox.config.sources.SOURCES`.
 Dagster composition and source CI derive from that registry.
 
-Current sources are AVONET, eBird, GBIF, NOAA, USGS, USGS Earthquakes, and
-Xeno-canto. AVONET retains a source-specific pinned integrity manifest; other
-sources do not use generic per-source pipeline YAML.
+Current sources are AVONET, eBird, GBIF, NOAA, USFWS, USGS, USGS Earthquakes,
+and Xeno-canto. AVONET retains a source-specific pinned integrity manifest;
+other sources do not use generic per-source pipeline YAML.
+
+Consumers may pin this package by an immutable Databox Git tag or commit. The
+supported explicit-target USFWS interface is `databox_sources.usfws`; it exports
+only `usfws_source`, `USFWS_MAX_TARGET_SPECIES`, and `UsfwsTarget`. Target
+selection, destination credentials, orchestration, and publication policy
+remain consumer-owned.
 
 ## Test Harness
 

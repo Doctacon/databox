@@ -2,8 +2,8 @@
 
 Auto-generated from SQLMesh model metadata and Soda contracts. Regenerate with `uv run python scripts/platform/generate_docs.py`.
 
-- **Models:** 23
-- **Soda contracts:** 30
+- **Models:** 13
+- **Soda contracts:** 20
 - **Lineage:** [browse the dependency graph](lineage.md)
 
 ## `analytics`
@@ -13,19 +13,6 @@ Operational analytics models retained outside the CDM, such as platform health.
 | Model | Contract | Description |
 | --- | --- | --- |
 | [`analytics.platform_health`](analytics/platform_health.md) | yes | Per-source load observability — most recent dlt load id, completion time, status, and row volume |
-
-## `birding_agent`
-
-Planner-ready SQL interfaces for the Birding Trip Copilot agent and local product.
-
-| Model | Contract | Description |
-| --- | --- | --- |
-| [`birding_agent.arizona_species_catalog`](birding_agent/arizona_species_catalog.md) | yes | One row per taxon from the single latest complete eBird US-AZ snapshot, with latest complete taxonomy, exact AVONET traits, and coherent public evidence aggregates. |
-| [`birding_agent.gbif_iceberg_occurrences`](birding_agent/gbif_iceberg_occurrences.md) | yes | Local SQLMesh materialization of the AWS Polaris Iceberg GBIF occurrence table. |
-| [`birding_agent.gbif_occurrence_evidence`](birding_agent/gbif_occurrence_evidence.md) | yes | Planner-ready GBIF bird occurrence evidence conformed to eBird-first species names with location, license, and source provenance. |
-| [`birding_agent.recent_observation_evidence`](birding_agent/recent_observation_evidence.md) | yes | Planner-ready recent eBird observation evidence from the environmental observations CDM. |
-| [`birding_agent.species_lookup`](birding_agent/species_lookup.md) | yes | Planner-ready bird species lookup from the conformed environmental observations species dimension. |
-| [`birding_agent.xeno_canto_media_evidence`](birding_agent/xeno_canto_media_evidence.md) | yes | Planner-ready Xeno-canto bird sound metadata with media links, license, attribution, and provenance. |
 
 ## `environmental_observations`
 
@@ -45,12 +32,3 @@ Canonical environmental-observations CDM models generated from the .schema workf
 | [`environmental_observations.fact_region_daily_stats`](environmental_observations/fact_region_daily_stats.md) | yes | CDM fact: one row per eBird region per calendar date. |
 | [`environmental_observations.fact_streamflow_observation`](environmental_observations/fact_streamflow_observation.md) | yes | CDM fact: one row per USGS streamgage site per observation date per parameter code. |
 | [`environmental_observations.fact_weather_observation`](environmental_observations/fact_weather_observation.md) | yes | CDM fact: one row per NOAA station per observation date per datatype. |
-
-## `rufous_public`
-
-| Model | Contract | Description |
-| --- | --- | --- |
-| [`rufous_public.avonet_species_traits`](rufous_public/avonet_species_traits.md) | yes | Commercially reusable AVONET v7 morphology and ecology projection for exact scientific-name matching; geographical range fields are not included. |
-| [`rufous_public.gbif_eod_occurrence`](rufous_public/gbif_eod_occurrence.md) | yes | Sanitized Arizona occurrence projection from the CC BY GBIF EOD dataset; no observer, locality, checklist, or direct-eBird fields. |
-| [`rufous_public.inaturalist_commercial_image`](rufous_public/inaturalist_commercial_image.md) | yes | Strictly commercial-use iNaturalist taxon-photo candidates for catalog species without an approved image, selected from the latest internally coherent complete snapshot. |
-| [`rufous_public.usfws_commercial_image`](rufous_public/usfws_commercial_image.md) | yes | Commercial-use USFWS bird images from the latest complete caller-owned species snapshot; exact scientific tags, safe FWS URLs, usable credits, fail-closed licenses, and official restricted marks excluded. |

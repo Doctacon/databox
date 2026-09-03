@@ -16,6 +16,7 @@ from databox.destinations.iceberg import (
     iceberg_destination,
     iceberg_dlt_pipeline,
     polaris_dlt_catalog,
+    require_iceberg_write_credentials,
 )
 from databox.orchestration._factories import dlt_load_status_asset, dlt_translator
 
@@ -48,12 +49,13 @@ def xeno_canto_dlt_assets(
     source = _build_source()
     if settings.smoke:
         source.add_limit(max_items=5)
+    require_iceberg_write_credentials()
     with polaris_dlt_catalog():
         yield from dlt.run(context=context, dlt_source=source)
 
 
 @dg.asset(
-    key=dg.AssetKey(["birding_agent", "xeno_canto_iceberg_refresh"]),
+    key=dg.AssetKey(["environmental_observations", "xeno_canto_iceberg_refresh"]),
     deps=[
         dg.AssetKey(["sqlmesh", "raw_xeno_canto", "recordings"]),
         dg.AssetKey(["sqlmesh", "raw_xeno_canto", "_dlt_load_status"]),
@@ -67,7 +69,6 @@ def xeno_canto_iceberg_refresh(
     models = (
         "environmental_observations.dim_species",
         "environmental_observations.fact_bird_sound_recording",
-        "birding_agent.xeno_canto_media_evidence",
         "analytics.platform_health",
     )
     command = [

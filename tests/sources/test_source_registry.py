@@ -1,10 +1,7 @@
 """Bidirectional coherence between the source registry and domain modules.
 
 The registry at `databox.config.sources.SOURCES` is the single declaration of
-every active source. Every registered source must have a matching domain
-module, and every orchestration domain module (minus `analytics`) must have a
-registry entry. Explicit-target sources expose only manually launched, modeled-target Dagster
-workflows and remain excluded from schedules and shared refresh.
+every actively orchestrated source. Provider-only packages such as USFWS are not registered.
 """
 
 from __future__ import annotations
@@ -16,7 +13,6 @@ import dagster as dg
 import pytest
 from databox.config.settings import settings
 from databox.config.sources import SOURCES
-from databox.quality.platform_health_codegen import render as render_platform_health
 
 EXPECTED_DOMAIN_EXPORTS = (
     "assets",
@@ -32,7 +28,6 @@ EXPECTED_SOURCES = {
     "noaa",
     "usgs",
     "usgs_earthquakes",
-    "usfws",
     "xeno_canto",
 }
 
@@ -115,31 +110,10 @@ def test_every_raw_catalog_uses_single_local_database() -> None:
 
 
 def test_nonrecurring_sources_are_not_scheduled_or_parallel() -> None:
-    nonrecurring = {source.name: source for source in SOURCES if source.name in {"avonet", "usfws"}}
-    assert set(nonrecurring) == {"avonet", "usfws"}
+    nonrecurring = {source.name: source for source in SOURCES if source.name == "avonet"}
+    assert set(nonrecurring) == {"avonet"}
     assert all(source.scheduled is False for source in nonrecurring.values())
     assert all(source.parallel_refresh is False for source in nonrecurring.values())
-
-
-def test_explicit_target_source_is_declared_manual_and_unscheduled() -> None:
-    explicit = {
-        source.name: source for source in SOURCES if source.orchestration_mode == "explicit_targets"
-    }
-    assert set(explicit) == {"usfws"}
-    assert all(source.scheduled is False for source in explicit.values())
-    assert all(source.parallel_refresh is False for source in explicit.values())
-    assert all(source.iceberg_authoritative is True for source in explicit.values())
-    module = importlib.import_module(explicit["usfws"].domain_module)
-    assert module.ingest_job.name == "usfws_ingest"
-    assert not hasattr(module, "daily_pipeline")
-    assert not hasattr(module, "schedule")
-    assert {
-        "sqlmesh/raw_usfws/image_search_runs",
-        "sqlmesh/raw_usfws/image_records",
-        "sqlmesh/raw_usfws/_dlt_load_status",
-    } == {key.to_user_string() for key in module.dlt_asset_keys}
-    platform_health = render_platform_health()
-    assert "polaris_aws.raw_usfws._dlt_load_status" in platform_health
 
 
 def test_platform_health_load_status_dependencies_are_materializable_assets() -> None:

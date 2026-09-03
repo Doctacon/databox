@@ -1,7 +1,0 @@
-{
-  "schema_version": 1,
-  "prefix": "ph",
-  "places": [
-    { "public_id": "gnis-synthetic-phoenix", "name": "Phoenix, Arizona", "kind": "Populated place", "source": "usgs_gnis", "latitude": 33.4484, "longitude": -112.0740, "timezone": "America/Phoenix", "timezone_source": "fixture" }
-  ]
-}

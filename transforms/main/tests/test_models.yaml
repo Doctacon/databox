@@ -3,1969 +3,514 @@ test_dim_species:
   inputs:
     polaris_aws.raw_ebird.taxonomy:
       rows:
-        - species_code: "norcar"
-          com_name: "Northern Cardinal"
-          sci_name: "Cardinalis cardinalis"
-          taxon_order: 1001
-          category: "species"
-          family_code: "cardin1"
-          family_com_name: "Cardinals and Allies"
-          family_sci_name: "Cardinalidae"
-          report_as: "norcar"
-          extinct: false
-          extinct_year: 0
-          _loaded_at: "2025-07-20T10:00:00+00:00"
-        - species_code: "norcarx"
-          com_name: "Northern Cardinal duplicate"
-          sci_name: "Cardinalis cardinalis"
-          taxon_order: 1002
-          category: "hybrid"
-          _loaded_at: "2025-07-21T10:00:00+00:00"
+      - species_code: norcar
+        com_name: Northern Cardinal
+        sci_name: Cardinalis cardinalis
+        taxon_order: 1001
+        category: species
+        family_code: cardin1
+        family_com_name: Cardinals and Allies
+        family_sci_name: Cardinalidae
+        report_as: norcar
+        extinct: false
+        extinct_year: 0
+        _loaded_at: '2025-07-20T10:00:00+00:00'
+      - species_code: norcarx
+        com_name: Northern Cardinal duplicate
+        sci_name: Cardinalis cardinalis
+        taxon_order: 1002
+        category: hybrid
+        _loaded_at: '2025-07-21T10:00:00+00:00'
     polaris_aws.raw_ebird.species_list:
       rows:
-        - species_code: "norcar"
-          region: "US-AZ"
-          order: 1001
-          _loaded_at: "2025-07-20T09:00:00+00:00"
+      - species_code: norcar
+        region: US-AZ
+        order: 1001
+        _loaded_at: '2025-07-20T09:00:00+00:00'
     raw_gbif.occurrences:
       rows:
-        - key: 9001
-          accepted_taxon_key: 12345
-          taxon_key: 12345
-          accepted_scientific_name: "Cardinalis cardinalis"
-          scientific_name: "Cardinalis cardinalis"
-          species: "Cardinalis cardinalis"
-          vernacular_name: "Northern Cardinal"
-          family: "Cardinalidae"
-          genus: "Cardinalis"
-          taxon_rank: "SPECIES"
-          _query_state_province: "Arizona"
-          _loaded_at: "2025-07-19T10:00:00+00:00"
-        - key: 9002
-          vernacular_name: "Mystery GBIF bird"
-          _loaded_at: "2025-07-19T11:00:00+00:00"
+      - key: 9001
+        accepted_taxon_key: 12345
+        taxon_key: 12345
+        accepted_scientific_name: Cardinalis cardinalis
+        scientific_name: Cardinalis cardinalis
+        species: Cardinalis cardinalis
+        vernacular_name: Northern Cardinal
+        family: Cardinalidae
+        genus: Cardinalis
+        taxon_rank: SPECIES
+        _query_state_province: Arizona
+        _loaded_at: '2025-07-19T10:00:00+00:00'
+      - key: 9002
+        vernacular_name: Mystery GBIF bird
+        _loaded_at: '2025-07-19T11:00:00+00:00'
     polaris_aws.raw_xeno_canto.recordings:
       rows:
-        - id: "XC123"
-          genus: "Cardinalis"
-          species: "cardinalis"
-          english_name: "Northern Cardinal"
-          recording_url: "https://xeno-canto.org/123"
-          audio_file_url: "https://xeno-canto.org/123/download"
-          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
-          quality: "A"
-          _loaded_at: "2025-07-18T10:00:00+00:00"
-        - id: "XC999"
-          english_name: "Mystery Xeno-canto bird"
-          recording_url: "https://xeno-canto.org/999"
-          _loaded_at: "2025-07-18T11:00:00+00:00"
+      - id: XC123
+        genus: Cardinalis
+        species: cardinalis
+        english_name: Northern Cardinal
+        recording_url: https://xeno-canto.org/123
+        audio_file_url: https://xeno-canto.org/123/download
+        license: Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+        quality: A
+        _loaded_at: '2025-07-18T10:00:00+00:00'
+      - id: XC999
+        english_name: Mystery Xeno-canto bird
+        recording_url: https://xeno-canto.org/999
+        _loaded_at: '2025-07-18T11:00:00+00:00'
   outputs:
     query:
       rows:
-        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
-          species_natural_key: "cardinalis cardinalis"
-          source_pipeline: "ebird_api"
-          source_id: "norcar"
-          species_code: "norcar"
-          common_name: "Northern Cardinal"
-          scientific_name: "Cardinalis cardinalis"
-          taxonomic_order: 1001
-          taxonomic_category: "species"
-          family_code: "cardin1"
-          family_common_name: "Cardinals and Allies"
-          family_scientific_name: "Cardinalidae"
-          report_as: "norcar"
-          extinct: false
-          extinct_year: 0
-          region: "US-AZ"
-          gbif_source_id: "12345"
-          gbif_taxon_key: 12345
-          gbif_accepted_taxon_key: 12345
-          gbif_family: "Cardinalidae"
-          genus: "Cardinalis"
-          gbif_taxon_rank: "SPECIES"
-          xeno_canto_recording_id: "XC123"
-          xeno_canto_recording_count: 1
-          xeno_canto_recording_url: "https://xeno-canto.org/123"
-          xeno_canto_audio_file_url: "https://xeno-canto.org/123/download"
-          xeno_canto_license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
-          xeno_canto_quality: "A"
-          has_gbif_occurrence: true
-          has_xeno_canto_recording: true
-          loaded_at: "2025-07-20 10:00:00"
-        - species_sk: "18c87eff7e1b035dc3d50865a6c76dfb"
-          species_natural_key: null
-          source_pipeline: "gbif_api"
-          source_id: "9002"
-          species_code: null
-          common_name: "Mystery GBIF bird"
-          scientific_name: null
-          taxonomic_order: null
-          taxonomic_category: null
-          family_code: null
-          family_common_name: null
-          family_scientific_name: null
-          report_as: null
-          extinct: null
-          extinct_year: null
-          region: null
-          gbif_source_id: "9002"
-          gbif_taxon_key: null
-          gbif_accepted_taxon_key: null
-          gbif_family: null
-          genus: null
-          gbif_taxon_rank: null
-          xeno_canto_recording_id: null
-          xeno_canto_recording_count: null
-          xeno_canto_recording_url: null
-          xeno_canto_audio_file_url: null
-          xeno_canto_license: null
-          xeno_canto_quality: null
-          has_gbif_occurrence: true
-          has_xeno_canto_recording: false
-          loaded_at: "2025-07-19 11:00:00"
-        - species_sk: "7c39a6027c8fc71f7305a5023c5b22ff"
-          species_natural_key: null
-          source_pipeline: "xeno_canto_api"
-          source_id: "XC999"
-          species_code: null
-          common_name: "Mystery Xeno-canto bird"
-          scientific_name: null
-          taxonomic_order: null
-          taxonomic_category: null
-          family_code: null
-          family_common_name: null
-          family_scientific_name: null
-          report_as: null
-          extinct: null
-          extinct_year: null
-          region: null
-          gbif_source_id: null
-          gbif_taxon_key: null
-          gbif_accepted_taxon_key: null
-          gbif_family: null
-          genus: null
-          gbif_taxon_rank: null
-          xeno_canto_recording_id: "XC999"
-          xeno_canto_recording_count: 1
-          xeno_canto_recording_url: "https://xeno-canto.org/999"
-          xeno_canto_audio_file_url: null
-          xeno_canto_license: null
-          xeno_canto_quality: null
-          has_gbif_occurrence: false
-          has_xeno_canto_recording: true
-          loaded_at: "2025-07-18 11:00:00"
-        - species_sk: "1179353561b8617a04054c9119dc2d22"
-          species_natural_key: null
-          source_pipeline: "sentinel"
-          source_id: "UNKNOWN"
-          species_code: null
-          common_name: "Unknown species"
-          scientific_name: null
-          taxonomic_order: null
-          taxonomic_category: null
-          family_code: null
-          family_common_name: null
-          family_scientific_name: null
-          report_as: null
-          extinct: null
-          extinct_year: null
-          region: null
-          gbif_source_id: null
-          gbif_taxon_key: null
-          gbif_accepted_taxon_key: null
-          gbif_family: null
-          genus: null
-          gbif_taxon_rank: null
-          xeno_canto_recording_id: null
-          xeno_canto_recording_count: null
-          xeno_canto_recording_url: null
-          xeno_canto_audio_file_url: null
-          xeno_canto_license: null
-          xeno_canto_quality: null
-          has_gbif_occurrence: false
-          has_xeno_canto_recording: false
-          loaded_at: null
-
+      - species_sk: 472526fe01a3fd0400bdbb083727c8b4
+        species_natural_key: cardinalis cardinalis
+        source_pipeline: ebird_api
+        source_id: norcar
+        species_code: norcar
+        common_name: Northern Cardinal
+        scientific_name: Cardinalis cardinalis
+        taxonomic_order: 1001
+        taxonomic_category: species
+        family_code: cardin1
+        family_common_name: Cardinals and Allies
+        family_scientific_name: Cardinalidae
+        report_as: norcar
+        extinct: false
+        extinct_year: 0
+        region: US-AZ
+        gbif_source_id: '12345'
+        gbif_taxon_key: 12345
+        gbif_accepted_taxon_key: 12345
+        gbif_family: Cardinalidae
+        genus: Cardinalis
+        gbif_taxon_rank: SPECIES
+        xeno_canto_recording_id: XC123
+        xeno_canto_recording_count: 1
+        xeno_canto_recording_url: https://xeno-canto.org/123
+        xeno_canto_audio_file_url: https://xeno-canto.org/123/download
+        xeno_canto_license: Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+        xeno_canto_quality: A
+        has_gbif_occurrence: true
+        has_xeno_canto_recording: true
+        loaded_at: '2025-07-20 10:00:00'
+      - species_sk: 18c87eff7e1b035dc3d50865a6c76dfb
+        species_natural_key: null
+        source_pipeline: gbif_api
+        source_id: '9002'
+        species_code: null
+        common_name: Mystery GBIF bird
+        scientific_name: null
+        taxonomic_order: null
+        taxonomic_category: null
+        family_code: null
+        family_common_name: null
+        family_scientific_name: null
+        report_as: null
+        extinct: null
+        extinct_year: null
+        region: null
+        gbif_source_id: '9002'
+        gbif_taxon_key: null
+        gbif_accepted_taxon_key: null
+        gbif_family: null
+        genus: null
+        gbif_taxon_rank: null
+        xeno_canto_recording_id: null
+        xeno_canto_recording_count: null
+        xeno_canto_recording_url: null
+        xeno_canto_audio_file_url: null
+        xeno_canto_license: null
+        xeno_canto_quality: null
+        has_gbif_occurrence: true
+        has_xeno_canto_recording: false
+        loaded_at: '2025-07-19 11:00:00'
+      - species_sk: 7c39a6027c8fc71f7305a5023c5b22ff
+        species_natural_key: null
+        source_pipeline: xeno_canto_api
+        source_id: XC999
+        species_code: null
+        common_name: Mystery Xeno-canto bird
+        scientific_name: null
+        taxonomic_order: null
+        taxonomic_category: null
+        family_code: null
+        family_common_name: null
+        family_scientific_name: null
+        report_as: null
+        extinct: null
+        extinct_year: null
+        region: null
+        gbif_source_id: null
+        gbif_taxon_key: null
+        gbif_accepted_taxon_key: null
+        gbif_family: null
+        genus: null
+        gbif_taxon_rank: null
+        xeno_canto_recording_id: XC999
+        xeno_canto_recording_count: 1
+        xeno_canto_recording_url: https://xeno-canto.org/999
+        xeno_canto_audio_file_url: null
+        xeno_canto_license: null
+        xeno_canto_quality: null
+        has_gbif_occurrence: false
+        has_xeno_canto_recording: true
+        loaded_at: '2025-07-18 11:00:00'
+      - species_sk: 1179353561b8617a04054c9119dc2d22
+        species_natural_key: null
+        source_pipeline: sentinel
+        source_id: UNKNOWN
+        species_code: null
+        common_name: Unknown species
+        scientific_name: null
+        taxonomic_order: null
+        taxonomic_category: null
+        family_code: null
+        family_common_name: null
+        family_scientific_name: null
+        report_as: null
+        extinct: null
+        extinct_year: null
+        region: null
+        gbif_source_id: null
+        gbif_taxon_key: null
+        gbif_accepted_taxon_key: null
+        gbif_family: null
+        genus: null
+        gbif_taxon_rank: null
+        xeno_canto_recording_id: null
+        xeno_canto_recording_count: null
+        xeno_canto_recording_url: null
+        xeno_canto_audio_file_url: null
+        xeno_canto_license: null
+        xeno_canto_quality: null
+        has_gbif_occurrence: false
+        has_xeno_canto_recording: false
+        loaded_at: null
 test_fact_weather_observation:
   model: environmental_observations.fact_weather_observation
   inputs:
     environmental_observations.dim_weather_station:
       rows:
-        - weather_station_sk: "e4ca290bb094f37dc69ff5c4549c99cc"
-          source_pipeline: "noaa_api"
-          source_id: "GHCND:USC00010008"
-          station_id: "GHCND:USC00010008"
-          station_name: "PHOENIX"
-          latitude: 33.45
-          longitude: -112.07
-          elevation: 331.0
-          elevation_unit: "METERS"
-          min_date: "1895-01-01"
-          max_date: "2025-12-31"
-          data_coverage: 0.95
-          location_id: "FIPS:04"
-          loaded_at: "2025-07-20 10:00:00"
+      - weather_station_sk: e4ca290bb094f37dc69ff5c4549c99cc
+        source_pipeline: noaa_api
+        source_id: GHCND:USC00010008
+        station_id: GHCND:USC00010008
+        station_name: PHOENIX
+        latitude: 33.45
+        longitude: -112.07
+        elevation: 331.0
+        elevation_unit: METERS
+        min_date: '1895-01-01'
+        max_date: '2025-12-31'
+        data_coverage: 0.95
+        location_id: FIPS:04
+        loaded_at: '2025-07-20 10:00:00'
     polaris_aws.raw_noaa.daily_weather:
       rows:
-        - date: "2025-07-20"
-          datatype: "TMAX"
-          station: "GHCND:USC00010008"
-          value: 105.3
-          attributes: ",,S,"
-          source: ""
-          _location_id: "FIPS:04"
-          _loaded_at: "2025-07-20T10:00:00+00:00"
-          _dlt_load_id: "load-1"
-          _dlt_id: "row-1"
+      - date: '2025-07-20'
+        datatype: TMAX
+        station: GHCND:USC00010008
+        value: 105.3
+        attributes: ',,S,'
+        source: ''
+        _location_id: FIPS:04
+        _loaded_at: '2025-07-20T10:00:00+00:00'
+        _dlt_load_id: load-1
+        _dlt_id: row-1
   outputs:
     query:
       rows:
-        - weather_observation_sk: "90284713e99ba9f2b164d59735d8e9f0"
-          weather_station_sk: "e4ca290bb094f37dc69ff5c4549c99cc"
-          source_pipeline: "noaa_api"
-          source_id: "GHCND:USC00010008|2025-07-20|TMAX"
-          station_id: "GHCND:USC00010008"
-          observation_date: "2025-07-20"
-          datatype: "TMAX"
-          value: 105.3
-          attributes: ",,S,"
-          source: ""
-          location_id: "FIPS:04"
-          loaded_at: "2025-07-20 10:00:00"
-          dlt_load_id: "load-1"
-          dlt_id: "row-1"
-
-test_birding_agent_species_lookup:
-  model: birding_agent.species_lookup
-  inputs:
-    environmental_observations.dim_species:
-      rows:
-        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
-          source_pipeline: "ebird_api"
-          source_id: "norcar"
-          species_code: "norcar"
-          common_name: "Northern Cardinal"
-          scientific_name: "Cardinalis cardinalis"
-          taxonomic_order: 1001
-          taxonomic_category: "species"
-          family_common_name: "Cardinals and Allies"
-          gbif_family: "Cardinalidae"
-          genus: "Cardinalis"
-          gbif_taxon_rank: "SPECIES"
-          gbif_taxon_key: 12345
-          gbif_accepted_taxon_key: 12345
-          region: "US-AZ"
-          loaded_at: "2025-07-21 10:00:00"
-  outputs:
-    query:
-      rows:
-        - species_lookup_id: "814ddfa94aaba2c1b7bca60a38e8ae8e"
-          evidence_source: "ebird_api"
-          source_table: "environmental_observations.dim_species"
-          source_record_id: "norcar"
-          species_code: "norcar"
-          common_name: "Northern Cardinal"
-          scientific_name: "Cardinalis cardinalis"
-          taxonomic_order: 1001
-          taxonomic_category: "species"
-          family_name: "Cardinals and Allies"
-          genus: "Cardinalis"
-          taxon_rank: "SPECIES"
-          taxon_key: 12345
-          accepted_taxon_key: 12345
-          region_code: "US-AZ"
-          loaded_at: "2025-07-21 10:00:00"
-
-test_birding_agent_recent_observation_evidence:
-  model: birding_agent.recent_observation_evidence
-  inputs:
-    environmental_observations.fact_bird_observation:
-      rows:
-        - source_observation_id: "S1|norcar"
-          source_table: "recent_observations"
-          species_sk: "species-sk"
-          bird_hotspot_sk: "hotspot-sk"
-          species_code: "norcar"
-          observation_datetime: "2025-07-20 06:30:00"
-          observation_date: "2025-07-20"
-          observation_count: 2
-          count_display: "2"
-          location_id: "L1"
-          location_name: "Thumb Butte"
-          region_code: "US-AZ"
-          latitude: 34.54
-          longitude: -112.47
-          is_valid: true
-          is_reviewed: true
-          is_location_private: false
-          is_notable: false
-          exotic_category: "N"
-          loaded_at: "2025-07-20 10:00:00"
-          dlt_load_id: "load-1"
-          dlt_id: "row-1"
-        - source_observation_id: "S-private"
-          source_table: "recent_observations"
-          species_sk: "species-sk"
-          bird_hotspot_sk: "hotspot-sk"
-          species_code: "norcar"
-          observation_datetime: "2025-07-20 06:31:00"
-          observation_date: "2025-07-20"
-          observation_count: 1
-          count_display: "1"
-          location_id: "L-private"
-          location_name: "Private"
-          region_code: "US-AZ"
-          latitude: 34.55
-          longitude: -112.48
-          is_valid: true
-          is_reviewed: true
-          is_location_private: true
-          is_notable: false
-          exotic_category: "N"
-          loaded_at: "2025-07-20 10:00:00"
-          dlt_load_id: "load-1"
-          dlt_id: "row-private"
-        - source_observation_id: "S-invalid"
-          source_table: "recent_observations"
-          species_sk: "species-sk"
-          bird_hotspot_sk: "hotspot-sk"
-          species_code: "norcar"
-          observation_datetime: "2025-07-20 06:32:00"
-          observation_date: "2025-07-20"
-          observation_count: 1
-          count_display: "1"
-          location_id: "L-invalid"
-          location_name: "Invalid"
-          region_code: "US-AZ"
-          latitude: 34.56
-          longitude: -112.49
-          is_valid: false
-          is_reviewed: true
-          is_location_private: false
-          is_notable: false
-          exotic_category: "N"
-          loaded_at: "2025-07-20 10:00:00"
-          dlt_load_id: "load-1"
-          dlt_id: "row-invalid"
-        - source_observation_id: "S-unreviewed"
-          source_table: "recent_observations"
-          species_sk: "species-sk"
-          bird_hotspot_sk: "hotspot-sk"
-          species_code: "norcar"
-          observation_datetime: "2025-07-20 06:33:00"
-          observation_date: "2025-07-20"
-          observation_count: 1
-          count_display: "1"
-          location_id: "L-unreviewed"
-          location_name: "Unreviewed"
-          region_code: "US-AZ"
-          latitude: 34.57
-          longitude: -112.50
-          is_valid: true
-          is_reviewed: false
-          is_location_private: false
-          is_notable: false
-          exotic_category: "N"
-          loaded_at: "2025-07-20 10:00:00"
-          dlt_load_id: "load-1"
-          dlt_id: "row-unreviewed"
-    environmental_observations.dim_species:
-      rows:
-        - species_sk: "species-sk"
-          common_name: "Northern Cardinal"
-          scientific_name: "Cardinalis cardinalis"
-    environmental_observations.dim_bird_hotspot:
-      rows:
-        - bird_hotspot_sk: "hotspot-sk"
-          num_species_all_time: 120
-          num_checklists_all_time: 500
-  outputs:
-    query:
-      rows:
-        - observation_evidence_id: "4249988d6014c501732de09ea4b12834"
-          evidence_source: "ebird"
-          source_table: "environmental_observations.fact_bird_observation"
-          source_record_id: "S1|norcar"
-          raw_source_table: "recent_observations"
-          species_code: "norcar"
-          common_name: "Northern Cardinal"
-          scientific_name: "Cardinalis cardinalis"
-          observation_datetime: "2025-07-20 06:30:00"
-          observation_date: "2025-07-20"
-          observation_count: 2
-          count_display: "2"
-          location_id: "L1"
-          location_name: "Thumb Butte"
-          region_code: "US-AZ"
-          latitude: 34.54
-          longitude: -112.47
-          is_valid: true
-          is_reviewed: true
-          is_location_private: false
-          is_notable: false
-          exotic_category: "N"
-          hotspot_species_all_time: 120
-          hotspot_checklists_all_time: 500
-          loaded_at: "2025-07-20 10:00:00"
-          dlt_load_id: "load-1"
-          dlt_id: "row-1"
-
-test_birding_agent_gbif_occurrence_evidence:
-  model: birding_agent.gbif_occurrence_evidence
-  inputs:
-    environmental_observations.dim_species:
-      columns:
-        species_sk: text
-        species_natural_key: text
-        source_pipeline: text
-        species_code: text
-        common_name: text
-        scientific_name: text
-        loaded_at: timestamp
-      rows: []
-    raw_gbif.occurrences:
-      rows:
-        - key: 9001
-          gbif_id: "9001"
-          occurrence_id: "occ-9001"
-          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_title: "EOD – eBird Observation Dataset"
-          dataset_publisher: "Cornell Lab of Ornithology"
-          dataset_citation: "EOD citation"
-          dataset_doi: "10.15468/aomfnb"
-          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
-          publishing_org_key: "org-1"
-          scientific_name: "Cardinalis cardinalis"
-          accepted_scientific_name: "Cardinalis cardinalis"
-          vernacular_name: "Northern Cardinal"
-          family: "Cardinalidae"
-          genus: "Cardinalis"
-          species: "Cardinalis cardinalis"
-          taxon_rank: "SPECIES"
-          taxon_key: 12345
-          accepted_taxon_key: 12345
-          decimal_latitude: 34.54
-          decimal_longitude: -112.47
-          coordinate_uncertainty_in_meters: 30
-          country: "United States"
-          country_code: "US"
-          state_province: "Arizona"
-          locality: "Thumb Butte"
-          event_date: "2025-07-20"
-          year: 2025
-          month: 7
-          day: 20
-          basis_of_record: "HUMAN_OBSERVATION"
-          occurrence_status: "PRESENT"
-          establishment_means: "native"
-          license: "CC_BY_4_0"
-          references: "https://www.gbif.org/occurrence/9001"
-          last_interpreted: "2025-07-21T00:00:00Z"
-          last_crawled: "2025-07-21T00:00:00Z"
-          last_parsed: "2025-07-21T00:00:00Z"
-          _source_url: "https://api.gbif.org/v1/occurrence/search"
-          _query_country_code: "US"
-          _query_state_province: "Arizona"
-          _query_taxon_key: 212
-          _query_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          _loaded_at: "2025-07-21T10:00:00+00:00"
-          _dlt_load_id: "load-gbif"
-          _dlt_id: "row-gbif"
-  outputs:
-    query:
-      rows:
-        - occurrence_evidence_id: "e3e6302bce62f7197cb255a3475cbc17"
-          evidence_source: "gbif"
-          source_table: "raw_gbif.occurrences"
-          source_record_id: "9001"
-          gbif_key: 9001
-          gbif_id: "9001"
-          occurrence_id: "occ-9001"
-          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_title: "EOD – eBird Observation Dataset"
-          dataset_publisher: "Cornell Lab of Ornithology"
-          dataset_citation: "EOD citation"
-          dataset_doi: "10.15468/aomfnb"
-          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
-          publishing_org_key: "org-1"
-          species_natural_key: "cardinalis cardinalis"
-          species_code: null
-          scientific_name: "Cardinalis cardinalis"
-          source_scientific_name: "Cardinalis cardinalis"
-          accepted_scientific_name: "Cardinalis cardinalis"
-          common_name: "Northern Cardinal"
-          family: "Cardinalidae"
-          genus: "Cardinalis"
-          species: "Cardinalis cardinalis"
-          taxon_rank: "SPECIES"
-          taxon_key: 12345
-          accepted_taxon_key: 12345
-          latitude: 34.54
-          longitude: -112.47
-          coordinate_uncertainty_in_meters: 30
-          country: "United States"
-          country_code: "US"
-          state_province: "Arizona"
-          locality: "Thumb Butte"
-          event_date_text: "2025-07-20"
-          year: 2025
-          month: 7
-          day: 20
-          basis_of_record: "HUMAN_OBSERVATION"
-          occurrence_status: "PRESENT"
-          establishment_means: "native"
-          license: "CC_BY_4_0"
-          source_reference_url: "https://www.gbif.org/occurrence/9001"
-          last_interpreted: "2025-07-21T00:00:00Z"
-          last_crawled: "2025-07-21T00:00:00Z"
-          last_parsed: "2025-07-21T00:00:00Z"
-          _source_url: "https://api.gbif.org/v1/occurrence/search"
-          _query_country_code: "US"
-          _query_state_province: "Arizona"
-          _query_taxon_key: 212
-          _query_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          loaded_at: "2025-07-21 10:00:00"
-          dlt_load_id: "load-gbif"
-          dlt_id: "row-gbif"
-
-test_birding_agent_gbif_authority_free_conformance:
-  model: birding_agent.gbif_occurrence_evidence
-  inputs:
-    environmental_observations.dim_species:
-      rows:
-        - species_sk: "species-western-bluebird-ebird"
-          species_natural_key: "sialia mexicana"
-          source_pipeline: "ebird_api"
-          species_code: "wesblu"
-          common_name: "Western Bluebird"
-          scientific_name: "Sialia mexicana"
-          loaded_at: "2025-07-20T10:00:00+00:00"
-        - species_sk: "species-western-bluebird-gbif"
-          species_natural_key: "sialia mexicana"
-          source_pipeline: "gbif_api"
-          common_name: null
-          scientific_name: "Sialia mexicana Swainson, 1832"
-          loaded_at: "2025-07-21T10:00:00+00:00"
-        - species_sk: "species-gila-woodpecker"
-          species_natural_key: "melanerpes uropygialis"
-          source_pipeline: "ebird_api"
-          species_code: "gilwoo"
-          common_name: "Gila Woodpecker"
-          scientific_name: "Melanerpes uropygialis"
-          loaded_at: "2025-07-20T10:00:00+00:00"
-        - species_sk: "species-saw-whet-owl"
-          species_natural_key: "aegolius acadicus"
-          source_pipeline: "ebird_api"
-          species_code: "nswowl"
-          common_name: "Northern Saw-whet Owl"
-          scientific_name: "Aegolius acadicus"
-          loaded_at: "2025-07-20T10:00:00+00:00"
-    raw_gbif.occurrences:
-      columns:
-        key: bigint
-        gbif_id: text
-        occurrence_id: text
-        dataset_key: text
-        dataset_title: text
-        dataset_publisher: text
-        dataset_citation: text
-        dataset_doi: text
-        dataset_source_url: text
-        dataset_license: text
-        publishing_org_key: text
-        scientific_name: text
-        accepted_scientific_name: text
-        vernacular_name: text
-        family: text
-        genus: text
-        species: text
-        taxon_rank: text
-        taxon_key: bigint
-        accepted_taxon_key: bigint
-        decimal_latitude: double
-        decimal_longitude: double
-        coordinate_uncertainty_in_meters: double
-        country: text
-        country_code: text
-        state_province: text
-        locality: text
-        event_date: text
-        year: bigint
-        month: bigint
-        day: bigint
-        basis_of_record: text
-        occurrence_status: text
-        establishment_means: text
-        license: text
-        references: text
-        last_interpreted: text
-        last_crawled: text
-        last_parsed: text
-        _source_url: text
-        _query_country_code: text
-        _query_state_province: text
-        _query_taxon_key: bigint
-        _query_dataset_key: text
-        _loaded_at: timestamp
-        _dlt_load_id: text
-        _dlt_id: text
-      rows:
-        - key: 9101
-          scientific_name: "Sialia occidentalis Townsend, 1837"
-          accepted_scientific_name: "Sialia mexicana Swainson, 1832"
-          species: "Sialia mexicana"
-          _loaded_at: "2025-07-21T10:00:00+00:00"
-        - key: 9102
-          scientific_name: "Melanerpes uropygialis (S.F.Baird, 1854)"
-          accepted_scientific_name: "Melanerpes uropygialis (S.F.Baird, 1854)"
-          species: "Melanerpes uropygialis"
-          _loaded_at: "2025-07-21T10:00:00+00:00"
-        - key: 9103
-          scientific_name: "Aegolius acadicus (J.F.Gmelin, 1788)"
-          accepted_scientific_name: "Aegolius acadicus (J.F.Gmelin, 1788)"
-          species: "Aegolius acadicus"
-          _loaded_at: "2025-07-21T10:00:00+00:00"
-  outputs:
-    partial: true
-    query:
-      rows:
-        - occurrence_evidence_id: "10e00afac8f43254fbeaac7262630f4b"
-          source_record_id: "9101"
-          species_natural_key: "sialia mexicana"
-          species_code: "wesblu"
-          scientific_name: "Sialia mexicana"
-          source_scientific_name: "Sialia occidentalis Townsend, 1837"
-          accepted_scientific_name: "Sialia mexicana Swainson, 1832"
-          common_name: "Western Bluebird"
-        - occurrence_evidence_id: "1cce72f119632cf20e59aa484255ff19"
-          source_record_id: "9102"
-          species_natural_key: "melanerpes uropygialis"
-          species_code: "gilwoo"
-          scientific_name: "Melanerpes uropygialis"
-          source_scientific_name: "Melanerpes uropygialis (S.F.Baird, 1854)"
-          accepted_scientific_name: "Melanerpes uropygialis (S.F.Baird, 1854)"
-          common_name: "Gila Woodpecker"
-        - occurrence_evidence_id: "45f65757c7aa82aea4b1bd1fce98bcbb"
-          source_record_id: "9103"
-          species_natural_key: "aegolius acadicus"
-          species_code: "nswowl"
-          scientific_name: "Aegolius acadicus"
-          source_scientific_name: "Aegolius acadicus (J.F.Gmelin, 1788)"
-          accepted_scientific_name: "Aegolius acadicus (J.F.Gmelin, 1788)"
-          common_name: "Northern Saw-whet Owl"
-
-test_birding_agent_xeno_canto_media_evidence:
-  model: birding_agent.xeno_canto_media_evidence
-  inputs:
-    polaris_aws.raw_xeno_canto.recordings:
-      rows:
-        - id: "XC123"
-          genus: "Cardinalis"
-          species: "cardinalis"
-          subspecies: "nominate"
-          group_name: "birds"
-          english_name: "Northern Cardinal"
-          recordist: "Jane Recordist"
-          country: "United States"
-          locality: "Thumb Butte"
-          latitude: 34.54
-          longitude: -112.47
-          altitude: "1600m"
-          recording_type: "song"
-          sex: "male"
-          stage: "adult"
-          method: "field recording"
-          recording_url: "https://xeno-canto.org/123"
-          audio_file_url: "https://xeno-canto.org/123/download"
-          file_name: "XC123.mp3"
-          sonogram: "{}"
-          oscillogram: "{}"
-          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
-          quality: "A"
-          length: "0:12"
-          recording_time: "06:30"
-          recording_date: "2025-07-20"
-          uploaded_at: "2025-07-21"
-          also_species: "Spotted Towhee"
-          remarks: "singing"
-          bird_seen: "yes"
-          animal_seen: "yes"
-          playback_used: "no"
-          temperature: "20"
-          registration_number: "reg-1"
-          automatic_recording: "no"
-          device: "recorder"
-          microphone: "mic"
-          _source_url: "https://xeno-canto.org/api/3/recordings"
-          _query: "cnt:\"United States\" loc:\"Arizona\" grp:birds"
-          _query_page: 1
-          _loaded_at: "2025-07-21T10:00:00+00:00"
-          _dlt_load_id: "load-xc"
-          _dlt_id: "row-xc"
-  outputs:
-    query:
-      rows:
-        - media_evidence_id: "f31eb634afa364c493c02493db1dc61b"
-          evidence_source: "xeno_canto"
-          source_table: "raw_xeno_canto.recordings"
-          source_record_id: "XC123"
-          recording_id: "XC123"
-          genus: "Cardinalis"
-          species: "cardinalis"
-          subspecies: "nominate"
-          group_name: "birds"
-          english_name: "Northern Cardinal"
-          recordist: "Jane Recordist"
-          country: "United States"
-          locality: "Thumb Butte"
-          latitude: 34.54
-          longitude: -112.47
-          altitude: "1600m"
-          recording_type: "song"
-          sex: "male"
-          stage: "adult"
-          method: "field recording"
-          recording_url: "https://xeno-canto.org/123"
-          audio_file_url: "https://xeno-canto.org/123/download"
-          file_name: "XC123.mp3"
-          sonogram: "{}"
-          oscillogram: "{}"
-          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
-          quality: "A"
-          length: "0:12"
-          recording_time: "06:30"
-          recording_date: "2025-07-20"
-          uploaded_at: "2025-07-21"
-          also_species: "Spotted Towhee"
-          remarks: "singing"
-          bird_seen: "yes"
-          animal_seen: "yes"
-          playback_used: "no"
-          temperature: "20"
-          registration_number: "reg-1"
-          automatic_recording: "no"
-          device: "recorder"
-          microphone: "mic"
-          _source_url: "https://xeno-canto.org/api/3/recordings"
-          _query: "cnt:\"United States\" loc:\"Arizona\" grp:birds"
-          _query_page: 1
-          loaded_at: "2025-07-21 10:00:00"
-          dlt_load_id: "load-xc"
-          dlt_id: "row-xc"
-
+      - weather_observation_sk: 90284713e99ba9f2b164d59735d8e9f0
+        weather_station_sk: e4ca290bb094f37dc69ff5c4549c99cc
+        source_pipeline: noaa_api
+        source_id: GHCND:USC00010008|2025-07-20|TMAX
+        station_id: GHCND:USC00010008
+        observation_date: '2025-07-20'
+        datatype: TMAX
+        value: 105.3
+        attributes: ',,S,'
+        source: ''
+        location_id: FIPS:04
+        loaded_at: '2025-07-20 10:00:00'
+        dlt_load_id: load-1
+        dlt_id: row-1
 test_fact_bird_occurrence:
   model: environmental_observations.fact_bird_occurrence
   inputs:
     environmental_observations.dim_species:
       rows:
-        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
-          species_natural_key: "cardinalis cardinalis"
-          source_pipeline: "ebird_api"
-          source_id: "norcar"
+      - species_sk: 472526fe01a3fd0400bdbb083727c8b4
+        species_natural_key: cardinalis cardinalis
+        source_pipeline: ebird_api
+        source_id: norcar
     raw_gbif.occurrences:
       rows:
-        - key: 9001
-          gbif_id: "9001"
-          occurrence_id: "occ-9001"
-          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_title: "EOD – eBird Observation Dataset"
-          dataset_publisher: "Cornell Lab of Ornithology"
-          dataset_citation: "EOD citation"
-          dataset_doi: "10.15468/aomfnb"
-          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
-          publishing_org_key: "org-1"
-          installation_key: "install-1"
-          hosting_organization_key: "host-1"
-          protocol: "DWC_ARCHIVE"
-          publishing_country: "US"
-          scientific_name: "Cardinalis cardinalis"
-          accepted_scientific_name: "Cardinalis cardinalis"
-          vernacular_name: "Northern Cardinal"
-          kingdom: "Animalia"
-          phylum: "Chordata"
-          class_name: "Aves"
-          order_name: "Passeriformes"
-          family: "Cardinalidae"
-          genus: "Cardinalis"
-          species: "Cardinalis cardinalis"
-          generic_name: "Cardinalis"
-          specific_epithet: "cardinalis"
-          taxon_rank: "SPECIES"
-          taxon_key: 12345
-          accepted_taxon_key: 12345
-          kingdom_key: 1
-          phylum_key: 44
-          class_key: 212
-          order_key: 729
-          family_key: 9608
-          genus_key: 2491321
-          species_key: 2491322
-          decimal_latitude: 34.54
-          decimal_longitude: -112.47
-          coordinate_uncertainty_in_meters: 30
-          country: "United States"
-          country_code: "US"
-          state_province: "Arizona"
-          locality: "Thumb Butte"
-          event_date: "2025-07-20"
-          year: 2025
-          month: 7
-          day: 20
-          basis_of_record: "HUMAN_OBSERVATION"
-          occurrence_status: "PRESENT"
-          establishment_means: "native"
-          record_number: "rec-1"
-          recorded_by: "Observer"
-          identified_by: "Identifier"
-          institution_code: "INST"
-          collection_code: "COLL"
-          catalog_number: "CAT-1"
-          license: "CC_BY_4_0"
-          references: "https://www.gbif.org/occurrence/9001"
-          last_interpreted: "2025-07-21T00:00:00Z"
-          last_crawled: "2025-07-21T00:00:00Z"
-          last_parsed: "2025-07-21T00:00:00Z"
-          _source_url: "https://api.gbif.org/v1/occurrence/search"
-          _query_country_code: "US"
-          _query_state_province: "Arizona"
-          _query_taxon_key: 212
-          _query_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          _loaded_at: "2025-07-21T10:00:00+00:00"
-          _dlt_load_id: "load-gbif"
-          _dlt_id: "row-gbif"
+      - key: 9001
+        gbif_id: '9001'
+        occurrence_id: occ-9001
+        dataset_key: 4fa7b334-ce0d-4e88-aaae-2e0c138d049e
+        dataset_title: "EOD \u2013 eBird Observation Dataset"
+        dataset_publisher: Cornell Lab of Ornithology
+        dataset_citation: EOD citation
+        dataset_doi: 10.15468/aomfnb
+        dataset_source_url: https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e
+        dataset_license: https://creativecommons.org/licenses/by/4.0/
+        publishing_org_key: org-1
+        installation_key: install-1
+        hosting_organization_key: host-1
+        protocol: DWC_ARCHIVE
+        publishing_country: US
+        scientific_name: Cardinalis cardinalis
+        accepted_scientific_name: Cardinalis cardinalis
+        vernacular_name: Northern Cardinal
+        kingdom: Animalia
+        phylum: Chordata
+        class_name: Aves
+        order_name: Passeriformes
+        family: Cardinalidae
+        genus: Cardinalis
+        species: Cardinalis cardinalis
+        generic_name: Cardinalis
+        specific_epithet: cardinalis
+        taxon_rank: SPECIES
+        taxon_key: 12345
+        accepted_taxon_key: 12345
+        kingdom_key: 1
+        phylum_key: 44
+        class_key: 212
+        order_key: 729
+        family_key: 9608
+        genus_key: 2491321
+        species_key: 2491322
+        decimal_latitude: 34.54
+        decimal_longitude: -112.47
+        coordinate_uncertainty_in_meters: 30
+        country: United States
+        country_code: US
+        state_province: Arizona
+        locality: Thumb Butte
+        event_date: '2025-07-20'
+        year: 2025
+        month: 7
+        day: 20
+        basis_of_record: HUMAN_OBSERVATION
+        occurrence_status: PRESENT
+        establishment_means: native
+        record_number: rec-1
+        recorded_by: Observer
+        identified_by: Identifier
+        institution_code: INST
+        collection_code: COLL
+        catalog_number: CAT-1
+        license: CC_BY_4_0
+        references: https://www.gbif.org/occurrence/9001
+        last_interpreted: '2025-07-21T00:00:00Z'
+        last_crawled: '2025-07-21T00:00:00Z'
+        last_parsed: '2025-07-21T00:00:00Z'
+        _source_url: https://api.gbif.org/v1/occurrence/search
+        _query_country_code: US
+        _query_state_province: Arizona
+        _query_taxon_key: 212
+        _query_dataset_key: 4fa7b334-ce0d-4e88-aaae-2e0c138d049e
+        _loaded_at: '2025-07-21T10:00:00+00:00'
+        _dlt_load_id: load-gbif
+        _dlt_id: row-gbif
   outputs:
     query:
       rows:
-        - bird_occurrence_sk: "430463ba1cc22feb42d6cca1807a8649"
-          species_sk: "472526fe01a3fd0400bdbb083727c8b4"
-          source_pipeline: "gbif_api"
-          source_id: "9001"
-          gbif_key: 9001
-          gbif_id: "9001"
-          occurrence_id: "occ-9001"
-          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_title: "EOD – eBird Observation Dataset"
-          dataset_publisher: "Cornell Lab of Ornithology"
-          dataset_citation: "EOD citation"
-          dataset_doi: "10.15468/aomfnb"
-          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
-          publishing_org_key: "org-1"
-          installation_key: "install-1"
-          hosting_organization_key: "host-1"
-          protocol: "DWC_ARCHIVE"
-          publishing_country: "US"
-          scientific_name: "Cardinalis cardinalis"
-          accepted_scientific_name: "Cardinalis cardinalis"
-          common_name: "Northern Cardinal"
-          kingdom: "Animalia"
-          phylum: "Chordata"
-          class_name: "Aves"
-          order_name: "Passeriformes"
-          family: "Cardinalidae"
-          genus: "Cardinalis"
-          species: "Cardinalis cardinalis"
-          generic_name: "Cardinalis"
-          specific_epithet: "cardinalis"
-          taxon_rank: "SPECIES"
-          taxon_key: 12345
-          accepted_taxon_key: 12345
-          kingdom_key: 1
-          phylum_key: 44
-          class_key: 212
-          order_key: 729
-          family_key: 9608
-          genus_key: 2491321
-          species_key: 2491322
-          latitude: 34.54
-          longitude: -112.47
-          coordinate_uncertainty_in_meters: 30
-          country: "United States"
-          country_code: "US"
-          state_province: "Arizona"
-          locality: "Thumb Butte"
-          event_date_text: "2025-07-20"
-          event_date: "2025-07-20"
-          year: 2025
-          month: 7
-          day: 20
-          basis_of_record: "HUMAN_OBSERVATION"
-          occurrence_status: "PRESENT"
-          establishment_means: "native"
-          record_number: "rec-1"
-          recorded_by: "Observer"
-          identified_by: "Identifier"
-          institution_code: "INST"
-          collection_code: "COLL"
-          catalog_number: "CAT-1"
-          license: "CC_BY_4_0"
-          source_reference_url: "https://www.gbif.org/occurrence/9001"
-          last_interpreted: "2025-07-21T00:00:00Z"
-          last_crawled: "2025-07-21T00:00:00Z"
-          last_parsed: "2025-07-21T00:00:00Z"
-          source_url: "https://api.gbif.org/v1/occurrence/search"
-          query_country_code: "US"
-          query_state_province: "Arizona"
-          query_taxon_key: 212
-          query_dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          loaded_at: "2025-07-21 10:00:00"
-          dlt_load_id: "load-gbif"
-          dlt_id: "row-gbif"
-
+      - bird_occurrence_sk: 430463ba1cc22feb42d6cca1807a8649
+        species_sk: 472526fe01a3fd0400bdbb083727c8b4
+        source_pipeline: gbif_api
+        source_id: '9001'
+        gbif_key: 9001
+        gbif_id: '9001'
+        occurrence_id: occ-9001
+        dataset_key: 4fa7b334-ce0d-4e88-aaae-2e0c138d049e
+        dataset_title: "EOD \u2013 eBird Observation Dataset"
+        dataset_publisher: Cornell Lab of Ornithology
+        dataset_citation: EOD citation
+        dataset_doi: 10.15468/aomfnb
+        dataset_source_url: https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e
+        dataset_license: https://creativecommons.org/licenses/by/4.0/
+        publishing_org_key: org-1
+        installation_key: install-1
+        hosting_organization_key: host-1
+        protocol: DWC_ARCHIVE
+        publishing_country: US
+        scientific_name: Cardinalis cardinalis
+        accepted_scientific_name: Cardinalis cardinalis
+        common_name: Northern Cardinal
+        kingdom: Animalia
+        phylum: Chordata
+        class_name: Aves
+        order_name: Passeriformes
+        family: Cardinalidae
+        genus: Cardinalis
+        species: Cardinalis cardinalis
+        generic_name: Cardinalis
+        specific_epithet: cardinalis
+        taxon_rank: SPECIES
+        taxon_key: 12345
+        accepted_taxon_key: 12345
+        kingdom_key: 1
+        phylum_key: 44
+        class_key: 212
+        order_key: 729
+        family_key: 9608
+        genus_key: 2491321
+        species_key: 2491322
+        latitude: 34.54
+        longitude: -112.47
+        coordinate_uncertainty_in_meters: 30
+        country: United States
+        country_code: US
+        state_province: Arizona
+        locality: Thumb Butte
+        event_date_text: '2025-07-20'
+        event_date: '2025-07-20'
+        year: 2025
+        month: 7
+        day: 20
+        basis_of_record: HUMAN_OBSERVATION
+        occurrence_status: PRESENT
+        establishment_means: native
+        record_number: rec-1
+        recorded_by: Observer
+        identified_by: Identifier
+        institution_code: INST
+        collection_code: COLL
+        catalog_number: CAT-1
+        license: CC_BY_4_0
+        source_reference_url: https://www.gbif.org/occurrence/9001
+        last_interpreted: '2025-07-21T00:00:00Z'
+        last_crawled: '2025-07-21T00:00:00Z'
+        last_parsed: '2025-07-21T00:00:00Z'
+        source_url: https://api.gbif.org/v1/occurrence/search
+        query_country_code: US
+        query_state_province: Arizona
+        query_taxon_key: 212
+        query_dataset_key: 4fa7b334-ce0d-4e88-aaae-2e0c138d049e
+        loaded_at: '2025-07-21 10:00:00'
+        dlt_load_id: load-gbif
+        dlt_id: row-gbif
 test_fact_bird_sound_recording:
   model: environmental_observations.fact_bird_sound_recording
   inputs:
     environmental_observations.dim_species:
       rows:
-        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
-          species_natural_key: "cardinalis cardinalis"
-          source_pipeline: "ebird_api"
-          source_id: "norcar"
+      - species_sk: 472526fe01a3fd0400bdbb083727c8b4
+        species_natural_key: cardinalis cardinalis
+        source_pipeline: ebird_api
+        source_id: norcar
     polaris_aws.raw_xeno_canto.recordings:
       rows:
-        - id: "XC123"
-          genus: "Cardinalis"
-          species: "cardinalis"
-          subspecies: "nominate"
-          group_name: "birds"
-          english_name: "Northern Cardinal"
-          recordist: "Jane Recordist"
-          country: "United States"
-          locality: "Thumb Butte"
-          latitude: 34.54
-          longitude: -112.47
-          altitude: "1600m"
-          recording_type: "song"
-          sex: "male"
-          stage: "adult"
-          method: "field recording"
-          recording_url: "https://xeno-canto.org/123"
-          audio_file_url: "https://xeno-canto.org/123/download"
-          file_name: "XC123.mp3"
-          sonogram: "{}"
-          oscillogram: "{}"
-          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
-          quality: "A"
-          length: "0:12"
-          recording_time: "06:30"
-          recording_date: "2025-07-20"
-          uploaded_at: "2025-07-21"
-          also_species: "Spotted Towhee"
-          remarks: "singing"
-          bird_seen: "yes"
-          animal_seen: "yes"
-          playback_used: "no"
-          temperature: "20"
-          registration_number: "reg-1"
-          automatic_recording: "no"
-          device: "recorder"
-          microphone: "mic"
-          _source_url: "https://xeno-canto.org/api/3/recordings"
-          _query: "cnt:\"United States\" loc:\"Arizona\" grp:birds"
-          _query_page: 1
-          _loaded_at: "2025-07-21T10:00:00+00:00"
-          _dlt_load_id: "load-xc"
-          _dlt_id: "row-xc"
+      - id: XC123
+        genus: Cardinalis
+        species: cardinalis
+        subspecies: nominate
+        group_name: birds
+        english_name: Northern Cardinal
+        recordist: Jane Recordist
+        country: United States
+        locality: Thumb Butte
+        latitude: 34.54
+        longitude: -112.47
+        altitude: 1600m
+        recording_type: song
+        sex: male
+        stage: adult
+        method: field recording
+        recording_url: https://xeno-canto.org/123
+        audio_file_url: https://xeno-canto.org/123/download
+        file_name: XC123.mp3
+        sonogram: '{}'
+        oscillogram: '{}'
+        license: Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+        quality: A
+        length: 0:12
+        recording_time: 06:30
+        recording_date: '2025-07-20'
+        uploaded_at: '2025-07-21'
+        also_species: Spotted Towhee
+        remarks: singing
+        bird_seen: 'yes'
+        animal_seen: 'yes'
+        playback_used: 'no'
+        temperature: '20'
+        registration_number: reg-1
+        automatic_recording: 'no'
+        device: recorder
+        microphone: mic
+        _source_url: https://xeno-canto.org/api/3/recordings
+        _query: cnt:"United States" loc:"Arizona" grp:birds
+        _query_page: 1
+        _loaded_at: '2025-07-21T10:00:00+00:00'
+        _dlt_load_id: load-xc
+        _dlt_id: row-xc
   outputs:
     query:
       rows:
-        - bird_sound_recording_sk: "eec0153ab1cfec0e594df72483831d20"
-          species_sk: "472526fe01a3fd0400bdbb083727c8b4"
-          source_pipeline: "xeno_canto_api"
-          source_id: "XC123"
-          recording_id: "XC123"
-          genus: "Cardinalis"
-          species: "cardinalis"
-          subspecies: "nominate"
-          group_name: "birds"
-          english_name: "Northern Cardinal"
-          recordist: "Jane Recordist"
-          country: "United States"
-          locality: "Thumb Butte"
-          latitude: 34.54
-          longitude: -112.47
-          altitude: "1600m"
-          recording_type: "song"
-          sex: "male"
-          stage: "adult"
-          method: "field recording"
-          recording_url: "https://xeno-canto.org/123"
-          audio_file_url: "https://xeno-canto.org/123/download"
-          file_name: "XC123.mp3"
-          sonogram: "{}"
-          oscillogram: "{}"
-          license: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0"
-          quality: "A"
-          length: "0:12"
-          recording_time: "06:30"
-          recording_date_text: "2025-07-20"
-          recording_date: "2025-07-20"
-          uploaded_at: "2025-07-21"
-          also_species: "Spotted Towhee"
-          remarks: "singing"
-          bird_seen: "yes"
-          animal_seen: "yes"
-          playback_used: "no"
-          temperature: "20"
-          registration_number: "reg-1"
-          automatic_recording: "no"
-          device: "recorder"
-          microphone: "mic"
-          source_url: "https://xeno-canto.org/api/3/recordings"
-          query: "cnt:\"United States\" loc:\"Arizona\" grp:birds"
-          query_page: 1
-          loaded_at: "2025-07-21 10:00:00"
-          dlt_load_id: "load-xc"
-          dlt_id: "row-xc"
-
-test_rufous_public_gbif_eod_occurrence:
-  model: rufous_public.gbif_eod_occurrence
-  inputs:
-    raw_gbif.occurrences:
-      rows:
-        - key: 9201
-          gbif_id: "9201"
-          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_title: ""
-          dataset_publisher: ""
-          dataset_citation: ""
-          dataset_doi: ""
-          dataset_source_url: ""
-          dataset_license: ""
-          scientific_name: "Cardinalis cardinalis (Linnaeus, 1758)"
-          accepted_scientific_name: "Cardinalis cardinalis (Linnaeus, 1758)"
-          vernacular_name: "Northern Cardinal"
-          family: "Cardinalidae"
-          order_name: "Passeriformes"
-          species: "Cardinalis cardinalis"
-          taxon_rank: "SPECIES"
-          taxon_key: 2491322
-          accepted_taxon_key: 2491322
-          species_key: 2491322
-          decimal_latitude: 34.541
-          decimal_longitude: -112.476
-          coordinate_uncertainty_in_meters: 25
-          country_code: "US"
-          state_province: "Arizona"
-          event_date: "2024-07-20T06:30:00"
-          basis_of_record: "HUMAN_OBSERVATION"
-          occurrence_status: "PRESENT"
-          license: "http://creativecommons.org/licenses/by/4.0/legalcode"
-          _loaded_at: "2026-08-02T10:00:00+00:00"
-          _dlt_id: "newer"
-        - key: 9202
-          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          scientific_name: "Corvus corax"
-          decimal_latitude: 34.5
-          decimal_longitude: -112.5
-          country_code: "US"
-          state_province: "Arizona"
-          event_date: "2024-07-20"
-          occurrence_status: "PRESENT"
-          license: "http://creativecommons.org/licenses/by-nc/4.0/legalcode"
-          _loaded_at: "2026-08-02T10:00:00+00:00"
-          _dlt_id: "noncommercial"
-        - key: 9203
-          dataset_key: "another-dataset"
-          scientific_name: "Sialia mexicana"
-          decimal_latitude: 34.5
-          decimal_longitude: -112.5
-          country_code: "US"
-          state_province: "Arizona"
-          event_date: "2024-07-20"
-          occurrence_status: "PRESENT"
-          license: "http://creativecommons.org/licenses/by/4.0/legalcode"
-          _loaded_at: "2026-08-02T10:00:00+00:00"
-          _dlt_id: "wrong-dataset"
-  outputs:
-    partial: true
-    query:
-      rows:
-        - source_id: "9201"
-          gbif_key: 9201
-          gbif_id: "9201"
-          dataset_key: "4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_title: "EOD – eBird Observation Dataset"
-          dataset_publisher: "Cornell Lab of Ornithology"
-          dataset_doi: "10.15468/aomfnb"
-          dataset_source_url: "https://www.gbif.org/dataset/4fa7b334-ce0d-4e88-aaae-2e0c138d049e"
-          dataset_license: "https://creativecommons.org/licenses/by/4.0/"
-          scientific_name: "Cardinalis cardinalis"
-          accepted_scientific_name: "Cardinalis cardinalis (Linnaeus, 1758)"
-          common_name: "Northern Cardinal"
-          taxon_rank: "SPECIES"
-          family: "Cardinalidae"
-          order_name: "Passeriformes"
-          accepted_taxon_key: 2491322
-          taxon_key: 2491322
-          species_key: 2491322
-          event_date: "2024-07-20"
-          event_date_text: "2024-07-20"
-          latitude: 34.54
-          longitude: -112.48
-          coordinate_uncertainty_in_meters: 1000.0
-          basis_of_record: "HUMAN_OBSERVATION"
-          occurrence_status: "PRESENT"
-          license: "http://creativecommons.org/licenses/by/4.0/legalcode"
-          source_reference_url: "https://www.gbif.org/occurrence/9201"
-          loaded_at: "2026-08-02 10:00:00"
-
-test_rufous_public_usfws_commercial_image:
-  model: rufous_public.usfws_commercial_image
-  inputs:
-    polaris_aws.raw_usfws.image_search_runs:
-      rows:
-        - run_id: "older-complete"
-          status: "complete"
-          target_species_count: 1
-          completed_target_species_count: 1
-          record_count: 1
-          completed_at: "2026-08-01 10:00:00"
-          _loaded_at: "2026-08-01 10:00:00"
-        - run_id: "selected-complete"
-          status: "complete"
-          target_species_count: 1
-          completed_target_species_count: 1
-          record_count: 24
-          completed_at: "2026-08-02 10:00:00"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "newer-incomplete"
-          status: "incomplete"
-          target_species_count: 1
-          completed_target_species_count: 0
-          record_count: 1
-          completed_at: "2026-08-03 10:00:00"
-          _loaded_at: "2026-08-03 10:00:00"
-        - run_id: "newer-truncated"
-          status: "complete"
-          target_species_count: 1
-          completed_target_species_count: 1
-          record_count: 2
-          completed_at: "2026-08-04 10:00:00"
-          _loaded_at: "2026-08-04 10:00:00"
-    polaris_aws.raw_usfws.image_records:
-      rows:
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "public-domain"
-          discovery_method: "exact_common_name,species_facet"
-          source_page_url: "https://www.fws.gov/media/rufous-public-domain"
-          search_result_title: "Search title"
-          search_result_caption: "Search caption"
-          search_result_alt_text: "Search alt"
-          search_result_image_url: "https://www.fws.gov/sites/default/files/images/rufous-search.jpg"
-          search_result_published_at: "2024-06-21T12:00:00Z"
-          detail_fetch_status: "ok"
-          source_title: "Rufous in flight"
-          source_caption: "A male Rufous Hummingbird in flight."
-          source_alt_text: "A male hummingbird in flight"
-          source_creator: "Alan Example/USFWS"
-          source_license: "Public Domain"
-          source_license_url: "https://www.fws.gov/notices"
-          source_published_at: "2024-06-21"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/rufous.jpg?itok=abc"
-          source_image_medium_width: 650
-          source_image_medium_height: 406
-          source_image_original_url: "https://www.fws.gov/sites/default/files/images/rufous-original.jpg"
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          subject_tags_json: "[\"Birds\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "sharealike"
-          discovery_method: "exact_scientific_name"
-          source_page_url: "https://www.fws.gov/media/rufous-sharealike"
-          detail_fetch_status: "ok"
-          source_title: "Rufous perched"
-          source_caption: "Rufous perched on a twig"
-          source_alt_text: "Rufous Hummingbird on a twig"
-          source_creator: "Pat Photographer"
-          source_license: "Creative Commons Attribution-ShareAlike 4.0"
-          source_license_url: "https://www.creativecommons.org/licenses/by-sa/4.0/"
-          source_published_at: "2024-07-01"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/rufous-sa.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "cc-zero"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/rufous-cc-zero"
-          detail_fetch_status: "ok"
-          source_title: "Rufous feeding"
-          source_caption: "Rufous feeding"
-          source_alt_text: "Rufous Hummingbird feeding"
-          source_creator: "FWS Volunteer"
-          source_license: "Creative Commons Zero 1.0 Universal"
-          source_published_at: "2024-07-02"
-          source_media_type: "Image"
-          source_mime_type: "image/png"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/rufous-cc0.png"
-          source_image_medium_width: 650
-          source_image_medium_height: 650
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "restricted-logo-subject"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-logo-subject"
-          detail_fetch_status: "ok"
-          source_title: "Otherwise eligible Rufous image"
-          source_caption: "A Rufous Hummingbird at flowers"
-          source_alt_text: "Rufous Hummingbird feeding"
-          source_creator: "Valid Photographer"
-          source_license: "Public Domain"
-          source_license_url: "https://www.fws.gov/notices"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/restricted-logo-subject.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          subject_tags_json: "[\"USFWS Logos\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "restricted-agency-seal"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-agency-seal"
-          detail_fetch_status: "ok"
-          source_title: "U.S. Fish & Wildlife Service agency-seal"
-          source_caption: "An otherwise eligible Rufous image"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Photographer"
-          source_license: "Public Domain"
-          source_license_url: "https://www.fws.gov/notices"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/restricted-agency-seal.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "restricted-duck-stamp"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-duck-stamp"
-          search_result_caption: "2026 Junior Duck Stamp artwork"
-          detail_fetch_status: "ok"
-          source_title: "Otherwise eligible Rufous image"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Photographer"
-          source_license: "Public Domain"
-          source_license_url: "https://www.fws.gov/notices"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/restricted-duck-stamp.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "restricted-wildlife-restoration"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/federal-aid-in-wildlife-restoration-symbol"
-          detail_fetch_status: "ok"
-          source_title: "Otherwise eligible Rufous image"
-          source_caption: "A Rufous Hummingbird at flowers"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Photographer"
-          source_license: "Public Domain"
-          source_license_url: "https://www.fws.gov/notices"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/restricted-wildlife-restoration.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "restricted-sport-fish-restoration"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-sport-fish-restoration"
-          detail_fetch_status: "ok"
-          source_title: "Otherwise eligible Rufous image"
-          source_caption: "A Rufous Hummingbird at flowers"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Photographer"
-          source_license: "Public Domain"
-          source_license_url: "https://www.fws.gov/notices"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/restricted-sport-fish.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          source_image_original_url: "https://www.fws.gov/sites/default/files/images/sport%252Dfish%252Drestoration%252Dsymbol.jpg"
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "restricted-blue-goose"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-blue-goose"
-          detail_fetch_status: "ok"
-          source_title: "Blue Goose"
-          source_caption: "An otherwise eligible Rufous image"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Photographer"
-          source_license: "Public Domain"
-          source_license_url: "https://www.fws.gov/notices"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/restricted-blue-goose.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          subject_tags_json: "[\"National Wildlife Refuge System\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "ambiguous-rights-detail"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-ambiguous-rights"
-          detail_fetch_status: "ambiguous_rights"
-          source_title: "Ambiguous rights title"
-          source_caption: "An otherwise eligible Rufous image"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Photographer"
-          source_license: "Public Domain"
-          source_license_url: "https://www.fws.gov/notices"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/ambiguous-rights.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "contradictory-rights-url"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-contradictory-rights-url"
-          detail_fetch_status: "ok"
-          source_title: "Contradictory rights URL title"
-          source_caption: "An otherwise eligible Rufous image"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Photographer"
-          source_license: "CC BY 4.0"
-          source_license_url: "https://creativecommons.org/licenses/by-sa/4.0/"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/contradictory-rights.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "noncommercial"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-nc"
-          source_title: "NC title"
-          source_creator: "NC Photographer"
-          source_license: "Creative Commons Attribution-NonCommercial 4.0"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/reject-nc.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "no-derivatives"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-nd"
-          source_title: "ND title"
-          source_creator: "ND Photographer"
-          source_license: "Creative Commons Attribution-NoDerivatives 4.0"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/reject-nd.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "arr"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-arr"
-          source_title: "ARR title"
-          source_creator: "Rights Holder"
-          source_license: "Copyrighted, All Rights Reserved - Used by Permission"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/reject-arr.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "weak-credit"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-credit"
-          source_title: "Different title"
-          source_creator: "Rufous Hummingbird"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/reject-credit.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "unsafe-url"
-          discovery_method: "species_facet"
-          source_page_url: "https://images.example.invalid/media/rufous"
-          source_title: "Unsafe title"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/unsafe.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "wrong-tag"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-wrong-tag"
-          source_title: "Wrong tag title"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/wrong-tag.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus platycercus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "punctuation-credit"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-punctuation-credit"
-          source_title: "Punctuation credit title"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "--"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/punctuation-credit.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "uppercase-itok"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-uppercase-itok"
-          source_title: "Uppercase query title"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/uppercase.jpg?ITOK=abc"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "encoded-backslash"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-encoded-backslash"
-          source_title: "Encoded backslash title"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/foo%5Cbar.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "encoded-control"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-encoded-control"
-          source_title: "Encoded control title"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/foo%00bar.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "encoded-double-slash"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-encoded-double-slash"
-          source_title: "Encoded slash title"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/foo%2F%2Fbar.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "control-title"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-control-title"
-          source_title: "Bad\x01title"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/control-title.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "control-alt"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-control-alt"
-          source_title: "Valid title"
-          source_alt_text: "Bad\x01alt"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/control-alt.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "older-complete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "old"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-old-run"
-          source_title: "Old title"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/old.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-01 10:00:00"
-        - run_id: "newer-incomplete"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "incomplete"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-incomplete-run"
-          source_title: "Incomplete title"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/incomplete.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-03 10:00:00"
-        - run_id: "newer-truncated"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "truncated"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/reject-truncated-run"
-          source_title: "Truncated title"
-          source_caption: "Truncated caption"
-          source_alt_text: "Truncated alt"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/truncated.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          _loaded_at: "2026-08-04 10:00:00"
-  outputs:
-    partial: true
-    query:
-      rows:
-        - species_code: "rufhum"
-          common_name: "Rufous Hummingbird"
-          scientific_name: "Selasphorus rufus"
-          source_page_url: "https://www.fws.gov/media/rufous-cc-zero"
-          source_image_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/rufous-cc0.png"
-          creator: "FWS Volunteer"
-          license: "Creative Commons Zero 1.0 Universal"
-          title: "Rufous feeding"
-          caption: "Rufous feeding"
-          alt_text: "Rufous Hummingbird feeding"
-          source_published_at: "2024-07-02"
-          source_width: 650
-          source_height: 650
-          mime_type: "image/png"
-          discovery_method: "species_facet"
-          loaded_at: "2026-08-02 10:00:00"
-        - species_code: "rufhum"
-          common_name: "Rufous Hummingbird"
-          scientific_name: "Selasphorus rufus"
-          source_page_url: "https://www.fws.gov/media/rufous-public-domain"
-          source_image_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/rufous.jpg?itok=abc"
-          creator: "Alan Example/USFWS"
-          license: "Public Domain"
-          title: "Rufous in flight"
-          caption: "A male Rufous Hummingbird in flight."
-          alt_text: "A male hummingbird in flight"
-          source_published_at: "2024-06-21"
-          source_width: 650
-          source_height: 406
-          mime_type: "image/jpeg"
-          discovery_method: "exact_common_name,species_facet"
-          loaded_at: "2026-08-02 10:00:00"
-        - species_code: "rufhum"
-          common_name: "Rufous Hummingbird"
-          scientific_name: "Selasphorus rufus"
-          source_page_url: "https://www.fws.gov/media/rufous-sharealike"
-          source_image_url: "https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/rufous-sa.jpg"
-          creator: "Pat Photographer"
-          license: "Creative Commons Attribution-ShareAlike 4.0"
-          title: "Rufous perched"
-          caption: "Rufous perched on a twig"
-          alt_text: "Rufous Hummingbird on a twig"
-          source_published_at: "2024-07-01"
-          source_width: 650
-          source_height: 433
-          mime_type: "image/jpeg"
-          discovery_method: "exact_scientific_name"
-          loaded_at: "2026-08-02 10:00:00"
-
-test_rufous_public_usfws_zero_record_complete_snapshot:
-  model: rufous_public.usfws_commercial_image
-  inputs:
-    polaris_aws.raw_usfws.image_search_runs:
-      rows:
-        - run_id: "older-with-image"
-          status: "complete"
-          target_species_count: 1
-          completed_target_species_count: 1
-          record_count: 1
-          completed_at: "2026-08-01 10:00:00"
-          _loaded_at: "2026-08-01 10:00:00"
-        - run_id: "newer-empty"
-          status: "complete"
-          target_species_count: 1
-          completed_target_species_count: 1
-          record_count: 0
-          completed_at: "2026-08-02 10:00:00"
-          _loaded_at: "2026-08-02 10:00:00"
-    polaris_aws.raw_usfws.image_records:
-      rows:
-        - run_id: "older-with-image"
-          species_code: "rufhum"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          media_id: "old-valid"
-          discovery_method: "species_facet"
-          source_page_url: "https://www.fws.gov/media/old-valid"
-          search_result_title: "Old search title"
-          search_result_caption: "Old search caption"
-          search_result_alt_text: "Old search alt"
-          search_result_image_url: "https://www.fws.gov/sites/default/files/images/old-search.jpg"
-          search_result_published_at: "2026-07-31T10:00:00Z"
-          detail_fetch_status: "ok"
-          source_title: "Old valid image"
-          source_caption: "Old valid caption"
-          source_alt_text: "Rufous Hummingbird"
-          source_creator: "Valid Credit"
-          source_license: "Public Domain"
-          source_license_url: "https://www.fws.gov/notices"
-          source_published_at: "2026-07-31"
-          source_media_type: "Image"
-          source_mime_type: "image/jpeg"
-          source_image_medium_url: "https://www.fws.gov/sites/default/files/images/old-valid.jpg"
-          source_image_medium_width: 650
-          source_image_medium_height: 433
-          source_image_original_url: "https://www.fws.gov/sites/default/files/images/old-original.jpg"
-          scientific_name_tags_json: "[\"Selasphorus rufus\"]"
-          subject_tags_json: "[\"Birds\"]"
-          _loaded_at: "2026-08-01 10:00:00"
-  outputs:
-    query:
-      rows: []
-
-test_rufous_public_inaturalist_commercial_image:
-  model: rufous_public.inaturalist_commercial_image
-  inputs:
-    raw_inaturalist.photo_discovery_runs:
-      rows:
-        - run_id: "selected-complete"
-          status: "complete"
-          target_species_count: 1
-          exact_species_count: 1
-          species_with_candidates: 1
-          curated_photos_inspected: 3
-          eligible_candidate_count: 3
-          request_count: 2
-          max_curated_photos: 20
-          request_max_attempts: 3
-          started_at: "2026-08-02 09:59:00"
-          completed_at: "2026-08-02 10:00:00"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "newer-malformed"
-          status: "complete"
-          target_species_count: 1
-          exact_species_count: 1
-          species_with_candidates: 1
-          curated_photos_inspected: 1
-          eligible_candidate_count: 1
-          request_count: 2
-          max_curated_photos: 20
-          request_max_attempts: 3
-          started_at: "2026-08-03 09:59:00"
-          completed_at: "2026-08-03 10:00:00"
-          _loaded_at: "2026-08-03 10:00:00"
-    raw_inaturalist.photo_species_results:
-      rows:
-        - run_id: "selected-complete"
-          species_code: "gbif-2476855"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          taxon_id: 4993
-          identity_status: "exact_active_species"
-          curated_photo_count: 5
-          curated_photos_inspected: 3
-          eligible_candidate_count: 3
-          rejection_counts_json: "{}"
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "newer-malformed"
-          species_code: "gbif-2476855"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          taxon_id: 4993
-          identity_status: "exact_active_species"
-          curated_photo_count: 5
-          curated_photos_inspected: 1
-          eligible_candidate_count: 1
-          rejection_counts_json: "{}"
-          _loaded_at: "2026-08-03 10:00:00"
-    raw_inaturalist.photo_candidates:
-      rows:
-        - run_id: "selected-complete"
-          species_code: "gbif-2476855"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          taxon_id: 4993
-          photo_id: 101
-          curated_position: 1
-          source_page_url: "https://www.inaturalist.org/photos/101"
-          source_image_original_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/101/original.jpg"
-          source_image_large_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/101/large.jpg"
-          creator: "Pat Photographer"
-          license_code: "CC BY 4.0"
-          license_url: "https://creativecommons.org/licenses/by/4.0/"
-          original_width: 1600
-          original_height: 1200
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "newer-malformed"
-          species_code: "gbif-2476855"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          taxon_id: 4993
-          photo_id: 201
-          curated_position: 1
-          source_page_url: "https://www.inaturalist.org/photos/999"
-          source_image_original_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/201/original.jpg"
-          source_image_large_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/201/large.jpg"
-          creator: "Unsafe Candidate"
-          license_code: "CC BY 4.0"
-          license_url: "https://creativecommons.org/licenses/by/4.0/"
-          original_width: 1600
-          original_height: 1200
-          _loaded_at: "2026-08-03 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "gbif-2476855"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          taxon_id: 4993
-          photo_id: 102
-          curated_position: 2
-          source_page_url: "https://www.inaturalist.org/photos/102"
-          source_image_original_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/102/original.png"
-          source_image_large_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/102/large.png"
-          creator: "Casey Contributor"
-          license_code: "CC0 1.0"
-          license_url: "https://creativecommons.org/publicdomain/zero/1.0/"
-          original_width: 1800
-          original_height: 1200
-          _loaded_at: "2026-08-02 10:00:00"
-        - run_id: "selected-complete"
-          species_code: "gbif-2476855"
-          target_common_name: "Rufous Hummingbird"
-          target_scientific_name: "Selasphorus rufus"
-          taxon_id: 4993
-          photo_id: 103
-          curated_position: 3
-          source_page_url: "https://www.inaturalist.org/photos/103"
-          source_image_original_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/103/original.WEBP"
-          source_image_large_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/103/large.WEBP"
-          creator: "Sam Sharealike"
-          license_code: "CC BY-SA 4.0"
-          license_url: "https://creativecommons.org/licenses/by-sa/4.0/"
-          original_width: 1600
-          original_height: 1000
-          _loaded_at: "2026-08-02 10:00:00"
-  outputs:
-    query:
-      rows:
-        - species_code: "gbif-2476855"
-          common_name: "Rufous Hummingbird"
-          scientific_name: "Selasphorus rufus"
-          source_page_url: "https://www.inaturalist.org/photos/101"
-          source_image_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/101/original.jpg"
-          creator: "Pat Photographer"
-          license: "CC BY 4.0"
-          title: "Rufous Hummingbird photograph"
-          caption: "Curated iNaturalist taxon photograph of Rufous Hummingbird by Pat Photographer."
-          alt_text: "Rufous Hummingbird photographed by Pat Photographer"
-          source_published_at: null
-          source_width: 1600
-          source_height: 1200
-          mime_type: "image/jpeg"
-          discovery_method: "inaturalist_exact_active_species_curated_taxon_photo"
-          loaded_at: "2026-08-02 10:00:00"
-        - species_code: "gbif-2476855"
-          common_name: "Rufous Hummingbird"
-          scientific_name: "Selasphorus rufus"
-          source_page_url: "https://www.inaturalist.org/photos/102"
-          source_image_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/102/original.png"
-          creator: "Casey Contributor"
-          license: "CC0 1.0"
-          title: "Rufous Hummingbird photograph"
-          caption: "Curated iNaturalist taxon photograph of Rufous Hummingbird by Casey Contributor."
-          alt_text: "Rufous Hummingbird photographed by Casey Contributor"
-          source_published_at: null
-          source_width: 1800
-          source_height: 1200
-          mime_type: "image/png"
-          discovery_method: "inaturalist_exact_active_species_curated_taxon_photo"
-          loaded_at: "2026-08-02 10:00:00"
-        - species_code: "gbif-2476855"
-          common_name: "Rufous Hummingbird"
-          scientific_name: "Selasphorus rufus"
-          source_page_url: "https://www.inaturalist.org/photos/103"
-          source_image_url: "https://inaturalist-open-data.s3.amazonaws.com/photos/103/original.WEBP"
-          creator: "Sam Sharealike"
-          license: "CC BY-SA 4.0"
-          title: "Rufous Hummingbird photograph"
-          caption: "Curated iNaturalist taxon photograph of Rufous Hummingbird by Sam Sharealike."
-          alt_text: "Rufous Hummingbird photographed by Sam Sharealike"
-          source_published_at: null
-          source_width: 1600
-          source_height: 1000
-          mime_type: "image/webp"
-          discovery_method: "inaturalist_exact_active_species_curated_taxon_photo"
-          loaded_at: "2026-08-02 10:00:00"
-
+      - bird_sound_recording_sk: eec0153ab1cfec0e594df72483831d20
+        species_sk: 472526fe01a3fd0400bdbb083727c8b4
+        source_pipeline: xeno_canto_api
+        source_id: XC123
+        recording_id: XC123
+        genus: Cardinalis
+        species: cardinalis
+        subspecies: nominate
+        group_name: birds
+        english_name: Northern Cardinal
+        recordist: Jane Recordist
+        country: United States
+        locality: Thumb Butte
+        latitude: 34.54
+        longitude: -112.47
+        altitude: 1600m
+        recording_type: song
+        sex: male
+        stage: adult
+        method: field recording
+        recording_url: https://xeno-canto.org/123
+        audio_file_url: https://xeno-canto.org/123/download
+        file_name: XC123.mp3
+        sonogram: '{}'
+        oscillogram: '{}'
+        license: Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+        quality: A
+        length: 0:12
+        recording_time: 06:30
+        recording_date_text: '2025-07-20'
+        recording_date: '2025-07-20'
+        uploaded_at: '2025-07-21'
+        also_species: Spotted Towhee
+        remarks: singing
+        bird_seen: 'yes'
+        animal_seen: 'yes'
+        playback_used: 'no'
+        temperature: '20'
+        registration_number: reg-1
+        automatic_recording: 'no'
+        device: recorder
+        microphone: mic
+        source_url: https://xeno-canto.org/api/3/recordings
+        query: cnt:"United States" loc:"Arizona" grp:birds
+        query_page: 1
+        loaded_at: '2025-07-21 10:00:00'
+        dlt_load_id: load-xc
+        dlt_id: row-xc
 test_fact_bird_occurrence_blank_name_fallbacks:
   model: environmental_observations.fact_bird_occurrence
   inputs:
     environmental_observations.dim_species:
       rows:
-        - species_sk: "472526fe01a3fd0400bdbb083727c8b4"
-          species_natural_key: "cardinalis cardinalis"
-          source_pipeline: "ebird_api"
-          source_id: "norcar"
-        - species_sk: "8e752939f2db9dc7db3013693506c4eb"
-          species_natural_key: null
-          source_pipeline: "gbif_api"
-          source_id: "9011"
+      - species_sk: 472526fe01a3fd0400bdbb083727c8b4
+        species_natural_key: cardinalis cardinalis
+        source_pipeline: ebird_api
+        source_id: norcar
+      - species_sk: 8e752939f2db9dc7db3013693506c4eb
+        species_natural_key: null
+        source_pipeline: gbif_api
+        source_id: '9011'
     raw_gbif.occurrences:
       columns:
         key: bigint
@@ -2039,76 +584,75 @@ test_fact_bird_occurrence_blank_name_fallbacks:
         _dlt_load_id: text
         _dlt_id: text
       rows:
-        - key: 9010
-          accepted_taxon_key: 12345
-          taxon_key: 12345
-          accepted_scientific_name: ""
-          scientific_name: "Cardinalis cardinalis"
-          species: ""
-        - key: 9011
-          accepted_taxon_key: 12345
-          taxon_key: 12345
-          species: ""
+      - key: 9010
+        accepted_taxon_key: 12345
+        taxon_key: 12345
+        accepted_scientific_name: ''
+        scientific_name: Cardinalis cardinalis
+        species: ''
+      - key: 9011
+        accepted_taxon_key: 12345
+        taxon_key: 12345
+        species: ''
   outputs:
     query:
       rows:
-        - bird_occurrence_sk: "750321d6366640c0b811603abba4b9f7"
-          species_sk: "472526fe01a3fd0400bdbb083727c8b4"
-          source_pipeline: "gbif_api"
-          source_id: "9010"
-          gbif_key: 9010
-          scientific_name: "Cardinalis cardinalis"
-          accepted_scientific_name: ""
-          species: ""
-          taxon_key: 12345
-          accepted_taxon_key: 12345
-        - bird_occurrence_sk: "1c989fc27ee69ba092ef006db4d0403d"
-          species_sk: "8e752939f2db9dc7db3013693506c4eb"
-          source_pipeline: "gbif_api"
-          source_id: "9011"
-          gbif_key: 9011
-          species: ""
-          taxon_key: 12345
-          accepted_taxon_key: 12345
-
+      - bird_occurrence_sk: 750321d6366640c0b811603abba4b9f7
+        species_sk: 472526fe01a3fd0400bdbb083727c8b4
+        source_pipeline: gbif_api
+        source_id: '9010'
+        gbif_key: 9010
+        scientific_name: Cardinalis cardinalis
+        accepted_scientific_name: ''
+        species: ''
+        taxon_key: 12345
+        accepted_taxon_key: 12345
+      - bird_occurrence_sk: 1c989fc27ee69ba092ef006db4d0403d
+        species_sk: 8e752939f2db9dc7db3013693506c4eb
+        source_pipeline: gbif_api
+        source_id: '9011'
+        gbif_key: 9011
+        species: ''
+        taxon_key: 12345
+        accepted_taxon_key: 12345
 test_fact_bird_observation_uses_natural_key_without_duplicate_fallback_join:
   model: environmental_observations.fact_bird_observation
   inputs:
     environmental_observations.dim_species:
       rows:
-        - species_sk: "natural-species-sk"
-          species_natural_key: "cardinalis cardinalis"
-          source_pipeline: "gbif_api"
-          source_id: "12345"
-        - species_sk: "fallback-species-sk"
-          species_natural_key: null
-          source_pipeline: "ebird_api"
-          source_id: "norcar"
+      - species_sk: natural-species-sk
+        species_natural_key: cardinalis cardinalis
+        source_pipeline: gbif_api
+        source_id: '12345'
+      - species_sk: fallback-species-sk
+        species_natural_key: null
+        source_pipeline: ebird_api
+        source_id: norcar
     environmental_observations.dim_bird_hotspot:
       rows:
-        - bird_hotspot_sk: "hotspot-sk"
-          source_pipeline: "ebird_api"
-          source_id: "L1"
+      - bird_hotspot_sk: hotspot-sk
+        source_pipeline: ebird_api
+        source_id: L1
     polaris_aws.raw_ebird.recent_observations:
       rows:
-        - sub_id: "S1"
-          species_code: "norcar"
-          com_name: "Northern Cardinal"
-          sci_name: "Cardinalis cardinalis"
-          loc_id: "L1"
-          loc_name: "Thumb Butte"
-          obs_dt: "2025-07-20T06:30:00+00:00"
-          how_many: 2
-          lat: 34.54
-          lng: -112.47
-          obs_valid: true
-          obs_reviewed: false
-          location_private: false
-          _region_code: "US-AZ"
-          exotic_category: "N"
-          _loaded_at: "2025-07-20T10:00:00+00:00"
-          _dlt_load_id: "load-1"
-          _dlt_id: "row-1"
+      - sub_id: S1
+        species_code: norcar
+        com_name: Northern Cardinal
+        sci_name: Cardinalis cardinalis
+        loc_id: L1
+        loc_name: Thumb Butte
+        obs_dt: '2025-07-20T06:30:00+00:00'
+        how_many: 2
+        lat: 34.54
+        lng: -112.47
+        obs_valid: true
+        obs_reviewed: false
+        location_private: false
+        _region_code: US-AZ
+        exotic_category: N
+        _loaded_at: '2025-07-20T10:00:00+00:00'
+        _dlt_load_id: load-1
+        _dlt_id: row-1
     polaris_aws.raw_ebird.notable_observations:
       columns:
         how_many: bigint
@@ -2133,31 +677,31 @@ test_fact_bird_observation_uses_natural_key_without_duplicate_fallback_join:
   outputs:
     query:
       rows:
-        - bird_observation_sk: "6ab60c8636cd353f22cf2111506f5dbe"
-          species_sk: "natural-species-sk"
-          bird_hotspot_sk: "hotspot-sk"
-          source_pipeline: "ebird_api"
-          source_table: "recent_observations"
-          source_observation_id: "S1|norcar"
-          observation_datetime: "2025-07-20 06:30:00"
-          observation_date: "2025-07-20"
-          observation_year: 2025
-          observation_month: 7
-          observation_day: 20
-          observation_hour: 6
-          species_code: "norcar"
-          location_id: "L1"
-          location_name: "Thumb Butte"
-          region_code: "US-AZ"
-          latitude: 34.54
-          longitude: -112.47
-          observation_count: 2
-          count_display: "2"
-          is_valid: true
-          is_reviewed: false
-          is_location_private: false
-          is_notable: false
-          exotic_category: "N"
-          loaded_at: "2025-07-20 10:00:00"
-          dlt_load_id: "load-1"
-          dlt_id: "row-1"
+      - bird_observation_sk: 6ab60c8636cd353f22cf2111506f5dbe
+        species_sk: natural-species-sk
+        bird_hotspot_sk: hotspot-sk
+        source_pipeline: ebird_api
+        source_table: recent_observations
+        source_observation_id: S1|norcar
+        observation_datetime: '2025-07-20 06:30:00'
+        observation_date: '2025-07-20'
+        observation_year: 2025
+        observation_month: 7
+        observation_day: 20
+        observation_hour: 6
+        species_code: norcar
+        location_id: L1
+        location_name: Thumb Butte
+        region_code: US-AZ
+        latitude: 34.54
+        longitude: -112.47
+        observation_count: 2
+        count_display: '2'
+        is_valid: true
+        is_reviewed: false
+        is_location_private: false
+        is_notable: false
+        exotic_category: N
+        loaded_at: '2025-07-20 10:00:00'
+        dlt_load_id: load-1
+        dlt_id: row-1

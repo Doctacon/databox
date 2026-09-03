@@ -58,18 +58,6 @@ tasks:
   verify:dev:
     desc: "Run every Soda contract against the __dev schemas"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/verify_dev.py"]
-  eval:agent:
-    desc: "Run deterministic DeepEval checks for Rufous"
-    env:
-      CONFIDENT_OPEN_BROWSER: "false"
-      DEEPEVAL_CACHE_FOLDER: ".cache/deepeval"
-      DEEPEVAL_TELEMETRY_OPT_OUT: "true"
-      PYTEST_ADDOPTS: "--no-cov"
-    cmds: ["{{.VENV_DIR}}/bin/deepeval test run tests/evals/test_birding_trip_copilot_deepeval.py"]
-  smoke:cloudflare-ai:
-    desc: "Opt-in three-schema Cloudflare Workers AI smoke using only @cf/zai-org/glm-4.7-flash"
-    cmds: ["{{.VENV_DIR}}/bin/python scripts/cloudflare/smoke_cloudflare_ai.py"]
-
   full-refresh:
     desc: "Concurrent Dagster dlt source jobs through Polaris Iceberg, then native SQLMesh — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
@@ -98,34 +86,6 @@ tasks:
           "$repo/{{.VENV_DIR}}/bin/dg" dev --target-path "$repo/packages/databox" --use-active-venv {{.CLI_ARGS}}
         '
 
-  app:install:
-    desc: "Install the local React app dependencies"
-    dir: app
-    cmds: ["npm ci"]
-    sources: [package.json, package-lock.json]
-  app:check:
-    desc: "Typecheck, test, build, and audit the local React app"
-    deps: ["app:install"]
-    dir: app
-    cmds:
-      - "npm run typecheck"
-      - "npm test"
-      - "npm run build"
-      - "../{{.VENV_DIR}}/bin/python ../scripts/rufous_media/audit_app_bundle.py"
-  app:audit-bundle:
-    desc: "Audit the built browser bundle for configured Cloudflare names and values"
-    cmds: ["{{.VENV_DIR}}/bin/python scripts/rufous_media/audit_app_bundle.py"]
-  app:dev:
-    desc: "Launch the loopback Rufous API and web app"
-    deps: ["app:install"]
-    cmds: ["{{.VENV_DIR}}/bin/python scripts/birding/run_local_app.py"]
-  media:backfill:
-    desc: "Dry-run or apply persisted recommendation media backfill"
-    cmds: ["{{.VENV_DIR}}/bin/python -m databox.agent_tools.recommendation_media_backfill {{.CLI_ARGS}}"]
-  app:
-    desc: "Build and launch Rufous at http://127.0.0.1:8000"
-    deps: ["app:check"]
-    cmds: ["{{.VENV_DIR}}/bin/uvicorn databox.api:app --host 127.0.0.1 --port 8000"]
   init:
     desc: "Rebrand a fresh fork from scaffold.yaml (see docs/template.md)"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/bootstrap.py {{.CLI_ARGS}}"]
@@ -143,7 +103,7 @@ tasks:
         rm -rf build/ dist/ *.egg-info/ .pytest_cache/ .coverage htmlcov/
         .mypy_cache/ .ruff_cache/ site/ logs/
         packages/databox/data/ transforms/main/data/ transforms/main/.cache/
-        app/node_modules/ app/dist/ .dagster_state/ .dlt_state/ .duckdb_state/ .sqlmesh_state/
+        .dagster_state/ .dlt_state/ .duckdb_state/ .sqlmesh_state/
       - >-
         find . \( -path ./.git -o -path ./{{.VENV_DIR}} -o -path ./data -o -path ./.dagster -o -path ./.logs \) -prune
         -o -type d \( -name __pycache__ -o -name '*.egg-info' \) -exec rm -rf {} +

@@ -1,8 +1,0 @@
-/birds / 200
-/planner / 200
-/credits / 200
-/map / 200
-/my-birds / 200
-/birds/:species/find / 200
-/birds/:species / 200
-/target-plans/:plan / 200

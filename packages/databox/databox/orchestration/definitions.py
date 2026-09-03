@@ -18,8 +18,8 @@ from databox.orchestration._factories import (
 )
 from databox.orchestration.domains import analytics
 from databox.orchestration.parallel_refresh import (
-    parallel_quack_full_refresh,
-    parallel_quack_schedule,
+    parallel_iceberg_full_refresh,
+    parallel_iceberg_schedule,
 )
 
 
@@ -46,11 +46,11 @@ defs = dg.Definitions(
             if module.ingest_job is not None
         ),
         *(_SOURCE_DOMAINS[source.name].daily_pipeline for source in SOURCES if source.scheduled),
-        parallel_quack_full_refresh,
+        parallel_iceberg_full_refresh,
     ],
     schedules=[
         *(_SOURCE_DOMAINS[source.name].schedule for source in SOURCES if source.scheduled),
-        parallel_quack_schedule,
+        parallel_iceberg_schedule,
     ],
     sensors=[freshness_violation_sensor, *([_openlineage_sensor] if _openlineage_sensor else [])],
     resources={

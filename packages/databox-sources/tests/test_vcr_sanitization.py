@@ -191,7 +191,7 @@ def test_all_tracked_source_fixtures_are_manifested_and_sanitized() -> None:
         digest, path = line.split(maxsplit=1)
         manifested[path] = digest
 
-    assert len(cassettes) == 24
+    assert len(cassettes) == 25
     assert len(snapshots) == 7
     assert set(manifested) == expected
     for path, expected_digest in manifested.items():

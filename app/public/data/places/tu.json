@@ -1,7 +1,0 @@
-{
-  "schema_version": 1,
-  "prefix": "tu",
-  "places": [
-    { "public_id": "gnis-synthetic-tucson", "name": "Tucson, Arizona", "kind": "Populated place", "source": "usgs_gnis", "latitude": 32.2226, "longitude": -110.9747, "timezone": "America/Phoenix", "timezone_source": "fixture" }
-  ]
-}

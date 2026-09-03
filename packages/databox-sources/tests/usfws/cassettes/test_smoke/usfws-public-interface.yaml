@@ -1,0 +1,1437 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json, text/html
+      Accept-Encoding:
+      - gzip, deflate, zstd
+      Connection:
+      - keep-alive
+      User-Agent:
+      - loughondata.com Rufous bird-media showcase (connor@loughondata.com)
+    method: GET
+    uri: https://www.fws.gov/fws_search/search_images?%24orderby=field_document_publication_date+desc&%24skip=0&%24top=100&species=%5B%22Berylline+Hummingbird%22%5D
+  response:
+    body:
+      string: '{"list": ["\n<div class=\"teaser media-image\">\n  \n    <div class=\"layout
+        layout--twocol-section layout--twocol-section--25-75\">\n\n          <div  class=\"layout__region
+        layout__region--first\">\n        <section class=\"teaser-thumbnail block
+        block-layout-builder block-field-blockmediaimagefield-media-image clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-image field--type-image field--label-hidden
+        field--item\">  <a href=\"/media/berylline-hummingbird\" hreflang=\"en\"><img
+        loading=\"lazy\" src=\"/sites/default/files/styles/large_square/public/images/2024-06/berylline-hummingbird-by-aaron-maizlish-cc.jpg?h=c3635fa2&amp;itok=lOIrYYNW\"
+        width=\"480\" height=\"480\" alt=\"Berylline hummingbird perched on a branch\"
+        class=\"img-responsive\" />\n\n</a>\n</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n          <div  class=\"layout__region
+        layout__region--second\">\n        <section class=\"teaser-title block block-layout-builder
+        block-field-blockmediaimagename clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-name field--type-string field--label-hidden field--item\"><a
+        href=\"/media/berylline-hummingbird\" hreflang=\"en\">Berylline Hummingbird</a></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-body block block-layout-builder block-field-blockmediaimagefield-media-caption
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-caption field--type-string-long field--label-hidden
+        field--item\">Berylline hummingbird perched on a branch</div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--first block block-layout-builder
+        block-field-blockmediaimagefield-mime-type clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-mime-type field--type-string field--label-hidden
+        field--item\"><span class=\"jpg\">Image</span></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--middle block block-layout-builder
+        block-field-blockmediaimagefield-document-publication-date clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-document-publication-date field--type-datetime
+        field--label-hidden field--item\"><time datetime=\"2021-08-29T12:00:00Z\">Aug
+        29, 2021</time>\n</div>\n      \n      </div>\n</section>\n\n<section class=\"teaser-metadata
+        teaser-metadata--last block block-layout-builder block-field-blockmediaimagefield-media-credit
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-credit field--type-string field--label-hidden
+        field--item\">Aaron Maizlish</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n  </div>\n\n</div>\n",
+        "\n<div class=\"teaser media-image\">\n  \n    <div class=\"layout layout--twocol-section
+        layout--twocol-section--25-75\">\n\n          <div  class=\"layout__region
+        layout__region--first\">\n        <section class=\"teaser-thumbnail block
+        block-layout-builder block-field-blockmediaimagefield-media-image clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-image field--type-image field--label-hidden
+        field--item\">  <a href=\"/media/berylline-hummingbird-0\" hreflang=\"en\"><img
+        loading=\"lazy\" src=\"/sites/default/files/styles/large_square/public/images/2024-06/berylline-hummingbird.png?h=6319aca6&amp;itok=sVGXggEM\"
+        width=\"480\" height=\"480\" alt=\"Berylline hummingbird perched on a branch\"
+        class=\"img-responsive\" />\n\n</a>\n</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n          <div  class=\"layout__region
+        layout__region--second\">\n        <section class=\"teaser-title block block-layout-builder
+        block-field-blockmediaimagename clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-name field--type-string field--label-hidden field--item\"><a
+        href=\"/media/berylline-hummingbird-0\" hreflang=\"en\">Berylline hummingbird</a></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-body block block-layout-builder block-field-blockmediaimagefield-media-caption
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-caption field--type-string-long field--label-hidden
+        field--item\">Berylline hummingbird perched on a branch</div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--first block block-layout-builder
+        block-field-blockmediaimagefield-mime-type clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-mime-type field--type-string field--label-hidden
+        field--item\"><span class=\"png\">Image</span></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--middle block block-layout-builder
+        block-field-blockmediaimagefield-document-publication-date clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-document-publication-date field--type-datetime
+        field--label-hidden field--item\"><time datetime=\"2021-08-29T12:00:00Z\">Aug
+        29, 2021</time>\n</div>\n      \n      </div>\n</section>\n\n<section class=\"teaser-metadata
+        teaser-metadata--last block block-layout-builder block-field-blockmediaimagefield-media-credit
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-credit field--type-string field--label-hidden
+        field--item\">Aaron Maizlish</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n  </div>\n\n</div>\n"],
+        "_meta": {"total": 2, "facets": {"species": [{"filter": "Berylline Hummingbird",
+        "count": 2}], "subject": [{"filter": "Birds", "count": 2}, {"filter": "Migratory
+        birds", "count": 2}, {"filter": "Neotropical birds", "count": 2}, {"filter":
+        "Perching birds", "count": 2}, {"filter": "Pollinators", "count": 2}, {"filter":
+        "Animal migration", "count": 1}], "field_document_publication_date": [{"filter":
+        "1630238400", "count": 2}]}, "input": {"$top": 100, "$skip": 0, "$orderby":
+        "field_document_publication_date desc"}}}'
+    headers:
+      Accept-Ranges:
+      - bytes
+      Cache-Control:
+      - public, max-age=900
+      Connection:
+      - keep-alive
+      Content-Language:
+      - en
+      Content-Security-Policy:
+      - frame-ancestors 'self' https://fws.gov https://www.fws.gov
+      Content-Security-Policy-Report-Only:
+      - object-src 'none'; script-src 'self' 'report-sample' addtocalendar.com cdnjs.cloudflare.com
+        https://cdn.jsdelivr.net https://cdn.knightlab.com https://code.jquery.com
+        https://science-catalog.fws.gov https://touchpoints.app.cloud.gov https://unpkg.com
+        https://www.google.com maps.google.com unpkg.com; style-src 'self' 'report-sample'
+        addtocalendar.com cdnjs.cloudflare.com fonts.googleapis.com https://cdn.jsdelivr.net
+        https://cdn.knightlab.com https://fonts.googleapis.com https://science-catalog.fws.gov
+        https://unpkg.com unpkg.com; webrtc 'block'; worker-src 'self'; base-uri 'self';
+        form-action 'self'; frame-ancestors 'self'
+      Content-Type:
+      - application/json
+      Date:
+      - Thu, 03 Sep 2026 00:32:01 GMT
+      ETag:
+      - '"1788395521-gzip"'
+      Last-Modified:
+      - Thu, 03 Sep 2026 00:32:01 GMT
+      Server-Timing:
+      - cdn-cache; desc=MISS
+      - edge; dur=14
+      - origin; dur=476
+      - ak_p; desc="1788395520945_389286997_2029045053_48998_7301_36_91_-";dur=1
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      Vary:
+      - Accept-Encoding
+      X-AH-Environment:
+      - prod
+      X-Age:
+      - '0'
+      X-Content-Type-Options:
+      - nosniff
+      X-Drupal-Dynamic-Cache:
+      - MISS
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Request-ID:
+      - v-e109452a-a72e-11f1-b2cc-67d31040c7ed
+      content-length:
+      - '8224'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json, text/html
+      Accept-Encoding:
+      - gzip, deflate, zstd
+      Connection:
+      - keep-alive
+      User-Agent:
+      - loughondata.com Rufous bird-media showcase (connor@loughondata.com)
+    method: GET
+    uri: https://www.fws.gov/fws_search/global_search?%24keywords=%22Berylline+Hummingbird%22&%24orderby=search_api_relevance+desc&%24skip=0&%24top=100&type=%5B%22Image%22%5D
+  response:
+    body:
+      string: '{"list": ["\n<div class=\"teaser media-image\">\n  \n    <div class=\"layout
+        layout--twocol-section layout--twocol-section--25-75\">\n\n          <div  class=\"layout__region
+        layout__region--first\">\n        <section class=\"teaser-thumbnail block
+        block-layout-builder block-field-blockmediaimagefield-media-image clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-image field--type-image field--label-hidden
+        field--item\">  <a href=\"/media/berylline-hummingbird-0\" hreflang=\"en\"><img
+        loading=\"lazy\" src=\"/sites/default/files/styles/large_square/public/images/2024-06/berylline-hummingbird.png?h=6319aca6&amp;itok=sVGXggEM\"
+        width=\"480\" height=\"480\" alt=\"Berylline hummingbird perched on a branch\"
+        class=\"img-responsive\" />\n\n</a>\n</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n          <div  class=\"layout__region
+        layout__region--second\">\n        <section class=\"teaser-title block block-layout-builder
+        block-field-blockmediaimagename clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-name field--type-string field--label-hidden field--item\"><a
+        href=\"/media/berylline-hummingbird-0\" hreflang=\"en\">Berylline hummingbird</a></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-body block block-layout-builder block-field-blockmediaimagefield-media-caption
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-caption field--type-string-long field--label-hidden
+        field--item\">Berylline hummingbird perched on a branch</div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--first block block-layout-builder
+        block-field-blockmediaimagefield-mime-type clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-mime-type field--type-string field--label-hidden
+        field--item\"><span class=\"png\">Image</span></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--middle block block-layout-builder
+        block-field-blockmediaimagefield-document-publication-date clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-document-publication-date field--type-datetime
+        field--label-hidden field--item\"><time datetime=\"2021-08-29T12:00:00Z\">Aug
+        29, 2021</time>\n</div>\n      \n      </div>\n</section>\n\n<section class=\"teaser-metadata
+        teaser-metadata--last block block-layout-builder block-field-blockmediaimagefield-media-credit
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-credit field--type-string field--label-hidden
+        field--item\">Aaron Maizlish</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n  </div>\n\n</div>\n",
+        "\n<div class=\"teaser media-image\">\n  \n    <div class=\"layout layout--twocol-section
+        layout--twocol-section--25-75\">\n\n          <div  class=\"layout__region
+        layout__region--first\">\n        <section class=\"teaser-thumbnail block
+        block-layout-builder block-field-blockmediaimagefield-media-image clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-image field--type-image field--label-hidden
+        field--item\">  <a href=\"/media/berylline-hummingbird\" hreflang=\"en\"><img
+        loading=\"lazy\" src=\"/sites/default/files/styles/large_square/public/images/2024-06/berylline-hummingbird-by-aaron-maizlish-cc.jpg?h=c3635fa2&amp;itok=lOIrYYNW\"
+        width=\"480\" height=\"480\" alt=\"Berylline hummingbird perched on a branch\"
+        class=\"img-responsive\" />\n\n</a>\n</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n          <div  class=\"layout__region
+        layout__region--second\">\n        <section class=\"teaser-title block block-layout-builder
+        block-field-blockmediaimagename clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-name field--type-string field--label-hidden field--item\"><a
+        href=\"/media/berylline-hummingbird\" hreflang=\"en\">Berylline Hummingbird</a></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-body block block-layout-builder block-field-blockmediaimagefield-media-caption
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-caption field--type-string-long field--label-hidden
+        field--item\">Berylline hummingbird perched on a branch</div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--first block block-layout-builder
+        block-field-blockmediaimagefield-mime-type clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-mime-type field--type-string field--label-hidden
+        field--item\"><span class=\"jpg\">Image</span></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--middle block block-layout-builder
+        block-field-blockmediaimagefield-document-publication-date clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-document-publication-date field--type-datetime
+        field--label-hidden field--item\"><time datetime=\"2021-08-29T12:00:00Z\">Aug
+        29, 2021</time>\n</div>\n      \n      </div>\n</section>\n\n<section class=\"teaser-metadata
+        teaser-metadata--last block block-layout-builder block-field-blockmediaimagefield-media-credit
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-credit field--type-string field--label-hidden
+        field--item\">Aaron Maizlish</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n  </div>\n\n</div>\n"],
+        "_meta": {"total": 2, "facets": {"type": [{"filter": "Image", "count": 2}],
+        "file_type": [{"filter": "Image", "count": 2}], "date": [{"filter": "1630238400",
+        "count": 2}]}, "input": {"$top": 100, "$skip": 0, "$orderby": "search_api_relevance
+        desc"}}}'
+    headers:
+      Accept-Ranges:
+      - bytes
+      Cache-Control:
+      - public, max-age=900
+      Connection:
+      - keep-alive
+      Content-Language:
+      - en
+      Content-Security-Policy:
+      - frame-ancestors 'self' https://fws.gov https://www.fws.gov
+      Content-Security-Policy-Report-Only:
+      - object-src 'none'; script-src 'self' 'report-sample' addtocalendar.com cdnjs.cloudflare.com
+        https://cdn.jsdelivr.net https://cdn.knightlab.com https://code.jquery.com
+        https://science-catalog.fws.gov https://touchpoints.app.cloud.gov https://unpkg.com
+        https://www.google.com maps.google.com unpkg.com; style-src 'self' 'report-sample'
+        addtocalendar.com cdnjs.cloudflare.com fonts.googleapis.com https://cdn.jsdelivr.net
+        https://cdn.knightlab.com https://fonts.googleapis.com https://science-catalog.fws.gov
+        https://unpkg.com unpkg.com; webrtc 'block'; worker-src 'self'; base-uri 'self';
+        form-action 'self'; frame-ancestors 'self'
+      Content-Type:
+      - application/json
+      Date:
+      - Thu, 03 Sep 2026 00:32:02 GMT
+      ETag:
+      - '"1788395521-gzip"'
+      Last-Modified:
+      - Thu, 03 Sep 2026 00:32:01 GMT
+      Server-Timing:
+      - cdn-cache; desc=MISS
+      - edge; dur=14
+      - origin; dur=1052
+      - ak_p; desc="1788395521655_389286997_2029052066_106458_8249_37_60_-";dur=1
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      Vary:
+      - Accept-Encoding
+      X-AH-Environment:
+      - prod
+      X-Age:
+      - '0'
+      X-Content-Type-Options:
+      - nosniff
+      X-Drupal-Dynamic-Cache:
+      - MISS
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Request-ID:
+      - v-e16fa23e-a72e-11f1-966c-17bd1e7477fb
+      content-length:
+      - '7976'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json, text/html
+      Accept-Encoding:
+      - gzip, deflate, zstd
+      Connection:
+      - keep-alive
+      User-Agent:
+      - loughondata.com Rufous bird-media showcase (connor@loughondata.com)
+    method: GET
+    uri: https://www.fws.gov/fws_search/global_search?%24keywords=%22Amazilia+beryllina%22&%24orderby=search_api_relevance+desc&%24skip=0&%24top=100&type=%5B%22Image%22%5D
+  response:
+    body:
+      string: '{"list": ["\n<div class=\"teaser media-image\">\n  \n    <div class=\"layout
+        layout--twocol-section layout--twocol-section--25-75\">\n\n          <div  class=\"layout__region
+        layout__region--first\">\n        <section class=\"teaser-thumbnail block
+        block-layout-builder block-field-blockmediaimagefield-media-image clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-image field--type-image field--label-hidden
+        field--item\">  <a href=\"/media/berylline-hummingbird-0\" hreflang=\"en\"><img
+        loading=\"lazy\" src=\"/sites/default/files/styles/large_square/public/images/2024-06/berylline-hummingbird.png?h=6319aca6&amp;itok=sVGXggEM\"
+        width=\"480\" height=\"480\" alt=\"Berylline hummingbird perched on a branch\"
+        class=\"img-responsive\" />\n\n</a>\n</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n          <div  class=\"layout__region
+        layout__region--second\">\n        <section class=\"teaser-title block block-layout-builder
+        block-field-blockmediaimagename clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-name field--type-string field--label-hidden field--item\"><a
+        href=\"/media/berylline-hummingbird-0\" hreflang=\"en\">Berylline hummingbird</a></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-body block block-layout-builder block-field-blockmediaimagefield-media-caption
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-caption field--type-string-long field--label-hidden
+        field--item\">Berylline hummingbird perched on a branch</div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--first block block-layout-builder
+        block-field-blockmediaimagefield-mime-type clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-mime-type field--type-string field--label-hidden
+        field--item\"><span class=\"png\">Image</span></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--middle block block-layout-builder
+        block-field-blockmediaimagefield-document-publication-date clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-document-publication-date field--type-datetime
+        field--label-hidden field--item\"><time datetime=\"2021-08-29T12:00:00Z\">Aug
+        29, 2021</time>\n</div>\n      \n      </div>\n</section>\n\n<section class=\"teaser-metadata
+        teaser-metadata--last block block-layout-builder block-field-blockmediaimagefield-media-credit
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-credit field--type-string field--label-hidden
+        field--item\">Aaron Maizlish</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n  </div>\n\n</div>\n",
+        "\n<div class=\"teaser media-image\">\n  \n    <div class=\"layout layout--twocol-section
+        layout--twocol-section--25-75\">\n\n          <div  class=\"layout__region
+        layout__region--first\">\n        <section class=\"teaser-thumbnail block
+        block-layout-builder block-field-blockmediaimagefield-media-image clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-image field--type-image field--label-hidden
+        field--item\">  <a href=\"/media/berylline-hummingbird\" hreflang=\"en\"><img
+        loading=\"lazy\" src=\"/sites/default/files/styles/large_square/public/images/2024-06/berylline-hummingbird-by-aaron-maizlish-cc.jpg?h=c3635fa2&amp;itok=lOIrYYNW\"
+        width=\"480\" height=\"480\" alt=\"Berylline hummingbird perched on a branch\"
+        class=\"img-responsive\" />\n\n</a>\n</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n          <div  class=\"layout__region
+        layout__region--second\">\n        <section class=\"teaser-title block block-layout-builder
+        block-field-blockmediaimagename clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-name field--type-string field--label-hidden field--item\"><a
+        href=\"/media/berylline-hummingbird\" hreflang=\"en\">Berylline Hummingbird</a></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-body block block-layout-builder block-field-blockmediaimagefield-media-caption
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-caption field--type-string-long field--label-hidden
+        field--item\">Berylline hummingbird perched on a branch</div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--first block block-layout-builder
+        block-field-blockmediaimagefield-mime-type clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-mime-type field--type-string field--label-hidden
+        field--item\"><span class=\"jpg\">Image</span></div>\n      \n      </div>\n</section>\n\n<section
+        class=\"teaser-metadata teaser-metadata--middle block block-layout-builder
+        block-field-blockmediaimagefield-document-publication-date clearfix\">\n  <div
+        class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-document-publication-date field--type-datetime
+        field--label-hidden field--item\"><time datetime=\"2021-08-29T12:00:00Z\">Aug
+        29, 2021</time>\n</div>\n      \n      </div>\n</section>\n\n<section class=\"teaser-metadata
+        teaser-metadata--last block block-layout-builder block-field-blockmediaimagefield-media-credit
+        clearfix\">\n  <div class=\"block-container\">\n    \n        \n\n          \n            <div
+        class=\"field field--name-field-media-credit field--type-string field--label-hidden
+        field--item\">Aaron Maizlish</div>\n      \n      </div>\n</section>\n\n\n      </div>\n    \n  </div>\n\n</div>\n"],
+        "_meta": {"total": 2, "facets": {"type": [{"filter": "Image", "count": 2}],
+        "file_type": [{"filter": "Image", "count": 2}], "date": [{"filter": "1630238400",
+        "count": 2}]}, "input": {"$top": 100, "$skip": 0, "$orderby": "search_api_relevance
+        desc"}}}'
+    headers:
+      Accept-Ranges:
+      - bytes
+      Cache-Control:
+      - public, max-age=900
+      Connection:
+      - keep-alive
+      Content-Language:
+      - en
+      Content-Security-Policy:
+      - frame-ancestors 'self' https://fws.gov https://www.fws.gov
+      Content-Security-Policy-Report-Only:
+      - object-src 'none'; script-src 'self' 'report-sample' addtocalendar.com cdnjs.cloudflare.com
+        https://cdn.jsdelivr.net https://cdn.knightlab.com https://code.jquery.com
+        https://science-catalog.fws.gov https://touchpoints.app.cloud.gov https://unpkg.com
+        https://www.google.com maps.google.com unpkg.com; style-src 'self' 'report-sample'
+        addtocalendar.com cdnjs.cloudflare.com fonts.googleapis.com https://cdn.jsdelivr.net
+        https://cdn.knightlab.com https://fonts.googleapis.com https://science-catalog.fws.gov
+        https://unpkg.com unpkg.com; webrtc 'block'; worker-src 'self'; base-uri 'self';
+        form-action 'self'; frame-ancestors 'self'
+      Content-Type:
+      - application/json
+      Date:
+      - Thu, 03 Sep 2026 00:32:04 GMT
+      ETag:
+      - '"1788395523-gzip"'
+      Last-Modified:
+      - Thu, 03 Sep 2026 00:32:03 GMT
+      Server-Timing:
+      - cdn-cache; desc=MISS
+      - edge; dur=27
+      - origin; dur=1238
+      - ak_p; desc="1788395522889_389286997_2029064686_126274_9097_42_50_-";dur=1
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      Vary:
+      - Accept-Encoding
+      X-AH-Environment:
+      - prod
+      X-Age:
+      - '0'
+      X-Content-Type-Options:
+      - nosniff
+      X-Drupal-Dynamic-Cache:
+      - MISS
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Request-ID:
+      - v-e22daf72-a72e-11f1-a233-5335a7071dd1
+      content-length:
+      - '7976'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - application/json, text/html
+      Accept-Encoding:
+      - gzip, deflate, zstd
+      Connection:
+      - keep-alive
+      User-Agent:
+      - loughondata.com Rufous bird-media showcase (connor@loughondata.com)
+    method: GET
+    uri: https://www.fws.gov/media/berylline-hummingbird-0
+  response:
+    body:
+      string: "<!DOCTYPE html><html lang=\"en\" dir=\"ltr\" prefix=\"og: https://ogp.me/ns#\"><head><meta
+        charset=\"utf-8\" /><script async src=\"https://www.googletagmanager.com/gtag/js?id=G-KERW0RESPC\"></script><script>window.dataLayer
+        = window.dataLayer || [];function gtag(){dataLayer.push(arguments)};gtag(\"js\",
+        new Date());gtag(\"set\", \"developer_id.dMDhkMT\", true);gtag(\"config\",
+        \"G-KERW0RESPC\", {\"groups\":\"default\",\"page_placeholder\":\"PLACEHOLDER_page_location\"});</script><link
+        rel=\"canonical\" href=\"https://www.fws.gov/media/berylline-hummingbird-0\"
+        /><meta property=\"og:site_name\" content=\"FWS.gov\" /><meta property=\"og:url\"
+        content=\"https://www.fws.gov/media/berylline-hummingbird-0\" /><meta property=\"og:title\"
+        content=\"Berylline hummingbird\" /><meta name=\"Generator\" content=\"Drupal
+        11 (https://www.drupal.org)\" /><meta name=\"MobileOptimized\" content=\"width\"
+        /><meta name=\"HandheldFriendly\" content=\"true\" /><meta name=\"viewport\"
+        content=\"width=device-width, initial-scale=1.0\" /><script type=\"application/ld+json\">{\"@context\":
+        \"https://schema.org\",\"@graph\": [{\"@type\": \"GovernmentOrganization\",\"@id\":
+        \"https://fws.gov\",\"sameAs\": \"https://en.wikipedia.org/wiki/United_States_Fish_and_Wildlife_Service\",\"url\":
+        \"https://fws.gov\",\"name\": \"U.S. Fish and Wildlife Service\"},{\"@type\":
+        \"WebSite\",\"@id\": \"https://fws.gov\",\"name\": \"U.S. Fish and Wildlife
+        Service\",\"url\": \"https://fws.gov\"}]\n}</script><script async id=\"_fed_an_ua_tag\"
+        type=\"text/javascript\" src=\"https://dap.digitalgov.gov/Universal-Federated-Analytics-Min.js?agency=DOI&amp;subagency=USFWS\"></script><link
+        rel=\"icon\" href=\"/themes/custom/fws_gov/favicon.ico\" type=\"image/vnd.microsoft.icon\"
+        /><title>Berylline hummingbird | FWS.gov</title><link rel=\"stylesheet\" media=\"all\"
+        href=\"/sites/default/files/css/css_dHBObhsMK-11MePC0t8Q2K05sfZuvOYMXx_ESqfXITA.css?delta=0&amp;language=en&amp;theme=fws_gov&amp;include=eJx1j2EOgyAMhS8kkuxCpGJBYqHE4oi3H5olbtP96_va1_a5KtpxKlBROGLnmvbEA5CSslFI_kBcycLCqyDt2nh-_toOdrUe-M7earTlcWoKdu7yxIWlhoz6LHtiC_TRM-OWIAZrLOQSOOn_rbdX2AYgE3EMYNpv81fs3nLMnDCVu8Er6suELbVsUjDqAQS7im3AQ8S0ts1L7CuqHaidKLe0Y5jGF4vmkQA\"
+        /><link rel=\"stylesheet\" media=\"all\" href=\"//cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css\"
+        /><link rel=\"stylesheet\" media=\"all\" href=\"/sites/default/files/css/css_eiILkXd5xjhKAtf4WOmf4uyOm1rULthpHdiHgLNSqiU.css?delta=2&amp;language=en&amp;theme=fws_gov&amp;include=eJx1j2EOgyAMhS8kkuxCpGJBYqHE4oi3H5olbtP96_va1_a5KtpxKlBROGLnmvbEA5CSslFI_kBcycLCqyDt2nh-_toOdrUe-M7earTlcWoKdu7yxIWlhoz6LHtiC_TRM-OWIAZrLOQSOOn_rbdX2AYgE3EMYNpv81fs3nLMnDCVu8Er6suELbVsUjDqAQS7im3AQ8S0ts1L7CuqHaidKLe0Y5jGF4vmkQA\"
+        /><link rel=\"stylesheet\" media=\"all\" href=\"/sites/default/files/css/css_9fC1hfs-kmBvorFF2BiN1QK1N3WW-3_6hasP1N1DCXQ.css?delta=3&amp;language=en&amp;theme=fws_gov&amp;include=eJx1j2EOgyAMhS8kkuxCpGJBYqHE4oi3H5olbtP96_va1_a5KtpxKlBROGLnmvbEA5CSslFI_kBcycLCqyDt2nh-_toOdrUe-M7earTlcWoKdu7yxIWlhoz6LHtiC_TRM-OWIAZrLOQSOOn_rbdX2AYgE3EMYNpv81fs3nLMnDCVu8Er6suELbVsUjDqAQS7im3AQ8S0ts1L7CuqHaidKLe0Y5jGF4vmkQA\"
+        /><link rel=\"stylesheet\" media=\"all\" href=\"//fonts.googleapis.com/css?family=Source+Sans+Pro:200i,300,400,400i,600,600i,700,700i,900&amp;display=swap&quot;\"
+        /><link rel=\"stylesheet\" media=\"all\" href=\"//fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&amp;display=swap&quot;\"
+        /><link rel=\"stylesheet\" media=\"all\" href=\"/sites/default/files/css/css_Q1kLiaHtXi-JyYm3xlax1AFX1QoIO8x_m4riScQcKy8.css?delta=6&amp;language=en&amp;theme=fws_gov&amp;include=eJx1j2EOgyAMhS8kkuxCpGJBYqHE4oi3H5olbtP96_va1_a5KtpxKlBROGLnmvbEA5CSslFI_kBcycLCqyDt2nh-_toOdrUe-M7earTlcWoKdu7yxIWlhoz6LHtiC_TRM-OWIAZrLOQSOOn_rbdX2AYgE3EMYNpv81fs3nLMnDCVu8Er6suELbVsUjDqAQS7im3AQ8S0ts1L7CuqHaidKLe0Y5jGF4vmkQA\"
+        /><link rel=\"stylesheet\" media=\"all\" href=\"//fonts.googleapis.com/css?family=Source+Sans+Pro:200i,400,400i,600,600i,700,700i,900&amp;display=swap&quot;\"
+        /><link rel=\"stylesheet\" media=\"all\" href=\"//fonts.googleapis.com/css?family=Merriweather:400,400i,700,700i,900&amp;display=swap&quot;\"
+        /><link rel=\"stylesheet\" media=\"all\" href=\"/sites/default/files/css/css_kjsb0igihBGPRpD5NO8NZPuihJufQTsUrSwrKDSy8f0.css?delta=9&amp;language=en&amp;theme=fws_gov&amp;include=eJx1j2EOgyAMhS8kkuxCpGJBYqHE4oi3H5olbtP96_va1_a5KtpxKlBROGLnmvbEA5CSslFI_kBcycLCqyDt2nh-_toOdrUe-M7earTlcWoKdu7yxIWlhoz6LHtiC_TRM-OWIAZrLOQSOOn_rbdX2AYgE3EMYNpv81fs3nLMnDCVu8Er6suELbVsUjDqAQS7im3AQ8S0ts1L7CuqHaidKLe0Y5jGF4vmkQA\"
+        /><script type=\"text/javascript\" src=\"/themes/custom/fws/js/uswds-init.min.js\"></script>\n
+        \                               <script>!function(e){var n=\"https://s.go-mpulse.net/boomerang/\";if(\"False\"==\"True\")e.BOOMR_config=e.BOOMR_config||{},e.BOOMR_config.PageParams=e.BOOMR_config.PageParams||{},e.BOOMR_config.PageParams.pci=!0,n=\"https://s2.go-mpulse.net/boomerang/\";if(window.BOOMR_API_key=\"QPMY6-HX4DG-C5T6C-P2FE6-TUAP7\",function(){function
+        e(){if(!i){var e=document.createElement(\"script\");e.id=\"boomr-scr-as\",e.src=window.BOOMR.url,e.async=!0,o.parentNode.appendChild(e),i=!0}}function
+        t(e){i=!0;var n,t,a,r,d=document,O=window;if(window.BOOMR.snippetMethod=e?\"if\":\"i\",t=function(e,n){var
+        t=d.createElement(\"script\");t.id=n||\"boomr-if-as\",t.src=window.BOOMR.url,BOOMR_lstart=(new
+        Date).getTime(),e=e||d.body,e.appendChild(t)},!window.addEventListener&&window.attachEvent&&navigator.userAgent.match(/MSIE
+        [67]\\./))return window.BOOMR.snippetMethod=\"s\",void t(o.parentNode,\"boomr-async\");a=document.createElement(\"IFRAME\"),a.src=\"about:blank\",a.title=\"\",a.role=\"presentation\",a.loading=\"eager\",r=(a.frameElement||a).style,r.width=0,r.height=0,r.border=0,r.display=\"none\",o.parentNode.appendChild(a);try{O=a.contentWindow,d=O.document.open()}catch(_){n=document.domain,a.src=\"javascript:var
+        d=document.open();d.domain='\"+n+\"';void(0);\",O=a.contentWindow,d=O.document.open()}if(n)d._boomrl=function(){this.domain=n,t()},d.write(\"<bo\"+\"dy
+        onload='document._boomrl();'>\");else if(O._boomrl=function(){t()},O.addEventListener)O.addEventListener(\"load\",O._boomrl,!1);else
+        if(O.attachEvent)O.attachEvent(\"onload\",O._boomrl);d.close()}function a(e){window.BOOMR_onload=e&&e.timeStamp||(new
+        Date).getTime()}if(!window.BOOMR||!window.BOOMR.version&&!window.BOOMR.snippetExecuted){window.BOOMR=window.BOOMR||{},window.BOOMR.snippetStart=(new
+        Date).getTime(),window.BOOMR.snippetExecuted=!0,window.BOOMR.snippetVersion=12,window.BOOMR.url=n+\"QPMY6-HX4DG-C5T6C-P2FE6-TUAP7\";var
+        o=document.currentScript||document.getElementsByTagName(\"script\")[0],i=!1,r=document.createElement(\"link\");if(r.relList&&\"function\"==typeof
+        r.relList.supports&&r.relList.supports(\"preload\")&&\"as\"in r)window.BOOMR.snippetMethod=\"p\",r.href=window.BOOMR.url,r.rel=\"preload\",r.as=\"script\",r.addEventListener(\"load\",e),r.addEventListener(\"error\",function(){t(!0)}),setTimeout(function(){if(!i)t(!0)},3e3),BOOMR_lstart=(new
+        Date).getTime(),o.parentNode.appendChild(r);else t(!1);if(window.addEventListener)window.addEventListener(\"load\",a,!1);else
+        if(window.attachEvent)window.attachEvent(\"onload\",a)}}(),\"\".length>0)if(e&&\"performance\"in
+        e&&e.performance&&\"function\"==typeof e.performance.setResourceTimingBufferSize)e.performance.setResourceTimingBufferSize();!function(){if(BOOMR=e.BOOMR||{},BOOMR.plugins=BOOMR.plugins||{},!BOOMR.plugins.AK){var
+        n=\"\"==\"true\"?1:0,t=\"\",a=\"ikshpjqx2q7pe2uyyaca-f-13b359541-clientnsv4-s.akamaihd.net\",o=\"false\"==\"true\"?2:1,i={\"ak.v\":\"41\",\"ak.cp\":\"1660596\",\"ak.ai\":parseInt(\"1070998\",10),\"ak.ol\":\"0\",\"ak.cr\":40,\"ak.ipv\":4,\"ak.proto\":\"http/1.1\",\"ak.rid\":\"78f148ce\",\"ak.r\":48403,\"ak.a2\":n,\"ak.m\":\"b\",\"ak.n\":\"essl\",\"ak.cport\":52976,\"ak.gh\":\"23.52.12.85\",\"ak.quicv\":\"\",\"ak.tlsv\":\"tls1.3\",\"ak.0rtt\":\"\",\"ak.0rtt.ed\":\"\",\"ak.csrc\":\"-\",\"ak.acc\":\"bbr\",\"ak.t\":\"1788395524\",\"ak.ak\":\"hOBiQwZUYzCg5VSAfCLimQ==24duPjJlI8j893dVzRTor7KAMFkrtAa1lwUaAf8IItUong4/eOl+7XvQ/A78AY6jj0E0cj+nJHSXaPdZbbr8DW9m9M5/c2K+jTkAmo7aypMMA5VJdeDMcq9zsJMp8nM/CL8fDBsXeSmFvVGWhdpioI1flg/66Hx3TQNnxks+rPyb/KDhiez5fG4PPxeezExw2jhQwmbyrrEGmdjIIIEQxHw1+GiruRHgUuT2snYDY2SmpJA8pGTDX4TU6x8UXaSeCNefKBavUSEutg2c0ak9WYNXbD3YpTk5MhgS3CuDEuWO2O48IqPBdHMftPXqvDzR338bEw0IgkwFI30dizFMhsJgdCwPTDxc2eEidS1WFWpnVEMWnlUq1RjCjk0FSoLm8KkGuO6sQwfkjSqvyL2WlpXs3yx/IvyKlJhAUvUG7s4=\",\"ak.pv\":\"144\",\"ak.dpoabenc\":\"\",\"ak.tf\":o};if(\"\"!==t)i[\"ak.ruds\"]=t;var
+        r={i:!1,av:function(n){var t=\"http.initiator\";if(n&&(!n[t]||\"spa_hard\"===n[t]))i[\"ak.feo\"]=void
+        0!==e.aFeoApplied?1:0,BOOMR.addVar(i)},rv:function(){var e=[\"ak.cport\",\"ak.cr\",\"ak.csrc\",\"ak.gh\",\"ak.ipv\",\"ak.m\",\"ak.n\",\"ak.ol\",\"ak.proto\",\"ak.quicv\",\"ak.tlsv\",\"ak.0rtt\",\"ak.0rtt.ed\",\"ak.r\",\"ak.acc\",\"ak.t\",\"ak.tf\"];BOOMR.removeVar(e)}};BOOMR.plugins.AK={akVars:i,akDNSPreFetchDomain:a,init:function(){if(!r.i){var
+        e=BOOMR.subscribe;e(\"before_beacon\",r.av,null,null),e(\"onbeacon\",r.rv,null,null),r.i=!0}return
+        this},is_complete:function(){return!0}}}}()}(window);</script></head><body
+        class=\"path-media has-glyphicons\"> <a href=\"#main-content\" class=\"visually-hidden
+        focusable skip-link\"> Skip to main content </a> <section class=\"usa-banner\"
+        aria-label=\"Official website of the United States government\"\n><div class=\"usa-accordion\">
+        <header class=\"usa-banner__header\"><div class=\"usa-banner__inner\"><div
+        class=\"grid-col-auto\"> <img aria-hidden=\"true\" class=\"usa-banner__header-flag\"
+        src=\"/themes/custom/fws/images/uswds/us_flag_small.png\" alt=\"\" /></div><div
+        class=\"grid-col-fill tablet:grid-col-auto\" aria-hidden=\"true\"><p class=\"usa-banner__header-text\">
+        An official website of the United States government</p><p class=\"usa-banner__header-action\">Here\u2019s
+        how you know</p></div> <button type=\"button\" class=\"usa-accordion__button
+        usa-banner__button\" aria-expanded=\"false\" aria-controls=\"gov-banner-default\"
+        > <span class=\"usa-banner__button-text\">Here\u2019s how you know</span>
+        </button></div> </header><div class=\"usa-banner__content usa-accordion__content\"
+        id=\"gov-banner-default\" ><div class=\"grid-row grid-gap-lg\"><div class=\"usa-banner__guidance
+        tablet:grid-col-6\"> <img class=\"usa-banner__icon usa-media-block__img\"
+        src=\"/themes/custom/fws/images/uswds/icon-dot-gov.svg\" role=\"img\" alt=\"\"
+        aria-hidden=\"true\" /><div class=\"usa-media-block__body\"><p> <strong>Official
+        websites use .gov</strong><br />A <strong>.gov</strong> website belongs to
+        an official government organization in the United States.</p></div></div><div
+        class=\"usa-banner__guidance tablet:grid-col-6\"> <img class=\"usa-banner__icon
+        usa-media-block__img\" src=\"/themes/custom/fws/images/uswds/icon-https.svg\"
+        role=\"img\" alt=\"\" aria-hidden=\"true\" /><div class=\"usa-media-block__body\"><p>
+        <strong>Secure .gov websites use HTTPS</strong><br />A <strong>lock</strong>
+        ( <span class=\"icon-lock\" ><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"52\"
+        height=\"64\" viewBox=\"0 0 52 64\" class=\"usa-banner__lock-image\" role=\"img\"
+        aria-labelledby=\"banner-lock-description-default\" focusable=\"false\" ><title
+        id=\"banner-lock-title-default\">Lock</title> <desc id=\"banner-lock-description-default\">Locked
+        padlock icon</desc> <path fill=\"#000000\" fill-rule=\"evenodd\" d=\"M26 0c10.493
+        0 19 8.507 19 19v9h3a4 4 0 0 1 4 4v28a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V32a4 4
+        0 0 1 4-4h3v-9C7 8.507 15.507 0 26 0zm0 8c-5.979 0-10.843 4.77-10.996 10.712L15
+        19v9h22v-9c0-6.075-4.925-11-11-11z\" /> </svg> </span >) or <strong>https://</strong>
+        means you\u2019ve safely connected to the .gov website. Share sensitive information
+        only on official, secure websites.</p></div></div></div></div></div></section><div
+        class=\"dialog-off-canvas-main-canvas\" data-off-canvas-main-canvas> <header
+        class=\"navbar navbar-default main-nav-right fws-search\" id=\"navbar\" role=\"banner\"><div
+        class=\"container\"><div class=\"navbar-header\"><div class=\"region region-navigation\"><div
+        class=\"fws-branding\"> <a class=\"fws-branding__logo\" href=\"/\" title=\"FWS
+        Home\" rel=\"home\"> <img src=\"/themes/custom/fws_gov/logo.svg\" alt=\"FWS
+        Home\" /> </a><div class=\"fws-branding__name-slogan-wrapper\"> <a class=\"fws-branding__name\"
+        href=\"/\" title=\"FWS Home\" rel=\"home\">U.S. Fish &amp; Wildlife Service</a></div></div></div>
+        <button type=\"button\" class=\"navbar-toggle fws-hamburger\" data-toggle=\"collapse\"
+        data-target=\"#navbar-collapse\" aria-expanded=\"false\"> <span class=\"sr-only\">Toggle
+        navigation</span> <svg class=\"fws-hamburger__open-icon\" viewBox=\"0 0 20
+        6\" xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\" focusable=\"false\">
+        <path d=\"m0 .5c0 .276142.223858.5.5.5h19c.2761 0 .5-.223858.5-.5s-.2239-.5-.5-.5h-19c-.276143
+        0-.5.223858-.5.5z\"/> <path d=\"m0 5.5c0 .27614.223858.5.5.5h19c.2761 0 .5-.22386.5-.5s-.2239-.5-.5-.5h-19c-.276143
+        0-.5.22386-.5.5z\"/> </svg> <svg class=\"fws-hamburger__close-icon\" viewBox=\"0
+        0 20 15\" xmlns=\"http://www.w3.org/2000/svg\" aria-hidden=\"true\" focusable=\"false\">
+        <path d=\"m17.0704 14.4957c-.1953.1953-.5119.1953-.7072 0l-13.43499-13.43504c-.19526-.195261-.19526-.511843
+        0-.707106.19527-.195262.51185-.195262.70711 0l13.43508 13.435046c.1952.1952.1952.5118
+        0 .7071z\"/> <path d=\"m2.92965 14.4957c.19526.1953.51184.1953.70711 0l13.43504-13.43504c.1952-.195261.1952-.511843
+        0-.707106-.1953-.195262-.5119-.195262-.7071 0l-13.43505 13.435046c-.19526.1952-.19526.5118
+        0 .7071z\"/> </svg> </button></div><div id=\"navbar-collapse\" class=\"navbar-collapse
+        collapse\"><div class=\"region region-navigation-collapsible\"> <nav aria-labelledby=\"block-fws-gov-utilitytopnavigation-menu\"
+        id=\"block-fws-gov-utilitytopnavigation\"><h2 class=\"visually-hidden\" id=\"block-fws-gov-utilitytopnavigation-menu\">Utility
+        (Top) navigation</h2><ul class=\"menu menu--utility nav\"><li class=\"first
+        mb-item\" data-id=\"2fd893c9-1ead-41a6-a123-4890c72de7dd\"> <a href=\"/experience-america/federal-recreation-passes\"
+        class=\"utility-link\">Passes</a></li><li class=\"mb-item\" data-id=\"7914b411-c781-483a-bd4d-6cac597901b9\">
+        <a href=\"https://fwsepermits.servicenowservices.com/fws?id=fws_index\" class=\"utility-link\">Permits</a></li><li
+        class=\"mb-item\" data-id=\"60eafc5e-3932-4c52-afb8-0a031a229208\"> <a href=\"/our-work/duck-stamps\"
+        class=\"utility-link\">Duck Stamps</a></li><li class=\"last mb-item\" data-id=\"eb305900-e873-46af-87e6-694a408f5fb4\">
+        <a href=\"/wildlife-crime-tips\" class=\"utility-link\" data-drupal-link-system-path=\"webform/refuge_law_enforcement\">Report
+        a Crime</a></li><li class=\"mb-item mobile-only\" data-id=\"menu-parent-bottom-uuid\"></li></ul>
+        </nav><section id=\"block-fws-gov-mainnavigation\" class=\"block block-we-megamenu
+        block-we-megamenu-blockmain clearfix\"><div class=\"block-container\"><div
+        class=\"region-we-mega-menu\"><a class=\"navbar-toggle collapsed\"> <span
+        class=\"icon-bar\"></span> <span class=\"icon-bar\"></span> <span class=\"icon-bar\"></span></a><nav
+        class=\"main navbar navbar-default navbar-we-mega-menu mobile-collapse click-action\"
+        data-menu-name=\"main\" data-block-theme=\"fws_gov\" data-style=\"Default\"
+        data-animation=\"Fading\" data-delay=\"\" data-duration=\"\" data-autoarrow=\"\"
+        data-alwayshowsubmenu=\"1\" data-action=\"clicked\" data-mobile-collapse=\"0\"><div
+        class=\"container-fluid\"><div class=\"mb-menuwrapper\"><div class=\"nav-container\"><ul
+        class=\"we-mega-menu-ul nav nav-tabs mb-menu\"><li class=\"we-mega-menu-li
+        dropdown-menu mb-item\" data-level=\"0\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"183b45a2-f13f-4ebd-9cd0-938af88da065\" data-submenu=\"1\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/experience-america\" target=\"\"> Experience America </a>
+        <span class=\"nav-drilldown\"><i class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Forward</span></span><div class=\"we-mega-menu-submenu
+        mb-submenu\" data-element-type=\"we-mega-menu-submenu\" data-submenu-width=\"\"
+        data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a href=\"#\" class=\"back-icon\"><i
+        class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Back</span></a><span
+        class=\"parent-level\"></span></div><div class=\"current-level\"></div><div
+        class=\"we-mega-menu-submenu-inner\"><div class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\"
+        data-custom-row=\"0\"><div class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\"
+        data-width=\"12\" data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\"
+        data-class=\"\"><ul class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"8f0ff685-c16f-4d90-b23e-cb0c1e87d000\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/experience-america\"
+        target=\"\"> Experience America </a></li></ul></div></div><div class=\"we-mega-menu-row\"
+        data-element-type=\"we-mega-menu-row\" data-custom-row=\"1\"><div class=\"we-mega-menu-col
+        span3\" data-element-type=\"we-mega-menu-col\" data-width=\"3\" data-block=\"\"
+        data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul class=\"nav
+        nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"f37c51fc-07c9-4720-9c51-87cbdc767381\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Plan Your Visit</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"d4a258c9-40d3-4059-ab28-bdf54816cf63\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/outdoor-recreation\" target=\"_self\">
+        Activities </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"5bbbbcb5-f3ed-4512-b9be-158d39af3f59\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/experience-america/federal-recreation-passes\"
+        target=\"_self\"> Recreation Pass </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"54eb9e0a-b4bd-43fb-8671-7333c9c1f7c9\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/events\" target=\"_self\">
+        Events </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"2fc714f7-016f-44dc-ae78-c53273b6b540\" data-submenu=\"0\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/experience-america/volunteer\" target=\"\"> Volunteer </a></li></ul></div></div></div></div></li></ul></div><div
+        class=\"we-mega-menu-col span4\" data-element-type=\"we-mega-menu-col\" data-width=\"4\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"31b064af-1d93-45f9-92ea-1dff685e5795\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Popular Activities</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"2fe2a747-ca31-4834-8ac0-4235062199d4\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/outdoor-recreation\" target=\"_self\">
+        All Activities </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"ac779f36-731a-40bd-a6c7-fa73531a8de6\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/activity/fishing\" target=\"_self\">
+        Fishing </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"d45e6fd8-c3ac-4305-9ae8-9cac81502f5d\" data-submenu=\"0\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"_self\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/activity/hunting\" target=\"_self\"> Hunting </a></li></ul></div></div></div></div></li></ul></div><div
+        class=\"we-mega-menu-col span5\" data-element-type=\"we-mega-menu-col\" data-width=\"5\"
+        data-block=\"findalocationpromoblock\" data-blocktitle=\"0\" data-hidewhencollapse=\"\"
+        data-class=\"\"><div class=\"type-of-block\"><div class=\"block-inner\"><section
+        id=\"block-findalocationpromoblock\" class=\"block block-block-content block-block-content44b80fe7-2829-426f-9f66-3d8f805c23f4
+        block-mega-menu-promo-image clearfix\"><div class=\"block-container\"> <a
+        href=\"/locations\" class=\"block-container-image\"><div class=\"field field--name-field-image
+        field--type-entity-reference field--label-hidden field--item\"> <img loading=\"lazy\"
+        src=\"/sites/default/files/styles/scale_and_crop_900_x_675/public/images/2026-06/usfws-wetlands-izembek-national-wildlife-refuge-alaska-large.jpeg?h=11b34633&amp;itok=DtqH4Ibm\"
+        width=\"900\" height=\"675\" alt=\"Izembek National Wildlife Refuge\" class=\"img-responsive\"
+        /></div> </a><div class=\"block-container-content\"> <a href=\"/locations\"><div
+        class=\"field field--name-field-short-heading field--type-string field--label-hidden
+        field--item\">Find a Location Near You</div> </a> <a href=\"/locations\"><div
+        class=\"field field--name-field-short-description field--type-string field--label-hidden
+        field--item\">570 national wildlife refuges, 70 fish hatcheries, and 20 million
+        acres of wilderness</div> </a> <a href=\"/locations\" class=\"explore-link\">
+        Explore all locations </a></div></div></section></div></div></div></div></div></div></li><li
+        class=\"we-mega-menu-li dropdown-menu mb-item\" data-level=\"0\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"e74b62bc-410b-4a2c-a0f7-cdff572a4a15\" data-submenu=\"1\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/places-go\" target=\"\"> Places to Go </a> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"1\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"e2c21f85-1b0c-4f23-b58e-9770337cf2ac\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/places-go\" target=\"\"> Places to Go </a></li></ul></div></div><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"1\"><div
+        class=\"we-mega-menu-col span3\" data-element-type=\"we-mega-menu-col\" data-width=\"3\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"67007183-51d6-4762-9cba-f3e3c375a202\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Our Locations</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"b07ca0b3-1907-48fb-a5ce-2fe0b38793ec\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/places-go/national-wildlife-refuge-system\"
+        target=\"_self\"> Wildlife Refuges </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"375f9266-c738-4a6a-9858-f5e3c1e19718\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/places-go/national-fish-hatchery-system\"
+        target=\"_self\"> Fish Hatcheries </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"4b43b585-d220-4fda-afb3-4d90db049c1b\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/rivers\" target=\"_self\">
+        Rivers </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"d3a8b83e-9afe-46e9-958c-9f68f6339028\" data-submenu=\"0\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"_self\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/places-go/wilderness\" target=\"_self\"> Wilderness </a></li><li
+        class=\"we-mega-menu-li mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"bcb505ea-e294-4f10-a6c2-89269f666469\" data-submenu=\"0\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"_self\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/locations\" target=\"_self\"> All Locations </a></li></ul></div></div></div></div></li></ul></div><div
+        class=\"we-mega-menu-col span4\" data-element-type=\"we-mega-menu-col\" data-width=\"4\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"b1c269ef-52fc-4826-8468-e12257febf27\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Featured Locations</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"35163cef-ff8a-432f-899a-ae6909d9f1ef\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/refuge/rocky-mountain-arsenal\"
+        target=\"_self\"> Rocky Mountain Arsenal National Wildlife Refuge </a></li><li
+        class=\"we-mega-menu-li mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"d049139f-b39e-4839-85da-3b34cfd9455a\" data-submenu=\"0\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"_self\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/refuge/wichita-mountains\" target=\"_self\"> Wichita Mountains
+        Wildlife Refuge </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"b48f4377-06dd-4dde-acff-c598871e3253\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/refuge/alligator-river\" target=\"_self\">
+        Alligator River National Wildlife Refuge </a></li></ul></div></div></div></div></li></ul></div><div
+        class=\"we-mega-menu-col span5\" data-element-type=\"we-mega-menu-col\" data-width=\"5\"
+        data-block=\"experienceourlocationspromoblock\" data-blocktitle=\"0\" data-hidewhencollapse=\"\"
+        data-class=\"\"><div class=\"type-of-block\"><div class=\"block-inner\"><section
+        id=\"block-experienceourlocationspromoblock\" class=\"block block-block-content
+        block-block-content16128eef-cb03-4ad9-b6bb-0359e1b43587 block-mega-menu-promo-image
+        clearfix\"><div class=\"block-container\"> <a href=\"/visit-us\" class=\"block-container-image\"><div
+        class=\"field field--name-field-image field--type-entity-reference field--label-hidden
+        field--item\"> <img loading=\"lazy\" src=\"/sites/default/files/styles/scale_and_crop_900_x_675/public/images/2026-06/ash-meadows-volunteer-2.jpeg?h=3a51b6cd&amp;itok=VlZsYToy\"
+        width=\"900\" height=\"675\" alt=\"Ash Meadows volunteer\" class=\"img-responsive\"
+        /></div> </a><div class=\"block-container-content\"> <a href=\"/visit-us\"><div
+        class=\"field field--name-field-short-heading field--type-string field--label-hidden
+        field--item\">Experience Our Locations</div> </a> <a href=\"/visit-us\"><div
+        class=\"field field--name-field-short-description field--type-string field--label-hidden
+        field--item\">Explore beyond the locations and begin experiencing what the
+        United States Fish and Wildlife Service</div> </a> <a href=\"/visit-us\" class=\"explore-link\">
+        Experience America </a></div></div></section></div></div></div></div></div></div></li><li
+        class=\"we-mega-menu-li dropdown-menu mb-item\" data-level=\"0\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"e2483eea-593a-4e97-81e2-0c7e6f2dd889\" data-submenu=\"1\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/species\" target=\"\"> Species </a> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"1\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"a88e59c7-2d7a-4dd6-8d62-c5e79d83315a\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/species\" target=\"\"> Species </a></li></ul></div></div><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"1\"><div
+        class=\"we-mega-menu-col span3\" data-element-type=\"we-mega-menu-col\" data-width=\"3\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"e60e3f1b-07d8-45a1-8f39-afaa9aaf558f\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">About Species</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"7936ade4-56f9-4b8e-ad42-0d890fc90729\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/species/endangered-species\"
+        target=\"_self\"> Endangered Species </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"cc363bfc-efe6-4d79-89bd-ff82c04d65a6\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/species/invasive-species\"
+        target=\"_self\"> Invasive Species </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"ccbd5cfe-d3d2-4e30-880c-5a0c1738bfc1\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/species/injurious-species\"
+        target=\"_self\"> Injurious Species </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"6fb17f76-01b6-4cd1-a853-d614290dfdbc\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/species-management\" target=\"_self\">
+        Species Management </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"46963752-4b92-474c-9ede-1ee9e834aa0d\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/find-a-species\" target=\"_self\">
+        Find Species </a></li></ul></div></div></div></div></li></ul></div><div class=\"we-mega-menu-col
+        span4\" data-element-type=\"we-mega-menu-col\" data-width=\"4\" data-block=\"\"
+        data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul class=\"nav
+        nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"68dd8170-04c5-42e4-ac4a-1a882e306e8a\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Featured Species</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"45dafaab-aec1-4f15-887f-bb10716f7cb8\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/species/gray-wolf-canis-lupus\"
+        target=\"_self\"> Gray Wolf </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"832338eb-9825-4eb8-9bcb-c9629a05736b\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/species/northern-long-eared-bat-myotis-septentrionalis\"
+        target=\"_self\"> Northern Long-eared Bat </a></li></ul></div></div></div></div></li></ul></div><div
+        class=\"we-mega-menu-col span5\" data-element-type=\"we-mega-menu-col\" data-width=\"5\"
+        data-block=\"findaspeciespromoblock\" data-blocktitle=\"0\" data-hidewhencollapse=\"\"
+        data-class=\"\"><div class=\"type-of-block\"><div class=\"block-inner\"><section
+        id=\"block-findaspeciespromoblock\" class=\"block block-block-content block-block-content443ffba4-ac58-4793-8481-3db68a21e3c3
+        block-mega-menu-promo-image clearfix\"><div class=\"block-container\"> <a
+        href=\"/species/search\" class=\"block-container-image\"><div class=\"field
+        field--name-field-image field--type-entity-reference field--label-hidden field--item\">
+        <img loading=\"lazy\" src=\"/sites/default/files/styles/scale_and_crop_900_x_675/public/images/2026-06/dsc_8926.jpeg?h=deaec4b9&amp;itok=2I3PhRi9\"
+        width=\"900\" height=\"675\" alt=\"Pronghorn\" class=\"img-responsive\" /></div>
+        </a><div class=\"block-container-content\"> <a href=\"/species/search\"><div
+        class=\"field field--name-field-short-heading field--type-string field--label-hidden
+        field--item\">Find a Species</div> </a> <a href=\"/species/search\"><div class=\"field
+        field--name-field-short-description field--type-string field--label-hidden
+        field--item\">Search for specific species by scientific or common names.</div>
+        </a> <a href=\"/species/search\" class=\"explore-link\"> Find a Species </a></div></div></section></div></div></div></div></div></div></li><li
+        class=\"we-mega-menu-li dropdown-menu mb-item\" data-level=\"0\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"e14d8e6e-a4af-41f5-9bdd-e58f8fff6041\" data-submenu=\"1\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/learn\" target=\"\"> Learn </a> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"1\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"f0741711-2615-4109-9b6d-cc98a5325a62\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/learn\" target=\"\"> Learn </a></li></ul></div></div><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"1\"><div
+        class=\"we-mega-menu-col span3\" data-element-type=\"we-mega-menu-col\" data-width=\"3\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"55676ca3-9c17-42c9-adf0-5aa589140276\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Get Help</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"1eb410f6-4020-4493-8f6a-2a079a23363e\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/learn/protect-wildlife\" target=\"_self\">
+        Protect wildlife </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"b22a8f88-7286-428a-8663-1ddba16a30ac\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/learn/fight-invasive-species\"
+        target=\"_self\"> Fight invasive species </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"0fa1c852-8be9-4bd8-94b1-772d97dda04d\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/program/wildlife-restoration\"
+        target=\"_self\"> Restore habitats </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"e57644b1-fe98-4102-b98f-cd792a7145ad\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/learn/get-involved\" target=\"_self\">
+        Ways to get involved </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"1a5da7b7-f4bc-45f9-a98c-bfb0880d2324\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/learn/learn-hunt\" target=\"_self\">
+        Learn to hunt </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"2b7badcc-00d0-4947-8023-cdb2598288aa\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/learn/learn-fish\" target=\"_self\">
+        Learn to fish </a></li></ul></div></div></div></div></li></ul></div><div class=\"we-mega-menu-col
+        span4\" data-element-type=\"we-mega-menu-col\" data-width=\"4\" data-block=\"\"
+        data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul class=\"nav
+        nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"da61cb1e-951b-49a5-8be0-f201db1c9417\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Programs and Training</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"5a687258-4fee-41c6-8c0a-05d16038c3c7\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/learn/education-curriculum-and-programs\"
+        target=\"_self\"> Education Curriculum and Programs </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"a0aac712-64b4-437b-9761-dec9eb4ae0e3\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/learn/training-national-conservation-training-center\"
+        target=\"_self\"> Training at the National Conservation Training Center </a></li></ul></div></div></div></div></li></ul></div><div
+        class=\"we-mega-menu-col span5\" data-element-type=\"we-mega-menu-col\" data-width=\"5\"
+        data-block=\"injuredwildlifepromoblock\" data-blocktitle=\"0\" data-hidewhencollapse=\"\"
+        data-class=\"\"><div class=\"type-of-block\"><div class=\"block-inner\"><section
+        id=\"block-injuredwildlifepromoblock\" class=\"block block-block-content block-block-content10ab1c5a-37c7-4b6d-96c5-bd598d8cd1ad
+        block-mega-menu-promo-image clearfix\"><div class=\"block-container\"> <a
+        href=\"/story/what-do-if-you-find-baby-bird-injured-or-orphaned-wildlife\"
+        class=\"block-container-image\"><div class=\"field field--name-field-image
+        field--type-entity-reference field--label-hidden field--item\"> <img loading=\"lazy\"
+        src=\"/sites/default/files/styles/scale_and_crop_900_x_675/public/images/2026-06/volunteer-and-injured-great-horned-owl-lori-davis-usfws.jpeg?h=014f05a8&amp;itok=lyuUHJBx\"
+        width=\"900\" height=\"675\" alt=\"Volunteer and injured great horned owl\"
+        class=\"img-responsive\" /></div> </a><div class=\"block-container-content\">
+        <a href=\"/story/what-do-if-you-find-baby-bird-injured-or-orphaned-wildlife\"><div
+        class=\"field field--name-field-short-heading field--type-string field--label-hidden
+        field--item\">Injured or Abandoned Wildlife</div> </a> <a href=\"/story/what-do-if-you-find-baby-bird-injured-or-orphaned-wildlife\"><div
+        class=\"field field--name-field-short-description field--type-string field--label-hidden
+        field--item\">A few things you should know to keep the animal safe and avoid
+        breaking the law.</div> </a> <a href=\"/story/what-do-if-you-find-baby-bird-injured-or-orphaned-wildlife\"
+        class=\"explore-link\"> Read more </a></div></div></section></div></div></div></div></div></div></li><li
+        class=\"we-mega-menu-li dropdown-menu mb-item\" data-level=\"0\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"3b78e6eb-9842-4687-94d0-abf47174a3b5\" data-submenu=\"1\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/services\" target=\"\"> Services </a> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"1\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"415768de-bf8c-4098-a178-c98e06dda601\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/services\" target=\"\"> Services </a></li></ul></div></div><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span3\" data-element-type=\"we-mega-menu-col\" data-width=\"3\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"5ae4e053-1935-474e-8831-9074bcfed361\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Passes &amp; Permits</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"bd688fe4-b8ba-4cce-9262-38f434aa2056\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/experience-america/federal-recreation-passes\"
+        target=\"_self\"> Entrance Passes </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"7ecd9f6f-5314-4abb-994e-4c4320795841\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/services/purchase-hunting-license\"
+        target=\"_self\"> Hunting Licenses </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"97c3c429-dac5-4e86-818a-1e3cb5670f2b\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/services/purchase-fishing-license\"
+        target=\"_self\"> Fishing Licenses </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"210a07f9-1390-4366-8c4a-84b99a4d0671\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/permits/special-use-permits\"
+        target=\"_self\"> Special Use Permits </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"cc466a04-079b-4e5b-85da-33766140cb8c\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/services/permits/import-export-permits\"
+        target=\"_self\"> Import/Export Permits </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"0e2f0d94-4bb1-4f7c-a9fb-9bf8521a5c56\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"https://fwsepermits.servicenowservices.com/fws?id=fws_index\"
+        target=\"_self\"> All Passes &amp; Permits </a></li></ul></div></div></div></div></li></ul></div><div
+        class=\"we-mega-menu-col span4\" data-element-type=\"we-mega-menu-col\" data-width=\"4\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"d182ba59-d965-4f0f-9e89-2d36afef3bd7\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">For Partners</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"c9d679a4-c6d0-4e48-b13e-6dfddce27d9d\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/services/grants-and-funding\"
+        target=\"_self\"> Grants and Funding </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"d6a6eded-c0ea-4a72-94f2-d80f9e80ce85\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/consultation-and-technical-assistance\"
+        target=\"_self\"> Consultations and Technical Assistance </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"e700f6e9-cbba-4678-bdf6-1071bdde170b\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/services/investigational-new-animal-drugs-inads\"
+        target=\"_self\"> Investigational New Animal Drugs </a></li></ul></div></div></div></div></li></ul></div><div
+        class=\"we-mega-menu-col span5\" data-element-type=\"we-mega-menu-col\" data-width=\"5\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"0d96965f-9c38-4551-9389-d3b6071413bf\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">For Landowners</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"1a2db663-34f1-458f-bd8b-8ddfff310984\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/services/partners-fish-and-wildlife\"
+        target=\"_self\"> Partners for Fish and Wildlife </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"7d2f307e-7d54-4bf3-b029-88aca876e0dd\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/services/fish-stocking\"
+        target=\"_self\"> Fish Stocking </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"faaec46e-03b6-4018-938b-4a75346bf1dc\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/services/cooperative-agriculture-opportunities\"
+        target=\"_self\"> Cooperative Agriculture Opportunities </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"dccfecb9-4953-49e8-913c-bfd8b6c59339\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/services/land-management-assistance\"
+        target=\"_self\"> Land Management Assistance </a></li></ul></div></div></div></div></li></ul></div></div></div></div></li><li
+        class=\"we-mega-menu-li dropdown-menu mb-item\" data-level=\"0\" data-element-type=\"we-mega-menu-li\"
+        description=\"\" data-id=\"8bf47dc6-ffbc-4d19-aaf9-1d285ccf8241\" data-submenu=\"1\"
+        data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\" data-icon=\"\"
+        data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/our-work\" target=\"\"> Our Work </a> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"1\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"ef59be02-4953-4c05-8c21-a977913ede40\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"\"> <a class=\"we-mega-menu-li\"
+        title=\"\" href=\"/our-work\" target=\"\"> Our Work </a></li></ul></div></div><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"1\"><div
+        class=\"we-mega-menu-col span3\" data-element-type=\"we-mega-menu-col\" data-width=\"3\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"9d1694bc-a38d-441f-94cf-67460ff95d97\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Our Priorities</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"c7264156-43b8-4ff8-a8bc-f699b3c7ba37\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/our-work/combating-wildlife-trafficking\"
+        target=\"_self\"> Combating Wildlife Trafficking </a></li><li class=\"we-mega-menu-li
+        mb-item\" data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"1f9e7372-772f-494e-90b1-c4e4d1b0211b\" data-submenu=\"0\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"\" data-icon=\"\" data-caption=\"\" data-alignsub=\"\"
+        data-target=\"_self\"> <a class=\"we-mega-menu-li\" title=\"\" href=\"/our-work/fishing\"
+        target=\"_self\"> Fishing </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"82e5f407-e1a9-49a8-a0ed-3158c95ef74e\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/our-work/pollinators\" target=\"_self\">
+        Pollinators </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"924ccf9f-9b75-4791-af89-290ecb09a3f2\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/our-work/protecting-wildlife\"
+        target=\"_self\"> Protecting Wildlife </a></li></ul></div></div></div></div></li></ul></div><div
+        class=\"we-mega-menu-col span4\" data-element-type=\"we-mega-menu-col\" data-width=\"4\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li dropdown-menu menu-section-title
+        mb-item\" data-level=\"1\" data-element-type=\"we-mega-menu-li\" description=\"\"
+        data-id=\"aab6f8c6-5804-4687-bbbc-d64b7378067b\" data-submenu=\"1\" data-hide-sub-when-collapse=\"\"
+        data-group=\"0\" data-class=\"menu-section-title\" data-icon=\"\" data-caption=\"\"
+        data-alignsub=\"\" data-target=\"\"> <span data-drupal-link-system-path=\"<front>\"
+        class=\"we-megamenu-nolink\">Projects &amp; Initiatives</span> <span class=\"nav-drilldown\"><i
+        class=\"fa fa-angle-right\" aria-hidden=\"true\"></i><span class=\"visible-hidden\">Forward</span></span><div
+        class=\"we-mega-menu-submenu mb-submenu\" data-element-type=\"we-mega-menu-submenu\"
+        data-submenu-width=\"\" data-class=\"\" style=\"width: px\"><div class=\"mb-back\"><a
+        href=\"#\" class=\"back-icon\"><i class=\"fa fa-angle-left\" aria-hidden=\"true\"></i><span
+        class=\"visible-hidden\">Back</span></a><span class=\"parent-level\"></span></div><div
+        class=\"current-level\"></div><div class=\"we-mega-menu-submenu-inner\"><div
+        class=\"we-mega-menu-row\" data-element-type=\"we-mega-menu-row\" data-custom-row=\"0\"><div
+        class=\"we-mega-menu-col span12\" data-element-type=\"we-mega-menu-col\" data-width=\"12\"
+        data-block=\"\" data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><ul
+        class=\"nav nav-tabs subul\"><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"0fa687f8-6a3d-4318-94c1-b56490cfeb83\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/our-work/duck-stamps\" target=\"_self\">
+        Duck Stamps </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"f5fe8929-38f3-4d76-8e8b-3d13807085ad\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/laws-regulations\" target=\"_self\">
+        Laws &amp; Regulations </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"fdb862f7-46a4-465c-916c-1b09cddd501e\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/library\" target=\"_self\">
+        Maps, Guides and Resources </a></li><li class=\"we-mega-menu-li mb-item\"
+        data-level=\"2\" data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"2ace81e9-a25c-4ec9-ab57-bb7e4a91e1d5\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/initiatives\" target=\"_self\">
+        All Initiatives </a></li><li class=\"we-mega-menu-li mb-item\" data-level=\"2\"
+        data-element-type=\"we-mega-menu-li\" description=\"\" data-id=\"a809cccf-0ca7-46e1-b45a-d3a0263eb3eb\"
+        data-submenu=\"0\" data-hide-sub-when-collapse=\"\" data-group=\"0\" data-class=\"\"
+        data-icon=\"\" data-caption=\"\" data-alignsub=\"\" data-target=\"_self\">
+        <a class=\"we-mega-menu-li\" title=\"\" href=\"/search/projects\" target=\"_self\">
+        All Projects </a></li></ul></div></div></div></div></li></ul></div><div class=\"we-mega-menu-col
+        span5\" data-element-type=\"we-mega-menu-col\" data-width=\"5\" data-block=\"recentnewspromoblock\"
+        data-blocktitle=\"0\" data-hidewhencollapse=\"\" data-class=\"\"><div class=\"type-of-block\"><div
+        class=\"block-inner\"><section id=\"block-recentnewspromoblock\" class=\"block
+        block-block-content block-block-content5909f237-28f7-43ba-883c-550d954c3937
+        block-mega-menu-promo-image clearfix\"><div class=\"block-container\"> <a
+        href=\"/news\" class=\"block-container-image\"><div class=\"field field--name-field-image
+        field--type-entity-reference field--label-hidden field--item\"> <img loading=\"lazy\"
+        src=\"/sites/default/files/styles/scale_and_crop_900_x_675/public/images/2026-06/common-true-katydid.jpeg?h=deaec4b9&amp;itok=ai4egRhc\"
+        width=\"900\" height=\"675\" alt=\"Common true katydid\" class=\"img-responsive\"
+        /></div> </a><div class=\"block-container-content\"> <a href=\"/news\"><div
+        class=\"field field--name-field-short-heading field--type-string field--label-hidden
+        field--item\">Recent News and Stories</div> </a> <a href=\"/news\"><div class=\"field
+        field--name-field-short-description field--type-string field--label-hidden
+        field--item\">Check out the latest news and updates</div> </a> <a href=\"/news\"
+        class=\"explore-link\"> Read more </a></div></div></section></div></div></div></div></div></div></li></ul></div></div></div></nav></div></div></section><div
+        id=\"block-fws-gov-fwsmainsearchblock\" class=\"block block-fws-search block-fws-search-form-block
+        search-block-form\"><h2 class=\"visually-hidden\">Search</h2><form class=\"fws-search-block-form\"
+        data-drupal-selector=\"fws-search-block-form\" action=\"/search\" method=\"get\"
+        id=\"fws-search-block-form\" accept-charset=\"UTF-8\"><div class=\"form-item
+        js-form-item form-type-search js-form-type-search form-item-q js-form-item-q
+        form-no-label form-group\"> <label for=\"edit-q\" class=\"control-label sr-only\"><span>Search</span></label><div
+        class=\"input-group\"><input title=\"Enter the terms you wish to search for.\"
+        data-drupal-selector=\"edit-q\" class=\"form-search form-control\" placeholder=\"Search\"
+        type=\"search\" id=\"edit-q\" name=\"q\" value=\"\" size=\"15\" maxlength=\"128\"
+        /><span class=\"input-group-btn\"><button type=\"submit\" value=\"Search\"
+        class=\"button js-form-submit form-submit btn-primary btn icon-only\"><span
+        class=\"sr-only\">Search</span><span class=\"icon glyphicon glyphicon-search\"
+        aria-hidden=\"true\"></span></button></span></div><div id=\"edit-q--description\"
+        class=\"description help-block\"> Enter the terms you wish to search for.</div></div><input
+        autocomplete=\"off\" data-drupal-selector=\"form-nzhgca0boyv3fcc1yegkepyjuecfd7jfxc1lhgmckly\"
+        type=\"hidden\" name=\"form_build_id\" value=\"form-nZHGCa0BOyv3FCc1yeGKepyjUecfd7Jfxc1LHGMCkLY\"
+        /><input data-drupal-selector=\"edit-fws-search-block-form\" type=\"hidden\"
+        name=\"form_id\" value=\"fws_search_block_form\" /><div class=\"form-actions
+        form-group js-form-wrapper form-wrapper\" data-drupal-selector=\"edit-actions\"
+        id=\"edit-actions\"></div></form> <button class=\"close-search\" aria-label=\"Close\"><span
+        aria-hidden=\"true\">\xD7</span></button></div></div></div></div> </header><div
+        class=\"banner-section\"><div class=\"banner-section__inner\"><div class=\"banner-page-title\"><h1
+        class=\"page-header\">Berylline hummingbird</h1></div></div></div><div role=\"main\"
+        class=\"main-container container js-quickedit-main-content\" id=\"main-content\"><div
+        class=\"row m-0\"><div class=\"col-sm-12\"><div class=\"region region-header\"></div></div>
+        <section class=\"col-full-content\"><div class=\"highlighted\"><div class=\"region
+        region-highlighted\"><div data-drupal-messages-fallback class=\"hidden\"></div></div></div><div
+        class=\"region region-content\"><div class=\"media-full-content image\"><div
+        class=\"left\"><div class=\"media-full-image\"><div class=\"photoswipe-gallery
+        field field--name-field-media-image field--type-image field--label-hidden
+        field--item\"> <a href=\"https://www.fws.gov/sites/default/files/images/2024-06/berylline-hummingbird.png\"
+        class=\"photoswipe\" data-pswp-width=\"1215\" data-pswp-height=\"1215\" data-overlay-title=\"Berylline
+        hummingbird perched on a branch\"> <picture> <source srcset=\"/sites/default/files/styles/scale_width_1200/public/images/2024-06/berylline-hummingbird.png.webp?itok=gPIjB1T5
+        1x\" media=\"all and (min-width: 992px)\" type=\"image/webp\" width=\"1200\"
+        height=\"1200\"/> <source srcset=\"/sites/default/files/styles/scale_width_992/public/images/2024-06/berylline-hummingbird.png.webp?itok=Op_Ll8Ty
+        1x\" media=\"all and (min-width: 768px)\" type=\"image/webp\" width=\"992\"
+        height=\"992\"/> <source srcset=\"/sites/default/files/styles/scale_width_768/public/images/2024-06/berylline-hummingbird.png.webp?itok=8nkmmQcl
+        1x\" media=\"all and (min-width: 481px)\" type=\"image/webp\" width=\"768\"
+        height=\"768\"/> <source srcset=\"/sites/default/files/styles/scale_width_480/public/images/2024-06/berylline-hummingbird.png.webp?itok=HQ0RlhrL
+        1x\" media=\"(max-width: 480px)\" type=\"image/webp\" width=\"480\" height=\"480\"/>
+        <source srcset=\"/sites/default/files/styles/scale_width_1200/public/images/2024-06/berylline-hummingbird.png?itok=6XjKaEd_
+        1x\" media=\"all and (min-width: 992px)\" type=\"image/png\" width=\"1200\"
+        height=\"1200\"/> <source srcset=\"/sites/default/files/styles/scale_width_992/public/images/2024-06/berylline-hummingbird.png?itok=tWMWGiO5
+        1x\" media=\"all and (min-width: 768px)\" type=\"image/png\" width=\"992\"
+        height=\"992\"/> <source srcset=\"/sites/default/files/styles/scale_width_768/public/images/2024-06/berylline-hummingbird.png?itok=qT_nKiBJ
+        1x\" media=\"all and (min-width: 481px)\" type=\"image/png\" width=\"768\"
+        height=\"768\"/> <source srcset=\"/sites/default/files/styles/scale_width_480/public/images/2024-06/berylline-hummingbird.png?itok=StRkTVa0
+        1x\" media=\"(max-width: 480px)\" type=\"image/png\" width=\"480\" height=\"480\"/>
+        <img loading=\"lazy\" width=\"480\" height=\"480\" src=\"/sites/default/files/styles/scale_width_480/public/images/2024-06/berylline-hummingbird.png?itok=StRkTVa0\"
+        alt=\"Berylline hummingbird perched on a branch\" class=\"img-responsive\"
+        /> </picture></a></div></div></div><div class=\"right\"><div class=\"dropdown\">
+        <button id=\"dLabel\" type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\"
+        aria-expanded=\"false\" class=\"btn btn-primary\"> Download </button><ul class=\"dropdown-menu\"
+        aria-labelledby=\"dLabel\"><li><a href=\"https://www.fws.gov/sites/default/files/styles/small_square/public/images/2024-06/berylline-hummingbird.png?h=6319aca6&amp;itok=nXMB83LC\"
+        download=\"usfws-berylline-hummingbird-thumbnail\">Thumbnail (130 x 130)</a></li><li><a
+        href=\"https://www.fws.gov/sites/default/files/styles/max_650x650/public/images/2024-06/berylline-hummingbird.png?itok=DggH5Aim\"
+        download=\"usfws-berylline-hummingbird-medium\">Medium (650 x 650)</a></li><li><a
+        href=\"https://www.fws.gov/sites/default/files/styles/max_1300x1300/public/images/2024-06/berylline-hummingbird.png?itok=i5xb-dHc\"
+        download=\"usfws-berylline-hummingbird-large\">Large (1300 x 1300)</a></li><li><a
+        href=\"https://www.fws.gov/sites/default/files/images/2024-06/berylline-hummingbird.png\"
+        download=\"usfws-berylline-hummingbird\">Original (1215 x 1215) 1.8M</a></li></ul></div><div
+        class=\"image-credit field\"><div class=\"field--label\">Photo By/Credit</div>
+        <a href=\"https://www.flickr.com/photos/amaizlish/\">Aaron Maizlish</a></div>
+        <button data-clipboard-text=\"Berylline hummingbird, Aaron Maizlish, Public
+        Domain, https://www.fws.gov/media/berylline-hummingbird-0\" class=\"btn btn-clipboard\"
+        id=\"copy-button\"> Copy Credit </button><div class=\"date-shot-created field\"><div
+        class=\"field--label\">Date Shot/Created</div> 08/29/2021</div><div class=\"field
+        field--name-field-creative-commons-license field--type-entity-reference field--label-above\"><div
+        class=\"field--label\">Media Usage Rights/License</div><div class=\"field--item\">Public
+        Domain</div></div><div class=\"media-type field\">Image</div><div class=\"field
+        field--name-field-media-caption field--type-string-long field--label-hidden
+        field--item\">Berylline hummingbird perched on a branch</div><div class=\"field
+        field--name-field-species-ref field--type-entity-reference field--label-above\"><div
+        class=\"field--label\">Species</div><div class=\"field--items\"><div class=\"field--item\"><a
+        href=\"/species/berylline-hummingbird-amazilia-beryllina\" hreflang=\"en\">Amazilia
+        beryllina</a></div></div></div><div class=\"field field--name-field-subject-tags
+        field--type-entity-reference field--label-above\"><div class=\"field--label\">Subject
+        tags</div><div class=\"field--items\"><div class=\"field--item\">Birds</div><div
+        class=\"field--item\">Migratory birds</div><div class=\"field--item\">Neotropical
+        birds</div><div class=\"field--item\">Perching birds</div><div class=\"field--item\">Pollinators</div></div></div></div></div></div>
+        </section></div></div> <footer class=\"footer\" role=\"contentinfo\"><div
+        class=\"footer-top\"><div class=\"container\"><div class=\"footer-main-grid\"><div
+        class=\"footer-brand-top\"><div class=\"footer-brand-icons\"><div class=\"region
+        region-footer-left\"> <section id=\"block-footerslogan-2\" class=\"footer-logo
+        block block-block-content block-block-content2b9f2f93-be4f-4b65-bb23-a4aaa63f02a1
+        clearfix\"><div class=\"block-container\"><div class=\"field field--name-body
+        field--type-text-with-summary field--label-hidden field--item\"><div class=\"footer-slogan\"><div
+        class=\"image-wrapper\"><a href=\"https://fws.org\"><img alt=\"U.S. Fish and
+        Wildlife Service Logo\" src=\"/themes/custom/fws_gov/logo.svg\" /></a></div></div></div></div></section></div>
+        <a href=\"https://freedom250.org\"> <img class=\"freedom-250-icon\" src=\"/themes/custom/fws_gov/images/freedom-250.svg\"
+        alt=\"Freedom 250\" /> </a></div></div><div class=\"footer-col-middle\"><div
+        class=\"region region-footer-right-middle\"> <section id=\"block-fws-gov-socialmedialinks\"
+        class=\"block-social-media-links block block-social-media-links-block clearfix\"><div
+        class=\"block-container\"><ul class=\"social-media-links--platforms platforms
+        inline horizontal\"><li> <a class=\"social-media-link-icon--facebook\" href=\"https://www.facebook.com/usfws\"
+        aria-label=\"Follow us on Facebook\" title=\"Follow us on Facebook\" > <span
+        class='fab fa-facebook fa-lg'></span> </a></li><li> <a class=\"social-media-link-icon--instagram\"
+        href=\"https://www.instagram.com/usfws\" aria-label=\"Follow us on Instagram\"
+        title=\"Follow us on Instagram\" > <span class='fab fa-instagram fa-lg'></span>
+        </a></li><li> <a class=\"social-media-link-icon--twitter\" href=\"https://x.com/usfws\"
+        aria-label=\"Follow us on Twitter\" title=\"Follow us on Twitter\" > <span
+        class='fab fa-x-twitter fa-lg'></span> </a></li><li> <a class=\"social-media-link-icon--linkedin\"
+        href=\"https://www.linkedin.com/company/usfws\" aria-label=\"Find us on LinkedIn\"
+        title=\"Find us on LinkedIn\" > <span class='fab fa-linkedin fa-lg'></span>
+        </a></li><li> <a class=\"social-media-link-icon--flickr\" href=\"https://www.flickr.com/photos/usfwshq\"
+        aria-label=\"Find us on Flickr\" title=\"Find us on Flickr\" > <span class='fab
+        fa-flickr fa-lg'></span> </a></li><li> <a class=\"social-media-link-icon--youtube\"
+        href=\"https://www.youtube.com/usfws\" aria-label=\"Follow us on YouTube\"
+        title=\"Follow us on YouTube\" > <span class='fab fa-youtube fa-lg'></span>
+        </a></li></ul></div></section><section id=\"block-fws-gov-agencycontactforfooter\"
+        class=\"block block-block-content block-block-content6b50f812-13f5-4b13-afac-6d389e679bad
+        clearfix\"><div class=\"block-container\"><div class=\"field field--name-body
+        field--type-text-with-summary field--label-hidden field--item\"><p>&nbsp;
+        &nbsp;Agency Contact Center</p><div class=\"agency-contact-info\"><p>&nbsp;
+        &nbsp; &nbsp; &nbsp;<a href=\"tel:+18003449453\">(800) 344-9453</a> &nbsp;
+        &nbsp;</p><p>&nbsp; &nbsp; &nbsp; &nbsp;<a href=\"mailto:info@fws.gov\">info@fws.gov</a>
+        &nbsp; &nbsp;</p></div></div></div></section></div></div><div class=\"footer-col-last
+        last\"><div class=\"region region-footer-right-right\"> <nav aria-labelledby=\"block-footermenulegal-menu\"
+        id=\"block-footermenulegal\"><h2 class=\"visually-hidden\" id=\"block-footermenulegal-menu\">Footer
+        Menu - Legal</h2><ul class=\"menu menu--footer-menu-legal nav\"><li class=\"first\">
+        <a href=\"/about-us\">About Us</a></li><li> <a href=\"/contact-us\" data-drupal-link-system-path=\"node/267796\">Contact
+        Us</a></li><li> <a href=\"/policies\">Policies</a></li><li class=\"last\">
+        <a href=\"/about-us/work-us\">Work with Us</a></li></ul> </nav></div></div><div
+        class=\"footer-brand-bottom\"><p class=\"identifier-block_name__y136s\">fws.gov</p><p
+        class=\"footer-doi-text\">An official website of the Department of the Interior</p></div><div
+        class=\"footer-brand-lower\"></div><div class=\"footer-right-left-col\"></div></div></div></div>
+        </footer></div><script type=\"application/json\" data-drupal-selector=\"drupal-settings-json\">{\"path\":{\"baseUrl\":\"\\/\",\"pathPrefix\":\"\",\"currentPath\":\"media\\/775976\",\"currentPathIsAdmin\":false,\"isFront\":false,\"currentLanguage\":\"en\"},\"pluralDelimiter\":\"\\u0003\",\"suppressDeprecationErrors\":true,\"ajaxPageState\":{\"libraries\":\"eJxtkFFywyAMRC8EZqYXYmS8JjSAKJBQbh_MNM3U6Z_2SbArrcy11ExJrc9KpwztoqviF6nEie_IYm9F7RwrNRQOmNp6XsnLUrt30U7EzRvKfCvwh9aGM9RQWeM7ITtEM99qy3dlOHWZLlxZmoxt-D47J6fJ3t0mPjsebNQw9eOlvTNXYZmth6ZIvldnRv4TEJ9fN-SuN27RZtqgfoCHJdPFjFqaS1CvcpkHK2wceR3GFqRHvuufay2GQ-KI-O_gO1rqBWPz0ktFUCsViIYxYCkg3sbPOSwN8gDyIHLPwwxxewAdFLmY\",\"theme\":\"fws_gov\",\"theme_token\":null},\"ajaxTrustedUrl\":{\"\\/search\":true},\"google_analytics\":{\"account\":\"G-KERW0RESPC\",\"trackOutbound\":true,\"trackMailto\":true,\"trackTel\":true,\"trackDownload\":true,\"trackDownloadExtensions\":\"7z|aac|arc|arj|asf|asx|avi|bin|csv|doc(x|m)?|dot(x|m)?|exe|flv|gif|gz|gzip|hqx|jar|jpe?g|js|mp(2|3|4|e?g)|mov(ie)?|msi|msp|pdf|phps|png|ppt(x|m)?|pot(x|m)?|pps(x|m)?|ppam|sld(x|m)?|thmx|qtm?|ra(m|r)?|sea|sit|tar|tgz|torrent|txt|wav|wma|wmv|wpd|xls(x|m|b)?|xlt(x|m)|xlam|xml|z|zip\",\"trackDomainMode\":1},\"bootstrap\":{\"forms_has_error_value_toggle\":1,\"popover_enabled\":1,\"popover_animation\":1,\"popover_auto_close\":1,\"popover_container\":\"body\",\"popover_content\":\"\",\"popover_delay\":\"0\",\"popover_html\":0,\"popover_placement\":\"right\",\"popover_selector\":\"\",\"popover_title\":\"\",\"popover_trigger\":\"click\"},\"photoswipe\":{\"options\":{\"showHideAnimationType\":\"zoom\",\"showAnimationDuration\":333,\"hideAnimationDuration\":333,\"zoomAnimationDuration\":333,\"maxWidthToAnimate\":4000,\"easing\":\"cubic-bezier(.4,0,.22,1)\",\"bgOpacity\":1,\"spacing\":0.12,\"initialZoomLevel\":\"fit\",\"secondaryZoomLevel\":\"2.5\",\"maxZoomLevel\":\"4\",\"allowPanToNext\":true,\"loop\":true,\"wheelToZoom\":false,\"pinchToClose\":true,\"clickToCloseNonZoomable\":true,\"closeOnVerticalDrag\":true,\"trapFocus\":true,\"returnFocus\":true,\"escKey\":true,\"arrowKeys\":true,\"imageClickAction\":\"zoom-or-close\",\"tapAction\":\"toggle-controls\",\"doubleTapAction\":\"zoom\",\"bgClickAction\":\"close\",\"closeTitle\":\"Close\",\"zoomTitle\":\"Zoom\",\"arrowPrevTitle\":\"Previous\",\"arrowNextTitle\":\"Next\",\"indexIndicatorSep\":\"
+        \\/ \",\"errorMsg\":\"The image could not be loaded.\",\"preload\":[1,1],\"preloaderDelay\":2000,\"mainClass\":null,\"showHideOpacity\":false,\"maxSpreadZoom\":2,\"closeOnScroll\":true,\"mouseUsed\":false,\"history\":true,\"focus\":true,\"captionOptions\":{\"type\":\"auto\",\"mobileLayoutBreakpoint\":600,\"horizontalEdgeThreshold\":20,\"mobileCaptionOverlapRatio\":0.29999999999999999,\"verticallyCenterImage\":false}}},\"csp\":{\"nonce\":\"YS5D3wUXrUSSqJRVZUEvpQ\"},\"user\":{\"uid\":0,\"permissionsHash\":\"8bc6d82032a5a024ed01a9e1718825574561c64459adc36b6e37615f86f5189b\"}}</script><script
+        src=\"/core/assets/vendor/jquery/jquery.min.js?v=4.0.0\"></script><script
+        src=\"/sites/default/files/js/js_UxJXiARvk1fmYphh_K1ZFibmEFL9d4BbUacXnp8UoQ0.js?scope=footer&amp;delta=1&amp;language=en&amp;theme=fws_gov&amp;include=eJxlkOFuwyAMhF8IitQXQsS5UDaCqSGlvP0IWlep-3f3nWWfvDDXUsVls7yUzQIbUqjqD5nMmR8QtbVifOTFRV1qjyH5ibhFcsJHQTy9JRaY4cTimSEBiTADzw9DnLvON66sSbCOO6_k_-aJP7efbGhQvb59DPStPLOPsC652Gug0fUDqK_7Ael25Za8uBXmF0R4R13NWqWFDPOWl_mMBruPoR3pMBvLfmnQJ9An0ZtwqkjrD-VwhP4\"></script><script
+        src=\"https://code.jquery.com/jquery-3.6.4.min.js\"></script><script src=\"/sites/default/files/js/js_YiNO32AZPRehZOcAHcLh0CEJI6Hl35G6m0nx4Wjuc7E.js?scope=footer&amp;delta=3&amp;language=en&amp;theme=fws_gov&amp;include=eJxlkOFuwyAMhF8IitQXQsS5UDaCqSGlvP0IWlep-3f3nWWfvDDXUsVls7yUzQIbUqjqD5nMmR8QtbVifOTFRV1qjyH5ibhFcsJHQTy9JRaY4cTimSEBiTADzw9DnLvON66sSbCOO6_k_-aJP7efbGhQvb59DPStPLOPsC652Gug0fUDqK_7Ael25Za8uBXmF0R4R13NWqWFDPOWl_mMBruPoR3pMBvLfmnQJ9An0ZtwqkjrD-VwhP4\"></script><script
+        src=\"https://touchpoints.app.cloud.gov/touchpoints/0ab558f0.js\"></script><script
+        src=\"/sites/default/files/js/js_V95AfWda7CicBUlk7UwmPlpwJxteDr7cmWBKMJ5yjHw.js?scope=footer&amp;delta=5&amp;language=en&amp;theme=fws_gov&amp;include=eJxlkOFuwyAMhF8IitQXQsS5UDaCqSGlvP0IWlep-3f3nWWfvDDXUsVls7yUzQIbUqjqD5nMmR8QtbVifOTFRV1qjyH5ibhFcsJHQTy9JRaY4cTimSEBiTADzw9DnLvON66sSbCOO6_k_-aJP7efbGhQvb59DPStPLOPsC652Gug0fUDqK_7Ael25Za8uBXmF0R4R13NWqWFDPOWl_mMBruPoR3pMBvLfmnQJ9An0ZtwqkjrD-VwhP4\"></script></body></html>"
+    headers:
+      Accept-Ranges:
+      - bytes
+      Cache-Control:
+      - public, max-age=900
+      Connection:
+      - keep-alive
+      Content-Language:
+      - en
+      Content-Security-Policy:
+      - frame-ancestors 'self' https://fws.gov https://www.fws.gov
+      Content-Security-Policy-Report-Only:
+      - object-src 'none'; script-src 'self' 'report-sample' addtocalendar.com cdnjs.cloudflare.com
+        https://cdn.jsdelivr.net https://cdn.knightlab.com https://code.jquery.com
+        https://science-catalog.fws.gov https://touchpoints.app.cloud.gov https://unpkg.com
+        https://www.google.com maps.google.com unpkg.com; style-src 'self' 'report-sample'
+        addtocalendar.com cdnjs.cloudflare.com fonts.googleapis.com https://cdn.jsdelivr.net
+        https://cdn.knightlab.com https://fonts.googleapis.com https://science-catalog.fws.gov
+        https://unpkg.com unpkg.com; webrtc 'block'; worker-src 'self'; base-uri 'self';
+        form-action 'self'; frame-ancestors 'self'
+      Content-Type:
+      - text/html; charset=utf-8
+      Date:
+      - Thu, 03 Sep 2026 00:32:05 GMT
+      ETag:
+      - '"1788395524-gzip"'
+      Last-Modified:
+      - Thu, 03 Sep 2026 00:32:04 GMT
+      Server-Timing:
+      - cdn-cache; desc=REVALIDATE
+      - edge; dur=32
+      - origin; dur=1018
+      - ak_p; desc="1788395524347_389286997_2029078734_104754_7560_38_41_-";dur=1
+      Strict-Transport-Security:
+      - max-age=31536000 ; includeSubDomains ; preload
+      Vary:
+      - Accept-Encoding
+      X-AH-Environment:
+      - prod
+      X-Age:
+      - '0'
+      X-Akamai-Transformed:
+      - 9 13913 0 pmb=mRUM,1
+      X-Content-Type-Options:
+      - nosniff
+      X-Drupal-Dynamic-Cache:
+      - MISS
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-Request-ID:
+      - v-e3071c3a-a72e-11f1-bc52-0389442aa5e0
+      content-length:
+      - '87997'
+    status:
+      code: 200
+      message: OK
+version: 1

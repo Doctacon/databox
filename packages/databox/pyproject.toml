@@ -17,17 +17,9 @@ dependencies = [
     "duckdb==1.5.4",
     "sqlmesh>=0.204.0",
     "dagster-sqlmesh==0.22.0",
-    "google-adk>=2.4.0",
-    "httpx>=0.28.1",
-    "Pillow>=11.0.0",
-    "fastapi>=0.115.0",
-    "uvicorn>=0.35.0",
 ]
 
 [project.optional-dependencies]
-r2 = [
-    "boto3>=1.40.0",
-]
 # The upstream `openlineage-dagster` package pins Dagster <=1.6.9, which
 # conflicts with dagster-sqlmesh's Dagster >=1.7.8 floor. Stick with the
 # pure `openlineage-python` client and emit via a small in-tree sensor

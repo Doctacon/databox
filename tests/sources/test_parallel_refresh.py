@@ -32,6 +32,10 @@ def test_parallel_source_jobs_select_only_dlt_ingestion_assets() -> None:
         assert all(key.to_user_string() not in selection for key in module.sqlmesh_asset_keys)
 
 
+def _skip_real_iceberg_preflight() -> None:
+    """Fake-runner tests exercise orchestration, not live publication configuration."""
+
+
 def _result(source: str, start: float, end: float, returncode: int = 0) -> SourceRunResult:
     return SourceRunResult(
         source=source,
@@ -95,6 +99,7 @@ def test_parallel_refresh_observes_overlap_then_transforms(
             main_dlt_relations=(),
         ),
         evaluation_runner=lambda path, refresh_id: events.append(f"evaluate:{path}:{refresh_id}"),
+        preflight_runner=_skip_real_iceberg_preflight,
     )
 
     assert "server-start" not in events
@@ -140,6 +145,7 @@ def test_parallel_source_imports_use_isolated_sqlmesh_caches(
         cleanup_runner=lambda: None,
         inspection_runner=lambda *_: WarehouseInspection((), ()),
         run_transform=False,
+        preflight_runner=_skip_real_iceberg_preflight,
     )
 
     assert set(seen_cache_dirs) == {"gbif", "usgs_earthquakes"}
@@ -186,6 +192,7 @@ def test_parallel_refresh_failure_preserves_source_attribution_when_maintenance_
             transform_runner=lambda: events.append("transform"),
             cleanup_runner=failing_cleanup,
             evaluation_runner=lambda *_: events.append("evaluate"),
+            preflight_runner=_skip_real_iceberg_preflight,
         )
 
     assert [item.source for item in exc_info.value.result.sources if not item.ok] == ["gbif"]
@@ -242,6 +249,7 @@ def test_parallel_gate_rejects_nonoverlapping_ingest_intervals(tmp_path: Path) -
             cleanup_runner=lambda: None,
             inspection_runner=lambda *_: WarehouseInspection((), ()),
             run_transform=False,
+            preflight_runner=_skip_real_iceberg_preflight,
         )
 
 
@@ -274,6 +282,7 @@ def test_evaluator_failure_propagates_only_after_successful_transform(tmp_path: 
             inspection_runner=lambda *_: WarehouseInspection((), ()),
             transform_runner=lambda: events.append("transform"),
             evaluation_runner=fail_evaluation,
+            preflight_runner=_skip_real_iceberg_preflight,
         )
     assert events == ["transform", "evaluate"]
 
@@ -307,8 +316,32 @@ def test_transform_failure_never_evaluates_watches(tmp_path: Path) -> None:
             inspection_runner=lambda *_: WarehouseInspection((), ()),
             transform_runner=fail_transform,
             evaluation_runner=lambda *_: events.append("evaluate"),
+            preflight_runner=_skip_real_iceberg_preflight,
         )
     assert events == ["transform"]
+
+
+def test_parallel_refresh_stops_before_source_execution_when_preflight_fails(
+    tmp_path: Path,
+) -> None:
+    sources_started: list[str] = []
+
+    def source_runner(source: str, *_: object) -> SourceRunResult:
+        sources_started.append(source)
+        raise AssertionError("source runner must not execute after failed preflight")
+
+    def failing_preflight() -> None:
+        raise ValueError("AWS writer credentials")
+
+    with pytest.raises(ValueError, match="AWS writer credentials"):
+        execute_parallel_refresh(
+            ["ebird"],
+            database_path=str(tmp_path / "databox.duckdb"),
+            source_runner=source_runner,
+            preflight_runner=failing_preflight,
+        )
+
+    assert sources_started == []
 
 
 def test_parallel_refresh_rejects_sequential_worker_count() -> None:
@@ -403,7 +436,7 @@ def test_refresh_inspection_uses_complete_ebird_and_noaa_inventories(
 def test_parallel_refresh_job_is_available_in_dagster_definitions() -> None:
     from databox.orchestration.definitions import defs
 
-    assert defs.get_job_def("parallel_quack_full_refresh").name == "parallel_quack_full_refresh"
+    assert defs.get_job_def("parallel_iceberg_full_refresh").name == "parallel_iceberg_full_refresh"
     expected_schedules = {
         "ebird_daily_pipeline_schedule",
         "gbif_daily_pipeline_schedule",
@@ -411,7 +444,7 @@ def test_parallel_refresh_job_is_available_in_dagster_definitions() -> None:
         "noaa_daily_pipeline_schedule",
         "usgs_daily_pipeline_schedule",
         "usgs_earthquakes_daily_pipeline_schedule",
-        "parallel_quack_full_refresh_schedule",
+        "parallel_iceberg_full_refresh_schedule",
     }
     schedule_names = {schedule.name for schedule in defs.get_repository_def().schedule_defs}
     assert schedule_names == expected_schedules

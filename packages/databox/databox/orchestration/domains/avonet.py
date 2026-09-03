@@ -16,6 +16,7 @@ from databox.destinations.iceberg import (
     iceberg_destination,
     iceberg_dlt_pipeline,
     polaris_dlt_catalog,
+    require_iceberg_write_credentials,
 )
 from databox.orchestration._factories import dlt_load_status_asset, dlt_translator
 
@@ -39,6 +40,7 @@ _avonet_dlt_pipeline = iceberg_dlt_pipeline(
     dagster_dlt_translator=dlt_translator("raw_avonet"),
 )
 def avonet_dlt_assets(context: AssetExecutionContext, dlt: DagsterDltResource) -> t.Iterator[t.Any]:
+    require_iceberg_write_credentials()
     with polaris_dlt_catalog():
         yield from dlt.run(context=context, dlt_source=_build_source())
 
@@ -55,8 +57,6 @@ def avonet_iceberg_refresh(context: AssetExecutionContext) -> dg.MaterializeResu
     """Refresh local AVONET consumers after the Iceberg snapshot commits."""
     models = (
         "environmental_observations.dim_bird_species_traits",
-        "rufous_public.avonet_species_traits",
-        "birding_agent.arizona_species_catalog",
         "analytics.platform_health",
     )
     command = [

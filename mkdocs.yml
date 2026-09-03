@@ -79,9 +79,6 @@ nav:
       - Observability: observability.md
       - Secrets: secrets.md
       - CI routing: ci.md
-  - Rufous:
-      - Operations: rufous-operations.md
-      - Public static release: rufous-public-release.md
   - Architecture decisions:
       - Overview: adr/README.md
       - ADR-0001 DuckDB warehouse: adr/0001-duckdb-as-primary-warehouse.md

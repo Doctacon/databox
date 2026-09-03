@@ -26,6 +26,9 @@ SKIP_MARKER = "scaffold-lint: skip="
 SKIP_HEADER_LINES = 10
 VALID_PROFILES = frozenset({"http", "file_snapshot"})
 VALID_ORCHESTRATION_MODES = frozenset({"default", "explicit_targets"})
+# Reusable provider interfaces intentionally have no Databox ingestion domain.
+# They cannot participate in scheduled/parallel graph composition.
+PUBLIC_INTERFACE_ONLY_SOURCES = frozenset({"usfws"})
 REQUIRED_TEST_FILES = {
     "http": ("test_resources.py", "test_schema.py", "test_smoke.py", "test_idempotency.py"),
     "file_snapshot": (
@@ -573,13 +576,24 @@ def check_source(name: str, sources: Sequence[Source] = SOURCES) -> SourceReport
                             f"execution-time call in {domain_file}"
                         )
 
+                allowed_asset_names = {
+                    dlt_assets_name,
+                    f"{name}_load_status",
+                    f"{name}_iceberg_refresh",
+                }
                 assets_valid = (
                     len(_top_level_bindings(domain_tree, "assets")) == 1
                     and len(asset_values) == 1
                     and isinstance(asset_values[0], ast.List)
-                    and len(asset_values[0].elts) == 1
-                    and isinstance(asset_values[0].elts[0], ast.Name)
-                    and asset_values[0].elts[0].id == dlt_assets_name
+                    and sum(
+                        isinstance(element, ast.Name) and element.id == dlt_assets_name
+                        for element in asset_values[0].elts
+                    )
+                    == 1
+                    and all(
+                        isinstance(element, ast.Name) and element.id in allowed_asset_names
+                        for element in asset_values[0].elts
+                    )
                 )
                 if not assets_valid:
                     report.missing.append(
@@ -674,7 +688,7 @@ def check_source(name: str, sources: Sequence[Source] = SOURCES) -> SourceReport
 
 
 def validate_sources(sources: Sequence[Source] = SOURCES) -> ContractReport:
-    discovered = set(discover_sources()) | set(discover_domains())
+    discovered = (set(discover_sources()) | set(discover_domains())) - PUBLIC_INTERFACE_ONLY_SOURCES
     names = sorted(discovered | {source.name for source in sources})
     reports = [check_source(name, sources) for name in names]
     return ContractReport(registry_errors=registry_errors(sources), sources=reports)

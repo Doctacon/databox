@@ -20,11 +20,7 @@ def test_root_tests_are_grouped_by_ratified_domain() -> None:
         if path.is_dir() and not path.name.startswith("__")
     } == {
         "analytics",
-        "birding",
-        "cloudflare",
-        "evals",
         "platform",
-        "rufous_media",
         "sources",
     }
 
@@ -43,11 +39,8 @@ def test_root_scripts_are_grouped_by_ratified_domain() -> None:
         if path.is_dir() and not path.name.startswith("__")
     } == {
         "analytics",
-        "birding",
-        "cloudflare",
         "operations",
         "platform",
-        "rufous_media",
         "sources",
     }
     assert (scripts_dir / "analytics/templates/staging.sql.j2").is_file()
@@ -58,9 +51,6 @@ def test_root_scripts_are_grouped_by_ratified_domain() -> None:
     ("script_path", "expected_plans"),
     [
         ("scripts/analytics/sqlmesh_plan_prod.sh", 1),
-        ("scripts/rufous_media/sqlmesh_plan_rufous_inaturalist_media.sh", 1),
-        ("scripts/rufous_media/sqlmesh_plan_rufous_media.sh", 1),
-        ("scripts/rufous_media/sqlmesh_plan_rufous_public.sh", 2),
     ],
 )
 def test_moved_sqlmesh_scripts_resolve_the_repository_root(
