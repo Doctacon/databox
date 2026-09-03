@@ -81,6 +81,15 @@ jobs:
             -H 'Polaris-Realm: POLARIS' \
             -d "$payload" \
             http://127.0.0.1:8181/api/management/v1/catalogs
+      - name: Preflight AWS identity and isolated S3 prefix
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity
+          aws s3api list-objects-v2 \
+            --bucket "${DATABOX_AWS_S3_BUCKET}" \
+            --prefix "${DATABOX_ICEBERG_WAREHOUSE_PREFIX}" \
+            --max-items 1
       - uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
       - name: Verify real Polaris/S3 source publication
         run: task verify
