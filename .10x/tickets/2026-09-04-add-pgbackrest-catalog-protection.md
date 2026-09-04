@@ -1,4 +1,4 @@
-Status: open
+Status: blocked
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -52,7 +52,8 @@ Record exact rendered PostgreSQL/pgBackRest configuration, credential-process an
 - 2026-09-04: Opened from the ratified disaster-recovery architecture.
 - 2026-09-04: Timeboxed implementation added an explicit PostgreSQL 17.6/pgBackRest 2.55.1 image, encrypted 30-day repository template, renewable credential-process validator, 300-second WAL archive configuration, backup/check/info Task interfaces, environment documentation, and focused hermetic tests. The ticket remains open because automatic weekly/daily scheduling, repository verification, encrypted logical export, and catalog inventory are not yet implemented; no live AWS or backup operation ran.
 - 2026-09-04: User explicitly rejected optional normal-versus-backup operation and ratified one-Compose fail-closed availability: Polaris may operate only after the repository, renewable credentials, stanza, WAL archive, and initial backup are proven healthy. The remaining implementation must add this gate rather than making backup variables optional.
+- 2026-09-04: Two timeboxed implementation launches failed before child startup and made no repository changes. Both the native worker and available Claude Code writer exited in Pi's experimental client before producing a transcript because `@earendil-works/pi-coding-agent/dist/experimental/server.js` attempted to resolve the nonexistent path `@earendil-works/pi-agent-core/dist/index.js/node`. Execution stopped rather than bypassing the child-ticket ownership rule or spending beyond the user's timebox.
 
 ## Blockers
 
-Repository automation still needs the fail-closed Polaris readiness gate, initial-backup behavior, scheduling, repository verification, encrypted logical export, and deterministic catalog inventory. Live repository checks require provisioned infrastructure and belong to the live apply/proof ticket.
+Implementation is blocked by the local Pi subagent runner module-resolution failure recorded above. Repair or reinstall the Pi runner so an executable worker can start, then retry only the fail-closed readiness-gate slice. Repository automation still needs the gate, initial-backup behavior, scheduling, repository verification, encrypted logical export, and deterministic catalog inventory. Live repository checks require provisioned infrastructure and belong to the live apply/proof ticket.
