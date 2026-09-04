@@ -8,7 +8,7 @@ Updated: 2026-09-04
 
 Define backup, point-in-time restore, inventory, credential, and recovery-drill behavior for the PostgreSQL metastore used by the local Apache Polaris service.
 
-This specification does not provide PostgreSQL high availability, make Polaris always-on, apply live AWS resources without a reviewed plan, or replace Iceberg snapshot rollback for a bad table publication.
+This specification does not provide PostgreSQL high availability, make Polaris always-on, apply live AWS resources without a reviewed plan, or replace Iceberg snapshot rollback for a bad table publication. It requires backup health whenever Polaris is available; there is no unprotected normal mode.
 
 ## Recovery objectives
 
@@ -17,6 +17,15 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 - Base backups and WAL needed for any point in the preceding 30 days MUST be retained.
 - The RTO MUST be described as unproven until a live timed restore drill completes successfully.
 - When Polaris is stopped, no catalog writes are expected; the RPO clock applies to running service periods.
+
+## Fail-closed availability gate
+
+- One `compose.iceberg.yml` MUST remain the operator-visible runtime definition; separate normal and backup Compose modes MUST NOT be introduced.
+- PostgreSQL MAY start internally for recovery initialization, but Polaris, bootstrap-dependent catalog service, and writers MUST remain unavailable until the backup gate succeeds.
+- The gate MUST validate renewable credentials, repository access, stanza configuration, and a WAL archive round trip.
+- A newly initialized catalog with no valid base backup MUST create and verify its initial backup before Polaris becomes available.
+- Missing, partial, expired, or invalid backup settings; repository failure; WAL failure; or missing required backup state MUST fail clearly. No bypass or silent unprotected mode is permitted.
+- Recovery environments MUST keep writers disabled and MUST NOT archive restored test history into the authoritative repository.
 
 ## Backup behavior
 
@@ -55,6 +64,14 @@ The inventory is diagnostic metadata, not an independent source of catalog autho
 
 ## Acceptance scenarios
 
+### Protected startup
+
+Given complete valid backup configuration and a reachable repository, when the local stack starts, then PostgreSQL establishes and verifies pgBackRest/WAL protection before Polaris becomes available.
+
+### Backup unavailable
+
+Given missing, partial, expired, or invalid backup configuration or an unavailable repository, when the stack starts, then Polaris remains unavailable and the gate reports the failing prerequisite.
+
 ### Continuous archive
 
 Given a running local Polaris/PostgreSQL stack with valid renewable backup credentials, when catalog writes occur, then pgBackRest archives sufficient WAL to make any recovery point no more than five minutes old.
@@ -80,5 +97,6 @@ Given provisioned live backup infrastructure, when the first full drill runs, th
 - Live `tofu apply` in the automation-first phase.
 - Automatic production cutover.
 - Multi-node PostgreSQL or Polaris high availability.
+- An unprotected normal Polaris startup mode or backup bypass.
 - Storing secrets in OpenTofu state, repository files, logs, inventories, or evidence.
 - Treating `pg_dump`, a copied Docker volume, or backup-command success as recovery proof.

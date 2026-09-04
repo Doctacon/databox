@@ -31,7 +31,7 @@ After explicit user approval of the exact OpenTofu plan, apply the reviewed infr
 
 ## References
 
-- `.10x/decisions/polaris-iceberg-backup-and-recovery.md`
+- `.10x/decisions/fail-closed-polaris-backup-gate.md`
 - `.10x/specs/polaris-catalog-continuity.md`
 - `.10x/specs/iceberg-object-recovery.md`
 - `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md`
