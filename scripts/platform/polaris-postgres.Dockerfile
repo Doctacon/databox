@@ -7,5 +7,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY infra/recovery/pgbackrest.conf.example /etc/pgbackrest/pgbackrest.conf
 COPY scripts/platform/pgbackrest-credential-process.py /opt/databox/pgbackrest-credential-process.py
+COPY scripts/platform/catalog-backup-readiness.py /opt/databox/catalog-backup-readiness.py
 COPY scripts/platform/run-pgbackrest.sh /usr/local/bin/run-pgbackrest
-RUN chmod 0755 /usr/local/bin/run-pgbackrest /opt/databox/pgbackrest-credential-process.py
+RUN chmod 0755 \
+    /usr/local/bin/run-pgbackrest \
+    /opt/databox/catalog-backup-readiness.py \
+    /opt/databox/pgbackrest-credential-process.py

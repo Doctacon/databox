@@ -26,10 +26,10 @@ services:
       - -c
       - archive_command=/usr/local/bin/run-pgbackrest --stanza=polaris archive-push %p
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U polaris -d polaris"]
-      interval: 2s
-      timeout: 3s
-      retries: 30
+      test: ["CMD", "python3", "/opt/databox/catalog-backup-readiness.py"]
+      interval: 5s
+      timeout: 10m
+      retries: 12
     volumes:
       - polaris_postgres:/var/lib/postgresql/data
     restart: unless-stopped
@@ -37,6 +37,8 @@ services:
   polaris-bootstrap:
     image: apache/polaris-admin-tool:1.7.0
     depends_on:
+      # PostgreSQL becomes healthy only after pgBackRest proves repository,
+      # WAL archive, and initial physical-backup readiness.
       postgres:
         condition: service_healthy
     environment:

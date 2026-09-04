@@ -27,6 +27,12 @@ session token required by the current Compose stack. `databox_lake` must already
 be provisioned with `s3://<bucket>/warehouse` as its base location and the
 bucket-scoped IAM role, then start `compose.iceberg.yml`.
 
+PostgreSQL reports healthy only after the catalog-backup readiness gate validates
+the renewable credential process, pgBackRest repository and stanza, a WAL archive
+round trip, and an existing or newly created full backup. Polaris bootstrap and
+the API remain stopped when any check fails; inspect the PostgreSQL healthcheck
+output rather than bypassing backup protection.
+
 Static pinned AVONET is deliberately excluded from routine refresh. Run its
 independent `avonet_ingest` Dagster job explicitly when a validated
 `raw_avonet.species_traits` replacement is required; it has no recurring
