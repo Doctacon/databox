@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -48,7 +48,8 @@ Record changed files, exact OpenTofu/static-test commands, rendered resource/pol
 ## Progress and notes
 
 - 2026-09-04: Opened from the ratified disaster-recovery architecture.
+- 2026-09-04: Added bounded OpenTofu configuration for distinct catalog-backup and Iceberg-recovery buckets, versioning/encryption/public blocks, 30/45-day version retention, prefix-bounded replication without delete propagation, separate least-privilege roles, routine-writer delete denial, renewable-profile inputs, placeholder configuration, runbook planning instructions, and five static policy tests. Native `tofu validate`, focused tests, Ruff/format, secret scan, and diff checks pass. No plan was generated without real account inputs and no AWS mutation occurred. Evidence: `.10x/evidence/2026-09-04-aws-recovery-infrastructure.md`.
 
 ## Blockers
 
-None. Resource names may remain validated inputs; no live account identifiers are required for the automation slice.
+None. Live planning/apply remains owned by the separately blocked rollout ticket.

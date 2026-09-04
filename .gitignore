@@ -69,6 +69,13 @@ htmlcov/
 .pi-subagents/
 .deepeval/
 
+# OpenTofu local state and private inputs
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
 # Temporary
 tmp/
 temp/

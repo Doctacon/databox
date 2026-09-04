@@ -57,6 +57,37 @@ workflow skips SQLMesh and does not delete integration objects. See the
 [verified run record](https://github.com/Doctacon/databox/blob/main/.10x/evidence/2026-09-03-protected-polaris-source-matrix.md)
 for the exact claims and limits.
 
+## Plan recovery infrastructure
+
+Recovery infrastructure is declared in `infra/recovery/` with OpenTofu
+`>=1.8,<2`. It creates separate same-account, same-region catalog-backup and
+Iceberg-recovery buckets. The recovery bucket retains noncurrent object versions
+for 45 days and deliberately does not replicate primary delete markers. The
+accepted same-account and `us-west-1` design does not protect against account-wide
+compromise or regional failure.
+
+Copy `infra/recovery/terraform.tfvars.example` to an ignored `.tfvars` file and
+replace every placeholder. Configure `aws_profile` in an AWS shared config file
+with the matching renewable `credential_process`; do not put credentials in
+OpenTofu variables or state. The routine Iceberg writer is explicitly denied
+recovery-object deletion, while backup and recovery-reader roles are separate.
+
+Review only—these commands do not apply infrastructure:
+
+```bash
+cd infra/recovery
+tofu init -backend=false
+tofu fmt -check
+tofu validate
+tofu plan -refresh=false -var-file=recovery.auto.tfvars -out=recovery.tfplan
+```
+
+`plan` still evaluates provider configuration and requires the configured AWS
+profile. Do not run `tofu apply` until the plan is reviewed and separately
+authorized. OpenTofu manages the complete replication configuration on the
+existing primary bucket, so the plan must be checked for any pre-existing rule
+that would otherwise be replaced.
+
 ## SQLMesh dev loop
 
 ```bash
