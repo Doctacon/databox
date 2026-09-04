@@ -88,6 +88,36 @@ authorized. OpenTofu manages the complete replication configuration on the
 existing primary bucket, so the plan must be checked for any pre-existing rule
 that would otherwise be replaced.
 
+## Catalog backup and recovery preparation
+
+The PostgreSQL image includes pgBackRest and archives WAL with
+`archive_timeout=300s`. Configure the OpenTofu catalog-backup output,
+`PGBACKREST_REPO1_CIPHER_PASS`, and the renewable
+`DATABOX_AWS_CREDENTIAL_PROCESS`; never commit their output or passphrase.
+Run `task catalog:backup-check` before the weekly `catalog:backup-full` or daily
+`catalog:backup-diff`, and inspect `task catalog:backup-info` after each run.
+These commands are not scheduled automatically and do not prove the recovery
+objectives.
+
+Prepare—do not execute—a restore destination with:
+
+```bash
+uv run python scripts/platform/catalog_recovery.py \
+  --target /empty/recovery/postgres \
+  --active /active/postgres \
+  --recover-to 2026-09-04T12:00:00Z \
+  --prepare-only
+```
+
+The helper rejects the active or any non-empty destination and explicitly keeps
+writers disabled and bootstrap forbidden. A bad table publication should use a
+validated Iceberg snapshot rollback. Missing referenced objects should be
+restored by explicit key and version from the recovery bucket. Last-resort table
+registration must use a validated metadata location, never lexicographic S3
+listing. Live PITR execution, catalog inventory/table validation, bounded object
+restore, and the timed RPO/RTO drill remain blocked until infrastructure apply is
+separately approved.
+
 ## SQLMesh dev loop
 
 ```bash

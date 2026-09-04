@@ -47,7 +47,8 @@ Record exact rendered PostgreSQL/pgBackRest configuration, credential-process an
 ## Progress and notes
 
 - 2026-09-04: Opened from the ratified disaster-recovery architecture.
+- 2026-09-04: Timeboxed implementation added an explicit PostgreSQL 17.6/pgBackRest 2.55.1 image, encrypted 30-day repository template, renewable credential-process validator, 300-second WAL archive configuration, backup/check/info Task interfaces, environment documentation, and focused hermetic tests. The ticket remains open because automatic weekly/daily scheduling, repository verification, encrypted logical export, and catalog inventory are not yet implemented; no live AWS or backup operation ran.
 
 ## Blockers
 
-None for repository automation. Live repository checks require provisioned infrastructure and belong to the live apply/proof ticket.
+Repository automation still needs scheduling, repository verification, encrypted logical export, and deterministic catalog inventory. Live repository checks require provisioned infrastructure and belong to the live apply/proof ticket.

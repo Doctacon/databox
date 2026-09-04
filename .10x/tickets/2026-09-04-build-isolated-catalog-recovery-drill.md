@@ -48,7 +48,8 @@ Record adversarial restore-safety cases, inventory/table validation cases, elaps
 ## Progress and notes
 
 - 2026-09-04: Opened from the ratified disaster-recovery architecture.
+- 2026-09-04: Timeboxed implementation added a preparation-only recovery helper that requires a zoned timestamp, rejects the active and non-empty destinations, creates only an empty isolated target, keeps writers disabled/bootstrap forbidden, and computes RPO/RTO without claiming proof. Focused adversarial tests and runbook distinctions were added. The ticket remains open because actual pgBackRest restore composition, canonical catalog/table inventory validation, bounded object-version restoration, and full failure-path tests are not yet implemented; no live restore ran.
 
 ## Blockers
 
-Depends on the infrastructure interface and pgBackRest runtime tickets.
+Depends on completion of the remaining pgBackRest ticket work, then actual restore composition, catalog/table validation, and bounded object recovery.

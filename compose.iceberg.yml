@@ -2,11 +2,29 @@ name: databox-iceberg
 
 services:
   postgres:
-    image: postgres:17.6-alpine3.22
+    image: databox-polaris-postgres:17.6-pgbackrest-2.55.1
+    build:
+      context: .
+      dockerfile: scripts/platform/polaris-postgres.Dockerfile
+      args:
+        PGBACKREST_VERSION: 2.55.1
     environment:
       POSTGRES_DB: polaris
       POSTGRES_USER: polaris
       POSTGRES_PASSWORD: ${DATABOX_POLARIS_POSTGRES_PASSWORD:?set DATABOX_POLARIS_POSTGRES_PASSWORD}
+      DATABOX_AWS_CREDENTIAL_PROCESS: ${DATABOX_AWS_CREDENTIAL_PROCESS:?set DATABOX_AWS_CREDENTIAL_PROCESS}
+      PGBACKREST_REPO1_CIPHER_PASS: ${PGBACKREST_REPO1_CIPHER_PASS:?set PGBACKREST_REPO1_CIPHER_PASS}
+      PGBACKREST_REPO1_S3_BUCKET: ${DATABOX_CATALOG_BACKUP_BUCKET:?set DATABOX_CATALOG_BACKUP_BUCKET}
+      PGBACKREST_REPO1_S3_REGION: ${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}
+      PGBACKREST_REPO1_S3_ENDPOINT: s3.${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}.amazonaws.com
+    command:
+      - postgres
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_timeout=300s
+      - -c
+      - archive_command=/usr/local/bin/run-pgbackrest --stanza=polaris archive-push %p
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U polaris -d polaris"]
       interval: 2s
