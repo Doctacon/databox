@@ -42,7 +42,8 @@ Record changed resources and outputs, exact static validation, proof that no pri
 
 - 2026-09-04: Opened after the user selected no independent Iceberg warehouse copy. The existing 18-create plan is invalid and must not be applied.
 - 2026-09-04: Removed the complete rejected Iceberg recovery plane and all primary warehouse inputs from OpenTofu. The remaining inventory is seven catalog-only resources (bucket, versioning, AES256 encryption, public-access block, 30-day lifecycle, backup role, inline policy), one local IAM trust-policy document, and three outputs. Updated the example, runbook, and focused tests to require source rebuild and prove no primary/replication/recovery surface remains. OpenTofu formatting/validation, 22 focused tests, Ruff, format, focused MyPy, secret scan, and diff checks pass without provider/AWS calls. No plan, apply, service, volume, backup, or restore ran.
+- 2026-09-04: User ratified account root only for the initial reviewed bootstrap apply, followed by short-lived assumption of the created least-privilege catalog-backup role and root logout. Authenticated profile `databox-debug` generated the fresh catalog-only plan recorded at `.10x/evidence/2026-09-04-catalog-only-recovery-opentofu-plan.md`: exactly 7 create, 0 change, 0 destroy, with no primary-bucket, Iceberg, or replication resource. No apply or AWS mutation ran.
 
 ## Blockers
 
-Fresh plan generation is blocked until the operator principal is ratified as root or a dedicated non-root principal. The rejected 18-create plan remains historical evidence and must not be applied.
+None for implementation; ready for independent plan review. Applying the exact plan remains blocked pending that review and explicit user approval. The rejected 18-create plan remains historical evidence and must not be applied.

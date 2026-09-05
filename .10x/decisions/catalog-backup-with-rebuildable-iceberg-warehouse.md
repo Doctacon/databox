@@ -22,6 +22,8 @@ The 45-day Iceberg object-recovery objective is removed. The 60-minute RTO appli
 
 The exact plan recorded at `.10x/evidence/2026-09-04-recovery-opentofu-plan.md` MUST NOT be applied. It is historical evidence of a rejected architecture and is invalidated by this decision. A repaired catalog-only OpenTofu plan requires fresh generation, hash, review, and explicit approval before apply.
 
+Because the current AWS login identifies as account root and no non-root operator identity exists, root MAY be used only for the initial reviewed bootstrap apply. Runtime pgBackRest credentials MUST come from the created least-privilege `databox-polaris-catalog-backup` role and MUST never be root credentials. After a separately approved apply and role-access verification, the root CLI session MUST be logged out. Root trust SHOULD be replaced when a non-root operator identity is established.
+
 ## Alternatives considered
 
 - **Continuous S3 replication:** rejected because source versioning, a second warehouse copy, IAM, lifecycle, and replication cost are disproportionate for this rebuildable local project.
