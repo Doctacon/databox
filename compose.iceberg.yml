@@ -40,8 +40,8 @@ services:
   polaris-bootstrap:
     image: apache/polaris-admin-tool:1.7.0
     depends_on:
-      # PostgreSQL becomes healthy only after pgBackRest proves repository,
-      # WAL archive, and initial physical-backup readiness.
+      # Bootstrap waits only for database liveness; the backup gate runs after
+      # bootstrap and blocks the Polaris service until protection is verified.
       postgres:
         condition: service_healthy
     environment:
