@@ -1,0 +1,37 @@
+
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place (current -> planned)
+
+OpenTofu will perform the following actions:
+
+  # aws_iam_user_policy.recovery_operator will be updated in-place
+  ~ resource "aws_iam_user_policy" "recovery_operator" {
+        id          = "databox-recovery-operator:terraform-7a2c8c4a8215b692115549ba7a"
+        name        = "terraform-7a2c8c4a8215b692115549ba7a"
+      ~ policy      = jsonencode(
+          ~ {
+              ~ Statement = [
+                    {
+                        Action   = [
+                            "sts:AssumeRole",
+                        ]
+                        Effect   = "Allow"
+                        Resource = "arn:aws:iam::734815189723:role/databox-polaris-catalog-backup"
+                    },
+                  + {
+                      + Action   = [
+                          + "signin:AuthorizeOAuth2Access",
+                          + "signin:CreateOAuth2Token",
+                        ]
+                      + Effect   = "Allow"
+                      + Resource = "arn:aws:signin:us-west-1:734815189723:oauth2/public-client/remote"
+                    },
+                ]
+                # (1 unchanged attribute hidden)
+            }
+        )
+        # (2 unchanged attributes hidden)
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
