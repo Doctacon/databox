@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-04
 Updated: 2026-09-04
-Target: .10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md
+Target: .10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md
 Verdict: pass
 
 # Catalog protection repair review

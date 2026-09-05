@@ -2,7 +2,7 @@ Status: open
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
-Depends-On: .10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md, .10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md
+Depends-On: .10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md, .10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md
 
 # Build isolated Polaris catalog recovery drill
 
@@ -39,7 +39,7 @@ Provide deterministic offline tests using temporary local fixtures/fakes. Do not
 - `.10x/specs/iceberg-object-recovery.md`
 - `.10x/decisions/startup-only-catalog-backup-gate.md`
 - `.10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md`
-- `.10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md`
+- `.10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md`
 
 ## Evidence expectations
 

@@ -16,7 +16,7 @@ The host MUST obtain short-lived credentials for the dedicated catalog-backup ro
 
 The PostgreSQL image MUST NOT install AWS CLI or mount host AWS profiles, SSO caches, credential-process executables, or the whole `~/.aws` directory. pgBackRest MUST receive only its dedicated temporary backup credentials. Missing or partial values MUST fail the backup-readiness gate clearly.
 
-This change addresses credential delivery only. The separate recorded finding that ongoing backup failure must revoke protected operation remains unresolved and owned by `.10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md`.
+This change addresses credential delivery only. The separate recorded finding that ongoing backup failure must revoke protected operation remains unresolved and owned by `.10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md`.
 
 All other active recovery choices remain unchanged: one Compose file; fail-closed Polaris startup; pgBackRest; OpenTofu; separate same-account, same-region buckets; five-minute RPO while running; 60-minute RTO; 30-day catalog PITR; 45-day Iceberg recovery; and no live AWS apply before explicit plan approval.
 

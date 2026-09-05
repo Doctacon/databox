@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-04
 Updated: 2026-09-04
-Relates-To: .10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md
+Relates-To: .10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md
 
 # Catalog PostgreSQL image packaging proof
 
@@ -21,4 +21,4 @@ A disposable `docker run --rm --network none --user postgres` inspection observe
 
 ## Procedure and limits
 
-Build used `docker-compose -f compose.iceberg.yml build postgres` with inert placeholder interpolation values. Inspection used no network, volume, port, AWS/provider credential, stanza, WAL, backup, restore, or application service. Docker pulled public base/package artifacts and mutated only the local image/cache. This proves packaging, not repository access or recovery behavior.
+Build used `docker-compose -f compose.iceberg.yml build postgres` with inert placeholder interpolation values. The parent independently reproduced the image ID/architecture inspection and a disposable non-networked `postgres`-user check of both exact versions, installed files, executable scripts, and AWS CLI absence; it returned `packaging-ok`. Inspection used no network, volume, port, AWS/provider credential, stanza, WAL, backup, restore, or application service. Docker pulled public base/package artifacts and mutated only the local image/cache. This proves packaging, not repository access or recovery behavior.

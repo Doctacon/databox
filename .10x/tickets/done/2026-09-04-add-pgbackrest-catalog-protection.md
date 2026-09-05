@@ -1,4 +1,4 @@
-Status: active
+Status: done
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -70,7 +70,8 @@ Record exact rendered PostgreSQL/pgBackRest configuration, temporary-session inj
 - 2026-09-04: Retrospective: custom continuous monitors, separate catalog inventories, logical dumps, and unattended schedulers were removed in favor of standard pgBackRest/WAL mechanics, startup-driven cadence, and restore-time validation. Those lessons are already encoded in the active decision, specification, focused tests, and runbook; no additional knowledge or skill record is needed.
 - 2026-09-04: Reopened because static closure did not prove that the custom PostgreSQL image builds or contains the pinned pgBackRest binary. User requires local packaging proof before restore automation. This slice may build the image and inspect version/user/config only; it must not contact AWS, start the protected stack, create backups, or mutate volumes.
 - 2026-09-04: Local build exposed a real packaging defect: the current PostgreSQL Debian repository supplies pgBackRest 2.59.1, so the 2.55.1 exact-version assertion failed. Updated the explicit pin/image tag to 2.59.1, rebuilt successfully, and inspected image `sha256:719f95efb02fbeb825faca9cbc02d22b4607c93368e4e7fd1dcc9c0e6b7b9a96` in a disposable non-networked container as `postgres`. Evidence `.10x/evidence/2026-09-04-catalog-postgres-image-packaging.md` proves PostgreSQL 17.6, pgBackRest 2.59.1, installed config/scripts, wrapper syntax, readiness execution, and AWS CLI absence. No service, volume, port, AWS/provider call, stanza, WAL, backup, or restore ran.
+- 2026-09-04: Parent independently reproduced the image identity and non-networked packaging checks. The local packaging acceptance gap is closed; repository/WAL/backup proof remains intentionally separate and requires reviewed infrastructure.
 
 ## Blockers
 
-None for local image packaging. Repository/WAL/backup proof still requires the exact OpenTofu plan review and separately approved infrastructure.
+None for ticket closure. Repository/WAL/backup proof requires the exact OpenTofu plan review and separately approved infrastructure.
