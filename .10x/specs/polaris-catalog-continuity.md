@@ -22,7 +22,7 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 
 - One `compose.iceberg.yml` MUST remain the operator-visible runtime definition; separate normal and backup Compose modes MUST NOT be introduced.
 - PostgreSQL MAY start internally for recovery initialization, but Polaris, bootstrap-dependent catalog service, and writers MUST remain unavailable until the backup gate succeeds.
-- The gate MUST validate renewable credentials, repository access, stanza configuration, and a WAL archive round trip.
+- The gate MUST validate complete short-lived session credentials injected by the host, repository access, stanza configuration, and a WAL archive round trip.
 - A newly initialized catalog with no valid base backup MUST create and verify its initial backup before Polaris becomes available.
 - Missing, partial, expired, or invalid backup settings; repository failure; WAL failure; or missing required backup state MUST fail clearly. No bypass or silent unprotected mode is permitted.
 - Recovery environments MUST keep writers disabled and MUST NOT archive restored test history into the authoritative repository.
@@ -33,7 +33,8 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 - WAL archival configuration MUST force an archive opportunity at least every five minutes while PostgreSQL is running.
 - The repository MUST be a dedicated configurable AWS S3 bucket in `us-west-1` and MUST NOT be the primary Iceberg warehouse or Iceberg recovery bucket.
 - Repository contents MUST be encrypted client-side with a secret supplied outside tracked files. S3 transport and at-rest encryption MUST remain enabled.
-- Credentials MUST be renewable short-lived credentials obtained through a configured credential process. Long-lived access keys MUST NOT be required or documented as the normal path.
+- Credentials MUST be short-lived credentials for the dedicated catalog-backup role, obtained by the host and injected at runtime as a backup access key, secret key, and session token. Long-lived access keys MUST NOT be required or documented as the normal path.
+- The PostgreSQL image MUST NOT install AWS CLI or mount host AWS profiles, SSO caches, credential-process executables, or the complete `~/.aws` directory.
 - Backup scheduling MUST be explicit and observable. The intended policy is weekly full backups, daily differential backups, and continuous WAL archive.
 - pgBackRest configuration checks and repository verification MUST fail closed and surface actionable errors.
 - A periodic logical PostgreSQL export MUST be available as a secondary inspection/version-migration artifact and MUST be encrypted before durable storage. It MUST NOT be represented as PITR-capable.
@@ -74,11 +75,11 @@ Given missing, partial, expired, or invalid backup configuration or an unavailab
 
 ### Continuous archive
 
-Given a running local Polaris/PostgreSQL stack with valid renewable backup credentials, when catalog writes occur, then pgBackRest archives sufficient WAL to make any recovery point no more than five minutes old.
+Given a running local Polaris/PostgreSQL stack with valid short-lived backup session credentials, when catalog writes occur, then pgBackRest archives sufficient WAL to make any recovery point no more than five minutes old.
 
 ### Credential expiry
 
-Given expired or unavailable renewable credentials, when WAL archival or backup runs, then it fails visibly and does not fall back to long-lived embedded credentials.
+Given expired or unavailable injected session credentials, when WAL archival or backup runs, then it fails visibly and does not fall back to host profiles, credential brokers, or long-lived embedded credentials.
 
 ### Point-in-time restore
 

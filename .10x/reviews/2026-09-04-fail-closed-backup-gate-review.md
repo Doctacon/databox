@@ -8,7 +8,7 @@ Verdict: concerns
 
 ## Target
 
-Commit `8c54a59` against `.10x/decisions/fail-closed-polaris-backup-gate.md` and `.10x/specs/polaris-catalog-continuity.md`.
+Commit `8c54a59` against `.10x/decisions/superseded/fail-closed-polaris-backup-gate.md` and `.10x/specs/polaris-catalog-continuity.md`.
 
 ## Findings
 
