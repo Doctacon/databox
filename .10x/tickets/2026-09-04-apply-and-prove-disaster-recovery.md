@@ -44,7 +44,8 @@ Record the approved plan hash/summary, apply result, resource identities without
 
 - 2026-09-04: Opened as the durable owner for live rollout and proof. The user authorized automation first, not live AWS mutation.
 - 2026-09-04: User authorized generating a non-mutating plan with the default AWS profile, current caller as operator, existing `.env` primary bucket/writer role, and primary-derived recovery bucket names. Preflight `aws sts get-caller-identity --profile default` failed with `InvalidClientTokenId`; execution stopped before writing tfvars, initializing providers, generating a plan, or mutating AWS.
+- 2026-09-04: User authenticated profile `databox-debug` and approved it as the replacement plan profile. Plan evidence `.10x/evidence/2026-09-04-recovery-opentofu-plan.md` records binary hash `7698bf7f60cd0d250d7e13c880265ec15663e26ff6e39b4cc6de7b2c79970922`, exact text, concrete inputs, and 18 create / 0 change / 0 destroy. No apply ran. Review found that the existing primary bucket has no replication configuration to overwrite, but also has no enabled versioning; the plan does not enable source versioning and is expected to fail replication creation. Root operator trust is also a prominent review risk.
 
 ## Blockers
 
-Plan generation is blocked because the selected default AWS profile has invalid credentials. After authentication, automation verification and explicit approval of the exact plan still precede any live apply.
+Do not approve or apply the generated plan. Repair missing primary-bucket versioning management, decide whether root operator trust is acceptable, regenerate the exact plan, complete automation verification, and obtain explicit approval before any live apply.
