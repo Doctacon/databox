@@ -20,7 +20,7 @@ Iceberg table snapshots remain the mechanism for logical rollback while their ob
 
 The 45-day Iceberg object-recovery objective is removed. The 60-minute RTO applies only to catalog recovery when the primary Iceberg warehouse remains readable; it is not guaranteed for complete warehouse loss or source re-ingestion. The five-minute catalog RPO and 30-day catalog PITR objectives remain unchanged.
 
-The exact plan recorded at `.10x/evidence/2026-09-04-recovery-opentofu-plan.md` MUST NOT be applied. It is historical evidence of a rejected architecture and is invalidated by this decision. A repaired catalog-only OpenTofu plan requires fresh generation, hash, review, and explicit approval before apply.
+The exact plans recorded at `.10x/evidence/2026-09-04-recovery-opentofu-plan.md` and `.10x/evidence/2026-09-04-catalog-only-recovery-opentofu-plan.md` MUST NOT be applied. They are historical evidence invalidated respectively by this decision and the later TLS-enforcement repair. The current TLS-enforced catalog-only plan is recorded at `.10x/evidence/2026-09-04-catalog-only-tls-recovery-opentofu-plan.md`; it still requires independent review and explicit approval before apply.
 
 Because the current AWS login identifies as account root and no non-root operator identity exists, root MAY be used only for the initial reviewed bootstrap apply. Runtime pgBackRest credentials MUST come from the created least-privilege `databox-polaris-catalog-backup` role and MUST never be root credentials. After a separately approved apply and role-access verification, the root CLI session MUST be logged out. Root trust SHOULD be replaced when a non-root operator identity is established.
 
