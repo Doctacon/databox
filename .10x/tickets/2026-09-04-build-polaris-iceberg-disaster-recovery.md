@@ -8,17 +8,18 @@ Depends-On: None
 
 ## Aggregate outcome
 
-Deliver reviewable, tested automation for the ratified Polaris catalog and Iceberg object recovery architecture, then separately provision and prove it only after explicit approval of the OpenTofu plan.
+Deliver reviewable, tested automation for Polaris catalog PITR while retaining Iceberg snapshot rollback and source-driven warehouse rebuild, then separately provision and prove catalog recovery only after explicit approval of a catalog-only OpenTofu plan.
 
 ## Child plan
 
 1. `.10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md` — add OpenTofu for the two same-account, same-region buckets, retention, replication, and least-privilege IAM. Can begin immediately.
 2. `.10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md` — completed pgBackRest, host-injected temporary credentials, startup cadence, backup/check commands, tests, and local image packaging proof.
-3. `.10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md` — add fail-closed PITR restore and Iceberg/catalog validation after children 1 and 2 establish inputs.
-4. `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md` — adversarially review and verify the complete non-live automation and documentation.
-5. `.10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md` — blocked live rollout and timed restore proof; begins only after the user reviews the OpenTofu plan and explicitly authorizes AWS mutation.
+3. `.10x/tickets/2026-09-04-simplify-recovery-infrastructure-to-catalog-only.md` — remove the rejected Iceberg replication plane and generate a fresh catalog-only plan.
+4. `.10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md` — add fail-closed catalog PITR restore and conventional validation when the primary warehouse remains readable.
+5. `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md` — adversarially review and verify the complete non-live catalog automation and documentation.
+6. `.10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md` — blocked live rollout and timed catalog-restore proof; begins only after the user reviews the replacement OpenTofu plan and explicitly authorizes AWS mutation.
 
-Children 1 and 2 are parallelizable in isolated worktrees. Child 3 depends on both. Child 4 depends on the first three. Child 5 depends on verified automation and separate authorization.
+Child 3 supersedes the Iceberg portions of child 1. Catalog restore work follows the catalog-only infrastructure contract. Final verification precedes the live child, which also requires separate plan approval.
 
 ## Integration points
 
@@ -30,7 +31,7 @@ Children 1 and 2 are parallelizable in isolated worktrees. Child 3 depends on bo
 
 ## Aggregate acceptance criteria
 
-- Repository automation covers both PostgreSQL catalog PITR and Iceberg object recovery without long-lived credentials.
+- Repository automation covers PostgreSQL catalog PITR without long-lived credentials; Iceberg object loss is explicitly rebuilt from sources rather than represented as independently backed up.
 - Non-live validation is hermetic and does not mutate AWS or current local data.
 - The generated OpenTofu plan is reviewable before apply and contains no secret values.
 - Recovery defaults to an isolated empty target and cannot overwrite the active catalog.
@@ -51,7 +52,8 @@ Children 1 and 2 are parallelizable in isolated worktrees. Child 3 depends on bo
 - `.10x/research/2026-09-04-polaris-iceberg-disaster-recovery.md`
 - `.10x/decisions/startup-only-catalog-backup-gate.md`
 - `.10x/specs/polaris-catalog-continuity.md`
-- `.10x/specs/iceberg-object-recovery.md`
+- `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`
+- `.10x/specs/superseded/iceberg-object-recovery.md`
 - `docs/adr/0008-polaris-iceberg-raw-authority.md`
 
 ## Progress and notes
@@ -64,6 +66,7 @@ Children 1 and 2 are parallelizable in isolated worktrees. Child 3 depends on bo
 - 2026-09-04: User rejected continuous backup monitoring and per-write blocking as overkill. The startup gate plus standard pgBackRest WAL archiving, startup-driven physical-backup cadence, manual maintenance commands, and restore drills is authoritative; five-minute RPO is an objective only while archiving is healthy.
 - 2026-09-04: User ratified lifecycle-driven scheduling because the local Compose stack is expected to restart reasonably often: the startup gate applies daily differential and weekly full age thresholds, while no cron or host scheduler is added.
 - 2026-09-04: Catalog-protection child 2 passed independent static repair review, then reopened for local image-build and pinned-binary proof. That proof passed; AWS repository/WAL/backup proof remains separately gated.
+- 2026-09-04: User rejected the Iceberg recovery bucket and S3 replication after clarifying that it duplicates warehouse storage and requires primary-bucket versioning. Warehouse loss now uses source rebuild; 45-day object recovery is removed and the 60-minute RTO applies only when the primary warehouse remains readable. The 18-create plan is invalid and must not be applied.
 
 ## Blockers
 

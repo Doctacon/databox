@@ -8,11 +8,11 @@ Depends-On: .10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md, .10x
 
 ## Scope
 
-Adversarially review the integrated OpenTofu, pgBackRest, credential delivery, registry-derived restore validation, restore safety, Iceberg recovery, tests, and operator documentation. Repair only findings within the ratified automation-first scope, record evidence and review, and prepare the exact non-secret OpenTofu plan/apply inputs for user review.
+Adversarially review the integrated catalog-only OpenTofu, pgBackRest, credential delivery, registry-derived restore validation, restore safety, source-rebuild boundary, tests, and operator documentation. Repair only findings within the ratified automation-first scope, record evidence and review, and prepare the exact non-secret OpenTofu plan/apply inputs for user review.
 
 ## Acceptance criteria
 
-- Every criterion in `.10x/specs/polaris-catalog-continuity.md` and `.10x/specs/iceberg-object-recovery.md` is mapped to code, tests, documentation, or an explicitly blocked live-proof criterion.
+- Every criterion in `.10x/specs/polaris-catalog-continuity.md` and `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md` is mapped to code, tests, documentation, or an explicitly blocked live-proof criterion.
 - OpenTofu formatting/validation and policy-focused tests pass.
 - Compose rendering and all focused backup/restore tests pass without credentials or network side effects.
 - Full `task ci`, strict docs, secret scan, generated-file checks, and diff checks pass.
@@ -31,7 +31,7 @@ Adversarially review the integrated OpenTofu, pgBackRest, credential delivery, r
 
 - `.10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md`
 - `.10x/specs/polaris-catalog-continuity.md`
-- `.10x/specs/iceberg-object-recovery.md`
+- `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`
 
 ## Evidence expectations
 

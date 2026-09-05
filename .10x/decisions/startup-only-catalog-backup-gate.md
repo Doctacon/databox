@@ -20,7 +20,7 @@ Databox MUST NOT add a custom continuous backup-health monitor, proxy, PostgreSQ
 
 Temporary credential expiry or a later repository outage MAY cause WAL archival and scheduled backup commands to fail without automatically shutting down Polaris or blocking every catalog write. The five-minute RPO is therefore an objective while WAL archival is healthy, not a synchronous write guarantee during an undetected or unresolved archive outage. Documentation and evidence MUST state this limit plainly.
 
-All other recovery choices remain unchanged: one Compose file; pgBackRest with the intentionally fixed catalog repository path `/polaris`; host-injected short-lived dedicated backup credentials; OpenTofu; separate same-account and same-region backup buckets; 30-day catalog PITR; 45-day Iceberg recovery history; 60-minute RTO objective; and no live AWS apply before explicit plan approval.
+All catalog-recovery choices remain unchanged: one Compose file; pgBackRest with the intentionally fixed catalog repository path `/polaris`; host-injected short-lived dedicated backup credentials; OpenTofu; a same-account and same-region catalog-backup bucket; 30-day catalog PITR; a 60-minute catalog RTO while the primary warehouse remains readable; and no live AWS apply before explicit plan approval. Iceberg object recovery is separately superseded by `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`.
 
 ## Alternatives considered
 
