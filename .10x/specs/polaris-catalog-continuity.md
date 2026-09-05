@@ -33,13 +33,12 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 
 - PostgreSQL MUST use pgBackRest physical backups and continuous WAL archiving.
 - WAL archival configuration MUST force an archive opportunity at least every five minutes while PostgreSQL is running.
-- The repository MUST be a dedicated configurable AWS S3 bucket in `us-west-1` and MUST NOT be the primary Iceberg warehouse or Iceberg recovery bucket.
+- The repository MUST be a dedicated configurable AWS S3 bucket in `us-west-1`, MUST use the intentionally fixed `repo1-path=/polaris`, and MUST NOT be the primary Iceberg warehouse or Iceberg recovery bucket.
 - Repository contents MUST be encrypted client-side with a secret supplied outside tracked files. S3 transport and at-rest encryption MUST remain enabled.
 - Credentials MUST be short-lived credentials for the dedicated catalog-backup role, obtained by the host and injected at runtime as a backup access key, secret key, and session token. Long-lived access keys MUST NOT be required or documented as the normal path.
 - The PostgreSQL image MUST NOT install AWS CLI or mount host AWS profiles, SSO caches, credential-process executables, or the complete `~/.aws` directory.
 - The local stack is assumed to restart reasonably often. Its startup gate MUST apply the weekly-full/daily-differential cadence using repository timestamps; manual full, differential, check, and info commands MUST remain available for unusually long-running sessions.
 - pgBackRest configuration checks and repository metadata verification MUST fail closed and surface actionable errors. Only an isolated restore drill may be represented as end-to-end recovery proof.
-- A periodic logical PostgreSQL export MUST be available as a secondary inspection/version-migration artifact and MUST be encrypted before durable storage. It MUST NOT be represented as PITR-capable.
 - Retention MUST preserve every physical backup dependency and WAL segment required for the 30-day PITR window.
 
 ## Restore validation

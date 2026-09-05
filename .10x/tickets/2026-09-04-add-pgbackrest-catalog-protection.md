@@ -19,7 +19,7 @@ Keep graph construction and ordinary credential-free CI hermetic. Backup command
 - Missing, partial, expired, or invalid backup configuration and any failed backup prerequisite keep Polaris unavailable with a clear diagnostic; no bypass is accepted.
 - PostgreSQL and pgBackRest versions are explicit and compatible; local/remote pgBackRest command paths cannot silently diverge.
 - WAL archive uses pgBackRest and a PostgreSQL archive timeout no greater than 300 seconds.
-- Repository configuration accepts dedicated bucket/region/path inputs and host-injected temporary backup access key, secret key, and session token; no long-lived access key is required.
+- Repository configuration accepts dedicated bucket/region inputs, uses the intentionally fixed `repo1-path=/polaris`, and accepts host-injected temporary backup access key, secret key, and session token; no long-lived access key is required.
 - The PostgreSQL image contains no AWS CLI and mounts no host AWS profile, SSO cache, credential-process executable, or whole `~/.aws` directory.
 - Client-side encryption requires an external secret and fails closed when absent at a real backup boundary.
 - The startup gate uses repository timestamps to run a full backup when no successful full exists or the newest full is at least seven days old, a differential when the newest successful backup is at least 24 hours old, and no unnecessary backup otherwise; it verifies any requested backup in fresh repository metadata.
@@ -65,7 +65,8 @@ Record exact rendered PostgreSQL/pgBackRest configuration, temporary-session inj
 - 2026-09-04: User rejected a separately maintained pre-disaster catalog inventory in favor of conventional restore validation. Inventory implementation is removed from this ticket; the isolated restore ticket owns enumeration, source-registry comparison, table loading, S3 metadata/snapshot readability, representative queries, and temporal drill evidence.
 - 2026-09-04: User removed the secondary encrypted logical export as redundant. Physical pgBackRest backup plus WAL/PITR is the sole catalog backup mechanism; version-pinned isolated restore drills prove it. No `pg_dump` scheduling, encryption, retention, or restore path will be added.
 - 2026-09-04: Final independent static review `.10x/reviews/2026-09-04-catalog-protection-final-static-review.md` raised four closure findings: one stale logical-export MUST, manual Task commands likely running pgBackRest as root, repository-path configurability conflicting with the fixed `/polaris` configuration, and absent focused coverage for a missing encryption secret.
+- 2026-09-04: Repaired all four static-review findings: removed the stale logical-export MUST; made all manual pgBackRest Tasks select the `postgres` user; ratified fixed `repo1-path=/polaris`; and added focused missing-cipher/redaction plus Task-user/path coverage. Focused hermetic tests and static checks pass without Docker, AWS, backup, restore, provider, or volume activity.
 
 ## Blockers
 
-Resolve the four findings in `.10x/reviews/2026-09-04-catalog-protection-final-static-review.md` before closure. Live repository checks, the real image build, and the pgBackRest/WAL/initial-backup round trip require provisioned infrastructure and belong to the live apply/proof ticket.
+None for static implementation scope; ready for focused independent re-review and closure. Live repository checks, the real image build, and the pgBackRest/WAL/initial-backup round trip require provisioned infrastructure and belong to the live apply/proof ticket.

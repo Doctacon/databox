@@ -60,16 +60,18 @@ def test_drill_metrics_do_not_claim_objectives() -> None:
 @pytest.mark.parametrize(
     "missing_name",
     (
+        "PGBACKREST_REPO1_CIPHER_PASS",
         "PGBACKREST_REPO1_S3_KEY",
         "PGBACKREST_REPO1_S3_KEY_SECRET",
         "PGBACKREST_REPO1_S3_TOKEN",
     ),
 )
-def test_readiness_gate_rejects_missing_temporary_credential(missing_name: str) -> None:
+def test_readiness_gate_rejects_missing_backup_secret(missing_name: str) -> None:
     env = {name: value for name, value in _BACKUP_ENV.items() if name != missing_name}
     with patch.dict(readiness.os.environ, env, clear=True):
-        with pytest.raises(readiness.ReadinessError, match=missing_name):
+        with pytest.raises(readiness.ReadinessError, match=missing_name) as error:
             readiness.ensure_catalog_backup_ready()
+    assert all(value not in str(error.value) for value in env.values())
 
 
 def test_pgbackrest_wrapper_rejects_partial_credentials_without_printing_values() -> None:
@@ -236,3 +238,10 @@ def test_pgbackrest_contract_has_fail_closed_gate_archive_and_retention() -> Non
     assert "credential-process" not in dockerfile
     assert "awscli" not in dockerfile.lower()
     assert "PGBACKREST_REPO1_S3_TOKEN" in run_pgbackrest
+
+
+def test_manual_pgbackrest_tasks_run_as_postgres_with_fixed_repository_path() -> None:
+    taskfile = (ROOT / "Taskfile.yaml").read_text()
+    config = (ROOT / "infra/recovery/pgbackrest.conf.example").read_text()
+    assert taskfile.count("exec --user postgres postgres /usr/local/bin/run-pgbackrest") == 4
+    assert "repo1-path=/polaris" in config

@@ -104,8 +104,10 @@ dedicated catalog-backup role and set `DATABOX_BACKUP_AWS_ACCESS_KEY_ID`,
 `DATABOX_BACKUP_AWS_SESSION_TOKEN`. Configure the OpenTofu catalog-backup
 output and `PGBACKREST_REPO1_CIPHER_PASS`; never commit or log these runtime
 secrets. The PostgreSQL image does not install AWS CLI or mount host AWS
-profiles. Run `task catalog:backup-check` before the weekly
-`catalog:backup-full` or daily `catalog:backup-diff`, and inspect `task catalog:backup-info` after each run.
+profiles. The pgBackRest repository path is intentionally fixed at `/polaris`.
+Run `task catalog:backup-check` before the weekly `catalog:backup-full` or daily
+`catalog:backup-diff`, and inspect `task catalog:backup-info` after each run. All
+four manual commands execute pgBackRest as the container's `postgres` user.
 These commands are not scheduled automatically and do not prove the recovery
 objectives.
 

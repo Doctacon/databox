@@ -70,16 +70,16 @@ tasks:
       - "./scripts/operations/run-logged.sh verify -- {{.VENV_DIR}}/bin/python scripts/sources/load_dlt_iceberg.py"
   catalog:backup-check:
     desc: "Validate pgBackRest stanza and WAL archive configuration"
-    cmds: ["docker compose --env-file .env -f compose.iceberg.yml exec postgres /usr/local/bin/run-pgbackrest --stanza=polaris check"]
+    cmds: ["docker compose --env-file .env -f compose.iceberg.yml exec --user postgres postgres /usr/local/bin/run-pgbackrest --stanza=polaris check"]
   catalog:backup-full:
     desc: "Create the weekly full Polaris catalog backup"
-    cmds: ["docker compose --env-file .env -f compose.iceberg.yml exec postgres /usr/local/bin/run-pgbackrest --stanza=polaris --type=full backup"]
+    cmds: ["docker compose --env-file .env -f compose.iceberg.yml exec --user postgres postgres /usr/local/bin/run-pgbackrest --stanza=polaris --type=full backup"]
   catalog:backup-diff:
     desc: "Create the daily differential Polaris catalog backup"
-    cmds: ["docker compose --env-file .env -f compose.iceberg.yml exec postgres /usr/local/bin/run-pgbackrest --stanza=polaris --type=diff backup"]
+    cmds: ["docker compose --env-file .env -f compose.iceberg.yml exec --user postgres postgres /usr/local/bin/run-pgbackrest --stanza=polaris --type=diff backup"]
   catalog:backup-info:
     desc: "Inspect pgBackRest backup and WAL state"
-    cmds: ["docker compose --env-file .env -f compose.iceberg.yml exec postgres /usr/local/bin/run-pgbackrest --stanza=polaris info"]
+    cmds: ["docker compose --env-file .env -f compose.iceberg.yml exec --user postgres postgres /usr/local/bin/run-pgbackrest --stanza=polaris info"]
 
   dagster:dev:
     desc: "Launch the local Dagster UI for Polaris Iceberg pipelines"
