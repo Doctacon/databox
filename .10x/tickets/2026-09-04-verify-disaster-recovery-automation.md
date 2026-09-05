@@ -2,7 +2,7 @@ Status: open
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
-Depends-On: .10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md, .10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md, .10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md
+Depends-On: .10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md, .10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md, .10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md
 
 # Verify disaster-recovery automation
 

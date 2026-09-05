@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -66,7 +66,9 @@ Record exact rendered PostgreSQL/pgBackRest configuration, temporary-session inj
 - 2026-09-04: User removed the secondary encrypted logical export as redundant. Physical pgBackRest backup plus WAL/PITR is the sole catalog backup mechanism; version-pinned isolated restore drills prove it. No `pg_dump` scheduling, encryption, retention, or restore path will be added.
 - 2026-09-04: Final independent static review `.10x/reviews/2026-09-04-catalog-protection-final-static-review.md` raised four closure findings: one stale logical-export MUST, manual Task commands likely running pgBackRest as root, repository-path configurability conflicting with the fixed `/polaris` configuration, and absent focused coverage for a missing encryption secret.
 - 2026-09-04: Repaired all four static-review findings: removed the stale logical-export MUST; made all manual pgBackRest Tasks select the `postgres` user; ratified fixed `repo1-path=/polaris`; and added focused missing-cipher/redaction plus Task-user/path coverage. Focused hermetic tests and static checks pass without Docker, AWS, backup, restore, provider, or volume activity.
+- 2026-09-04: Independent repair review `.10x/reviews/2026-09-04-catalog-protection-repair-review.md` passed with no findings. Parent-observed evidence `.10x/evidence/2026-09-04-catalog-protection-static-validation.md` records 22 focused tests, Ruff, formatting, focused MyPy, secret scan, Compose rendering/structure, diff, and clean-worktree results. Every static acceptance criterion is supported; live behavior remains owned by the live apply/proof and isolated-restore tickets.
+- 2026-09-04: Retrospective: custom continuous monitors, separate catalog inventories, logical dumps, and unattended schedulers were removed in favor of standard pgBackRest/WAL mechanics, startup-driven cadence, and restore-time validation. Those lessons are already encoded in the active decision, specification, focused tests, and runbook; no additional knowledge or skill record is needed.
 
 ## Blockers
 
-None for static implementation scope; ready for focused independent re-review and closure. Live repository checks, the real image build, and the pgBackRest/WAL/initial-backup round trip require provisioned infrastructure and belong to the live apply/proof ticket.
+None for static implementation closure. Live repository checks, the real image build, and the pgBackRest/WAL/initial-backup round trip require provisioned infrastructure and remain owned by the live apply/proof ticket.
