@@ -77,6 +77,11 @@ data "aws_iam_policy_document" "operator_assume" {
       type        = "AWS"
       identifiers = [aws_iam_user.recovery_operator.arn]
     }
+    condition {
+      test     = "Bool"
+      variable = "aws:MultiFactorAuthPresent"
+      values   = ["true"]
+    }
   }
 }
 

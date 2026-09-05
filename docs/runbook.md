@@ -80,7 +80,11 @@ declares the console-only `databox-recovery-operator` user without an access
 key, login profile, password, or MFA seed, plus permission only to assume the
 bucket-scoped catalog-backup role. After its separately reviewed apply, root
 must manually enable console access and MFA for that user; passwords, recovery
-codes, and MFA secrets must never enter OpenTofu configuration or state.
+codes, and MFA secrets must never enter OpenTofu configuration or state. The
+human then uses `aws login` for the operator source profile and an AWS CLI role
+profile configured with `role_arn`, `source_profile`, and `mfa_serial`. The
+human enters MFA when calling `AssumeRole`; AWS returns ordinary short-lived
+role credentials for host injection, and pgBackRest never receives MFA data.
 
 Review only—these commands do not apply infrastructure:
 

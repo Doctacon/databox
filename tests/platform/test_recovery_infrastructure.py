@@ -75,6 +75,8 @@ def test_recovery_operator_is_console_only_and_may_only_assume_backup_role() -> 
     assert 'Action   = ["sts:AssumeRole"]' in main
     assert "Resource = aws_iam_role.catalog_backup.arn" in main
     assert "identifiers = [aws_iam_user.recovery_operator.arn]" in main
+    assert 'variable = "aws:MultiFactorAuthPresent"' in main
+    assert 'values   = ["true"]' in main
     assert 'output "recovery_operator_user_arn"' in outputs
     assert "aws_iam_access_key" not in main
     assert "aws_iam_user_login_profile" not in main
