@@ -14,7 +14,7 @@ After explicit user approval of a fresh catalog-only OpenTofu plan, apply only t
 
 - The user reviews and explicitly approves the exact non-secret OpenTofu plan before apply.
 - Apply creates only the reviewed same-account, `us-west-1` resources and policies.
-- Local state is preserved at `infra/recovery/terraform.tfstate` on the FileVault-protected host and its encrypted machine backup.
+- Local state is preserved at `infra/recovery/terraform.tfstate`, Git-ignored and mode `0600` on the FileVault-protected host; if lost, every live resource is recovered through reviewed imports before further planning.
 - OpenTofu creates `databox-recovery-operator` without access keys or login-profile secrets, grants only assumption of the catalog-backup role, and restricts that role's trust to the exact user ARN. Console access/password and MFA enrollment remain manual and never enter state.
 - Root is used only for reviewed bootstrap/repair applies and role-access verification, then logged out; Compose receives only short-lived catalog-backup-role credentials.
 - pgBackRest stanza check, first full backup, WAL archive check, and repository verification/info complete successfully.
@@ -38,7 +38,7 @@ After explicit user approval of a fresh catalog-only OpenTofu plan, apply only t
 
 ## Evidence expectations
 
-Record the approved replacement catalog-only plan hash/summary, durable local-state location and backup confirmation, apply result, resource identities without secrets, root logout, assumed-role identity, backup/WAL status, and remaining same-account/same-region risk.
+Record the approved replacement catalog-only plan hash/summary, local-state path/mode/lineage, apply result, resource identities without secrets, root logout, assumed-role identity, backup/WAL status, and remaining same-account/same-region risk.
 
 ## Progress and notes
 
@@ -61,7 +61,8 @@ Record the approved replacement catalog-only plan hash/summary, durable local-st
 - 2026-09-04: Manual console access plus passkey and TOTP enrollment succeeded, but live `aws login --remote` exposed that the assume-only user policy omitted AWS's required OAuth actions. The user ratified exactly `signin:AuthorizeOAuth2Access` and `signin:CreateOAuth2Token` on `arn:aws:signin:us-west-1:734815189723:oauth2/public-client/remote`. Evidence `.10x/evidence/2026-09-04-recovery-operator-login-repair-plan.md` records lineage-safe plan hash `276b5ad36a1a6a13577a2b4b9a3e985c0e0ff1d0fe41340ec61221860f945f45`, 0 add / 1 user-policy update / 0 destroy, and no role or bucket changes.
 - 2026-09-04: User explicitly approved and exact-plan apply succeeded: 0 added / 1 changed / 0 destroyed. Evidence `.10x/evidence/2026-09-04-recovery-operator-login-repair-apply.md` proves the exact scoped sign-in and AssumeRole permissions, unchanged exact-user/MFA role trust, state serial `4`/mode `0600`, active root, and no bucket action or S3 operation.
 - 2026-09-04: Live operator proof succeeded. Evidence `.10x/evidence/2026-09-04-recovery-operator-live-role-proof.md` records exact non-root source identity, human-MFA-protected backup-role assumption, successful read-only access to only the backup bucket, expected denial of account-wide bucket listing, root CLI logout, and continued operator-role usability. The human must separately close any root browser session.
+- 2026-09-04: The user accepted FileVault-only local state and manual reviewed imports after state loss. `.10x/decisions/filevault-only-local-opentofu-state.md` supersedes the prior encrypted-machine-backup requirement; no Time Machine or second state copy is required.
 
 ## Blockers
 
-The human must close the root AWS Console browser session and confirm `infra/recovery/terraform.tfstate` is included in the encrypted machine backup. Separate authorization remains required before injecting role credentials into Compose and running repository, WAL, or physical-backup proof.
+The human must close the root AWS Console browser session. Separate authorization remains required before injecting role credentials into Compose and running repository, WAL, or physical-backup proof.

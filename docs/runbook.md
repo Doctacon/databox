@@ -105,12 +105,12 @@ authorized. OpenTofu does not manage or mutate the primary Iceberg bucket.
 
 OpenTofu state is intentionally local and operator-owned at
 `infra/recovery/terraform.tfstate`; always run init, plan, apply, and import from
-`infra/recovery/`. The state and backup files are ignored by Git, must remain on
-the FileVault-protected host, and must be included in the operator's normal
-encrypted machine backup. Project cleanup commands must never delete them. If
-state is lost, stop all changes, restore the encrypted backup first, or use
-reviewed `tofu import` commands for each existing resource before planning;
-never recreate or apply over untracked live resources.
+`infra/recovery/`. State and plan files are ignored by Git, and state must remain
+mode `0600` on the FileVault-protected host. A second backup copy is not required;
+the operator accepts manual state reconstruction after disk loss. Project cleanup
+commands must never delete these files. If state is lost, stop all changes and
+use reviewed `tofu import` commands for every existing resource, followed by a
+reviewed refresh-only plan; never recreate or apply over untracked live resources.
 
 ## Catalog backup and recovery preparation
 

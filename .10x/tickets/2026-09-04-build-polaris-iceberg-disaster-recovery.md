@@ -69,7 +69,8 @@ Child 3 supersedes the Iceberg portions of child 1. Live child 4 requires separa
 - 2026-09-04: Catalog-protection child 2 passed independent static repair review, then reopened for local image-build and pinned-binary proof. That proof passed; AWS repository/WAL/backup proof remains separately gated.
 - 2026-09-04: User rejected the Iceberg recovery bucket and S3 replication after clarifying that it duplicates warehouse storage and requires primary-bucket versioning. Warehouse loss now uses source rebuild; 45-day object recovery is removed and the 60-minute RTO applies only when the primary warehouse remains readable. The 18-create plan is invalid and must not be applied.
 - 2026-09-04: User ratified proof-first sequencing and local state ownership. Exact-plan approval precedes provisioning and first real backup/WAL proof; restore automation follows that proof. State remains at `infra/recovery/terraform.tfstate` on the FileVault host and encrypted machine backup, never under project cleanup.
+- 2026-09-04: User later superseded only the encrypted-machine-backup requirement. `.10x/decisions/filevault-only-local-opentofu-state.md` accepts FileVault-only local state and reviewed manual imports after state loss.
 
 ## Blockers
 
-None for automation children 1–4. Child 5 is intentionally blocked pending review of the generated OpenTofu plan and explicit live-apply authorization.
+Child 5 remains active pending root browser logout and separate authorization for the real repository, WAL, and physical-backup proof.
