@@ -60,6 +60,7 @@ Children 1 and 2 are parallelizable in isolated worktrees. Child 3 depends on bo
 - 2026-09-04: User ratified one-Compose fail-closed operation: Polaris and writers remain unavailable unless pgBackRest repository, credentials, WAL archival, and required base backup are healthy. Optional unprotected startup is superseded.
 - 2026-09-04: User selected host-injected short-lived backup session credentials instead of AWS CLI/profile mounting or a credential broker inside PostgreSQL.
 - 2026-09-04: User rejected a separately maintained pre-disaster catalog inventory and selected conventional restore validation: restore the catalog in isolation, derive expected tables from the corresponding source-registry revision, enumerate and load restored tables, verify S3 metadata/snapshots and representative queries, and record temporal drill evidence.
+- 2026-09-04: User removed the secondary encrypted logical dump as redundant; pgBackRest physical backup plus WAL/PITR is the sole catalog backup mechanism.
 - 2026-09-04: User rejected continuous backup monitoring and per-write blocking as overkill. The startup gate plus standard pgBackRest WAL archiving, startup-driven physical-backup cadence, manual maintenance commands, and restore drills is authoritative; five-minute RPO is an objective only while archiving is healthy.
 - 2026-09-04: User ratified lifecycle-driven scheduling because the local Compose stack is expected to restart reasonably often: the startup gate applies daily differential and weekly full age thresholds, while no cron or host scheduler is added.
 

@@ -8,7 +8,7 @@ Depends-On: None
 
 ## Scope
 
-Integrate a pinned pgBackRest runtime with the existing PostgreSQL 17.6 Compose service. Keep one `compose.iceberg.yml` and require a successful backup-readiness gate before Polaris becomes available. Configure encrypted S3 repository access through host-injected short-lived backup session credentials, continuous WAL archive with a maximum five-minute archive opportunity, startup-driven weekly full/daily differential cadence, retention for 30-day PITR, configuration/repository checks, a secondary encrypted logical export, and operator commands.
+Integrate a pinned pgBackRest runtime with the existing PostgreSQL 17.6 Compose service. Keep one `compose.iceberg.yml` and require a successful backup-readiness gate before Polaris becomes available. Configure encrypted S3 repository access through host-injected short-lived backup session credentials, continuous WAL archive with a maximum five-minute archive opportunity, startup-driven weekly full/daily differential cadence, retention for 30-day PITR, configuration/repository checks, and operator commands.
 
 Keep graph construction and ordinary credential-free CI hermetic. Backup commands may require configured infrastructure, but importing settings, building Compose configuration, and running unit/static tests must not contact AWS or mutate local warehouse state.
 
@@ -23,7 +23,7 @@ Keep graph construction and ordinary credential-free CI hermetic. Backup command
 - The PostgreSQL image contains no AWS CLI and mounts no host AWS profile, SSO cache, credential-process executable, or whole `~/.aws` directory.
 - Client-side encryption requires an external secret and fails closed when absent at a real backup boundary.
 - The startup gate uses repository timestamps to run a full backup when no successful full exists or the newest full is at least seven days old, a differential when the newest successful backup is at least 24 hours old, and no unnecessary backup otherwise; it verifies any requested backup in fresh repository metadata.
-- Commands exist for stanza initialization/check, manual full backup, manual differential backup, repository verification/info, and encrypted logical export.
+- Commands exist for stanza initialization/check, manual full backup, manual differential backup, and repository verification/info.
 - Retention configuration preserves physical backup dependencies and WAL for the complete 30-day PITR window.
 - Backup failure and stale archive state are legible to the operator.
 - Tests cover absent/partial temporary backup credentials, missing session token, missing encryption secret, archive configuration, retention, no-I/O construction, and secret redaction.
@@ -63,7 +63,8 @@ Record exact rendered PostgreSQL/pgBackRest configuration, temporary-session inj
 - 2026-09-04: User ratified startup-driven cadence because the local stack is expected to restart reasonably often: full when absent or at least seven days old, differential when the newest backup is at least 24 hours old, otherwise no backup. No cron or host scheduler is required; manual tasks cover unusually long-running sessions. Repository checks and fresh metadata prove command/repository state, while only a restore drill proves recoverability.
 - 2026-09-04: Implemented the startup cadence in the existing one-shot gate. It validates pgBackRest stanza/backup JSON, tolerates the expected no-valid-backups status for initialization, uses successful backup stop timestamps at exact daily/weekly boundaries, and requires a new successful backup label of the requested type in fresh post-command metadata. Focused hermetic tests cover full/differential selection, boundaries, skip, malformed metadata, and rejection of stale post-backup metadata. No Docker, AWS/provider, backup/restore, volume, scheduler, or apply operation ran. The ticket remains open for encrypted logical export and live proof.
 - 2026-09-04: User rejected a separately maintained pre-disaster catalog inventory in favor of conventional restore validation. Inventory implementation is removed from this ticket; the isolated restore ticket owns enumeration, source-registry comparison, table loading, S3 metadata/snapshot readability, representative queries, and temporal drill evidence.
+- 2026-09-04: User removed the secondary encrypted logical export as redundant. Physical pgBackRest backup plus WAL/PITR is the sole catalog backup mechanism; version-pinned isolated restore drills prove it. No `pg_dump` scheduling, encryption, retention, or restore path will be added.
 
 ## Blockers
 
-The three findings in `.10x/reviews/2026-09-04-fail-closed-backup-gate-review.md` are resolved by credential injection, corrected initial-backup sequencing, and explicit supersession of ongoing enforcement. Repository automation still needs encrypted logical export. Live repository checks require provisioned infrastructure and belong to the live apply/proof ticket. The real image build and pgBackRest/WAL/initial-backup round trip remain unproven in this no-live slice.
+The three findings in `.10x/reviews/2026-09-04-fail-closed-backup-gate-review.md` are resolved by credential injection, corrected initial-backup sequencing, and explicit supersession of ongoing enforcement. None for implementation scope. The ticket is ready for final independent static review and closure evidence. Live repository checks, the real image build, and the pgBackRest/WAL/initial-backup round trip require provisioned infrastructure and belong to the live apply/proof ticket.

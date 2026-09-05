@@ -106,4 +106,5 @@ Given provisioned live backup infrastructure, when the first full drill runs, th
 - Continuous backup-health monitoring, per-write backup synchronization, and unattended host or container scheduling.
 - Storing secrets in OpenTofu state, repository files, logs, restore-validation evidence, or other artifacts.
 - Maintaining a separate pre-disaster catalog inventory.
-- Treating `pg_dump`, a copied Docker volume, or backup-command success as recovery proof.
+- Requiring a secondary logical `pg_dump`; physical pgBackRest PITR is the catalog backup mechanism.
+- Treating a copied Docker volume or backup-command success as recovery proof.

@@ -15,7 +15,7 @@ After explicit user approval of the exact OpenTofu plan, apply the reviewed infr
 - The user reviews and explicitly approves the exact non-secret OpenTofu plan before apply.
 - Apply creates only the reviewed same-account, `us-west-1` resources and policies.
 - Renewable short-lived credential-process authentication works; no long-lived keys are introduced.
-- pgBackRest stanza check, first full backup, WAL archive check, repository verification/info, and logical export complete successfully.
+- pgBackRest stanza check, first full backup, WAL archive check, and repository verification/info complete successfully.
 - Iceberg recovery replication/copy and 45-day version protection are observed on bounded non-sensitive test objects without targeting production data for deletion.
 - A selected recovery point is restored into an isolated empty environment.
 - Polaris identity and permissions validate; restored tables match expectations derived from the corresponding source-registry revision; and every registered Iceberg table, metadata/snapshot pointer, and representative read validates.
