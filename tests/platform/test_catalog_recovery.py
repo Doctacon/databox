@@ -215,6 +215,7 @@ def test_pgbackrest_contract_has_fail_closed_gate_archive_and_retention() -> Non
     dockerfile = (ROOT / "scripts/platform/polaris-postgres.Dockerfile").read_text()
     assert "repo1-retention-full=30" in config
     assert "repo1-cipher-type=aes-256-cbc" in config
+    assert "pg1-user=polaris" in config
     assert "archive_timeout=300s" in compose
     assert "archive_command" in compose
     assert 'test: ["CMD-SHELL", "pg_isready -U polaris -d polaris"]' in compose
