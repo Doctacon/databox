@@ -2,8 +2,9 @@ FROM postgres:17.6-bookworm
 
 ARG PGBACKREST_VERSION=2.59.1
 RUN apt-get update \
-    && apt-get install --yes --no-install-recommends pgbackrest python3 \
+    && apt-get install --yes --no-install-recommends ca-certificates pgbackrest python3 \
     && test "$(pgbackrest version | awk '{print $2}')" = "${PGBACKREST_VERSION}" \
+    && test -s /etc/ssl/certs/ca-certificates.crt \
     && rm -rf /var/lib/apt/lists/*
 COPY infra/recovery/pgbackrest.conf.example /etc/pgbackrest/pgbackrest.conf
 COPY scripts/platform/catalog-backup-readiness.py /opt/databox/catalog-backup-readiness.py

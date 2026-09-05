@@ -237,6 +237,8 @@ def test_pgbackrest_contract_has_fail_closed_gate_archive_and_retention() -> Non
     assert "catalog-backup-readiness.py" in dockerfile
     assert compose.count("databox-polaris-postgres:17.6-pgbackrest-2.59.1") == 2
     assert "ARG PGBACKREST_VERSION=2.59.1" in dockerfile
+    assert "ca-certificates pgbackrest python3" in dockerfile
+    assert "test -s /etc/ssl/certs/ca-certificates.crt" in dockerfile
     assert "DATABOX_AWS_CREDENTIAL_PROCESS" not in compose
     assert "credential-process" not in dockerfile
     assert "awscli" not in dockerfile.lower()
