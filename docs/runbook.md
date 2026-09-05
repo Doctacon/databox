@@ -28,9 +28,10 @@ be provisioned with `s3://<bucket>/warehouse` as its base location and the
 bucket-scoped IAM role, then start `compose.iceberg.yml`.
 
 PostgreSQL reports healthy only after the catalog-backup readiness gate validates
-the renewable credential process, pgBackRest repository and stanza, a WAL archive
-round trip, and an existing or newly created full backup. Polaris bootstrap and
-the API remain stopped when any check fails; inspect the PostgreSQL healthcheck
+complete host-injected short-lived backup credentials, the pgBackRest repository
+and stanza, a WAL archive round trip, and an existing or newly created full
+backup. Polaris bootstrap and the API remain stopped when any check fails;
+inspect the PostgreSQL healthcheck
 output rather than bypassing backup protection.
 
 Static pinned AVONET is deliberately excluded from routine refresh. Run its
@@ -97,11 +98,14 @@ that would otherwise be replaced.
 ## Catalog backup and recovery preparation
 
 The PostgreSQL image includes pgBackRest and archives WAL with
-`archive_timeout=300s`. Configure the OpenTofu catalog-backup output,
-`PGBACKREST_REPO1_CIPHER_PASS`, and the renewable
-`DATABOX_AWS_CREDENTIAL_PROCESS`; never commit their output or passphrase.
-Run `task catalog:backup-check` before the weekly `catalog:backup-full` or daily
-`catalog:backup-diff`, and inspect `task catalog:backup-info` after each run.
+`archive_timeout=300s`. On the host, obtain a short-lived session for the
+dedicated catalog-backup role and set `DATABOX_BACKUP_AWS_ACCESS_KEY_ID`,
+`DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY`, and
+`DATABOX_BACKUP_AWS_SESSION_TOKEN`. Configure the OpenTofu catalog-backup
+output and `PGBACKREST_REPO1_CIPHER_PASS`; never commit or log these runtime
+secrets. The PostgreSQL image does not install AWS CLI or mount host AWS
+profiles. Run `task catalog:backup-check` before the weekly
+`catalog:backup-full` or daily `catalog:backup-diff`, and inspect `task catalog:backup-info` after each run.
 These commands are not scheduled automatically and do not prove the recovery
 objectives.
 

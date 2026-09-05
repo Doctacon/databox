@@ -17,8 +17,3 @@ output "iceberg_recovery_reader_role_arn" {
 output "aws_profile" {
   value = var.aws_profile
 }
-
-output "credential_process_command" {
-  value       = var.credential_process_command
-  description = "Non-secret command that renews temporary credentials for local recovery tooling."
-}

@@ -23,18 +23,9 @@ variable "aws_profile" {
 }
 
 variable "aws_shared_config_files" {
-  description = "Shared AWS config files containing the credential_process profile."
+  description = "Shared AWS config files used by OpenTofu on the host."
   type        = list(string)
   default     = ["~/.aws/config"]
-}
-
-variable "credential_process_command" {
-  description = "Non-secret command configured as credential_process for aws_profile; documented for local backup consumers."
-  type        = string
-  validation {
-    condition     = length(trimspace(var.credential_process_command)) > 0
-    error_message = "credential_process_command must not be empty."
-  }
 }
 
 variable "primary_iceberg_bucket" {

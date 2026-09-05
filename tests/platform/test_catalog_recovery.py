@@ -1,4 +1,6 @@
 import json
+import os
+import subprocess
 from datetime import UTC, datetime, timedelta
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -17,47 +19,18 @@ def _load(name: str, filename: str):
     return module
 
 
-credentials = _load("pgbackrest_credentials", "pgbackrest-credential-process.py")
 readiness = _load("catalog_backup_readiness", "catalog-backup-readiness.py")
 recovery = _load("catalog_recovery", "catalog_recovery.py")
 
 _BACKUP_ENV = {
-    "DATABOX_AWS_CREDENTIAL_PROCESS": "credential-helper",  # secret-scan: allow
     "PGBACKREST_REPO1_CIPHER_PASS": "not-a-real-secret",  # secret-scan: allow
+    "PGBACKREST_REPO1_S3_KEY": "temporary-access-key",  # secret-scan: allow
+    "PGBACKREST_REPO1_S3_KEY_SECRET": "temporary-secret-key",  # secret-scan: allow
+    "PGBACKREST_REPO1_S3_TOKEN": "temporary-session-token",  # secret-scan: allow
     "PGBACKREST_REPO1_S3_BUCKET": "catalog-backups",
     "PGBACKREST_REPO1_S3_REGION": "us-west-1",
     "PGBACKREST_REPO1_S3_ENDPOINT": "s3.us-west-1.amazonaws.com",
 }
-
-
-def test_credential_process_rejects_missing_invalid_and_expired() -> None:
-    with pytest.raises(ValueError, match="required"):
-        credentials.load_credentials("")
-    with patch.object(credentials.subprocess, "run", return_value=Mock(stdout="no", returncode=0)):
-        with pytest.raises(ValueError, match="invalid JSON"):
-            credentials.load_credentials("credential-helper")
-    expired = json.dumps(
-        {
-            "AccessKeyId": "a",
-            "SecretAccessKey": "b",
-            "SessionToken": "c",
-            "Expiration": "2020-01-01T00:00:00Z",
-        }
-    )
-    with patch.object(
-        credentials.subprocess, "run", return_value=Mock(stdout=expired, returncode=0)
-    ):
-        with pytest.raises(ValueError, match="expired"):
-            credentials.load_credentials("credential-helper")
-
-
-def test_exports_only_pgbackrest_names_and_quotes_values() -> None:
-    text = credentials.shell_exports(
-        {"AccessKeyId": "a", "SecretAccessKey": "b c", "SessionToken": "d", "Expiration": "x"}
-    )
-    assert "PGBACKREST_REPO1_S3_KEY" in text
-    assert "AWS_SECRET_ACCESS_KEY" not in text
-    assert "'b c'" in text
 
 
 def test_recovery_target_must_be_zoned_and_target_is_isolated(tmp_path: Path) -> None:
@@ -84,10 +57,41 @@ def test_drill_metrics_do_not_claim_objectives() -> None:
     assert result["objectives_proven"] is False
 
 
-def test_readiness_gate_rejects_partial_configuration(tmp_path: Path) -> None:
-    with patch.dict(readiness.os.environ, {}, clear=True):
-        with pytest.raises(readiness.ReadinessError, match="missing catalog backup settings"):
+@pytest.mark.parametrize(
+    "missing_name",
+    (
+        "PGBACKREST_REPO1_S3_KEY",
+        "PGBACKREST_REPO1_S3_KEY_SECRET",
+        "PGBACKREST_REPO1_S3_TOKEN",
+    ),
+)
+def test_readiness_gate_rejects_missing_temporary_credential(
+    tmp_path: Path, missing_name: str
+) -> None:
+    env = {name: value for name, value in _BACKUP_ENV.items() if name != missing_name}
+    with patch.dict(readiness.os.environ, env, clear=True):
+        with pytest.raises(readiness.ReadinessError, match=missing_name):
             readiness.ensure_catalog_backup_ready(marker=tmp_path / "ready")
+
+
+def test_pgbackrest_wrapper_rejects_partial_credentials_without_printing_values() -> None:
+    secret_value = "must-not-appear-in-output"  # secret-scan: allow
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "PGBACKREST_REPO1_CIPHER_PASS": secret_value,
+        "PGBACKREST_REPO1_S3_KEY": secret_value,
+        "PGBACKREST_REPO1_S3_KEY_SECRET": secret_value,
+    }
+    result = subprocess.run(
+        ["bash", str(ROOT / "scripts/platform/run-pgbackrest.sh"), "info"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "temporary backup session token" in result.stderr
+    assert secret_value not in result.stdout + result.stderr
 
 
 def test_readiness_gate_checks_wal_and_creates_initial_backup(tmp_path: Path) -> None:
@@ -164,4 +168,9 @@ def test_pgbackrest_contract_has_fail_closed_gate_archive_and_retention() -> Non
     assert "archive_command" in compose
     assert 'test: ["CMD", "python3", "/opt/databox/catalog-backup-readiness.py"]' in compose
     assert "condition: service_healthy" in compose
+    run_pgbackrest = (ROOT / "scripts/platform/run-pgbackrest.sh").read_text()
     assert "catalog-backup-readiness.py" in dockerfile
+    assert "DATABOX_AWS_CREDENTIAL_PROCESS" not in compose
+    assert "credential-process" not in dockerfile
+    assert "awscli" not in dockerfile.lower()
+    assert "PGBACKREST_REPO1_S3_TOKEN" in run_pgbackrest

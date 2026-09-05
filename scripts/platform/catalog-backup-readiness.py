@@ -26,8 +26,10 @@ def _run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
 
 def _require_configuration() -> None:
     required = (
-        "DATABOX_AWS_CREDENTIAL_PROCESS",
         "PGBACKREST_REPO1_CIPHER_PASS",
+        "PGBACKREST_REPO1_S3_KEY",
+        "PGBACKREST_REPO1_S3_KEY_SECRET",
+        "PGBACKREST_REPO1_S3_TOKEN",
         "PGBACKREST_REPO1_S3_BUCKET",
         "PGBACKREST_REPO1_S3_REGION",
         "PGBACKREST_REPO1_S3_ENDPOINT",

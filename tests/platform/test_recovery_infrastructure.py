@@ -17,7 +17,7 @@ def test_opentofu_is_bounded_and_same_region() -> None:
     assert 'version = ">= 5.80.0, < 7.0.0"' in versions
     assert 'default     = "us-west-1"' in variables
     assert 'var.aws_region == "us-west-1"' in variables
-    assert "credential_process_command" in variables
+    assert "credential_process_command" not in variables
     assert "aws_account_id" in variables
 
 

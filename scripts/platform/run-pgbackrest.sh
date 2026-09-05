@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-: "${DATABOX_AWS_CREDENTIAL_PROCESS:?set renewable credential process}"
 : "${PGBACKREST_REPO1_CIPHER_PASS:?set pgBackRest repository cipher passphrase}"
-eval "$(python3 /opt/databox/pgbackrest-credential-process.py --command "$DATABOX_AWS_CREDENTIAL_PROCESS")"
+: "${PGBACKREST_REPO1_S3_KEY:?set temporary backup access key}"
+: "${PGBACKREST_REPO1_S3_KEY_SECRET:?set temporary backup secret key}"
+: "${PGBACKREST_REPO1_S3_TOKEN:?set temporary backup session token}"
 exec pgbackrest --config=/etc/pgbackrest/pgbackrest.conf "$@"
