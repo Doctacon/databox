@@ -24,7 +24,7 @@ All earlier plans, including TLS-enforced plan hash `4656b197fd1039d4972c614e828
 
 OpenTofu state is intentionally local and operator-owned at `infra/recovery/terraform.tfstate`, applied only from `infra/recovery/`, ignored by Git, protected by FileVault and the operator's normal encrypted machine backup, and excluded from project cleanup. State loss requires restoring that backup or reviewed import of every live resource before another plan; no remote backend is introduced.
 
-Because the current AWS login identifies as account root and no non-root operator identity exists, root MAY be used only for the initial reviewed bootstrap apply. Runtime pgBackRest credentials MUST come from the created least-privilege `databox-polaris-catalog-backup` role and MUST never be root credentials. After a separately approved apply and role-access verification, the root CLI session MUST be logged out. Root trust SHOULD be replaced when a non-root operator identity is established.
+Root was used only for the explicitly approved bootstrap apply, but live verification proved AWS root cannot call `sts:AssumeRole`; the planned runtime flow is therefore blocked. Runtime pgBackRest credentials MUST come from the least-privilege `databox-polaris-catalog-backup` role and MUST never be root credentials. A non-root operator principal MUST be created or selected, catalog-backup trust MUST be repaired through a newly reviewed exact OpenTofu plan, and role assumption MUST succeed before root is logged out and backup operation begins.
 
 ## Alternatives considered
 
