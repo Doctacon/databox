@@ -26,6 +26,29 @@ resource "aws_s3_bucket_public_access_block" "catalog_backup" {
   restrict_public_buckets = true
 }
 
+data "aws_iam_policy_document" "catalog_backup" {
+  statement {
+    sid       = "DenyInsecureTransport"
+    effect    = "Deny"
+    actions   = ["s3:*"]
+    resources = [aws_s3_bucket.catalog_backup.arn, "${aws_s3_bucket.catalog_backup.arn}/*"]
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "catalog_backup" {
+  bucket = aws_s3_bucket.catalog_backup.id
+  policy = data.aws_iam_policy_document.catalog_backup.json
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "catalog_backup" {
   bucket = aws_s3_bucket.catalog_backup.id
   rule {

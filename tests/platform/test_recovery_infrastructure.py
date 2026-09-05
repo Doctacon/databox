@@ -31,6 +31,21 @@ def test_catalog_backup_bucket_is_protected_for_thirty_days() -> None:
     assert 'sse_algorithm = "AES256"' in main
 
 
+def test_catalog_backup_bucket_denies_insecure_transport() -> None:
+    main = _text("main.tf")
+    assert 'data "aws_iam_policy_document" "catalog_backup"' in main
+    assert 'resource "aws_s3_bucket_policy" "catalog_backup"' in main
+    assert 'sid       = "DenyInsecureTransport"' in main
+    assert 'effect    = "Deny"' in main
+    assert 'actions   = ["s3:*"]' in main
+    resources = (
+        'resources = [aws_s3_bucket.catalog_backup.arn, "${aws_s3_bucket.catalog_backup.arn}/*"]'
+    )
+    assert resources in main
+    assert 'variable = "aws:SecureTransport"' in main
+    assert 'values   = ["false"]' in main
+
+
 def test_only_catalog_backup_permissions_remain() -> None:
     main = _text("main.tf")
     outputs = _text("outputs.tf")
