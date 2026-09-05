@@ -92,21 +92,26 @@ def test_pgbackrest_wrapper_rejects_partial_credentials_without_printing_values(
     assert secret_value not in result.stdout + result.stderr
 
 
-def test_readiness_gate_checks_wal_and_creates_initial_backup(tmp_path: Path) -> None:
+def _backup_info(*backups: dict, status_code: int = 0) -> str:
+    return json.dumps(
+        [{"name": "polaris", "status": {"code": status_code}, "backup": list(backups)}]
+    )
+
+
+def _backup(label: str, backup_type: str, stopped_at: datetime) -> dict:
+    return {
+        "label": label,
+        "type": backup_type,
+        "timestamp": {"stop": int(stopped_at.timestamp())},
+        "error": False,
+    }
+
+
+def test_readiness_gate_checks_wal_and_creates_initial_backup() -> None:
+    now = datetime(2026, 9, 4, tzinfo=UTC)
     calls: list[tuple[str, ...]] = []
     info_results = iter(
-        [
-            json.dumps([{"name": "polaris", "status": {"code": 0}, "backup": []}]),
-            json.dumps(
-                [
-                    {
-                        "name": "polaris",
-                        "status": {"code": 0},
-                        "backup": [{"label": "full"}],
-                    }
-                ]
-            ),
-        ]
+        [_backup_info(status_code=2), _backup_info(_backup("new-full", "full", now))]
     )
 
     def runner(command):
@@ -115,7 +120,7 @@ def test_readiness_gate_checks_wal_and_creates_initial_backup(tmp_path: Path) ->
         return Mock(stdout=stdout, returncode=0)
 
     with patch.dict(readiness.os.environ, _BACKUP_ENV, clear=True):
-        readiness.ensure_catalog_backup_ready(runner=runner)
+        readiness.ensure_catalog_backup_ready(runner=runner, now=now)
     assert [call[-1] for call in calls] == [
         "polaris",
         "stanza-create",
@@ -124,33 +129,82 @@ def test_readiness_gate_checks_wal_and_creates_initial_backup(tmp_path: Path) ->
         "backup",
         "info",
     ]
+    assert "--type=full" in calls[4]
     assert calls[2] == (readiness._PGBACKREST, "--stanza=polaris", "check")
 
 
-def test_readiness_gate_does_not_replace_existing_backup(tmp_path: Path) -> None:
+def test_readiness_gate_skips_current_backup() -> None:
+    now = datetime(2026, 9, 4, tzinfo=UTC)
     calls: list[tuple[str, ...]] = []
 
     def runner(command):
         calls.append(tuple(command))
-        stdout = (
-            json.dumps(
-                [
-                    {
-                        "name": "polaris",
-                        "status": {"code": 0},
-                        "backup": [{"label": "existing"}],
-                    }
-                ]
-            )
-            if command[-1] == "info"
-            else ""
-        )
-        return Mock(stdout=stdout, returncode=0)
+        stdout = _backup_info(_backup("current", "full", now - timedelta(hours=23)))
+        return Mock(stdout=stdout if command[-1] == "info" else "", returncode=0)
 
     with patch.dict(readiness.os.environ, _BACKUP_ENV, clear=True):
-        readiness.ensure_catalog_backup_ready(runner=runner)
+        readiness.ensure_catalog_backup_ready(runner=runner, now=now)
 
     assert "backup" not in [call[-1] for call in calls]
+
+
+@pytest.mark.parametrize(
+    ("full_age", "latest_age", "expected"),
+    [
+        (timedelta(days=7), timedelta(hours=1), "full"),
+        (timedelta(days=6), timedelta(days=1), "diff"),
+        (timedelta(days=6), timedelta(hours=23, minutes=59), None),
+    ],
+)
+def test_backup_cadence_boundaries(full_age, latest_age, expected) -> None:
+    now = datetime(2026, 9, 4, tzinfo=UTC)
+    backups = [
+        readiness.Backup("full", "full", now - full_age),
+        readiness.Backup("latest", "diff", now - latest_age),
+    ]
+    assert readiness._required_backup_type(backups, now) == expected
+
+
+def test_readiness_gate_rejects_malformed_backup_metadata() -> None:
+    malformed = _backup_info({"label": "broken", "type": "full", "timestamp": {}})
+
+    def runner(command):
+        return Mock(stdout=malformed if command[-1] == "info" else "", returncode=0)
+
+    with patch.dict(readiness.os.environ, _BACKUP_ENV, clear=True):
+        with pytest.raises(readiness.ReadinessError, match="invalid label, type, or timestamp"):
+            readiness.ensure_catalog_backup_ready(runner=runner)
+
+
+def test_readiness_gate_requests_and_verifies_differential_backup() -> None:
+    now = datetime(2026, 9, 4, tzinfo=UTC)
+    full = _backup("recent-full", "full", now - timedelta(days=2))
+    old_diff = _backup("old-diff", "diff", now - timedelta(days=1))
+    new_diff = _backup("new-diff", "diff", now)
+    info_results = iter([_backup_info(full, old_diff), _backup_info(full, old_diff, new_diff)])
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command):
+        calls.append(tuple(command))
+        return Mock(stdout=next(info_results) if command[-1] == "info" else "", returncode=0)
+
+    with patch.dict(readiness.os.environ, _BACKUP_ENV, clear=True):
+        readiness.ensure_catalog_backup_ready(runner=runner, now=now)
+
+    assert "--type=diff" in calls[4]
+
+
+def test_readiness_gate_requires_fresh_requested_backup() -> None:
+    now = datetime(2026, 9, 4, tzinfo=UTC)
+    old = _backup("old-full", "full", now - timedelta(days=8))
+    info_results = iter([_backup_info(old), _backup_info(old)])
+
+    def runner(command):
+        return Mock(stdout=next(info_results) if command[-1] == "info" else "", returncode=0)
+
+    with patch.dict(readiness.os.environ, _BACKUP_ENV, clear=True):
+        with pytest.raises(readiness.ReadinessError, match="new successful full"):
+            readiness.ensure_catalog_backup_ready(runner=runner, now=now)
 
 
 def test_pgbackrest_contract_has_fail_closed_gate_archive_and_retention() -> None:
