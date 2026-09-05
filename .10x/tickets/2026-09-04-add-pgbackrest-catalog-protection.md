@@ -39,7 +39,7 @@ Keep graph construction and ordinary credential-free CI hermetic. Backup command
 
 ## References
 
-- `.10x/decisions/session-injected-catalog-backup-credentials.md`
+- `.10x/decisions/startup-only-catalog-backup-gate.md`
 - `.10x/specs/polaris-catalog-continuity.md`
 - `.10x/research/2026-09-04-polaris-iceberg-disaster-recovery.md`
 - `compose.iceberg.yml`
@@ -59,7 +59,8 @@ Record exact rendered PostgreSQL/pgBackRest configuration, temporary-session inj
 - 2026-09-04: User rejected installing AWS CLI/mounting host authentication inside PostgreSQL and ratified host-injected temporary backup access key, secret, and session token, matching the existing Iceberg writer pattern. This resolves the design choice for the first review finding; implementation remains open.
 - 2026-09-04: Implemented the first review repair only. Compose now maps dedicated host-provided backup access key, secret, and session token directly to pgBackRest runtime variables; readiness and the wrapper fail on any missing value without printing values. Removed the in-container credential-process helper and its OpenTofu output/config surface; the image installs no AWS CLI and mounts no host authentication. Fourteen focused catalog/infrastructure tests, Ruff, format, shell syntax, and diff checks pass hermetically. No AWS/provider/backup/restore/apply operation ran. The ticket remains open.
 - 2026-09-04: Repaired initial-backup ordering without sleeps or extra Compose files. PostgreSQL health is basic `pg_isready`; Polaris bootstrap runs next; the one-shot `catalog-backup-readiness` service shares only the PostgreSQL data/socket volumes, verifies WAL/repository state, and creates/verifies any required full backup after bootstrap; Polaris depends on successful gate completion. Recovery preparation now explicitly disables authoritative backup archiving. Fourteen focused tests, Ruff/format, `git diff --check`, and standalone Compose rendering passed. No image build, AWS/provider request, backup, restore, volume mutation, or apply ran. The ticket remains open.
+- 2026-09-04: User explicitly rejected ongoing monitor/per-write enforcement as overkill. Startup-only backup verification is now authoritative; post-start archive failures surface through ordinary pgBackRest archive/check/backup operations, and the five-minute RPO is an objective while archiving is healthy. The former third review finding is superseded by `.10x/decisions/startup-only-catalog-backup-gate.md`, not left as an implementation blocker.
 
 ## Blockers
 
-Repair the remaining significant gate finding in `.10x/reviews/2026-09-04-fail-closed-backup-gate-review.md`: ongoing health enforcement after startup. Repository automation also still needs scheduling, repository verification, encrypted logical export, and deterministic catalog inventory. Live repository checks require provisioned infrastructure and belong to the live apply/proof ticket. The real image build and pgBackRest/WAL/initial-backup round trip remain unproven in this no-live slice.
+The three findings in `.10x/reviews/2026-09-04-fail-closed-backup-gate-review.md` are resolved by credential injection, corrected initial-backup sequencing, and explicit supersession of ongoing enforcement. Repository automation still needs scheduling, repository verification, encrypted logical export, and deterministic catalog inventory. Live repository checks require provisioned infrastructure and belong to the live apply/proof ticket. The real image build and pgBackRest/WAL/initial-backup round trip remain unproven in this no-live slice.

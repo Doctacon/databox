@@ -8,7 +8,7 @@ Updated: 2026-09-04
 
 Define backup, point-in-time restore, inventory, credential, and recovery-drill behavior for the PostgreSQL metastore used by the local Apache Polaris service.
 
-This specification does not provide PostgreSQL high availability, make Polaris always-on, apply live AWS resources without a reviewed plan, or replace Iceberg snapshot rollback for a bad table publication. It requires backup health whenever Polaris is available; there is no unprotected normal mode.
+This specification does not provide PostgreSQL high availability, make Polaris always-on, apply live AWS resources without a reviewed plan, or replace Iceberg snapshot rollback for a bad table publication. It requires backup health before Polaris starts; it does not synchronously enforce backup health after startup.
 
 ## Recovery objectives
 
@@ -24,7 +24,9 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 - PostgreSQL MAY start internally for recovery initialization, but Polaris, bootstrap-dependent catalog service, and writers MUST remain unavailable until the backup gate succeeds.
 - The gate MUST validate complete short-lived session credentials injected by the host, repository access, stanza configuration, and a WAL archive round trip.
 - A newly initialized catalog with no valid base backup MUST create and verify its initial backup before Polaris becomes available.
-- Missing, partial, expired, or invalid backup settings; repository failure; WAL failure; or missing required backup state MUST fail clearly. No bypass or silent unprotected mode is permitted.
+- Missing, partial, expired, or invalid backup settings; repository failure; WAL failure; or missing required backup state MUST fail startup clearly. No startup bypass is permitted.
+- After startup, PostgreSQL's `archive_command` MUST continue WAL delivery and later failures MUST surface through scheduled backup/check commands. Databox MUST NOT add a custom continuous monitor, proxy, PostgreSQL permission switch, or per-ingestion backup-health gate in this slice.
+- The five-minute RPO MUST be described as an objective while WAL archival is healthy, not as a synchronous guarantee during an unresolved post-start archive outage.
 - Recovery environments MUST keep writers disabled and MUST NOT archive restored test history into the authoritative repository.
 
 ## Backup behavior
@@ -79,7 +81,7 @@ Given a running local Polaris/PostgreSQL stack with valid short-lived backup ses
 
 ### Credential expiry
 
-Given expired or unavailable injected session credentials, when WAL archival or backup runs, then it fails visibly and does not fall back to host profiles, credential brokers, or long-lived embedded credentials.
+Given expired or unavailable injected session credentials after startup, when WAL archival or a scheduled backup/check runs, then it fails visibly and does not fall back to host profiles, credential brokers, or long-lived embedded credentials. Polaris is not required to shut down automatically.
 
 ### Point-in-time restore
 
@@ -98,6 +100,7 @@ Given provisioned live backup infrastructure, when the first full drill runs, th
 - Live `tofu apply` in the automation-first phase.
 - Automatic production cutover.
 - Multi-node PostgreSQL or Polaris high availability.
-- An unprotected normal Polaris startup mode or backup bypass.
+- An unprotected Polaris startup mode or backup bypass.
+- Continuous backup-health monitoring or per-write backup synchronization.
 - Storing secrets in OpenTofu state, repository files, logs, inventories, or evidence.
 - Treating `pg_dump`, a copied Docker volume, or backup-command success as recovery proof.

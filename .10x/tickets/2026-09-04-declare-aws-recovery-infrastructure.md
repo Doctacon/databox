@@ -36,7 +36,7 @@ Expose non-secret outputs and inputs consumed by local pgBackRest and recovery t
 
 ## References
 
-- `.10x/decisions/session-injected-catalog-backup-credentials.md`
+- `.10x/decisions/startup-only-catalog-backup-gate.md`
 - `.10x/specs/polaris-catalog-continuity.md`
 - `.10x/specs/iceberg-object-recovery.md`
 - `.10x/research/2026-09-04-polaris-iceberg-disaster-recovery.md`

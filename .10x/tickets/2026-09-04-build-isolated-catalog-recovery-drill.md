@@ -37,7 +37,7 @@ Provide deterministic offline tests using temporary local fixtures/fakes. Do not
 
 - `.10x/specs/polaris-catalog-continuity.md`
 - `.10x/specs/iceberg-object-recovery.md`
-- `.10x/decisions/session-injected-catalog-backup-credentials.md`
+- `.10x/decisions/startup-only-catalog-backup-gate.md`
 - `.10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md`
 - `.10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md`
 
