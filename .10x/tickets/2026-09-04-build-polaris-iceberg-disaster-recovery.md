@@ -13,7 +13,7 @@ Deliver reviewable, tested automation for the ratified Polaris catalog and Icebe
 ## Child plan
 
 1. `.10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md` — add OpenTofu for the two same-account, same-region buckets, retention, replication, and least-privilege IAM. Can begin immediately.
-2. `.10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md` — completed pgBackRest, host-injected temporary credentials, startup cadence, backup/check commands, and tests.
+2. `.10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md` — pgBackRest, host-injected temporary credentials, startup cadence, backup/check commands, tests, and local image packaging proof.
 3. `.10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md` — add fail-closed PITR restore and Iceberg/catalog validation after children 1 and 2 establish inputs.
 4. `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md` — adversarially review and verify the complete non-live automation and documentation.
 5. `.10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md` — blocked live rollout and timed restore proof; begins only after the user reviews the OpenTofu plan and explicitly authorizes AWS mutation.
@@ -63,7 +63,7 @@ Children 1 and 2 are parallelizable in isolated worktrees. Child 3 depends on bo
 - 2026-09-04: User removed the secondary encrypted logical dump as redundant; pgBackRest physical backup plus WAL/PITR is the sole catalog backup mechanism.
 - 2026-09-04: User rejected continuous backup monitoring and per-write blocking as overkill. The startup gate plus standard pgBackRest WAL archiving, startup-driven physical-backup cadence, manual maintenance commands, and restore drills is authoritative; five-minute RPO is an objective only while archiving is healthy.
 - 2026-09-04: User ratified lifecycle-driven scheduling because the local Compose stack is expected to restart reasonably often: the startup gate applies daily differential and weekly full age thresholds, while no cron or host scheduler is added.
-- 2026-09-04: Catalog-protection child 2 passed independent repair review and closed with static validation evidence. Live runtime proof remains reserved for child 5.
+- 2026-09-04: Catalog-protection child 2 passed independent static repair review, then reopened when the user correctly required local image-build and pinned-binary proof before restore work. AWS repository/WAL/backup proof remains separately gated.
 
 ## Blockers
 

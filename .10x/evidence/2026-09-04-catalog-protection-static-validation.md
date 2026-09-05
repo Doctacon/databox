@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-04
 Updated: 2026-09-04
-Relates-To: .10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md, .10x/reviews/2026-09-04-catalog-protection-repair-review.md
+Relates-To: .10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md, .10x/reviews/2026-09-04-catalog-protection-repair-review.md
 
 # Catalog protection static validation
 
