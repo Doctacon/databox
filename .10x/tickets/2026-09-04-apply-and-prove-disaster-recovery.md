@@ -43,7 +43,8 @@ Record the approved plan hash/summary, apply result, resource identities without
 ## Progress and notes
 
 - 2026-09-04: Opened as the durable owner for live rollout and proof. The user authorized automation first, not live AWS mutation.
+- 2026-09-04: User authorized generating a non-mutating plan with the default AWS profile, current caller as operator, existing `.env` primary bucket/writer role, and primary-derived recovery bucket names. Preflight `aws sts get-caller-identity --profile default` failed with `InvalidClientTokenId`; execution stopped before writing tfvars, initializing providers, generating a plan, or mutating AWS.
 
 ## Blockers
 
-Blocked until automation verification completes and the user explicitly approves the exact OpenTofu plan and live AWS apply.
+Plan generation is blocked because the selected default AWS profile has invalid credentials. After authentication, automation verification and explicit approval of the exact plan still precede any live apply.
