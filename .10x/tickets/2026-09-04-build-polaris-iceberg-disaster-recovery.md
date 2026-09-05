@@ -59,7 +59,8 @@ Children 1 and 2 are parallelizable in isolated worktrees. Child 3 depends on bo
 - 2026-09-04: Opened after the user approved execution. User selected automation-first OpenTofu delivery, same AWS account and `us-west-1`, separate catalog and Iceberg recovery buckets, renewable credential-process authentication, 30-day catalog PITR, 45-day object history, five-minute RPO while running, and 60-minute RTO.
 - 2026-09-04: User ratified one-Compose fail-closed operation: Polaris and writers remain unavailable unless pgBackRest repository, credentials, WAL archival, and required base backup are healthy. Optional unprotected startup is superseded.
 - 2026-09-04: User selected host-injected short-lived backup session credentials instead of AWS CLI/profile mounting or a credential broker inside PostgreSQL.
-- 2026-09-04: User rejected continuous backup monitoring and per-write blocking as overkill. The startup gate plus standard pgBackRest WAL archiving, scheduled checks/backups, and restore drills is authoritative; five-minute RPO is an objective only while archiving is healthy.
+- 2026-09-04: User rejected continuous backup monitoring and per-write blocking as overkill. The startup gate plus standard pgBackRest WAL archiving, startup-driven physical-backup cadence, manual maintenance commands, and restore drills is authoritative; five-minute RPO is an objective only while archiving is healthy.
+- 2026-09-04: User ratified lifecycle-driven scheduling because the local Compose stack is expected to restart reasonably often: the startup gate applies daily differential and weekly full age thresholds, while no cron or host scheduler is added.
 
 ## Blockers
 

@@ -23,9 +23,9 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 - One `compose.iceberg.yml` MUST remain the operator-visible runtime definition; separate normal and backup Compose modes MUST NOT be introduced.
 - PostgreSQL MAY start internally for recovery initialization, but Polaris, bootstrap-dependent catalog service, and writers MUST remain unavailable until the backup gate succeeds.
 - The gate MUST validate complete short-lived session credentials injected by the host, repository access, stanza configuration, and a WAL archive round trip.
-- A newly initialized catalog with no valid base backup MUST create and verify its initial backup before Polaris becomes available.
+- The gate MUST inspect machine-readable repository metadata, create a full backup when no successful full exists or the newest full is at least seven days old, create a differential backup when the newest successful backup is at least 24 hours old, and otherwise skip unnecessary backup creation. Any requested backup MUST be visible and successful before Polaris becomes available.
 - Missing, partial, expired, or invalid backup settings; repository failure; WAL failure; or missing required backup state MUST fail startup clearly. No startup bypass is permitted.
-- After startup, PostgreSQL's `archive_command` MUST continue WAL delivery and later failures MUST surface through scheduled backup/check commands. Databox MUST NOT add a custom continuous monitor, proxy, PostgreSQL permission switch, or per-ingestion backup-health gate in this slice.
+- After startup, PostgreSQL's `archive_command` MUST continue WAL delivery and later failures MUST surface through manual backup/check commands or the next startup gate. Databox MUST NOT add a custom continuous monitor, proxy, PostgreSQL permission switch, per-ingestion backup-health gate, in-container cron daemon, or host scheduler in this slice.
 - The five-minute RPO MUST be described as an objective while WAL archival is healthy, not as a synchronous guarantee during an unresolved post-start archive outage.
 - Recovery environments MUST keep writers disabled and MUST NOT archive restored test history into the authoritative repository.
 
@@ -37,8 +37,8 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 - Repository contents MUST be encrypted client-side with a secret supplied outside tracked files. S3 transport and at-rest encryption MUST remain enabled.
 - Credentials MUST be short-lived credentials for the dedicated catalog-backup role, obtained by the host and injected at runtime as a backup access key, secret key, and session token. Long-lived access keys MUST NOT be required or documented as the normal path.
 - The PostgreSQL image MUST NOT install AWS CLI or mount host AWS profiles, SSO caches, credential-process executables, or the complete `~/.aws` directory.
-- Backup scheduling MUST be explicit and observable. The intended policy is weekly full backups, daily differential backups, and continuous WAL archive.
-- pgBackRest configuration checks and repository verification MUST fail closed and surface actionable errors.
+- The local stack is assumed to restart reasonably often. Its startup gate MUST apply the weekly-full/daily-differential cadence using repository timestamps; manual full, differential, check, and info commands MUST remain available for unusually long-running sessions.
+- pgBackRest configuration checks and repository metadata verification MUST fail closed and surface actionable errors. Only an isolated restore drill may be represented as end-to-end recovery proof.
 - A periodic logical PostgreSQL export MUST be available as a secondary inspection/version-migration artifact and MUST be encrypted before durable storage. It MUST NOT be represented as PITR-capable.
 - Retention MUST preserve every physical backup dependency and WAL segment required for the 30-day PITR window.
 
@@ -81,7 +81,7 @@ Given a running local Polaris/PostgreSQL stack with valid short-lived backup ses
 
 ### Credential expiry
 
-Given expired or unavailable injected session credentials after startup, when WAL archival or a scheduled backup/check runs, then it fails visibly and does not fall back to host profiles, credential brokers, or long-lived embedded credentials. Polaris is not required to shut down automatically.
+Given expired or unavailable injected session credentials after startup, when WAL archival, a manual backup/check, or the next startup gate runs, then it fails visibly and does not fall back to host profiles, credential brokers, or long-lived embedded credentials. Polaris is not required to shut down automatically.
 
 ### Point-in-time restore
 
@@ -101,6 +101,6 @@ Given provisioned live backup infrastructure, when the first full drill runs, th
 - Automatic production cutover.
 - Multi-node PostgreSQL or Polaris high availability.
 - An unprotected Polaris startup mode or backup bypass.
-- Continuous backup-health monitoring or per-write backup synchronization.
+- Continuous backup-health monitoring, per-write backup synchronization, and unattended host or container scheduling.
 - Storing secrets in OpenTofu state, repository files, logs, inventories, or evidence.
 - Treating `pg_dump`, a copied Docker volume, or backup-command success as recovery proof.

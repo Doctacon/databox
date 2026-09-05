@@ -14,9 +14,9 @@ PostgreSQL and pgBackRest normally archive WAL continuously, run physical backup
 
 ## Decision
 
-Databox MUST keep the fail-closed startup gate: on `docker compose up`, PostgreSQL starts internally, Polaris bootstrap initializes the catalog, pgBackRest verifies complete temporary credentials, repository/stanza access, and WAL archival, and an initial full backup is created and verified when absent. Polaris starts only after this gate succeeds.
+Databox MUST keep the fail-closed startup gate: on `docker compose up`, PostgreSQL starts internally, Polaris bootstrap initializes the catalog, and pgBackRest verifies complete temporary credentials, repository/stanza access, and WAL archival. The same gate MUST create and verify a full backup when none exists or the newest successful full backup is at least seven days old, create and verify a differential backup when the newest successful backup is at least 24 hours old, and otherwise avoid an unnecessary backup. Polaris starts only after this gate succeeds.
 
-Databox MUST NOT add a custom continuous backup-health monitor, proxy, PostgreSQL permission switch, or per-ingestion backup-health check in this recovery slice. After startup, PostgreSQL's configured `archive_command` remains responsible for continuous WAL delivery. Scheduled pgBackRest backup/check commands and restore drills own later operational detection and evidence.
+Databox MUST NOT add a custom continuous backup-health monitor, proxy, PostgreSQL permission switch, per-ingestion backup-health check, in-container cron daemon, or host scheduler in this recovery slice. After startup, PostgreSQL's configured `archive_command` remains responsible for continuous WAL delivery. Manual pgBackRest backup/check commands remain available for an unusually long-running Compose session, and restore drills own end-to-end recovery evidence.
 
 Temporary credential expiry or a later repository outage MAY cause WAL archival and scheduled backup commands to fail without automatically shutting down Polaris or blocking every catalog write. The five-minute RPO is therefore an objective while WAL archival is healthy, not a synchronous write guarantee during an undetected or unresolved archive outage. Documentation and evidence MUST state this limit plainly.
 
@@ -31,8 +31,8 @@ All other recovery choices remain unchanged: one Compose file; pgBackRest; host-
 
 ## Consequences
 
-The runtime stays understandable and close to standard PostgreSQL practice. Startup proves that the repository, WAL path, and initial backup work at least once per Compose lifecycle. Scheduled checks and backups must remain visible and restore drills remain mandatory.
+The runtime stays understandable and close to standard PostgreSQL practice. Startup applies the daily differential and weekly full cadence whenever the local stack is used, proves that the repository and WAL path work, and verifies repository metadata after any backup. Manual checks and backups remain visible, and restore drills remain mandatory.
 
-The accepted residual risk is that a backup credential or repository failure after startup can degrade the achieved RPO until detected and repaired. A future operational need for hard continuous RPO enforcement requires a separate decision backed by measured risk, not an incremental monitor added by default.
+The accepted assumptions are that this local Compose stack restarts reasonably often and is not an always-on service. A stack left running longer than 24 hours receives continuous WAL archival but no automatic physical backup until restart; the operator may run the existing manual command. The accepted residual risk is that a backup credential or repository failure after startup can degrade the achieved RPO until detected and repaired. A future always-on runtime or need for hard continuous RPO enforcement requires a separate decision backed by measured risk, not an incremental scheduler or monitor added by default.
 
 This decision supersedes `.10x/decisions/superseded/session-injected-catalog-backup-credentials.md` only where that decision required future ongoing backup failure to revoke protected operation. Its injected temporary credential and fail-closed startup choices remain active as restated here.
