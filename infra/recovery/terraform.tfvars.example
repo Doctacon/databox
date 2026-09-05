@@ -1,4 +1,3 @@
-aws_account_id         = "123456789012"
-aws_profile            = "databox-backup"
-catalog_backup_bucket  = "replace-catalog-backup-bucket"
-operator_principal_arn = "arn:aws:iam::123456789012:role/replace-operator"
+aws_account_id        = "123456789012"
+aws_profile           = "databox-backup"
+catalog_backup_bucket = "replace-catalog-backup-bucket"

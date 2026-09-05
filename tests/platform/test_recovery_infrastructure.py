@@ -62,7 +62,23 @@ def test_only_catalog_backup_permissions_remain() -> None:
     assert "iceberg" not in main.lower()
     assert "replication" not in main.lower()
     assert "primary" not in main.lower()
-    assert "recovery" not in outputs.lower()
+    assert "iceberg_recovery" not in outputs.lower()
+
+
+def test_recovery_operator_is_console_only_and_may_only_assume_backup_role() -> None:
+    main = _text("main.tf")
+    outputs = _text("outputs.tf")
+    assert 'resource "aws_iam_user" "recovery_operator"' in main
+    assert 'name          = "databox-recovery-operator"' in main
+    assert "force_destroy = false" in main
+    assert 'resource "aws_iam_user_policy" "recovery_operator"' in main
+    assert 'Action   = ["sts:AssumeRole"]' in main
+    assert "Resource = aws_iam_role.catalog_backup.arn" in main
+    assert "identifiers = [aws_iam_user.recovery_operator.arn]" in main
+    assert 'output "recovery_operator_user_arn"' in outputs
+    assert "aws_iam_access_key" not in main
+    assert "aws_iam_user_login_profile" not in main
+    assert "operator_principal_arn" not in main
 
 
 def test_rejected_warehouse_inputs_and_outputs_are_absent() -> None:

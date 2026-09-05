@@ -1,0 +1,91 @@
+
+OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+  ~ update in-place (current -> planned)
+ <= read (data resources)
+
+OpenTofu will perform the following actions:
+
+  # data.aws_iam_policy_document.operator_assume will be read during apply
+  # (config refers to values not yet known)
+ <= data "aws_iam_policy_document" "operator_assume" {
+      + id            = (known after apply)
+      + json          = (known after apply)
+      + minified_json = (known after apply)
+
+      + statement {
+          + actions = [
+              + "sts:AssumeRole",
+            ]
+
+          + principals {
+              + identifiers = [
+                  + (known after apply),
+                ]
+              + type        = "AWS"
+            }
+        }
+    }
+
+  # aws_iam_role.catalog_backup will be updated in-place
+  ~ resource "aws_iam_role" "catalog_backup" {
+      ~ assume_role_policy    = jsonencode(
+            {
+              - Statement = [
+                  - {
+                      - Action    = "sts:AssumeRole"
+                      - Effect    = "Allow"
+                      - Principal = {
+                          - AWS = "arn:aws:iam::734815189723:root"
+                        }
+                    },
+                ]
+              - Version   = "2012-10-17"
+            }
+        ) -> (known after apply)
+        id                    = "databox-polaris-catalog-backup"
+        name                  = "databox-polaris-catalog-backup"
+        tags                  = {}
+        # (8 unchanged attributes hidden)
+
+        # (1 unchanged block hidden)
+    }
+
+  # aws_iam_user.recovery_operator will be created
+  + resource "aws_iam_user" "recovery_operator" {
+      + arn           = (known after apply)
+      + force_destroy = false
+      + id            = (known after apply)
+      + name          = "databox-recovery-operator"
+      + path          = "/"
+      + tags_all      = (known after apply)
+      + unique_id     = (known after apply)
+    }
+
+  # aws_iam_user_policy.recovery_operator will be created
+  + resource "aws_iam_user_policy" "recovery_operator" {
+      + id          = (known after apply)
+      + name        = (known after apply)
+      + name_prefix = (known after apply)
+      + policy      = jsonencode(
+            {
+              + Statement = [
+                  + {
+                      + Action   = [
+                          + "sts:AssumeRole",
+                        ]
+                      + Effect   = "Allow"
+                      + Resource = "arn:aws:iam::734815189723:role/databox-polaris-catalog-backup"
+                    },
+                ]
+              + Version   = "2012-10-17"
+            }
+        )
+      + user        = "databox-recovery-operator"
+    }
+
+Plan: 2 to add, 1 to change, 0 to destroy.
+
+Changes to Outputs:
+  + recovery_operator_user_arn = (known after apply)

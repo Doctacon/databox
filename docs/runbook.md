@@ -74,9 +74,13 @@ copied: use Iceberg snapshots for logical rollback while objects remain, and
 rebuild complete warehouse loss from canonical sources.
 
 Copy `infra/recovery/terraform.tfvars.example` to an ignored `.tfvars` file and
-replace every placeholder. Configure `aws_profile` in an AWS shared config file
-with renewable credentials; do not put credentials in OpenTofu variables or
-state. The catalog-backup role is scoped only to its dedicated bucket.
+replace every placeholder. Configure `aws_profile` in an AWS shared config file with renewable
+credentials; do not put credentials in OpenTofu variables or state. OpenTofu
+declares the console-only `databox-recovery-operator` user without an access
+key, login profile, password, or MFA seed, plus permission only to assume the
+bucket-scoped catalog-backup role. After its separately reviewed apply, root
+must manually enable console access and MFA for that user; passwords, recovery
+codes, and MFA secrets must never enter OpenTofu configuration or state.
 
 Review only—these commands do not apply infrastructure:
 

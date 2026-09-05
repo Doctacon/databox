@@ -32,8 +32,3 @@ variable "catalog_backup_bucket" {
   description = "Globally unique bucket name for encrypted pgBackRest backups and WAL."
   type        = string
 }
-
-variable "operator_principal_arn" {
-  description = "Principal allowed to assume the catalog backup role."
-  type        = string
-}

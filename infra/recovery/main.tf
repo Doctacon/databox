@@ -65,12 +65,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "catalog_backup" {
   depends_on = [aws_s3_bucket_versioning.catalog_backup]
 }
 
+resource "aws_iam_user" "recovery_operator" {
+  name          = "databox-recovery-operator"
+  force_destroy = false
+}
+
 data "aws_iam_policy_document" "operator_assume" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
       type        = "AWS"
-      identifiers = [var.operator_principal_arn]
+      identifiers = [aws_iam_user.recovery_operator.arn]
     }
   }
 }
@@ -78,6 +83,20 @@ data "aws_iam_policy_document" "operator_assume" {
 resource "aws_iam_role" "catalog_backup" {
   name               = "databox-polaris-catalog-backup"
   assume_role_policy = data.aws_iam_policy_document.operator_assume.json
+}
+
+resource "aws_iam_user_policy" "recovery_operator" {
+  user = aws_iam_user.recovery_operator.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["sts:AssumeRole"]
+        Resource = aws_iam_role.catalog_backup.arn
+      },
+    ]
+  })
 }
 
 resource "aws_iam_role_policy" "catalog_backup" {

@@ -15,7 +15,8 @@ After explicit user approval of a fresh catalog-only OpenTofu plan, apply only t
 - The user reviews and explicitly approves the exact non-secret OpenTofu plan before apply.
 - Apply creates only the reviewed same-account, `us-west-1` resources and policies.
 - Local state is preserved at `infra/recovery/terraform.tfstate` on the FileVault-protected host and its encrypted machine backup.
-- Root is used only for approved bootstrap apply and role-access verification, then logged out; Compose receives only short-lived catalog-backup-role credentials.
+- OpenTofu creates `databox-recovery-operator` without access keys or login-profile secrets, grants only assumption of the catalog-backup role, and restricts that role's trust to the exact user ARN. Console access/password and MFA enrollment remain manual and never enter state.
+- Root is used only for reviewed bootstrap/repair applies and role-access verification, then logged out; Compose receives only short-lived catalog-backup-role credentials.
 - pgBackRest stanza check, first full backup, WAL archive check, and repository verification/info complete successfully.
 - Evidence records successful repository access, first physical backup, WAL archive round trip, and repository metadata without claiming restore or RPO/RTO proof.
 - Retained catalog backups and local state are preserved.
@@ -48,7 +49,9 @@ Record the approved replacement catalog-only plan hash/summary, durable local-st
 - 2026-09-04: Repaired plan evidence `.10x/evidence/2026-09-04-catalog-only-final-opentofu-plan.md` records binary hash `77cf23e243859dac24974be21adfb7f5bdf94bb6ec8168cf70039ddda3b69212` and 8 create / 0 change / 0 destroy. It is not approved or applied.
 - 2026-09-04: Independent review `.10x/reviews/2026-09-04-catalog-only-final-plan-review.md` passed with no findings. Parent immediately reproduced the exact binary hash. The plan is safe to present but remains unauthorized until the user explicitly approves this hash for apply.
 - 2026-09-04: User explicitly approved exact plan hash `77cf23e243859dac24974be21adfb7f5bdf94bb6ec8168cf70039ddda3b69212` using root only for bootstrap. Preconditions matched and exact-plan apply succeeded: 8 added, 0 changed, 0 destroyed. Root-side checks passed for all bucket controls and IAM policy; local state is mode 0600 with hash recorded in `.10x/evidence/2026-09-04-catalog-backup-infrastructure-apply.md`. Role verification then failed because AWS rejects `AssumeRole` by a root account. Root was intentionally not logged out so a reviewed trust/operator repair remains possible. No object, backup, WAL, service, volume, or restore operation ran.
+- 2026-09-04: User approved step 1 of the operator repair: declare console-only `databox-recovery-operator`, no access key/login profile/password/MFA state, permission only to assume the catalog-backup role, and exact user trust. Manual console access and MFA remain step 2.
+- 2026-09-04: Implemented step 1 and generated the normal-refresh repair plan recorded at `.10x/evidence/2026-09-04-recovery-operator-repair-plan.md`: binary hash `677f9ce7a6b5ee499f8bebb71b96115d8e443a31b1cbcf6f6f4eb2767fc96bcc`, 2 create / 1 in-place role-trust update / 0 destroy, no bucket action or unexpected drift. Twenty-five focused tests plus OpenTofu/Ruff/format/diff validation pass. Root remains active; no apply, credential, password, MFA, backup, or AWS mutation occurred.
 
 ## Blockers
 
-Applied infrastructure exists, but runtime use is blocked: select or create a non-root operator principal, repair catalog-backup role trust through a new exact OpenTofu plan, review and approve that plan, prove role assumption, then log out root. Preserve `infra/recovery/terraform.tfstate` and include it in the operator's encrypted machine backup.
+Independent review and explicit approval of exact operator-repair plan hash `677f9ce7a6b5ee499f8bebb71b96115d8e443a31b1cbcf6f6f4eb2767fc96bcc`, then manual console access/password and MFA enrollment before role-assumption proof. Preserve `infra/recovery/terraform.tfstate` and include it in the operator's encrypted machine backup.
