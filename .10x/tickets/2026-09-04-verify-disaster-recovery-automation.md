@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md, .10x
 
 ## Scope
 
-Adversarially review the integrated OpenTofu, pgBackRest, credential-process, inventory, restore-safety, Iceberg recovery, tests, and operator documentation. Repair only findings within the ratified automation-first scope, record evidence and review, and prepare the exact non-secret OpenTofu plan/apply inputs for user review.
+Adversarially review the integrated OpenTofu, pgBackRest, credential delivery, registry-derived restore validation, restore safety, Iceberg recovery, tests, and operator documentation. Repair only findings within the ratified automation-first scope, record evidence and review, and prepare the exact non-secret OpenTofu plan/apply inputs for user review.
 
 ## Acceptance criteria
 

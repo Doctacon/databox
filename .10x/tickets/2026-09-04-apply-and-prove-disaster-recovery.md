@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/2026-09-04-verify-disaster-recovery-automation.md
 
 ## Scope
 
-After explicit user approval of the exact OpenTofu plan, apply the reviewed infrastructure in the authenticated AWS account, initialize and verify the pgBackRest repository, create the first backups and inventory, confirm Iceberg recovery-copy behavior, and execute a timed isolated point-in-time restore drill.
+After explicit user approval of the exact OpenTofu plan, apply the reviewed infrastructure in the authenticated AWS account, initialize and verify the pgBackRest repository, create the first backups, confirm Iceberg recovery-copy behavior, and execute a timed isolated point-in-time restore drill with conventional application and table validation.
 
 ## Acceptance criteria
 
@@ -18,7 +18,7 @@ After explicit user approval of the exact OpenTofu plan, apply the reviewed infr
 - pgBackRest stanza check, first full backup, WAL archive check, repository verification/info, and logical export complete successfully.
 - Iceberg recovery replication/copy and 45-day version protection are observed on bounded non-sensitive test objects without targeting production data for deletion.
 - A selected recovery point is restored into an isolated empty environment.
-- All Polaris catalog inventory, permissions, registered Iceberg tables, metadata/snapshot pointers, and representative reads validate.
+- Polaris identity and permissions validate; restored tables match expectations derived from the corresponding source-registry revision; and every registered Iceberg table, metadata/snapshot pointer, and representative read validates.
 - Evidence records achieved catalog RPO and end-to-end RTO. RPO over five minutes or RTO over 60 minutes fails rather than redefining the targets.
 - Recovery environment and bounded test objects are cleaned only through reviewed non-destructive procedures; retained backups are preserved.
 

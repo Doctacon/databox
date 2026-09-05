@@ -124,7 +124,7 @@ writers and authoritative backup archiving disabled and bootstrap forbidden. A b
 validated Iceberg snapshot rollback. Missing referenced objects should be
 restored by explicit key and version from the recovery bucket. Last-resort table
 registration must use a validated metadata location, never lexicographic S3
-listing. Live PITR execution, catalog inventory/table validation, bounded object
+listing. Live PITR execution, registry-derived restored-table validation, bounded object
 restore, and the timed RPO/RTO drill remain blocked until infrastructure apply is
 separately approved.
 

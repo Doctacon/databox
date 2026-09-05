@@ -8,7 +8,7 @@ Depends-On: .10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md, .10x
 
 ## Scope
 
-Add fail-closed automation that restores a selected pgBackRest backup/PITR target into a new isolated PostgreSQL volume, starts compatible Polaris recovery services without replacing restored realm state, validates the catalog inventory and every canonical registered Iceberg table, supports bounded selected-object recovery guidance, and leaves production cutover manual.
+Add fail-closed automation that restores a selected pgBackRest backup/PITR target into a new isolated PostgreSQL volume, starts compatible Polaris recovery services without replacing restored realm state, validates the restored catalog conventionally and every canonical registered Iceberg table, supports bounded selected-object recovery guidance, and leaves production cutover manual.
 
 Provide deterministic offline tests using temporary local fixtures/fakes. Do not download live backups, restore production objects, run providers, or mutate AWS in this ticket.
 
@@ -18,12 +18,12 @@ Provide deterministic offline tests using temporary local fixtures/fakes. Do not
 - Recovery runs with compatible pinned PostgreSQL, pgBackRest, and Polaris versions.
 - Restored realm state is not silently bootstrapped or replaced.
 - Writers remain disabled in the recovery environment.
-- Validation compares catalog/schema/namespace/table inventory and verifies each registry-owned table pointer through the canonical registry/Polaris interface without a second hardcoded source list.
+- Validation derives expected registry-owned tables from the Databox source registry at the Git revision corresponding to the recovery point, enumerates restored catalog/namespace/table state through Polaris, and reports missing or unexpected state without a second hardcoded list.
 - Missing metadata, manifests, data objects, permissions, status tables, or snapshot divergence fail visibly before cutover.
 - Object recovery is bounded to explicit keys/versions or a reviewed table scope and never deletes from the recovery bucket.
 - Documentation distinguishes PITR, Iceberg snapshot rollback, missing-object restoration, and last-resort table re-registration.
 - The drill records start/end timestamps and computes achieved RPO/RTO but does not report objectives as proven in offline tests.
-- Adversarial tests cover non-empty target, active-volume alias, malformed timestamp, absent backup/WAL, inventory mismatch, missing object, failed table scan, accidental bootstrap, and secret redaction.
+- Adversarial tests cover non-empty target, active-volume alias, malformed timestamp, absent backup/WAL, registry/restored-state mismatch, missing object, failed table scan, accidental bootstrap, and secret redaction.
 - Focused tests, Compose rendering, Ruff, format, MyPy, secret scan, and diff checks pass without live external mutation.
 
 ## Explicit exclusions
@@ -43,12 +43,12 @@ Provide deterministic offline tests using temporary local fixtures/fakes. Do not
 
 ## Evidence expectations
 
-Record adversarial restore-safety cases, inventory/table validation cases, elapsed-time calculation, changed files, exact commands/results, and no-live-AWS/no-production-restore limits.
+Record adversarial restore-safety cases, registry-derived restored-table validation cases, elapsed-time calculation, changed files, exact commands/results, and no-live-AWS/no-production-restore limits.
 
 ## Progress and notes
 
 - 2026-09-04: Opened from the ratified disaster-recovery architecture.
-- 2026-09-04: Timeboxed implementation added a preparation-only recovery helper that requires a zoned timestamp, rejects the active and non-empty destinations, creates only an empty isolated target, keeps writers disabled/bootstrap forbidden, and computes RPO/RTO without claiming proof. Focused adversarial tests and runbook distinctions were added. The ticket remains open because actual pgBackRest restore composition, canonical catalog/table inventory validation, bounded object-version restoration, and full failure-path tests are not yet implemented; no live restore ran.
+- 2026-09-04: Timeboxed implementation added a preparation-only recovery helper that requires a zoned timestamp, rejects the active and non-empty destinations, creates only an empty isolated target, keeps writers disabled/bootstrap forbidden, and computes RPO/RTO without claiming proof. Focused adversarial tests and runbook distinctions were added. The ticket remains open because actual pgBackRest restore composition, conventional registry-derived catalog/table validation, bounded object-version restoration, and full failure-path tests are not yet implemented; no live restore ran.
 
 ## Blockers
 

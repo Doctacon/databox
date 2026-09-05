@@ -6,7 +6,7 @@ Updated: 2026-09-04
 
 ## Purpose and scope
 
-Define backup, point-in-time restore, inventory, credential, and recovery-drill behavior for the PostgreSQL metastore used by the local Apache Polaris service.
+Define backup, point-in-time restore, credential, restore-validation, and recovery-drill behavior for the PostgreSQL metastore used by the local Apache Polaris service.
 
 This specification does not provide PostgreSQL high availability, make Polaris always-on, apply live AWS resources without a reviewed plan, or replace Iceberg snapshot rollback for a bad table publication. It requires backup health before Polaris starts; it does not synchronously enforce backup health after startup.
 
@@ -42,18 +42,20 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 - A periodic logical PostgreSQL export MUST be available as a secondary inspection/version-migration artifact and MUST be encrypted before durable storage. It MUST NOT be represented as PITR-capable.
 - Retention MUST preserve every physical backup dependency and WAL segment required for the 30-day PITR window.
 
-## Inventory
+## Restore validation
 
-A deterministic, non-secret catalog recovery inventory MUST include:
+Databox MUST NOT maintain a separate pre-disaster catalog inventory. A completed isolated restore MUST be validated conventionally against the application and warehouse interfaces:
 
-- generation timestamp;
-- Polaris image/version and PostgreSQL major version;
-- Polaris schema version and realm/catalog names;
-- namespaces and table identifiers;
-- table locations, current metadata JSON locations, and current snapshot IDs;
-- the associated pgBackRest backup identifier or recovery range when available.
+- start the restored PostgreSQL and compatible Polaris version with bootstrap and writers disabled;
+- authenticate to the restored Polaris realm;
+- enumerate restored catalogs, namespaces, and tables through the canonical Polaris/Iceberg interface;
+- derive expected registry-owned tables from the Databox source registry at the Git revision corresponding to the selected recovery point, without a second hardcoded list;
+- load every restored registered table through the Iceberg catalog;
+- verify each current metadata object and snapshot is readable from S3;
+- run representative read-only queries; and
+- record observed objects, failures, selected recovery point, code revision, and elapsed time as drill evidence.
 
-The inventory is diagnostic metadata, not an independent source of catalog authority. It MUST exclude credentials, tokens, sensitive environment values, and provider payloads.
+The restore-validation report is temporal evidence, not a backup or independent source of authority. It MUST exclude credentials, tokens, sensitive environment values, signed URLs, and provider payloads.
 
 ## Restore behavior
 
@@ -62,7 +64,7 @@ The inventory is diagnostic metadata, not an independent source of catalog autho
 - Recovery MUST support selecting a timestamp inside the retained PITR window.
 - Restore automation MUST stop before production cutover and print the exact remaining operator-controlled action.
 - Bootstrap MUST NOT replace or silently initialize restored realm state.
-- Writers MUST remain disabled until catalog inventory, permissions, table pointers, and representative Iceberg reads validate.
+- Writers MUST remain disabled until restored identities, permissions, registry-owned tables, table pointers, metadata objects, snapshots, and representative Iceberg reads validate.
 - Recovery credentials MUST be distinct from routine source-writer authority where AWS policy permits.
 
 ## Acceptance scenarios
@@ -89,7 +91,7 @@ Given a retained base backup and complete WAL sequence, when an operator selects
 
 ### Verification
 
-Given a completed isolated restore, when the recovery validator runs, then it authenticates to Polaris, compares the non-secret inventory, loads every registered table through the Iceberg catalog, and reports missing or divergent pointers before any cutover.
+Given a completed isolated restore and the Databox code revision corresponding to its recovery point, when the recovery validator runs, then it authenticates to Polaris, derives expected registry-owned tables from that revision, enumerates and loads restored tables through the Iceberg catalog, verifies metadata/snapshot readability and representative queries, and reports missing, unexpected, unreadable, or divergent state before any cutover.
 
 ### Timed drill
 
@@ -102,5 +104,6 @@ Given provisioned live backup infrastructure, when the first full drill runs, th
 - Multi-node PostgreSQL or Polaris high availability.
 - An unprotected Polaris startup mode or backup bypass.
 - Continuous backup-health monitoring, per-write backup synchronization, and unattended host or container scheduling.
-- Storing secrets in OpenTofu state, repository files, logs, inventories, or evidence.
+- Storing secrets in OpenTofu state, repository files, logs, restore-validation evidence, or other artifacts.
+- Maintaining a separate pre-disaster catalog inventory.
 - Treating `pg_dump`, a copied Docker volume, or backup-command success as recovery proof.

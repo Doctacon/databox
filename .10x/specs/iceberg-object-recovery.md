@@ -57,7 +57,7 @@ Given a primary warehouse object with a retained recovery copy, when the primary
 
 ### Catalog PITR consistency
 
-Given a PostgreSQL recovery target within 30 days, when its table pointers are inventoried, then every referenced Iceberg object can be resolved from the primary warehouse or recovery history.
+Given a PostgreSQL recovery target within 30 days, when its restored table pointers are enumerated through Polaris during validation, then every referenced Iceberg object can be resolved from the primary warehouse or recovery history.
 
 ### Bad table write
 

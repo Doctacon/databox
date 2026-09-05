@@ -13,7 +13,7 @@ Deliver reviewable, tested automation for the ratified Polaris catalog and Icebe
 ## Child plan
 
 1. `.10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md` — add OpenTofu for the two same-account, same-region buckets, retention, replication, and least-privilege IAM. Can begin immediately.
-2. `.10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md` — add pgBackRest, renewable credential-process integration, backup/check/inventory commands, and tests. Can proceed in parallel with child 1 against the defined interfaces.
+2. `.10x/tickets/2026-09-04-add-pgbackrest-catalog-protection.md` — add pgBackRest, renewable credential-process integration, backup/check commands and tests. Can proceed in parallel with child 1 against the defined interfaces.
 3. `.10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md` — add fail-closed PITR restore and Iceberg/catalog validation after children 1 and 2 establish inputs.
 4. `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md` — adversarially review and verify the complete non-live automation and documentation.
 5. `.10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md` — blocked live rollout and timed restore proof; begins only after the user reviews the OpenTofu plan and explicitly authorizes AWS mutation.
@@ -59,6 +59,7 @@ Children 1 and 2 are parallelizable in isolated worktrees. Child 3 depends on bo
 - 2026-09-04: Opened after the user approved execution. User selected automation-first OpenTofu delivery, same AWS account and `us-west-1`, separate catalog and Iceberg recovery buckets, renewable credential-process authentication, 30-day catalog PITR, 45-day object history, five-minute RPO while running, and 60-minute RTO.
 - 2026-09-04: User ratified one-Compose fail-closed operation: Polaris and writers remain unavailable unless pgBackRest repository, credentials, WAL archival, and required base backup are healthy. Optional unprotected startup is superseded.
 - 2026-09-04: User selected host-injected short-lived backup session credentials instead of AWS CLI/profile mounting or a credential broker inside PostgreSQL.
+- 2026-09-04: User rejected a separately maintained pre-disaster catalog inventory and selected conventional restore validation: restore the catalog in isolation, derive expected tables from the corresponding source-registry revision, enumerate and load restored tables, verify S3 metadata/snapshots and representative queries, and record temporal drill evidence.
 - 2026-09-04: User rejected continuous backup monitoring and per-write blocking as overkill. The startup gate plus standard pgBackRest WAL archiving, startup-driven physical-backup cadence, manual maintenance commands, and restore drills is authoritative; five-minute RPO is an objective only while archiving is healthy.
 - 2026-09-04: User ratified lifecycle-driven scheduling because the local Compose stack is expected to restart reasonably often: the startup gate applies daily differential and weekly full age thresholds, while no cron or host scheduler is added.
 
