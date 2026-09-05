@@ -67,17 +67,16 @@ for the exact claims and limits.
 ## Plan recovery infrastructure
 
 Recovery infrastructure is declared in `infra/recovery/` with OpenTofu
-`>=1.8,<2`. It creates separate same-account, same-region catalog-backup and
-Iceberg-recovery buckets. The recovery bucket retains noncurrent object versions
-for 45 days and deliberately does not replicate primary delete markers. The
-accepted same-account and `us-west-1` design does not protect against account-wide
-compromise or regional failure.
+`>=1.8,<2`. It creates one same-account, same-region catalog-backup bucket for
+pgBackRest. The accepted same-account and `us-west-1` design does not protect
+against account-wide or regional failure. Iceberg warehouse objects are not
+copied: use Iceberg snapshots for logical rollback while objects remain, and
+rebuild complete warehouse loss from canonical sources.
 
 Copy `infra/recovery/terraform.tfvars.example` to an ignored `.tfvars` file and
 replace every placeholder. Configure `aws_profile` in an AWS shared config file
-with the matching renewable `credential_process`; do not put credentials in
-OpenTofu variables or state. The routine Iceberg writer is explicitly denied
-recovery-object deletion, while backup and recovery-reader roles are separate.
+with renewable credentials; do not put credentials in OpenTofu variables or
+state. The catalog-backup role is scoped only to its dedicated bucket.
 
 Review only—these commands do not apply infrastructure:
 
@@ -91,9 +90,7 @@ tofu plan -refresh=false -var-file=recovery.auto.tfvars -out=recovery.tfplan
 
 `plan` still evaluates provider configuration and requires the configured AWS
 profile. Do not run `tofu apply` until the plan is reviewed and separately
-authorized. OpenTofu manages the complete replication configuration on the
-existing primary bucket, so the plan must be checked for any pre-existing rule
-that would otherwise be replaced.
+authorized. OpenTofu does not manage or mutate the primary Iceberg bucket.
 
 ## Catalog backup and recovery preparation
 
@@ -122,13 +119,13 @@ uv run python scripts/platform/catalog_recovery.py \
 ```
 
 The helper rejects the active or any non-empty destination and explicitly keeps
-writers and authoritative backup archiving disabled and bootstrap forbidden. A bad table publication should use a
-validated Iceberg snapshot rollback. Missing referenced objects should be
-restored by explicit key and version from the recovery bucket. Last-resort table
-registration must use a validated metadata location, never lexicographic S3
-listing. Live PITR execution, registry-derived restored-table validation, bounded object
-restore, and the timed RPO/RTO drill remain blocked until infrastructure apply is
-separately approved.
+writers and authoritative backup archiving disabled and bootstrap forbidden. A
+bad table publication should use a validated Iceberg snapshot rollback while its
+objects remain. Complete primary-warehouse loss requires source rebuild and is
+not covered by the 60-minute catalog RTO. Last-resort table registration must use
+a validated metadata location, never lexicographic S3 listing. Live PITR
+execution, registry-derived restored-table validation, and the timed catalog
+RPO/RTO drill remain blocked until infrastructure apply is separately approved.
 
 ## SQLMesh dev loop
 

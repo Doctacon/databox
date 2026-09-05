@@ -1,4 +1,4 @@
-"""Static contract for automation-first recovery infrastructure."""
+"""Static contract for automation-first catalog recovery infrastructure."""
 
 from pathlib import Path
 
@@ -21,44 +21,52 @@ def test_opentofu_is_bounded_and_same_region() -> None:
     assert "aws_account_id" in variables
 
 
-def test_three_buckets_are_distinct_and_recovery_is_versioned() -> None:
+def test_catalog_backup_bucket_is_protected_for_thirty_days() -> None:
     main = _text("main.tf")
-    assert 'check "distinct_bucket_names"' in main
     assert 'resource "aws_s3_bucket" "catalog_backup"' in main
-    assert 'resource "aws_s3_bucket" "iceberg_recovery"' in main
-    assert main.count('status = "Enabled"') >= 4
-    assert "noncurrent_days = 45" in main
+    assert 'resource "aws_s3_bucket_versioning" "catalog_backup"' in main
+    assert 'status = "Enabled"' in main
     assert "noncurrent_days = 30" in main
-    assert main.count("block_public_acls       = true") == 2
-    assert main.count('sse_algorithm = "AES256"') == 2
+    assert "block_public_acls       = true" in main
+    assert 'sse_algorithm = "AES256"' in main
 
 
-def test_replication_preserves_deleted_primary_versions() -> None:
+def test_only_catalog_backup_permissions_remain() -> None:
     main = _text("main.tf")
-    assert 'prefix = "${local.warehouse_prefix}/"' in main
-    assert "delete_marker_replication {" in main
-    assert 'status = "Disabled"' in main
-    assert '"s3:ReplicateObject", "s3:ReplicateTags"' in main
-    assert "s3:ReplicateDelete" not in main
-    assert '"DenyRoutineWriterDeletes"' in main
-    assert '"s3:DeleteObject", "s3:DeleteObjectVersion"' in main
-
-
-def test_backup_and_recovery_permissions_are_separate() -> None:
-    main = _text("main.tf")
+    outputs = _text("outputs.tf")
     assert 'resource "aws_iam_role" "catalog_backup"' in main
-    assert 'resource "aws_iam_role" "iceberg_recovery_reader"' in main
-    reader_policy = main.split(
-        'resource "aws_iam_role_policy" "iceberg_recovery_reader"', maxsplit=1
-    )[1].split('resource "aws_iam_role" "iceberg_replication"', maxsplit=1)[0]
-    assert "s3:GetObjectVersion" in reader_policy
-    assert "s3:PutObject" not in reader_policy
-    assert "s3:DeleteObject" not in reader_policy
+    assert 'resource "aws_iam_role_policy" "catalog_backup"' in main
+    assert "s3:GetBucketLocation" in main
+    assert "s3:ListBucket" in main
+    assert "s3:GetObject" in main
+    assert "s3:PutObject" in main
+    assert "s3:DeleteObject" in main
+    assert "iceberg" not in main.lower()
+    assert "replication" not in main.lower()
+    assert "primary" not in main.lower()
+    assert "recovery" not in outputs.lower()
+
+
+def test_rejected_warehouse_inputs_and_outputs_are_absent() -> None:
+    variables = _text("variables.tf")
+    outputs = _text("outputs.tf")
+    example = _text("terraform.tfvars.example")
+    rejected = (
+        "primary_iceberg_bucket",
+        "warehouse_prefix",
+        "iceberg_recovery_bucket",
+        "routine_writer_principal_arn",
+        "iceberg_recovery_reader_role_arn",
+    )
+    for name in rejected:
+        assert name not in variables
+        assert name not in outputs
+        assert name not in example
 
 
 def test_example_contains_no_real_account_or_bucket_identity() -> None:
     example = _text("terraform.tfvars.example")
     assert "123456789012" in example
-    assert "replace-primary-bucket" in example
+    assert "replace-catalog-backup-bucket" in example
     assert "AKIA" not in example
     assert "secret" not in example.lower()

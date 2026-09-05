@@ -1,5 +1,5 @@
 variable "aws_account_id" {
-  description = "Existing AWS account that owns the primary and recovery buckets."
+  description = "AWS account that owns the catalog backup bucket."
   type        = string
   validation {
     condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
@@ -28,37 +28,12 @@ variable "aws_shared_config_files" {
   default     = ["~/.aws/config"]
 }
 
-variable "primary_iceberg_bucket" {
-  description = "Existing authoritative Iceberg warehouse bucket."
-  type        = string
-}
-
-variable "warehouse_prefix" {
-  description = "Existing authoritative Iceberg warehouse prefix."
-  type        = string
-  default     = "warehouse"
-  validation {
-    condition     = length(trim(var.warehouse_prefix, "/")) > 0
-    error_message = "warehouse_prefix must not be empty."
-  }
-}
-
 variable "catalog_backup_bucket" {
   description = "Globally unique bucket name for encrypted pgBackRest backups and WAL."
   type        = string
 }
 
-variable "iceberg_recovery_bucket" {
-  description = "Globally unique bucket name for retained Iceberg object versions."
-  type        = string
-}
-
 variable "operator_principal_arn" {
-  description = "Principal allowed to assume backup and recovery operator roles."
-  type        = string
-}
-
-variable "routine_writer_principal_arn" {
-  description = "Normal Iceberg writer explicitly denied destructive recovery-bucket access."
+  description = "Principal allowed to assume the catalog backup role."
   type        = string
 }
