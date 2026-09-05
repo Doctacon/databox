@@ -1,4 +1,4 @@
-Status: blocked
+Status: active
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -15,7 +15,7 @@ After explicit user approval of a fresh catalog-only OpenTofu plan, apply only t
 - The user reviews and explicitly approves the exact non-secret OpenTofu plan before apply.
 - Apply creates only the reviewed same-account, `us-west-1` resources and policies.
 - Local state is preserved at `infra/recovery/terraform.tfstate`, Git-ignored and mode `0600` on the FileVault-protected host; if lost, every live resource is recovered through reviewed imports before further planning.
-- OpenTofu creates `databox-recovery-operator` without access keys or login-profile secrets, grants only assumption of the catalog-backup role, and restricts that role's trust to the exact user ARN. Console access/password and MFA enrollment remain manual and never enter state.
+- OpenTofu creates `databox-recovery-operator` without access keys or login-profile secrets, grants only the exact backup-role assumption and scoped remote-login actions, and restricts that role's trust to the exact user ARN with MFA. Console access/password and MFA enrollment remain manual and never enter state.
 - Root is used only for reviewed bootstrap/repair applies and role-access verification, then logged out; Compose receives only short-lived catalog-backup-role credentials.
 - pgBackRest stanza check, first full backup, WAL archive check, and repository verification/info complete successfully.
 - Evidence records successful repository access, first physical backup, WAL archive round trip, and repository metadata without claiming restore or RPO/RTO proof.
@@ -65,7 +65,8 @@ Record the approved replacement catalog-only plan hash/summary, local-state path
 - 2026-09-05: The human closed the root browser session and explicitly authorized the first live stanza/WAL/full-backup proof. Evidence `.10x/evidence/2026-09-05-first-catalog-backup-attempt.md` records matching identities and safe in-memory credential injection, but `stanza-create` failed because pgBackRest defaulted to database role/database `postgres` while this existing cluster has only the intentionally configured `polaris` bootstrap role. The gate failed closed: PostgreSQL is healthy with archiving configured against the preserved volume, while Polaris and its console remain stopped. The S3 repository prefix remains empty; no backup or WAL proof is claimed.
 - 2026-09-05: User approved exact `pg1-user=polaris` repair; commit `342825c`, 17 focused tests, image rebuild, and runtime pin/config checks passed. Live retry reached S3 but failed verified HTTPS because the image lacks a usable CA certificate bundle. Evidence `.10x/evidence/2026-09-05-pgbackrest-polaris-user-repair-attempt.md` records the sanitized error and fail-closed state. The S3 prefix remains empty and Polaris remains stopped.
 - 2026-09-05: User approved Debian `ca-certificates`; commit `5f9bd43` added only that package, bundle assertion, and focused coverage. Evidence `.10x/evidence/2026-09-05-first-catalog-backup-success.md` records successful image/pin/trust validation, readiness exit `0`, stanza `ok`, full backup `20260905-162355F`, WAL range through `000000010000000000000007`, zero archiver failures, 1327 S3 objects containing archive and backup paths, healthy PostgreSQL/Polaris, and preserved volume/data. No restore or RPO/RTO claim was made.
+- 2026-09-05: Independent acceptance review `.10x/reviews/2026-09-05-first-live-catalog-backup-review.md` passed with no findings. The primary-warehouse token issue does not invalidate catalog proof and is separately owned by `.10x/tickets/2026-09-05-establish-primary-warehouse-session-credentials.md`.
 
 ## Blockers
 
-Independent acceptance review of the first live backup/WAL proof. Before a future full Compose recreation, resolve its required primary `DATABOX_AWS_SESSION_TOKEN` without persisting, fabricating, or substituting backup-role credentials.
+None. Ticket closure still requires final criterion reconciliation and retrospective extraction.
