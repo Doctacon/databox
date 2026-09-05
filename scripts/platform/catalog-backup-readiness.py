@@ -11,7 +11,6 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
-_READY_MARKER = Path("/var/run/postgresql/.databox-catalog-backup-ready")
 _PGBACKREST = "/usr/local/bin/run-pgbackrest"
 Runner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
 
@@ -60,10 +59,8 @@ def _has_valid_backup(info_text: str) -> bool:
     return False
 
 
-def ensure_catalog_backup_ready(*, runner: Runner = _run, marker: Path = _READY_MARKER) -> None:
-    """Verify WAL archival and ensure one physical backup before marking ready."""
-    if marker.is_file():
-        return
+def ensure_catalog_backup_ready(*, runner: Runner = _run) -> None:
+    """Verify WAL archival and ensure one post-bootstrap physical backup."""
     _require_configuration()
     try:
         runner(("pg_isready", "-U", "polaris", "-d", "polaris"))
@@ -78,7 +75,6 @@ def ensure_catalog_backup_ready(*, runner: Runner = _run, marker: Path = _READY_
     except subprocess.CalledProcessError as exc:
         command = Path(str(exc.cmd[0])).name if isinstance(exc.cmd, list | tuple) else "command"
         raise ReadinessError(f"catalog backup readiness command failed: {command}") from exc
-    marker.touch(mode=0o600)
 
 
 def main() -> int:

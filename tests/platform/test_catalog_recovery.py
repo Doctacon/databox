@@ -65,13 +65,11 @@ def test_drill_metrics_do_not_claim_objectives() -> None:
         "PGBACKREST_REPO1_S3_TOKEN",
     ),
 )
-def test_readiness_gate_rejects_missing_temporary_credential(
-    tmp_path: Path, missing_name: str
-) -> None:
+def test_readiness_gate_rejects_missing_temporary_credential(missing_name: str) -> None:
     env = {name: value for name, value in _BACKUP_ENV.items() if name != missing_name}
     with patch.dict(readiness.os.environ, env, clear=True):
         with pytest.raises(readiness.ReadinessError, match=missing_name):
-            readiness.ensure_catalog_backup_ready(marker=tmp_path / "ready")
+            readiness.ensure_catalog_backup_ready()
 
 
 def test_pgbackrest_wrapper_rejects_partial_credentials_without_printing_values() -> None:
@@ -116,11 +114,8 @@ def test_readiness_gate_checks_wal_and_creates_initial_backup(tmp_path: Path) ->
         stdout = next(info_results) if command[-1] == "info" else ""
         return Mock(stdout=stdout, returncode=0)
 
-    marker = tmp_path / "ready"
     with patch.dict(readiness.os.environ, _BACKUP_ENV, clear=True):
-        readiness.ensure_catalog_backup_ready(runner=runner, marker=marker)
-
-    assert marker.is_file()
+        readiness.ensure_catalog_backup_ready(runner=runner)
     assert [call[-1] for call in calls] == [
         "polaris",
         "stanza-create",
@@ -153,7 +148,7 @@ def test_readiness_gate_does_not_replace_existing_backup(tmp_path: Path) -> None
         return Mock(stdout=stdout, returncode=0)
 
     with patch.dict(readiness.os.environ, _BACKUP_ENV, clear=True):
-        readiness.ensure_catalog_backup_ready(runner=runner, marker=tmp_path / "ready")
+        readiness.ensure_catalog_backup_ready(runner=runner)
 
     assert "backup" not in [call[-1] for call in calls]
 
@@ -166,9 +161,22 @@ def test_pgbackrest_contract_has_fail_closed_gate_archive_and_retention() -> Non
     assert "repo1-cipher-type=aes-256-cbc" in config
     assert "archive_timeout=300s" in compose
     assert "archive_command" in compose
-    assert 'test: ["CMD", "python3", "/opt/databox/catalog-backup-readiness.py"]' in compose
-    assert "condition: service_healthy" in compose
+    assert 'test: ["CMD-SHELL", "pg_isready -U polaris -d polaris"]' in compose
+    assert "catalog-backup-readiness:" in compose
+    assert 'command: ["python3", "/opt/databox/catalog-backup-readiness.py"]' in compose
+    bootstrap = compose.index("  polaris-bootstrap:")
+    backup_gate = compose.index("  catalog-backup-readiness:")
+    polaris = compose.index("  polaris:\n")
+    assert bootstrap < backup_gate < polaris
+    gate_block = compose[backup_gate:polaris]
+    assert "polaris-bootstrap:" in gate_block
+    assert "condition: service_completed_successfully" in gate_block
+    polaris_block = compose[polaris : compose.index("  polaris-console:")]
+    assert "catalog-backup-readiness:" in polaris_block
+    assert "condition: service_completed_successfully" in polaris_block
     run_pgbackrest = (ROOT / "scripts/platform/run-pgbackrest.sh").read_text()
+    recovery_script = (ROOT / "scripts/platform/catalog_recovery.py").read_text()
+    assert '"authoritative_backup_archive": "disabled"' in recovery_script
     assert "catalog-backup-readiness.py" in dockerfile
     assert "DATABOX_AWS_CREDENTIAL_PROCESS" not in compose
     assert "credential-process" not in dockerfile

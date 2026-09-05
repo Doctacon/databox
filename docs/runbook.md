@@ -27,12 +27,12 @@ session token required by the current Compose stack. `databox_lake` must already
 be provisioned with `s3://<bucket>/warehouse` as its base location and the
 bucket-scoped IAM role, then start `compose.iceberg.yml`.
 
-PostgreSQL reports healthy only after the catalog-backup readiness gate validates
-complete host-injected short-lived backup credentials, the pgBackRest repository
-and stanza, a WAL archive round trip, and an existing or newly created full
-backup. Polaris bootstrap and the API remain stopped when any check fails;
-inspect the PostgreSQL healthcheck
-output rather than bypassing backup protection.
+PostgreSQL first reports only basic database liveness. Polaris bootstrap then
+initializes the schema and realm. The one-shot `catalog-backup-readiness` service
+validates complete host-injected short-lived backup credentials, the pgBackRest
+repository and stanza, a WAL archive round trip, and an existing or newly created
+post-bootstrap full backup. The Polaris API remains stopped when any check fails;
+inspect the backup-readiness service output rather than bypassing protection.
 
 Static pinned AVONET is deliberately excluded from routine refresh. Run its
 independent `avonet_ingest` Dagster job explicitly when a validated
@@ -120,7 +120,7 @@ uv run python scripts/platform/catalog_recovery.py \
 ```
 
 The helper rejects the active or any non-empty destination and explicitly keeps
-writers disabled and bootstrap forbidden. A bad table publication should use a
+writers and authoritative backup archiving disabled and bootstrap forbidden. A bad table publication should use a
 validated Iceberg snapshot rollback. Missing referenced objects should be
 restored by explicit key and version from the recovery bucket. Last-resort table
 registration must use a validated metadata location, never lexicographic S3

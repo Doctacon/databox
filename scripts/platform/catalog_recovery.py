@@ -55,6 +55,7 @@ def main() -> None:
                 "recover_to": recover_to.isoformat(),
                 "writers": "disabled",
                 "bootstrap": "forbidden",
+                "authoritative_backup_archive": "disabled",
                 "next": "run reviewed pgBackRest restore; do not cut over",
             },
             sort_keys=True,

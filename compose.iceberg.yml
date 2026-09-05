@@ -28,12 +28,13 @@ services:
       - -c
       - archive_command=/usr/local/bin/run-pgbackrest --stanza=polaris archive-push %p
     healthcheck:
-      test: ["CMD", "python3", "/opt/databox/catalog-backup-readiness.py"]
-      interval: 5s
-      timeout: 10m
-      retries: 12
+      test: ["CMD-SHELL", "pg_isready -U polaris -d polaris"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
     volumes:
       - polaris_postgres:/var/lib/postgresql/data
+      - polaris_postgres_socket:/var/run/postgresql
     restart: unless-stopped
 
   polaris-bootstrap:
@@ -56,12 +57,36 @@ services:
       - POLARIS,${DATABOX_POLARIS_CLIENT_ID:?set DATABOX_POLARIS_CLIENT_ID},${DATABOX_POLARIS_CLIENT_SECRET:?set DATABOX_POLARIS_CLIENT_SECRET}
     restart: "no"
 
+  catalog-backup-readiness:
+    image: databox-polaris-postgres:17.6-pgbackrest-2.55.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      polaris-bootstrap:
+        condition: service_completed_successfully
+    user: postgres
+    environment:
+      PGBACKREST_REPO1_CIPHER_PASS: ${PGBACKREST_REPO1_CIPHER_PASS:?set PGBACKREST_REPO1_CIPHER_PASS}
+      PGBACKREST_REPO1_S3_KEY: ${DATABOX_BACKUP_AWS_ACCESS_KEY_ID:?set DATABOX_BACKUP_AWS_ACCESS_KEY_ID}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY:?set DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY}
+      PGBACKREST_REPO1_S3_TOKEN: ${DATABOX_BACKUP_AWS_SESSION_TOKEN:?set DATABOX_BACKUP_AWS_SESSION_TOKEN}
+      PGBACKREST_REPO1_S3_BUCKET: ${DATABOX_CATALOG_BACKUP_BUCKET:?set DATABOX_CATALOG_BACKUP_BUCKET}
+      PGBACKREST_REPO1_S3_REGION: ${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}
+      PGBACKREST_REPO1_S3_ENDPOINT: s3.${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}.amazonaws.com
+    command: ["python3", "/opt/databox/catalog-backup-readiness.py"]
+    volumes:
+      - polaris_postgres:/var/lib/postgresql/data
+      - polaris_postgres_socket:/var/run/postgresql
+    restart: "no"
+
   polaris:
     image: apache/polaris:1.7.0
     depends_on:
       postgres:
         condition: service_healthy
       polaris-bootstrap:
+        condition: service_completed_successfully
+      catalog-backup-readiness:
         condition: service_completed_successfully
     environment:
       POLARIS_PERSISTENCE_TYPE: relational-jdbc
@@ -108,3 +133,4 @@ services:
 volumes:
   polaris_postgres:
     name: databox_polaris_postgres
+  polaris_postgres_socket:
