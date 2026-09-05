@@ -46,7 +46,8 @@ Record the approved replacement catalog-only plan hash/summary, durable local-st
 - 2026-09-04: Three generated plans were invalidated in sequence by removal of Iceberg replication, addition of TLS enforcement, and then independent findings for multipart abort, rollout ordering, and state ownership. None was applied.
 - 2026-09-04: User ratified proof-first ordering: approved infrastructure and a real pgBackRest backup/WAL round trip must succeed before isolated restore automation. Local state is operator-owned at `infra/recovery/terraform.tfstate`, protected by FileVault and normal encrypted machine backup; no remote backend is added.
 - 2026-09-04: Repaired plan evidence `.10x/evidence/2026-09-04-catalog-only-final-opentofu-plan.md` records binary hash `77cf23e243859dac24974be21adfb7f5bdf94bb6ec8168cf70039ddda3b69212` and 8 create / 0 change / 0 destroy. It is not approved or applied.
+- 2026-09-04: Independent review `.10x/reviews/2026-09-04-catalog-only-final-plan-review.md` passed with no findings. Parent immediately reproduced the exact binary hash. The plan is safe to present but remains unauthorized until the user explicitly approves this hash for apply.
 
 ## Blockers
 
-Blocked until catalog-only infrastructure repair, a fresh exact plan and independent review, and explicit approval of that replacement plan. All earlier plans are rejected and must not be applied.
+Explicit user approval of exact binary plan hash `77cf23e243859dac24974be21adfb7f5bdf94bb6ec8168cf70039ddda3b69212`. All earlier plans are rejected and must not be applied.
