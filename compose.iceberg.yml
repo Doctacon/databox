@@ -2,12 +2,12 @@ name: databox-iceberg
 
 services:
   postgres:
-    image: databox-polaris-postgres:17.6-pgbackrest-2.55.1
+    image: databox-polaris-postgres:17.6-pgbackrest-2.59.1
     build:
       context: .
       dockerfile: scripts/platform/polaris-postgres.Dockerfile
       args:
-        PGBACKREST_VERSION: 2.55.1
+        PGBACKREST_VERSION: 2.59.1
     environment:
       POSTGRES_DB: polaris
       POSTGRES_USER: polaris
@@ -58,7 +58,7 @@ services:
     restart: "no"
 
   catalog-backup-readiness:
-    image: databox-polaris-postgres:17.6-pgbackrest-2.55.1
+    image: databox-polaris-postgres:17.6-pgbackrest-2.59.1
     depends_on:
       postgres:
         condition: service_healthy

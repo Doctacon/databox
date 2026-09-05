@@ -234,6 +234,8 @@ def test_pgbackrest_contract_has_fail_closed_gate_archive_and_retention() -> Non
     recovery_script = (ROOT / "scripts/platform/catalog_recovery.py").read_text()
     assert '"authoritative_backup_archive": "disabled"' in recovery_script
     assert "catalog-backup-readiness.py" in dockerfile
+    assert compose.count("databox-polaris-postgres:17.6-pgbackrest-2.59.1") == 2
+    assert "ARG PGBACKREST_VERSION=2.59.1" in dockerfile
     assert "DATABOX_AWS_CREDENTIAL_PROCESS" not in compose
     assert "credential-process" not in dockerfile
     assert "awscli" not in dockerfile.lower()
