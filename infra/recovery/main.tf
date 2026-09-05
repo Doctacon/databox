@@ -100,6 +100,14 @@ resource "aws_iam_user_policy" "recovery_operator" {
         Action   = ["sts:AssumeRole"]
         Resource = aws_iam_role.catalog_backup.arn
       },
+      {
+        Effect = "Allow"
+        Action = [
+          "signin:AuthorizeOAuth2Access",
+          "signin:CreateOAuth2Token",
+        ]
+        Resource = "arn:aws:signin:us-west-1:734815189723:oauth2/public-client/remote"
+      },
     ]
   })
 }

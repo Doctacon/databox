@@ -77,8 +77,11 @@ Copy `infra/recovery/terraform.tfvars.example` to an ignored `.tfvars` file and
 replace every placeholder. Configure `aws_profile` in an AWS shared config file with renewable
 credentials; do not put credentials in OpenTofu variables or state. OpenTofu
 declares the console-only `databox-recovery-operator` user without an access
-key, login profile, password, or MFA seed, plus permission only to assume the
-bucket-scoped catalog-backup role. After its separately reviewed apply, root
+key, login profile, password, or MFA seed. Its inline policy permits only
+assuming the bucket-scoped catalog-backup role and the two OAuth actions AWS
+requires for `aws login --remote`, scoped to the account's `us-west-1` remote
+public client. It cannot use same-device login or other sign-in clients. After
+its separately reviewed apply, root
 must manually enable console access and MFA for that user; passwords, recovery
 codes, and MFA secrets must never enter OpenTofu configuration or state. The
 human then uses `aws login` for the operator source profile and an AWS CLI role

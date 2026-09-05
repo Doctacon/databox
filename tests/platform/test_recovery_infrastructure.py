@@ -65,7 +65,7 @@ def test_only_catalog_backup_permissions_remain() -> None:
     assert "iceberg_recovery" not in outputs.lower()
 
 
-def test_recovery_operator_is_console_only_and_may_only_assume_backup_role() -> None:
+def test_recovery_operator_has_only_remote_login_and_backup_role_access() -> None:
     main = _text("main.tf")
     outputs = _text("outputs.tf")
     assert 'resource "aws_iam_user" "recovery_operator"' in main
@@ -74,6 +74,11 @@ def test_recovery_operator_is_console_only_and_may_only_assume_backup_role() -> 
     assert 'resource "aws_iam_user_policy" "recovery_operator"' in main
     assert 'Action   = ["sts:AssumeRole"]' in main
     assert "Resource = aws_iam_role.catalog_backup.arn" in main
+    assert '"signin:AuthorizeOAuth2Access"' in main
+    assert '"signin:CreateOAuth2Token"' in main
+    assert 'Resource = "arn:aws:signin:us-west-1:734815189723:oauth2/public-client/remote"' in main
+    assert "oauth2/public-client/*" not in main
+    assert "oauth2/public-client/localhost" not in main
     assert "identifiers = [aws_iam_user.recovery_operator.arn]" in main
     assert 'variable = "aws:MultiFactorAuthPresent"' in main
     assert 'values   = ["true"]' in main
