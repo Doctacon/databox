@@ -20,7 +20,9 @@ Iceberg table snapshots remain the mechanism for logical rollback while their ob
 
 The 45-day Iceberg object-recovery objective is removed. The 60-minute RTO applies only to catalog recovery when the primary Iceberg warehouse remains readable; it is not guaranteed for complete warehouse loss or source re-ingestion. The five-minute catalog RPO and 30-day catalog PITR objectives remain unchanged.
 
-The exact plans recorded at `.10x/evidence/2026-09-04-recovery-opentofu-plan.md` and `.10x/evidence/2026-09-04-catalog-only-recovery-opentofu-plan.md` MUST NOT be applied. They are historical evidence invalidated respectively by this decision and the later TLS-enforcement repair. The current TLS-enforced catalog-only plan is recorded at `.10x/evidence/2026-09-04-catalog-only-tls-recovery-opentofu-plan.md`; it still requires independent review and explicit approval before apply.
+All earlier plans, including TLS-enforced plan hash `4656b197fd1039d4972c614e828ad0be92128fec6c6f83d4a6a6fd88abc98837`, MUST NOT be applied. A repaired catalog-only OpenTofu plan requires fresh generation, hash, independent review, and explicit approval before apply. Provisioning and a real pgBackRest backup/WAL proof MUST succeed before isolated restore automation begins.
+
+OpenTofu state is intentionally local and operator-owned at `infra/recovery/terraform.tfstate`, applied only from `infra/recovery/`, ignored by Git, protected by FileVault and the operator's normal encrypted machine backup, and excluded from project cleanup. State loss requires restoring that backup or reviewed import of every live resource before another plan; no remote backend is introduced.
 
 Because the current AWS login identifies as account root and no non-root operator identity exists, root MAY be used only for the initial reviewed bootstrap apply. Runtime pgBackRest credentials MUST come from the created least-privilege `databox-polaris-catalog-backup` role and MUST never be root credentials. After a separately approved apply and role-access verification, the root CLI session MUST be logged out. Root trust SHOULD be replaced when a non-root operator identity is established.
 

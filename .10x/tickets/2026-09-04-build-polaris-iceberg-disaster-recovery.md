@@ -15,11 +15,12 @@ Deliver reviewable, tested automation for Polaris catalog PITR while retaining I
 1. `.10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md` — add OpenTofu for the two same-account, same-region buckets, retention, replication, and least-privilege IAM. Can begin immediately.
 2. `.10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md` — completed pgBackRest, host-injected temporary credentials, startup cadence, backup/check commands, tests, and local image packaging proof.
 3. `.10x/tickets/2026-09-04-simplify-recovery-infrastructure-to-catalog-only.md` — remove the rejected Iceberg replication plane and generate a fresh catalog-only plan.
-4. `.10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md` — add fail-closed catalog PITR restore and conventional validation when the primary warehouse remains readable.
-5. `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md` — adversarially review and verify the complete non-live catalog automation and documentation.
-6. `.10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md` — blocked live rollout and timed catalog-restore proof; begins only after the user reviews the replacement OpenTofu plan and explicitly authorizes AWS mutation.
+4. `.10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md` — after exact plan approval, provision catalog-only infrastructure and prove the first real backup/WAL round trip.
+5. `.10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md` — add fail-closed catalog PITR restore and conventional validation using the proven backup interface.
+6. `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md` — adversarially review and verify the complete catalog automation and documentation.
+7. `.10x/tickets/2026-09-04-run-timed-catalog-recovery-drill.md` — run the final live isolated restore and record achieved RPO/RTO.
 
-Child 3 supersedes the Iceberg portions of child 1. Catalog restore work follows the catalog-only infrastructure contract. Final verification precedes the live child, which also requires separate plan approval.
+Child 3 supersedes the Iceberg portions of child 1. Live child 4 requires separate exact-plan approval and proves a real backup before restore automation begins. Final verification precedes the separately authorized timed restore drill.
 
 ## Integration points
 
@@ -35,13 +36,13 @@ Child 3 supersedes the Iceberg portions of child 1. Catalog restore work follows
 - Non-live validation is hermetic and does not mutate AWS or current local data.
 - The generated OpenTofu plan is reviewable before apply and contains no secret values.
 - Recovery defaults to an isolated empty target and cannot overwrite the active catalog.
-- Documentation distinguishes backup, restore, table rollback, object recovery, and last-resort re-registration.
+- Documentation distinguishes backup, restore, table rollback, source rebuild, and last-resort re-registration.
 - Live provisioning and RPO/RTO claims remain blocked until separately authorized and evidenced.
 - Related decisions, specifications, tickets, evidence, reviews, and documentation remain coherent.
 
 ## Explicit exclusions
 
-- Live AWS apply in children 1–4.
+- Unreviewed live AWS apply in any child.
 - Claiming that static tests prove five-minute RPO or 60-minute RTO.
 - PostgreSQL/Polaris high availability.
 - Iceberg compaction, snapshot expiration, or orphan cleanup.
@@ -67,6 +68,7 @@ Child 3 supersedes the Iceberg portions of child 1. Catalog restore work follows
 - 2026-09-04: User ratified lifecycle-driven scheduling because the local Compose stack is expected to restart reasonably often: the startup gate applies daily differential and weekly full age thresholds, while no cron or host scheduler is added.
 - 2026-09-04: Catalog-protection child 2 passed independent static repair review, then reopened for local image-build and pinned-binary proof. That proof passed; AWS repository/WAL/backup proof remains separately gated.
 - 2026-09-04: User rejected the Iceberg recovery bucket and S3 replication after clarifying that it duplicates warehouse storage and requires primary-bucket versioning. Warehouse loss now uses source rebuild; 45-day object recovery is removed and the 60-minute RTO applies only when the primary warehouse remains readable. The 18-create plan is invalid and must not be applied.
+- 2026-09-04: User ratified proof-first sequencing and local state ownership. Exact-plan approval precedes provisioning and first real backup/WAL proof; restore automation follows that proof. State remains at `infra/recovery/terraform.tfstate` on the FileVault host and encrypted machine backup, never under project cleanup.
 
 ## Blockers
 

@@ -14,7 +14,8 @@ Remove the rejected Iceberg object-recovery plane from `infra/recovery/` and its
 
 - OpenTofu no longer manages an Iceberg recovery bucket, source-bucket versioning, replication configuration, replication role/policy, recovery-reader role/policy, recovery bucket policy, 45-day lifecycle, or related outputs.
 - The existing primary `databox-lake` bucket is not mutated by the plan.
-- Catalog backup bucket versioning, encryption, public-access block, lifecycle, and least-privilege pgBackRest role remain.
+- Catalog backup bucket versioning, encryption, public-access block, lifecycle, and least-privilege pgBackRest role remain; the role can abort its own multipart uploads but has no object-version permissions.
+- Local state ownership, encrypted backup, cleanup exclusion, and loss/import procedure are explicit.
 - Active docs and tests describe catalog backup plus source rebuild, not object recovery.
 - The superseded plan at `.10x/evidence/2026-09-04-recovery-opentofu-plan.md` remains historical and is never applied.
 - OpenTofu formatting/validation and focused tests pass hermetically.
@@ -46,7 +47,9 @@ Record changed resources and outputs, exact static validation, proof that no pri
 - 2026-09-04: Added the standard catalog-bucket transport policy: deny all `s3:*` requests to the bucket and object ARNs when `aws:SecureTransport` is `false`. Public-access blocking, AES256 at rest, pgBackRest client encryption, versioning/lifecycle, and backup-role permissions are unchanged. This infrastructure edit invalidates catalog-only plan commit `ba60000` and binary hash `9f01f222d146efa13ef66d13992b8bb9f190198a9caa1a9bca30d1d53fd91292`; that plan MUST NOT be applied.
 - 2026-09-04: Generated the fresh TLS-enforced catalog-only plan recorded at `.10x/evidence/2026-09-04-catalog-only-tls-recovery-opentofu-plan.md`. Binary hash `4656b197fd1039d4972c614e828ad0be92128fec6c6f83d4a6a6fd88abc98837`; exact text hash `b953de92e2cb80be7d677856cb3c5f9f38345a61f5fe1c0fbe41e4fe140af9fb`; exactly 8 create, 0 change, 0 destroy, plus one deferred local policy-document read. It contains the TLS-deny bucket policy and no primary-bucket, Iceberg, or replication action. No apply or AWS mutation ran.
 - 2026-09-04: Independent review `.10x/reviews/2026-09-04-catalog-only-tls-plan-review.md` found the plan must not be applied: backup IAM lacks object-scoped multipart abort, rollout ordering still places apply after restore automation despite the user's corrected proof-first sequence, and local state ownership/preservation is undefined.
+- 2026-09-04: Repaired all three findings: added object-scoped multipart abort without version-history authority; reordered provisioning and real backup/WAL proof before restore automation; and ratified ignored local state at `infra/recovery/terraform.tfstate`, protected by FileVault and normal encrypted machine backup with explicit loss/import handling. Plan hash `4656b197fd1039d4972c614e828ad0be92128fec6c6f83d4a6a6fd88abc98837` is invalid and MUST NOT be applied.
+- 2026-09-04: Fresh non-mutating plan evidence `.10x/evidence/2026-09-04-catalog-only-final-opentofu-plan.md` records binary hash `77cf23e243859dac24974be21adfb7f5bdf94bb6ec8168cf70039ddda3b69212`, exact text, and 8 create / 0 change / 0 destroy. Twenty-four focused tests and OpenTofu/Ruff/format/diff validation pass. No apply or AWS mutation ran.
 
 ## Blockers
 
-Repair the three findings in `.10x/reviews/2026-09-04-catalog-only-tls-plan-review.md`, then regenerate and re-review the exact plan. All earlier plans remain historical evidence and must not be applied.
+Independently review the fresh exact plan, then obtain explicit user approval before apply. All earlier plans remain historical evidence and must not be applied.

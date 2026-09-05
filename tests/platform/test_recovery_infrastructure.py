@@ -56,6 +56,9 @@ def test_only_catalog_backup_permissions_remain() -> None:
     assert "s3:GetObject" in main
     assert "s3:PutObject" in main
     assert "s3:DeleteObject" in main
+    assert "s3:AbortMultipartUpload" in main
+    assert "s3:GetObjectVersion" not in main
+    assert "s3:DeleteObjectVersion" not in main
     assert "iceberg" not in main.lower()
     assert "replication" not in main.lower()
     assert "primary" not in main.lower()
@@ -85,3 +88,12 @@ def test_example_contains_no_real_account_or_bucket_identity() -> None:
     assert "replace-catalog-backup-bucket" in example
     assert "AKIA" not in example
     assert "secret" not in example.lower()
+
+
+def test_local_state_ownership_is_documented_and_ignored() -> None:
+    runbook = (ROOT / "docs" / "runbook.md").read_text()
+    gitignore = (ROOT / ".gitignore").read_text()
+    assert "infra/recovery/terraform.tfstate" in runbook
+    assert "FileVault" in runbook
+    assert "tofu import" in runbook
+    assert "*.tfstate" in gitignore

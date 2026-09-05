@@ -92,6 +92,15 @@ tofu plan -refresh=false -var-file=recovery.auto.tfvars -out=recovery.tfplan
 profile. Do not run `tofu apply` until the plan is reviewed and separately
 authorized. OpenTofu does not manage or mutate the primary Iceberg bucket.
 
+OpenTofu state is intentionally local and operator-owned at
+`infra/recovery/terraform.tfstate`; always run init, plan, apply, and import from
+`infra/recovery/`. The state and backup files are ignored by Git, must remain on
+the FileVault-protected host, and must be included in the operator's normal
+encrypted machine backup. Project cleanup commands must never delete them. If
+state is lost, stop all changes, restore the encrypted backup first, or use
+reviewed `tofu import` commands for each existing resource before planning;
+never recreate or apply over untracked live resources.
+
 ## Catalog backup and recovery preparation
 
 The PostgreSQL image includes pgBackRest and archives WAL with

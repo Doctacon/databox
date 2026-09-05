@@ -2,7 +2,7 @@ Status: open
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
-Depends-On: .10x/tickets/2026-09-04-simplify-recovery-infrastructure-to-catalog-only.md, .10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md
+Depends-On: .10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md, .10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md
 
 # Build isolated Polaris catalog recovery drill
 
@@ -52,4 +52,4 @@ Record adversarial restore-safety cases, registry-derived restored-table validat
 
 ## Blockers
 
-Depends on catalog-only infrastructure simplification, then actual restore composition and catalog/table validation.
+Depends on approved infrastructure and first real backup/WAL proof, then actual restore composition and catalog/table validation.
