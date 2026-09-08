@@ -10,7 +10,7 @@ Depends-On: .10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md, .10x/t
 
 Add fail-closed automation that restores a selected pgBackRest backup/PITR target into a new isolated PostgreSQL volume, starts compatible Polaris recovery services without replacing restored realm state, validates the restored catalog conventionally and, when the primary warehouse remains readable, every canonical registered Iceberg table, and leaves production cutover manual.
 
-Provide deterministic offline tests using temporary local fixtures/fakes. Do not download live backups, restore production objects, run providers, or mutate AWS in this ticket.
+Provide deterministic offline tests using temporary local fixtures/fakes. Initial implementation excluded live backup downloads; the user later superseded only that exclusion through separately authorized, exact isolated file-restore attempts. Do not restore production objects, run infrastructure providers, or mutate AWS infrastructure.
 
 ## Acceptance criteria
 
@@ -28,7 +28,8 @@ Provide deterministic offline tests using temporary local fixtures/fakes. Do not
 
 ## Explicit exclusions
 
-- Live restore, timed guarantee, AWS apply, or production cutover.
+- Any live restore not separately authorized with an exact target and new isolated volume; restored-service startup remains separately gated.
+- Timed guarantee, AWS apply, or production cutover.
 - Iceberg object restoration, recovery buckets, replication, or scheduled warehouse copies.
 - Iceberg snapshot expiration, orphan deletion, or compaction.
 - Changing source/model semantics.
@@ -43,7 +44,7 @@ Provide deterministic offline tests using temporary local fixtures/fakes. Do not
 
 ## Evidence expectations
 
-Record adversarial restore-safety cases, registry-derived restored-table validation cases, elapsed-time calculation, changed files, exact commands/results, and no-live-AWS/no-production-restore limits.
+Record adversarial restore-safety cases, registry-derived restored-table validation cases, elapsed-time calculation, changed files, exact commands/results, and no-AWS-infrastructure-mutation/no-production-restore limits.
 
 ## Progress and notes
 
@@ -62,7 +63,8 @@ Record adversarial restore-safety cases, registry-derived restored-table validat
 - 2026-09-08: Independent review `.10x/reviews/2026-09-08-pgbackrest-target-format-repair-review.md` passed with no findings.
 - 2026-09-08: User authorized dotenv-aware retry2 into new volume `databox_polaris_recovery_20260905_162513_retry2` at target `2026-09-05T16:25:13Z`. Evidence `.10x/evidence/2026-09-08-isolated-catalog-restore-retry2.md` records a safe fail before restore: pgBackRest requires an automatically selected backup to stop strictly before the target, while full backup `20260905-162355F` stopped exactly at the selected second. Retry2 is preserved empty; both prior failed volumes and active services/data remained untouched.
 - 2026-09-08: User authorized target `2026-09-05T16:25:14Z` in new volume `databox_polaris_recovery_20260905_162514`. Evidence `.10x/evidence/2026-09-08-isolated-catalog-restore-files-success.md` records successful file restore in 55.7 seconds, `PG_VERSION=17`, 1312 files/31835448 bytes, ownership `999:999`, recovery signal and exact PITR settings, untouched prior/active volumes, unchanged active service start times/database size, and healthy active PostgreSQL/Polaris. No restored service started and no PITR/RTO claim was made.
+- 2026-09-08: Independent review `.10x/reviews/2026-09-08-isolated-catalog-file-restore-review.md` found the technical evidence coherent but raised a P2 record contradiction: the original implementation-only exclusion had not been updated after exact live file-restore authorization. Scope and exclusions now record that narrow supersession while keeping restored startup, validation, cutover, and timed claims gated.
 
 ## Blockers
 
-Independently review the successful restore-file evidence. Then obtain separate authorization before starting restored PostgreSQL in isolation. Preserve and do not reuse/delete any of the three failed target volumes or the successful restored volume without separate authorization. Restored Polaris startup, registry-derived validation, complete failure-path coverage, and the timed drill remain unimplemented.
+Obtain separate authorization before starting restored PostgreSQL in isolation. Preserve and do not reuse/delete any of the three failed target volumes or the successful restored volume without separate authorization. Restored Polaris startup, registry-derived validation, complete failure-path coverage, and the timed drill remain unimplemented.
