@@ -199,19 +199,26 @@ def test_execute_refuses_volume_create_race_without_mounting_or_deleting(
     assert not any(call[:3] == ("docker", "volume", "rm") for call in calls)
 
 
-def test_failed_restore_preserves_target_volume() -> None:
+def test_failed_restore_preserves_target_and_reports_bounded_redacted_diagnostic() -> None:
     calls: list[tuple[str, ...]] = []
-
     ownership_token = "unguessable-test-token"  # secret-scan: allow
+    access_key = "ASIA" + "ABCDEFGHIJKLMNOP"  # secret-scan: allow
+    session_token = "IQoJb3JpZ2luX2VjABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"  # secret-scan: allow
+    repository_secret = _BACKUP_ENV["PGBACKREST_REPO1_CIPHER_PASS"]
 
     def runner(command):
         calls.append(tuple(command))
         if command[-1] == "restore":
-            raise subprocess.CalledProcessError(1, command)
+            stderr = (
+                "x" * (recovery._DIAGNOSTIC_LIMIT + 100)
+                + f"\nrestore-marker key={access_key} token={session_token} "
+                + f"cipher={repository_secret} sessionToken=unlisted-token"  # secret-scan: allow
+            )
+            raise subprocess.CalledProcessError(1, command, output="stdout-marker", stderr=stderr)
         stdout = ownership_token if command[1:3] == ("volume", "inspect") else ""
         return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
 
-    with pytest.raises(recovery.RecoveryError, match="preserved"):
+    with pytest.raises(recovery.RecoveryError, match="restore-marker") as error:
         recovery.prepare_or_execute_restore(
             target_volume="databox_recovery",
             active_volume="databox_polaris_postgres",
@@ -221,6 +228,16 @@ def test_failed_restore_preserves_target_volume() -> None:
             runner=runner,
             ownership_token_factory=lambda: ownership_token,
         )
+    message = str(error.value)
+    assert "target volume databox_recovery" in message
+    assert "[truncated]" in message
+    assert "[REDACTED-AWS-ACCESS-KEY]" in message
+    assert "[REDACTED-AWS-SESSION-TOKEN]" in message
+    assert "sessionToken=[REDACTED]" in message
+    assert access_key not in message
+    assert session_token not in message
+    assert repository_secret not in message
+    assert len(message) <= recovery._DIAGNOSTIC_LIMIT + 200
     rendered = " ".join(part for call in calls for part in call)
     assert "volume rm" not in rendered
 

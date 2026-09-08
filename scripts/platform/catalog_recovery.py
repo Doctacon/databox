@@ -19,6 +19,13 @@ _ACTIVE_VOLUME = "databox_polaris_postgres"
 _DATA_PATH = "/var/lib/postgresql/data"
 _VOLUME_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]+$")
 _OWNERSHIP_LABEL = "com.databox.catalog-recovery.owner"
+_DIAGNOSTIC_LIMIT = 2_000
+_AWS_ACCESS_KEY = re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")
+_AWS_SESSION_TOKEN = re.compile(r"\bIQoJb3JpZ2luX2Vj[A-Za-z0-9/+=]{20,}\b")
+_LABELED_AWS_SECRET = re.compile(
+    r"(?i)((?:aws[_-]?)?(?:secret[_-]?access[_-]?key|session[_-]?token)|"
+    r"secretAccessKey|sessionToken)(\s*[:=]\s*)([^\s,}]+)"
+)
 _BACKUP_ENV = (
     "PGBACKREST_REPO1_CIPHER_PASS",
     "PGBACKREST_REPO1_S3_KEY",
@@ -37,7 +44,33 @@ class RecoveryError(RuntimeError):
 
 
 def _run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, check=True, capture_output=True, text=True)
+    return subprocess.run(command, check=True, capture_output=True, text=True, errors="replace")
+
+
+def _redacted_diagnostic(
+    exc: OSError | subprocess.CalledProcessError, environ: Mapping[str, str]
+) -> str:
+    if isinstance(exc, subprocess.CalledProcessError):
+        parts = [
+            part.strip()
+            for part in (exc.stderr, exc.stdout)
+            if isinstance(part, str) and part.strip()
+        ]
+        diagnostic = "\n".join(parts)
+    else:
+        diagnostic = str(exc)
+    for name in _BACKUP_ENV:
+        value = environ.get(name, "")
+        if value:
+            diagnostic = diagnostic.replace(value, "[REDACTED]")
+    diagnostic = _AWS_ACCESS_KEY.sub("[REDACTED-AWS-ACCESS-KEY]", diagnostic)
+    diagnostic = _AWS_SESSION_TOKEN.sub("[REDACTED-AWS-SESSION-TOKEN]", diagnostic)
+    diagnostic = _LABELED_AWS_SECRET.sub(r"\1\2[REDACTED]", diagnostic)
+    if not diagnostic:
+        diagnostic = "child process returned no diagnostic output"
+    if len(diagnostic) > _DIAGNOSTIC_LIMIT:
+        diagnostic = "[truncated]\n" + diagnostic[-_DIAGNOSTIC_LIMIT:]
+    return diagnostic
 
 
 def _new_ownership_token() -> str:
@@ -170,8 +203,10 @@ def prepare_or_execute_restore(
             for command in commands:
                 runner(command)
         except (OSError, subprocess.CalledProcessError) as exc:
+            diagnostic = _redacted_diagnostic(exc, values)
             raise RecoveryError(
-                "isolated catalog restore failed; the recovery volume was preserved for inspection"
+                f"isolated catalog restore failed for target volume {target_volume}; "
+                f"the volume was preserved for inspection: {diagnostic}"
             ) from exc
 
     return {
