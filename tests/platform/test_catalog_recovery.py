@@ -113,6 +113,20 @@ def test_prepare_only_plans_safe_isolated_restore_without_mutation() -> None:
     token_factory.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("recover_to", "expected"),
+    [
+        ("2026-09-05T16:25:13Z", "--target=2026-09-05 16:25:13+00"),
+        ("2026-09-05T12:00:00-07:00", "--target=2026-09-05 19:00:00+00"),
+    ],
+)
+def test_restore_command_renders_pgbackrest_utc_timestamp(recover_to: str, expected: str) -> None:
+    _, restore = recovery._restore_commands(
+        "databox_recovery", recovery.recovery_target(recover_to)
+    )
+    assert expected in restore
+
+
 def test_execute_uses_only_owned_new_volume_and_secret_variable_names() -> None:
     calls: list[tuple[str, ...]] = []
     ownership_token = "unguessable-test-token"  # secret-scan: allow
@@ -158,7 +172,7 @@ def test_execute_uses_only_owned_new_volume_and_secret_variable_names() -> None:
     assert restore[-5:] == (
         "--stanza=polaris",
         "--type=time",
-        "--target=2026-09-05T19:00:00Z",
+        "--target=2026-09-05 19:00:00+00",
         "--target-action=promote",
         "restore",
     )

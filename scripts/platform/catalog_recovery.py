@@ -134,7 +134,7 @@ def _restore_commands(target_volume: str, recover_to: datetime) -> tuple[tuple[s
             "/usr/local/bin/run-pgbackrest",
             "--stanza=polaris",
             "--type=time",
-            f"--target={recover_to.isoformat().replace('+00:00', 'Z')}",
+            f"--target={recover_to.astimezone(UTC).strftime('%Y-%m-%d %H:%M:%S+00')}",
             "--target-action=promote",
             "restore",
         )
