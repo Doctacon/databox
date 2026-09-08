@@ -38,7 +38,8 @@ Record the exact principal, Compose behavior for both supported credential shape
 
 - 2026-09-05: Opened after the first live backup proof could restart but not recreate Polaris because `.env` lacked `DATABOX_AWS_SESSION_TOKEN`. The existing container was safely restarted after the backup gate. This did not invalidate catalog backup/WAL proof.
 - 2026-09-08: Live identity inspection established that the current primary credentials belong to `databox-lake-user` and are long-lived. The user ratified retaining that local route rather than adding a renewable broker/PKI mechanism. `.10x/decisions/allow-long-lived-local-primary-warehouse-key.md` records the compromise and upgrade trigger. Compose now makes only the primary session token optional while preserving access/secret requirements, temporary-token forwarding, CI OIDC behavior, and mandatory backup-role tokens.
+- 2026-09-08: Independent review `.10x/reviews/2026-09-08-primary-warehouse-credential-compatibility-review.md` passed with no findings. Live restored-Polaris validation still must prove the AWS SDK accepts the explicitly blank token.
 
 ## Blockers
 
-Independently review the implementation and audit the effective `databox-lake-user` policy for exact warehouse least privilege. Full live Compose recreation remains separately authorized.
+Audit the effective `databox-lake-user` policy for exact warehouse least privilege. Full live Compose recreation remains separately authorized.
