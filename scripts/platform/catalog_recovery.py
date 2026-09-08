@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import secrets
 import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -17,6 +18,7 @@ _IMAGE = "databox-polaris-postgres:17.6-pgbackrest-2.59.1"
 _ACTIVE_VOLUME = "databox_polaris_postgres"
 _DATA_PATH = "/var/lib/postgresql/data"
 _VOLUME_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]+$")
+_OWNERSHIP_LABEL = "com.databox.catalog-recovery.owner"
 _BACKUP_ENV = (
     "PGBACKREST_REPO1_CIPHER_PASS",
     "PGBACKREST_REPO1_S3_KEY",
@@ -27,6 +29,7 @@ _BACKUP_ENV = (
     "PGBACKREST_REPO1_S3_ENDPOINT",
 )
 Runner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
+TokenFactory = Callable[[], str]
 
 
 class RecoveryError(RuntimeError):
@@ -35,6 +38,10 @@ class RecoveryError(RuntimeError):
 
 def _run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=True, capture_output=True, text=True)
+
+
+def _new_ownership_token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 def recovery_target(value: str) -> datetime:
@@ -108,6 +115,7 @@ def prepare_or_execute_restore(
     execute: bool,
     environ: Mapping[str, str] | None = None,
     runner: Runner = _run,
+    ownership_token_factory: TokenFactory = _new_ownership_token,
 ) -> dict[str, Any]:
     """Validate and optionally restore into a newly created isolated volume."""
     target_volume = _volume_name(target_volume)
@@ -128,8 +136,37 @@ def prepare_or_execute_restore(
 
     commands = _restore_commands(target_volume, recover_to)
     if execute:
+        ownership_token = ownership_token_factory()
         try:
-            runner(("docker", "volume", "create", target_volume))
+            runner(
+                (
+                    "docker",
+                    "volume",
+                    "create",
+                    "--label",
+                    f"{_OWNERSHIP_LABEL}={ownership_token}",
+                    target_volume,
+                )
+            )
+            ownership = runner(
+                (
+                    "docker",
+                    "volume",
+                    "inspect",
+                    "--format",
+                    f'{{{{ index .Labels "{_OWNERSHIP_LABEL}" }}}}',
+                    target_volume,
+                )
+            )
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise RecoveryError(
+                "unable to prove ownership of the recovery volume; it was preserved"
+            ) from exc
+        if ownership.stdout.strip() != ownership_token:
+            raise RecoveryError(
+                "recovery volume ownership does not match this execution; it was preserved"
+            )
+        try:
             for command in commands:
                 runner(command)
         except (OSError, subprocess.CalledProcessError) as exc:

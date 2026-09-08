@@ -98,6 +98,7 @@ def test_prepare_only_plans_safe_isolated_restore_without_mutation() -> None:
         calls.append(tuple(command))
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
+    token_factory = Mock(side_effect=AssertionError("prepare-only generated ownership token"))
     result = recovery.prepare_or_execute_restore(
         target_volume="databox_recovery",
         active_volume="databox_polaris_postgres",
@@ -105,29 +106,49 @@ def test_prepare_only_plans_safe_isolated_restore_without_mutation() -> None:
         execute=False,
         environ=_BACKUP_ENV,
         runner=runner,
+        ownership_token_factory=token_factory,
     )
     assert result["mode"] == "prepare-only"
     assert calls == [("docker", "volume", "ls", "--quiet", "--filter", "name=^databox_recovery$")]
+    token_factory.assert_not_called()
 
 
-def test_execute_uses_only_new_volume_and_secret_variable_names() -> None:
+def test_execute_uses_only_owned_new_volume_and_secret_variable_names() -> None:
     calls: list[tuple[str, ...]] = []
+    ownership_token = "unguessable-test-token"  # secret-scan: allow
 
     def runner(command):
         calls.append(tuple(command))
-        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        stdout = ownership_token if command[1:3] == ("volume", "inspect") else ""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
 
-    recovery.prepare_or_execute_restore(
+    result = recovery.prepare_or_execute_restore(
         target_volume="databox_recovery",
         active_volume="databox_polaris_postgres",
         recover_to=recovery.recovery_target("2026-09-05T12:00:00-07:00"),
         execute=True,
         environ=_BACKUP_ENV,
         runner=runner,
+        ownership_token_factory=lambda: ownership_token,
     )
 
-    assert calls[1] == ("docker", "volume", "create", "databox_recovery")
-    initialize, restore = calls[2:]
+    assert calls[1] == (
+        "docker",
+        "volume",
+        "create",
+        "--label",
+        f"{recovery._OWNERSHIP_LABEL}={ownership_token}",
+        "databox_recovery",
+    )
+    assert calls[2] == (
+        "docker",
+        "volume",
+        "inspect",
+        "--format",
+        f'{{{{ index .Labels "{recovery._OWNERSHIP_LABEL}" }}}}',
+        "databox_recovery",
+    )
+    initialize, restore = calls[3:]
     assert "--network" in initialize and "none" in initialize
     assert "root" in initialize and "chown" in initialize
     assert "--network" in restore and "bridge" in restore
@@ -144,19 +165,51 @@ def test_execute_uses_only_new_volume_and_secret_variable_names() -> None:
     rendered = " ".join(part for call in calls for part in call)
     assert all(value not in rendered for value in _BACKUP_ENV.values())
     assert all(f"--env {name}" in rendered for name in _BACKUP_ENV)
+    assert ownership_token not in json.dumps(result)
     for forbidden in ("archive-push", "--delta", "volume rm", "prune", "bootstrap", "--publish"):
         assert forbidden not in rendered
     assert "-p" not in restore
 
 
+@pytest.mark.parametrize("observed_label", ("", "different-owner"))
+def test_execute_refuses_volume_create_race_without_mounting_or_deleting(
+    observed_label: str,
+) -> None:
+    calls: list[tuple[str, ...]] = []
+    ownership_token = "unguessable-test-token"  # secret-scan: allow
+
+    def runner(command):
+        calls.append(tuple(command))
+        stdout = observed_label if command[1:3] == ("volume", "inspect") else ""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    with pytest.raises(recovery.RecoveryError, match="ownership") as error:
+        recovery.prepare_or_execute_restore(
+            target_volume="databox_recovery",
+            active_volume="databox_polaris_postgres",
+            recover_to=recovery.recovery_target("2026-09-05T12:00:00Z"),
+            execute=True,
+            environ=_BACKUP_ENV,
+            runner=runner,
+            ownership_token_factory=lambda: ownership_token,
+        )
+
+    assert ownership_token not in str(error.value)
+    assert not any(call[:2] == ("docker", "run") for call in calls)
+    assert not any(call[:3] == ("docker", "volume", "rm") for call in calls)
+
+
 def test_failed_restore_preserves_target_volume() -> None:
     calls: list[tuple[str, ...]] = []
+
+    ownership_token = "unguessable-test-token"  # secret-scan: allow
 
     def runner(command):
         calls.append(tuple(command))
         if command[-1] == "restore":
             raise subprocess.CalledProcessError(1, command)
-        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        stdout = ownership_token if command[1:3] == ("volume", "inspect") else ""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
 
     with pytest.raises(recovery.RecoveryError, match="preserved"):
         recovery.prepare_or_execute_restore(
@@ -166,6 +219,7 @@ def test_failed_restore_preserves_target_volume() -> None:
             execute=True,
             environ=_BACKUP_ENV,
             runner=runner,
+            ownership_token_factory=lambda: ownership_token,
         )
     rendered = " ".join(part for call in calls for part in call)
     assert "volume rm" not in rendered
