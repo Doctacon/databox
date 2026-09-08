@@ -17,7 +17,7 @@ code imports it rather than redeclaring values.
 | S3 bucket | `DATABOX_AWS_S3_BUCKET` | `settings.aws_s3_bucket` | Iceberg warehouse bucket |
 | AWS writer key | `DATABOX_AWS_ACCESS_KEY_ID` | `settings.aws_access_key_id` | Secret; scoped S3 writer |
 | AWS writer secret | `DATABOX_AWS_SECRET_ACCESS_KEY` | `settings.aws_secret_access_key` | Secret |
-| AWS session token | `DATABOX_AWS_SESSION_TOKEN` | `settings.aws_session_token` | Required by the current Compose stack and with temporary OIDC/STS credentials; the direct dlt destination accepts long-lived keys without it |
+| AWS session token | `DATABOX_AWS_SESSION_TOKEN` | `settings.aws_session_token` | Optional for the accepted local long-lived primary-warehouse key; required and forwarded when using temporary OIDC/STS credentials. Catalog-backup session tokens remain mandatory |
 | AWS region | `DATABOX_AWS_REGION` | `settings.aws_region` | Default `us-west-1` |
 | Log level | `LOG_LEVEL` | `settings.log_level` | Default `INFO` |
 | Smoke mode | `DATABOX_SMOKE` | `settings.smoke` | Limits source rows for verification |
@@ -56,6 +56,14 @@ Per-source API tokens are read at request time in the source packages so dlt
 and pytest environment overrides work cleanly. `DATABOX_ENV_FILE` can select a
 different dotenv path; tests use it to prove credential-empty graph
 construction. Build metadata and tool settings remain in `pyproject.toml`.
+
+For the local primary Iceberg warehouse, Databox currently accepts the
+Git-ignored `.env` access key and secret for `databox-lake-user`; this credential
+shape has no session token. `.env` must remain mode `0600` on the FileVault-
+protected host. CI continues to provide the temporary OIDC access key, secret,
+and session token. The pgBackRest catalog-backup credentials are separate and
+always require their temporary session token. Never substitute the backup role
+for primary-warehouse access.
 
 ## SQLMesh state
 
