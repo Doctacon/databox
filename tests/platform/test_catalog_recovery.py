@@ -242,6 +242,30 @@ def test_failed_restore_preserves_target_and_reports_bounded_redacted_diagnostic
     assert "volume rm" not in rendered
 
 
+def test_diagnostic_redacts_quoted_credential_process_json() -> None:
+    secret_key = "not-configured-secret-key"  # secret-scan: allow
+    non_iqo_token = "FwoGZXIvYXdzEXAMPLE-not-an-iqo-token"  # secret-scan: allow
+    stderr = json.dumps(
+        {
+            "Version": 1,
+            "AccessKeyId": "not-sensitive-for-this-test",  # secret-scan: allow
+            "SecretAccessKey": secret_key,  # secret-scan: allow
+            "SessionToken": non_iqo_token,  # secret-scan: allow
+            "Expiration": "2026-09-08T20:00:00Z",
+        },
+        separators=(",", ":"),
+    )
+    error = subprocess.CalledProcessError(1, ("credential-process",), stderr=stderr)
+
+    diagnostic = recovery._redacted_diagnostic(error, {})
+
+    assert '"SecretAccessKey":"[REDACTED]"' in diagnostic  # secret-scan: allow
+    assert '"SessionToken":"[REDACTED]"' in diagnostic  # secret-scan: allow
+    assert '"Expiration":"2026-09-08T20:00:00Z"' in diagnostic
+    assert secret_key not in diagnostic
+    assert non_iqo_token not in diagnostic
+
+
 def test_drill_metrics_do_not_claim_objectives() -> None:
     started = datetime.now(UTC)
     result = recovery.drill_result(

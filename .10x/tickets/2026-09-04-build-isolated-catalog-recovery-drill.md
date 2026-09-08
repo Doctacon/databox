@@ -55,6 +55,7 @@ Record adversarial restore-safety cases, registry-derived restored-table validat
 - 2026-09-08: Independent re-review `.10x/reviews/2026-09-08-isolated-restore-volume-race-repair-review.md` passed with no findings.
 - 2026-09-08: User authorized PITR target `2026-09-05T16:25:13Z` into new volume `databox_polaris_recovery_20260905_162513`. Evidence `.10x/evidence/2026-09-08-first-isolated-catalog-restore-attempt.md` records exact preconditions and safe credential handling, but restore exited `1` after volume ownership initialization and before writing any restored files. The owned target is preserved empty, the source backup remains readable, and active services/data were unchanged and healthy. No restore/PITR/RTO claim was made.
 - 2026-09-08: Layered read-only diagnosis `.10x/evidence/2026-09-08-isolated-restore-layered-diagnosis.md` identified the root cause: an ad hoc environment bridge preserved `.env` quote characters in the repository cipher passphrase. That reproduced unusable encrypted repository metadata; dotenv-aware parsing made exact-set `verify` and repository `info` pass. The runner now emits bounded, secret-redacted child diagnostics; 29 focused tests and static checks pass. No retry or volume touch occurred.
+- 2026-09-08: Repaired the diagnostic review P1 by redacting standard quoted credential-process JSON `SecretAccessKey` and `SessionToken` values, including non-IQo session tokens, while preserving JSON structure and actionable fields. Volume safety and redaction-before-truncation are unchanged.
 
 ## Blockers
 

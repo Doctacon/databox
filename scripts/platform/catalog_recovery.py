@@ -22,6 +22,7 @@ _OWNERSHIP_LABEL = "com.databox.catalog-recovery.owner"
 _DIAGNOSTIC_LIMIT = 2_000
 _AWS_ACCESS_KEY = re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")
 _AWS_SESSION_TOKEN = re.compile(r"\bIQoJb3JpZ2luX2Vj[A-Za-z0-9/+=]{20,}\b")
+_JSON_AWS_SECRET = re.compile(r'(?i)("(?:SecretAccessKey|SessionToken)"\s*:\s*)"[^"]*"')
 _LABELED_AWS_SECRET = re.compile(
     r"(?i)((?:aws[_-]?)?(?:secret[_-]?access[_-]?key|session[_-]?token)|"
     r"secretAccessKey|sessionToken)(\s*[:=]\s*)([^\s,}]+)"
@@ -65,6 +66,7 @@ def _redacted_diagnostic(
             diagnostic = diagnostic.replace(value, "[REDACTED]")
     diagnostic = _AWS_ACCESS_KEY.sub("[REDACTED-AWS-ACCESS-KEY]", diagnostic)
     diagnostic = _AWS_SESSION_TOKEN.sub("[REDACTED-AWS-SESSION-TOKEN]", diagnostic)
+    diagnostic = _JSON_AWS_SECRET.sub(r'\1"[REDACTED]"', diagnostic)
     diagnostic = _LABELED_AWS_SECRET.sub(r"\1\2[REDACTED]", diagnostic)
     if not diagnostic:
         diagnostic = "child process returned no diagnostic output"
