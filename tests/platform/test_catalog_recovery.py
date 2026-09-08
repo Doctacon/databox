@@ -33,18 +33,142 @@ _BACKUP_ENV = {
 }
 
 
-def test_recovery_target_must_be_zoned_and_target_is_isolated(tmp_path: Path) -> None:
+def test_recovery_target_must_be_zoned() -> None:
     with pytest.raises(ValueError, match="timezone"):
         recovery.recovery_target("2026-09-04T12:00:00")
-    active = tmp_path / "active"
-    active.mkdir()
-    with pytest.raises(ValueError, match="active"):
-        recovery.require_empty_isolated_target(active, active)
-    occupied = tmp_path / "occupied"
-    occupied.mkdir()
-    (occupied / "PG_VERSION").write_text("17")
-    with pytest.raises(ValueError, match="empty"):
-        recovery.require_empty_isolated_target(occupied, active)
+
+
+@pytest.mark.parametrize("name", ("", "x", "bad name", "/active", "../escape"))
+def test_restore_runner_rejects_invalid_volume_names(name: str) -> None:
+    with pytest.raises(ValueError, match="volume name"):
+        recovery.prepare_or_execute_restore(
+            target_volume=name,
+            active_volume="databox_polaris_postgres",
+            recover_to=recovery.recovery_target("2026-09-05T12:00:00Z"),
+            execute=False,
+            environ=_BACKUP_ENV,
+        )
+
+
+def test_restore_runner_rejects_active_or_existing_volume() -> None:
+    recover_to = recovery.recovery_target("2026-09-05T12:00:00Z")
+    with pytest.raises(recovery.RecoveryError, match="active"):
+        recovery.prepare_or_execute_restore(
+            target_volume="databox_polaris_postgres",
+            active_volume="databox_polaris_postgres",
+            recover_to=recover_to,
+            execute=False,
+            environ=_BACKUP_ENV,
+        )
+
+    def existing(command):
+        return subprocess.CompletedProcess(command, 0, stdout="databox_recovery\n", stderr="")
+
+    with pytest.raises(recovery.RecoveryError, match="already exists"):
+        recovery.prepare_or_execute_restore(
+            target_volume="databox_recovery",
+            active_volume="databox_polaris_postgres",
+            recover_to=recover_to,
+            execute=False,
+            environ=_BACKUP_ENV,
+            runner=existing,
+        )
+
+
+def test_restore_runner_requires_secrets_without_exposing_values() -> None:
+    secret = "must-never-appear"  # secret-scan: allow
+    environment = dict(_BACKUP_ENV)
+    environment["PGBACKREST_REPO1_CIPHER_PASS"] = secret
+    del environment["PGBACKREST_REPO1_S3_TOKEN"]
+    with pytest.raises(recovery.RecoveryError, match="PGBACKREST_REPO1_S3_TOKEN") as error:
+        recovery.prepare_or_execute_restore(
+            target_volume="databox_recovery",
+            active_volume="databox_polaris_postgres",
+            recover_to=recovery.recovery_target("2026-09-05T12:00:00Z"),
+            execute=False,
+            environ=environment,
+        )
+    assert secret not in str(error.value)
+
+
+def test_prepare_only_plans_safe_isolated_restore_without_mutation() -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command):
+        calls.append(tuple(command))
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    result = recovery.prepare_or_execute_restore(
+        target_volume="databox_recovery",
+        active_volume="databox_polaris_postgres",
+        recover_to=recovery.recovery_target("2026-09-05T12:00:00-07:00"),
+        execute=False,
+        environ=_BACKUP_ENV,
+        runner=runner,
+    )
+    assert result["mode"] == "prepare-only"
+    assert calls == [("docker", "volume", "ls", "--quiet", "--filter", "name=^databox_recovery$")]
+
+
+def test_execute_uses_only_new_volume_and_secret_variable_names() -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command):
+        calls.append(tuple(command))
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    recovery.prepare_or_execute_restore(
+        target_volume="databox_recovery",
+        active_volume="databox_polaris_postgres",
+        recover_to=recovery.recovery_target("2026-09-05T12:00:00-07:00"),
+        execute=True,
+        environ=_BACKUP_ENV,
+        runner=runner,
+    )
+
+    assert calls[1] == ("docker", "volume", "create", "databox_recovery")
+    initialize, restore = calls[2:]
+    assert "--network" in initialize and "none" in initialize
+    assert "root" in initialize and "chown" in initialize
+    assert "--network" in restore and "bridge" in restore
+    assert "postgres" in restore
+    assert "type=volume,src=databox_recovery,dst=/var/lib/postgresql/data" in restore
+    assert "databox_polaris_postgres" not in restore
+    assert restore[-5:] == (
+        "--stanza=polaris",
+        "--type=time",
+        "--target=2026-09-05T19:00:00Z",
+        "--target-action=promote",
+        "restore",
+    )
+    rendered = " ".join(part for call in calls for part in call)
+    assert all(value not in rendered for value in _BACKUP_ENV.values())
+    assert all(f"--env {name}" in rendered for name in _BACKUP_ENV)
+    for forbidden in ("archive-push", "--delta", "volume rm", "prune", "bootstrap", "--publish"):
+        assert forbidden not in rendered
+    assert "-p" not in restore
+
+
+def test_failed_restore_preserves_target_volume() -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command):
+        calls.append(tuple(command))
+        if command[-1] == "restore":
+            raise subprocess.CalledProcessError(1, command)
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    with pytest.raises(recovery.RecoveryError, match="preserved"):
+        recovery.prepare_or_execute_restore(
+            target_volume="databox_recovery",
+            active_volume="databox_polaris_postgres",
+            recover_to=recovery.recovery_target("2026-09-05T12:00:00Z"),
+            execute=True,
+            environ=_BACKUP_ENV,
+            runner=runner,
+        )
+    rendered = " ".join(part for call in calls for part in call)
+    assert "volume rm" not in rendered
 
 
 def test_drill_metrics_do_not_claim_objectives() -> None:

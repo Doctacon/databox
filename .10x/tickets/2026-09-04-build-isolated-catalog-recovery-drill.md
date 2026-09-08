@@ -49,7 +49,8 @@ Record adversarial restore-safety cases, registry-derived restored-table validat
 
 - 2026-09-04: Opened from the ratified disaster-recovery architecture.
 - 2026-09-04: Timeboxed implementation added a preparation-only recovery helper that requires a zoned timestamp, rejects the active and non-empty destinations, creates only an empty isolated target, keeps writers disabled/bootstrap forbidden, and computes RPO/RTO without claiming proof. Focused adversarial tests and runbook distinctions were added. The ticket remains open because actual pgBackRest restore composition, conventional registry-derived catalog/table validation, and full failure-path tests are not yet implemented; no live restore ran.
+- 2026-09-05: After the first physical backup/WAL proof passed, the user selected implementation-only restore work. The helper now plans and can explicitly execute a pinned one-shot pgBackRest PITR restore into a newly created named volume, rejects active/invalid/pre-existing targets, passes secrets by environment-variable name, mounts no active volume/socket, opens no ports, and preserves the target on failure. Hermetic tests mock every Docker action; no volume, container, S3 request, or live restore ran.
 
 ## Blockers
 
-Depends on approved infrastructure and first real backup/WAL proof, then actual restore composition and catalog/table validation.
+Separate authorization is required before the first live isolated restore. Starting restored PostgreSQL/Polaris, registry-derived validation, complete failure-path coverage, and the timed drill remain unimplemented.

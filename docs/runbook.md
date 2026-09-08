@@ -128,24 +128,31 @@ four manual commands execute pgBackRest as the container's `postgres` user.
 These commands are not scheduled automatically and do not prove the recovery
 objectives.
 
-Prepare—do not execute—a restore destination with:
+Prepare—do not execute—an isolated restore with a new Docker volume name:
 
 ```bash
 uv run python scripts/platform/catalog_recovery.py \
-  --target /empty/recovery/postgres \
-  --active /active/postgres \
-  --recover-to 2026-09-04T12:00:00Z \
+  --target-volume databox_polaris_recovery_20260905 \
+  --active-volume databox_polaris_postgres \
+  --recover-to 2026-09-05T12:00:00Z \
   --prepare-only
 ```
 
-The helper rejects the active or any non-empty destination and explicitly keeps
-writers and authoritative backup archiving disabled and bootstrap forbidden. A
-bad table publication should use a validated Iceberg snapshot rollback while its
-objects remain. Complete primary-warehouse loss requires source rebuild and is
-not covered by the 60-minute catalog RTO. Last-resort table registration must use
-a validated metadata location, never lexicographic S3 listing. Live PITR
+Preparation rejects the active volume, malformed names or timestamps, missing
+backup settings, and any target volume that already exists. It creates no volume
+or container. The explicit `--execute` path is implemented but requires separate
+live-restore authorization; it creates the target, initializes only its ownership,
+and runs the pinned pgBackRest image as `postgres` with secret values inherited
+by environment-variable name. It mounts no active volume or socket, opens no
+port, never removes the target on failure, and stops before PostgreSQL or Polaris
+startup, validation, or cutover.
+
+A bad table publication should use a validated Iceberg snapshot rollback while
+its objects remain. Complete primary-warehouse loss requires source rebuild and
+is not covered by the 60-minute catalog RTO. Last-resort table registration must
+use a validated metadata location, never lexicographic S3 listing. Live PITR
 execution, registry-derived restored-table validation, and the timed catalog
-RPO/RTO drill remain blocked until infrastructure apply is separately approved.
+RPO/RTO drill remain separately authorized work.
 
 ## SQLMesh dev loop
 
