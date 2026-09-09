@@ -344,10 +344,10 @@ def _execute_expected_repository_failure(fake: _HermeticPgBackRestRepository) ->
     return message
 
 
-def test_restore_fails_closed_when_repository_has_no_selectable_base_backup() -> None:
+def test_restore_fails_closed_when_repository_has_no_base_backup() -> None:
     fake = _HermeticPgBackRestRepository(
         ownership_token="owned-no-base-volume",  # secret-scan: allow
-        backup_stop_times=("2026-09-05 12:00:00+00",),
+        backup_stop_times=(),
         required_wal="00000001000000000000000A",
         archived_wal=frozenset({"00000001000000000000000A"}),
     )

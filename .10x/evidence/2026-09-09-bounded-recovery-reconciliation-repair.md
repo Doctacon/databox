@@ -11,14 +11,14 @@ The user authorized only reconciliation findings 1 and 3 plus ticket/record clos
 
 ## Changes
 
-- Added source-named hermetic tests backed by a scenario-specific pgBackRest repository fake. The no-base scenario exposes metadata whose only backup stops exactly at the target, proves no backup is selectable, and never performs a WAL lookup. The missing-WAL scenario selects a strictly earlier base backup, performs the required segment lookup, and fails because that segment is absent from the modeled archive. Both drive the real restore execution seam through a newly ownership-labeled target and prove one nonzero restore attempt, preserved ownership, no active-volume mount, no deletion or retry, and bounded secret-redacted diagnostics.
+- Added source-named hermetic tests backed by a scenario-specific pgBackRest repository fake. The no-base scenario exposes an empty backup inventory, proves no base backup is selectable, and never performs a WAL lookup. The missing-WAL scenario selects a strictly earlier base backup, performs the required segment lookup, and fails because that segment is absent from the modeled archive. Both drive the real restore execution seam through a newly ownership-labeled target and prove one nonzero restore attempt, preserved ownership, no active-volume mount, no deletion or retry, and bounded secret-redacted diagnostics.
 - Updated `docs/runbook.md` to use reviewed corrected contract revision `e27990e`, distinguish that validation contract from the historical recovery-point revision, and document canonical failures versus explicit outside-registry warnings.
 - Clarified final live-pass evidence with historical revision `e95b333092483a7103df9cfcfb39b8124fb7ed82`, validation-contract revision `e27990e9a87582db4d467b3fe2adab13bae0319c`, and the exact invariants remeasured by the final command versus inherited from prior evidence.
 - Reconciled the live rollout ticket against reviewed plan/apply/operator/backup evidence. Every acceptance criterion was supported, so it closed without new live work.
 
 ## Validation
 
-- `uv run pytest --no-cov -q tests/platform/test_catalog_recovery.py` — 34 passed, including distinct backup-selection and post-selection WAL-lookup failure paths.
+- `uv run pytest --no-cov -q tests/platform/test_catalog_recovery.py` — 34 passed, including distinct absent-base-backup and post-selection WAL-lookup failure paths.
 - `uv run ruff check tests/platform/test_catalog_recovery.py` — passed.
 - `uv run ruff format --check tests/platform/test_catalog_recovery.py` — passed.
 - `uv run mypy tests/platform/test_catalog_recovery.py` — passed.
