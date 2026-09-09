@@ -170,7 +170,8 @@ def test_malformed_or_overlong_observed_identifiers_fail_without_echoing_them():
 def test_catalog_report_aggregates_missing_unexpected_and_unreadable_tables():
     expected = validator.expected_registry_tables()
     missing = expected[0]
-    extra = "raw_retired.unregistered"
+    canonical_namespace = expected[0].split(".", 1)[0]
+    extra = f"{canonical_namespace}.unregistered"
     loads = {identifier: {"response": load_response()} for identifier in expected}
     loads[expected[1]] = {"http_status": 404}
     response = inventory(expected, extra=(extra,), missing=(missing,), loads=loads)
@@ -180,11 +181,25 @@ def test_catalog_report_aggregates_missing_unexpected_and_unreadable_tables():
     assert report["status"] == "fail"
     assert report["missingTables"] == [missing]
     assert report["unexpectedTables"] == [extra]
-    assert report["unexpectedNamespaces"] == ["raw_retired"]
+    assert report["noncanonicalNamespaces"] == []
+    assert report["warningCount"] == 0
     assert report["counts"]["failedTables"] == 1
     failed = {item["identifier"]: item["failures"] for item in report["tables"]}
     assert failed[expected[1]] == ("metadata_unreadable",)
     assert len(report["tables"]) == len(expected)
+
+
+def test_noncanonical_namespaces_are_prominent_warnings_and_do_not_fail():
+    expected = validator.expected_registry_tables()
+    extra = ("dlt_polaris_probe.events", "raw_usfws.image_records")
+
+    report = validate(inventory(expected, extra=extra))
+
+    assert report["status"] == "pass"
+    assert report["warningCount"] == 4
+    assert report["noncanonicalNamespaces"] == ["dlt_polaris_probe", "raw_usfws"]
+    assert report["noncanonicalTables"] == list(extra)
+    assert report["unexpectedTables"] == []
 
 
 def test_metadata_and_snapshot_failures_are_bounded_and_safe():
@@ -331,7 +346,8 @@ def test_docker_transport_preflights_then_sends_only_safe_request_on_stdin():
 def test_main_emits_secret_free_bounded_json_and_nonzero_on_aggregate_failure(capsys):
     secret = "must-never-appear"  # secret-scan: allow
     expected = validator.expected_registry_tables()
-    response = inventory(expected, extra=("raw_extra.table",))
+    canonical_namespace = expected[0].split(".", 1)[0]
+    response = inventory(expected, extra=(f"{canonical_namespace}.unregistered",))
     response["loads"][expected[0]] = {"response": load_response(secret)}
 
     with (

@@ -21,10 +21,11 @@ Define whether tables in namespaces outside the seven canonical registry sources
 
 - 2026-09-09: Split from `.10x/tickets/done/2026-09-09-reconcile-restored-catalog-registry-drift.md` when the user authorized only the three eBird generated child-table declarations.
 - 2026-09-09: User approved explicit warning treatment for namespaces outside the registry while retaining failure behavior for undeclared tables inside canonical namespaces. Governing decision: `.10x/decisions/classify-noncanonical-recovery-namespaces-as-warnings.md`. Governing specification: `.10x/specs/polaris-catalog-continuity.md`.
+- 2026-09-09: Implemented registry-derived noncanonical namespace/table warnings with a prominent warning count. Canonical-namespace drift and missing/malformed/unreadable canonical state remain failures. Evidence: `.10x/evidence/2026-09-09-noncanonical-recovery-warning-policy-implementation.md`. Thirteen focused tests and static/security checks passed; no live operation ran.
 
 ## Blockers
 
-None. Live validation remains separately authorized after implementation and independent review.
+Independent review. Live validation remains separately authorized after implementation and review.
 
 ## Exclusions
 

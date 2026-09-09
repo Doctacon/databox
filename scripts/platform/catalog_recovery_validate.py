@@ -364,9 +364,15 @@ def validate_catalog(
     expected_tables = set(expected)
     expected_namespaces = {identifier.split(".", 1)[0] for identifier in expected}
     missing = expected_tables - actual_tables
-    unexpected = actual_tables - expected_tables
+    extra_tables = actual_tables - expected_tables
+    unexpected = {
+        identifier
+        for identifier in extra_tables
+        if identifier.rsplit(".", 1)[0] in expected_namespaces
+    }
+    noncanonical_tables = extra_tables - unexpected
     missing_namespaces = expected_namespaces - actual_namespaces
-    unexpected_namespaces = actual_namespaces - expected_namespaces
+    noncanonical_namespaces = actual_namespaces - expected_namespaces
 
     raw_loads = response.get("loads")
     loads = raw_loads if isinstance(raw_loads, dict) else {}
@@ -381,7 +387,7 @@ def validate_catalog(
         for identifier in expected
     ]
     unreadable = sum(bool(outcome.failures) for outcome in outcomes)
-    drift = bool(missing or unexpected or missing_namespaces or unexpected_namespaces or malformed)
+    drift = bool(missing or unexpected or missing_namespaces or malformed)
     status = "pass" if not drift and unreadable == 0 else "fail"
     return {
         "status": status,
@@ -395,14 +401,22 @@ def validate_catalog(
             "validatedTables": len(outcomes) - unreadable,
             "failedTables": unreadable,
         },
+        "warningCount": len(noncanonical_namespaces) + len(noncanonical_tables),
         "missingNamespaces": _bounded(missing_namespaces),
-        "unexpectedNamespaces": _bounded(unexpected_namespaces),
+        "noncanonicalNamespaces": _bounded(noncanonical_namespaces),
         "missingTables": _bounded(missing),
         "unexpectedTables": _bounded(unexpected),
+        "noncanonicalTables": _bounded(noncanonical_tables),
         "malformedObservedIdentifiers": malformed,
         "identifierListsTruncated": any(
             len(items) > _MAX_IDENTIFIERS
-            for items in (missing_namespaces, unexpected_namespaces, missing, unexpected)
+            for items in (
+                missing_namespaces,
+                noncanonical_namespaces,
+                missing,
+                unexpected,
+                noncanonical_tables,
+            )
         ),
         "tables": [asdict(outcome) for outcome in outcomes],
     }
