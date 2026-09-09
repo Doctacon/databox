@@ -1,8 +1,8 @@
-Status: active
+Status: blocked
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
-Depends-On: .10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md, .10x/tickets/done/2026-09-09-add-interactive-catalog-recovery-drill-command.md
+Depends-On: .10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md, .10x/tickets/done/2026-09-09-add-interactive-catalog-recovery-drill-command.md, .10x/tickets/2026-09-09-upload-pending-wal-before-local-recovery.md
 
 # Run timed isolated catalog recovery drill
 
@@ -40,7 +40,9 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 - 2026-09-09: Hardened that reconciliation path to accept only exact generated marker names and to prove one `public` ordinary table owned by `polaris` before an exact quoted DROP and synchronous WAL archive. Evidence: `.10x/evidence/2026-09-09-failed-drill-marker-reconciliation-hardening.md`. No live cleanup occurred.
 - 2026-09-09: After the user stopped the incremental retry cycle, a three-lane end-to-end audit found microsecond target loss, durable preserved-container credentials, non-idempotent partial cleanup, incomplete objective enforcement/timing, ambiguous Docker absence, and duplicated table-count policy. All findings were repaired together; `.10x/evidence/2026-09-09-timed-drill-comprehensive-live-contract-repair.md` records the corrected contract. Final integration review additionally caught the validator sibling-exec environment boundary: it now fails before Docker without host credentials and injects only credential names from the sanitized validator process environment. A disposable no-network Polaris probe proved sibling absence, explicit name-only availability, and zero persisted config names. No live action occurred.
 - 2026-09-09: Consolidated run `w7x5rxrmlo7lvi4r` reconciled the old marker, restored files successfully, then failed at isolated PostgreSQL startup because PITR `archive-get` still requires fresh repository credentials during replay. Both active markers and cleanup WAL completed; the labeled recovery volume/network and exited secret-free PostgreSQL container remain preserved, and no Polaris container exists. The repair uses a credential-bearing child process only through promotion, then restarts PostgreSQL without credentials before Polaris. Evidence: `.10x/evidence/2026-09-09-timed-drill-postgres-pitr-credential-startup-repair.md`.
+- 2026-09-09: Fresh run `ms8wemjnzcnvnkh9` restored files but could not promote. Read-only inspection found the repository's previously proven sequence ended at segment 14 while locally retained pending segments 15 through 1A had not been uploaded; uploading only the newest marker segment could not bridge the gap. Both active markers and cleanup WAL completed, PostgreSQL was stopped, Polaris never started, and labeled recovery artifacts remain preserved. Evidence: `.10x/evidence/2026-09-09-timed-drill-wal-gap-recovery-failure.md`.
+- 2026-09-09: The user explicitly accepted local-machine loss between authenticated catch-ups and rejected long-lived backup credentials. `.10x/decisions/accept-manual-wal-catchup-for-local-catalog.md` replaces the continuous five-minute local RPO claim with explicit oldest-first manual catch-up before backup/recovery reliance.
 
 ## Blockers
 
-Independent review of the two-phase PostgreSQL startup repair, then a fresh operator drill. Recovery-resource cleanup remains separately authorized.
+Blocked on `.10x/tickets/2026-09-09-upload-pending-wal-before-local-recovery.md`. Do not retry until one MFA session uploads every retained pending segment oldest-first and verifies remote continuity before selecting the recovery target. Recovery-resource cleanup remains separately authorized.

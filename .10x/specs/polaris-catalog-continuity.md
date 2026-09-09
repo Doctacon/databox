@@ -12,11 +12,11 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 
 ## Recovery objectives
 
-- While Polaris is running, PostgreSQL catalog recovery point objective MUST be at most five minutes.
-- Catalog recovery time objective MUST be at most 60 minutes.
-- Base backups and WAL needed for any point in the preceding 30 days MUST be retained.
+- For this local deployment, off-machine catalog durability is established at explicit operator-authenticated WAL catch-up points; loss since the last successful catch-up is accepted if the local machine or disk is lost.
+- Databox MUST NOT claim a continuous five-minute off-machine RPO for the local deployment.
+- Catalog recovery time objective MUST be at most 60 minutes after the operator starts the authenticated catch-up-and-recovery command.
+- Base backups and every WAL segment successfully archived in the preceding 30 days MUST be retained.
 - The RTO MUST be described as unproven until a live timed restore drill completes successfully.
-- When Polaris is stopped, no catalog writes are expected; the RPO clock applies to running service periods.
 
 ## Fail-closed availability gate
 
@@ -25,14 +25,14 @@ This specification does not provide PostgreSQL high availability, make Polaris a
 - The gate MUST validate complete short-lived session credentials injected by the host, repository access, stanza configuration, and a WAL archive round trip.
 - The gate MUST inspect machine-readable repository metadata, create a full backup when no successful full exists or the newest full is at least seven days old, create a differential backup when the newest successful backup is at least 24 hours old, and otherwise skip unnecessary backup creation. Any requested backup MUST be visible and successful before Polaris becomes available.
 - Missing, partial, expired, or invalid backup settings; repository failure; WAL failure; or missing required backup state MUST fail startup clearly. No startup bypass is permitted.
-- After startup, PostgreSQL's `archive_command` MUST continue WAL delivery and later failures MUST surface through manual backup/check commands or the next startup gate. Databox MUST NOT add a custom continuous monitor, proxy, PostgreSQL permission switch, per-ingestion backup-health gate, in-container cron daemon, or host scheduler in this slice.
-- The five-minute RPO MUST be described as an objective while WAL archival is healthy, not as a synchronous guarantee during an unresolved post-start archive outage.
+- After startup, PostgreSQL's `archive_command` MUST attempt WAL delivery and later credential/repository failures MUST remain locally retained and surface through manual backup/check commands or the next startup gate. Databox MUST NOT add a custom continuous monitor, proxy, PostgreSQL permission switch, per-ingestion backup-health gate, in-container cron daemon, or host scheduler in this slice.
+- Before backup or recovery reliance, one operator-authenticated command MUST enumerate all retained pending WAL, upload it oldest-first, and verify remote continuity through a fresh marker. It MUST NOT claim that catch-up retroactively protected the pre-catch-up period.
 - Recovery environments MUST keep writers disabled and MUST NOT archive restored test history into the authoritative repository.
 
 ## Backup behavior
 
-- PostgreSQL MUST use pgBackRest physical backups and continuous WAL archiving.
-- WAL archival configuration MUST force an archive opportunity at least every five minutes while PostgreSQL is running.
+- PostgreSQL MUST use pgBackRest physical backups and WAL archiving; the local deployment MAY retain WAL locally until an explicit authenticated catch-up.
+- WAL archival configuration MUST force an archive opportunity at least every five minutes while credentials remain valid, and pending WAL MUST remain locally available for the next catch-up.
 - The repository MUST be a dedicated configurable AWS S3 bucket in `us-west-1`, MUST use the intentionally fixed `repo1-path=/polaris`, and MUST NOT be the primary Iceberg warehouse or Iceberg recovery bucket.
 - Repository contents MUST be encrypted client-side with a secret supplied outside tracked files. S3 transport and at-rest encryption MUST remain enabled.
 - Credentials MUST be short-lived credentials for the dedicated catalog-backup role, obtained by the host and injected at runtime as a backup access key, secret key, and session token. Long-lived access keys MUST NOT be required or documented as the normal path.
@@ -66,7 +66,7 @@ The restore-validation report is temporal evidence, not a backup or independent 
 - Recovery MUST support selecting a timestamp inside the retained PITR window.
 - Restore automation MUST stop before production cutover and print the exact remaining operator-controlled action.
 - `scripts/platform/catalog_recovery.py` MUST be the single recovery entrypoint. Its interactive `drill` command MUST be exposed through a thin Task target, require an operator TTY, perform the reviewed AWS operator-login and MFA-protected backup-role profile flow, capture temporary role credentials only through an in-memory pipe, and never print or persist credential values.
-- The interactive drill command MUST fail before mutation when authentication, credential lifetime, TTY, repository, active-state, or resource-name preconditions fail; preserve database-clock microseconds in marker-bracketed PITR; use synchronous fresh-session WAL pushes; orchestrate new-volume restore, isolated PostgreSQL/Polaris startup, and registry-derived validation; measure end-to-end RTO from before authentication; fail the five-minute RPO or 60-minute RTO objectives without discarding measured values; clean or idempotently reconcile its exact active marker; and preserve isolated recovery artifacts for separately authorized cleanup.
+- The interactive drill command MUST fail before mutation when authentication, credential lifetime, TTY, repository, active-state, or resource-name preconditions fail; enumerate and synchronously upload every retained pending WAL segment oldest-first before selecting a microsecond-precise marker-bracketed target; verify remote continuity through that target; orchestrate new-volume restore, isolated PostgreSQL/Polaris startup, and registry-derived validation; measure end-to-end RTO from before authentication; fail the 60-minute RTO objective without discarding measured values; report the pre-catch-up durability lag separately from the marker target-inclusion gap; clean or idempotently reconcile its exact active marker; and preserve isolated recovery artifacts for separately authorized cleanup.
 - Temporary backup and warehouse credentials MUST NOT be stored in preserved Docker container configuration. Recovery PostgreSQL MAY receive backup credentials only in its first child process environment while PITR fetches WAL; after promotion it MUST be restarted with archival disabled and without credentials, and any failure before that scrub restart MUST stop the credential-bearing process. Recovery Polaris MAY receive credentials only in its child process environment and MUST be stopped after validation or failure while its secret-free container remains preserved.
 - Bootstrap MUST NOT replace or silently initialize restored realm state.
 - Writers MUST remain disabled until restored identities, permissions, registry-owned tables, table pointers, metadata objects, snapshots, and representative Iceberg reads validate.
@@ -82,13 +82,13 @@ Given complete valid backup configuration and a reachable repository, when the l
 
 Given missing, partial, expired, or invalid backup configuration or an unavailable repository, when the stack starts, then Polaris remains unavailable and the gate reports the failing prerequisite.
 
-### Continuous archive
+### Authenticated WAL catch-up
 
-Given a running local Polaris/PostgreSQL stack with valid short-lived backup session credentials, when catalog writes occur, then pgBackRest archives sufficient WAL to make any recovery point no more than five minutes old.
+Given a running local Polaris/PostgreSQL stack with retained pending WAL, when an operator starts backup or recovery with fresh MFA-issued credentials, then Databox uploads every pending segment oldest-first and verifies continuity through a fresh marker before relying on recovery.
 
 ### Credential expiry
 
-Given expired or unavailable injected session credentials after startup, when WAL archival, a manual backup/check, or the next startup gate runs, then it fails visibly and does not fall back to host profiles, credential brokers, or long-lived embedded credentials. Polaris is not required to shut down automatically.
+Given expired or unavailable injected session credentials after startup, when WAL archival runs, then it fails visibly, retains pending WAL locally, and does not fall back to host profiles, credential brokers, or long-lived embedded credentials. Polaris is not required to shut down automatically. Loss of the local machine before the next authenticated catch-up may lose those pending catalog changes and is an accepted local-deployment risk.
 
 ### Point-in-time restore
 
@@ -100,7 +100,7 @@ Given a completed isolated restore and the Databox code revision corresponding t
 
 ### Timed drill
 
-Given provisioned live backup infrastructure, when the first full drill runs, then evidence records the selected recovery point, achieved RPO, elapsed RTO, catalog/table validation, and all limitations. A result over 60 minutes fails the RTO criterion without weakening it.
+Given provisioned live backup infrastructure, when the first full drill runs, then evidence records the previous successful off-machine archive point, pending-WAL catch-up span, selected recovery point, marker target-inclusion gap, elapsed RTO, catalog/table validation, and all limitations. It MUST NOT represent the marker gap as continuous off-machine RPO. A result over 60 minutes fails the RTO criterion without weakening it.
 
 ## Explicit exclusions
 
