@@ -18,7 +18,7 @@ Extend the existing interactive recovery tool so one MFA session enumerates ever
 - No pending file, archive-status file, remote object, backup, or recovery artifact is deleted or manually marked complete.
 - Output distinguishes manual off-machine catch-up lag from the marker target-inclusion gap and does not claim continuous five-minute local RPO.
 - The preserved failed restore remains untouched; a fresh drill uses new ownership-labeled resources.
-- Real pinned-image and stateful integration tests cover multiple ordered pending segments, gaps, malformed names, missing local files, partial upload failure, empty backlog, duplicate-safe upload, and successful restore ordering.
+- Pinned-image option probes and comprehensive stateful fake coverage exercise multiple ordered pending segments, remote gaps, malformed names, missing local files, partial upload failure, empty backlog, duplicate-safe upload, continuity verification, and successful restore ordering. The separately authorized live drill is the real S3 stateful integration proof; a second credentialed S3 environment is not required.
 
 ## Exclusions
 
@@ -42,6 +42,7 @@ Record the pre-catch-up oldest/newest pending WAL, count, ordered upload proof, 
 
 - 2026-09-09: Opened after the user explicitly accepted local-only loss between authenticated catch-ups and rejected long-lived backup credentials.
 - 2026-09-09: Implemented bounded exact pending-WAL enumeration, pre-upload regular-file validation, numeric oldest-first synchronous pgBackRest upload, in-process marker deduplication, continuity-through-marker reporting, and RPO terminology repair in the existing drill command. Evidence: `.10x/evidence/2026-09-09-manual-pending-wal-catch-up-implementation.md`. A read-only live check observed the expected six retained regular files; no AWS call, WAL upload, marker, restore, or cleanup occurred.
+- 2026-09-09: Repaired review blockers by adding synchronous pgBackRest `archive-get` proof for every segment in a bounded same-timeline sequence from the continuity anchor through the marker. Verification uses fresh name-only credentials and one exact `/dev/shm` path per segment, always removes only that path, and stops before restore on retrieval or cleanup failure. Reports now include oldest pending mtime/age, ordered uploads, informational repository max, continuity anchor, and verified-through marker.
 
 ## Blockers
 

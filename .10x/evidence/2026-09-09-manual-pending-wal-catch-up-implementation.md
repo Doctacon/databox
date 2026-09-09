@@ -11,21 +11,22 @@ The existing `scripts/platform/catalog_recovery.py drill` command now performs a
 
 Every pending segment is passed oldest-first to the pinned pgBackRest wrapper as OS user `postgres`, with fresh MFA credential names only and `--no-archive-async`. The command never renames, deletes, or manually marks a WAL/archive-status file. Successfully uploaded segments are tracked in process memory so the marker push cannot redundantly upload one during the same run; a later command safely reissues duplicate archive pushes if `.ready` state remains.
 
-Only after pending catch-up does the command create the before/target/after bracket, switch WAL, synchronously upload that selected marker segment, and proceed to restore. Ordered successful pgBackRest pushes through the marker are the continuity proof. Catch-up failure identifies only the segment and one-based position, stops before marker/restore, and remains credential-redacted.
+Only after pending catch-up does the command create the before/target/after bracket, switch WAL, and synchronously upload that selected marker segment. It then derives a bounded same-timeline sequence from the predecessor of the oldest pending segment (or marker predecessor for an empty backlog) through the marker. Every segment is synchronously retrieved with pgBackRest `archive-get` using fresh name-only credentials into one exact per-segment `/dev/shm` path. pgBackRest retrieval is repository presence/checksum proof; only that transient path is removed after every attempt. Missing remote segments, malformed/timeline/order state, sequences over 4,096, or temp cleanup failure stop before restore. No `pg_wal` or `archive_status` path is deleted or renamed.
 
-The result reports pending count, oldest/newest pending segments, accepted pre-catch-up local-loss policy, continuity-through marker segment, and `marker_target_inclusion_seconds`. It no longer emits `achieved_rpo_seconds` or a five-minute objective. End-to-end 3,600-second RTO remains the sole objective and failed results remain quiesced.
+The result reports pending count, oldest/newest pending segments, oldest pending UTC mtime and age at command start, ordered uploaded segments/count, informational observed repository maximum, continuity anchor, verified-through marker, accepted pre-catch-up local-loss policy, and `marker_target_inclusion_seconds`. Repository maximum is never used as continuity proof. It no longer emits `achieved_rpo_seconds` or a five-minute objective. End-to-end 3,600-second RTO remains the sole objective and failed results remain quiesced.
 
 ## Validation
 
-- Focused recovery/validator suite: 127 passed without coverage.
+- Focused recovery and validator tests: 135 passed without coverage. They cover the exact observed segment-14 anchor plus 15–1A backlog and marker sequence, empty backlog, noncontiguous pending files retrieved from remote, hexadecimal rollover, timeline/order/count rejection, archive-get failure, exact temp cleanup failure/order, no WAL/status deletion, and restore only after all remote gets. The separately authorized live drill remains the real S3 stateful integration proof; no second credentialed S3 environment was created.
 - Ruff format/check passed for the recovery implementation and tests.
 - MyPy passed for 91 package files and separately for `catalog_recovery.py`.
-- Secret scan passed across 933 eligible files.
+- Secret scan passed across 934 eligible files.
+- A disposable `--network none` pinned-image probe proved pgBackRest 2.59.1 accepts synchronous `--no-archive-async archive-get`; it used no credentials or mounts.
 - Task dry-run rendered only the existing recovery entrypoint.
 - `git diff --check` passed.
 - A read-only invocation of the exact live enumeration and regular-file checks observed six valid pending files, segments 15 through 1A. No AWS call or upload occurred.
 
-Tests cover empty backlog, the exact live six-file shape in unsorted order, an ordered list with a gap, malformed/path/duplicate output, safe-count overflow, missing/nonregular WAL files, first failed ordered push, within-process marker deduplication, later-process duplicate-safe pushes, catch-up-before-marker/restore ordering, reporting terminology, and all prior recovery safety behavior.
+Tests additionally cover informational repository maximum without treating it as proof, oldest pending age at command start, name-only fresh credential delivery for archive-get, synchronous archive behavior, and guaranteed exact `/dev/shm` cleanup.
 
 ## Safety boundary
 

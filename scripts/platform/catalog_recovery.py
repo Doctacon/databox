@@ -116,6 +116,10 @@ class DrillOperations(Protocol):
 
     def archive_marker_wal(self, environ: Mapping[str, str]) -> str: ...
 
+    def verify_wal_continuity(
+        self, marker_segment: str, environ: Mapping[str, str]
+    ) -> Mapping[str, Any]: ...
+
     def restore(self, *, volume: str, recover_to: datetime, environ: Mapping[str, str]) -> None: ...
 
     def start_postgres(self, *, container: str, network: str, volume: str) -> None: ...
@@ -468,7 +472,13 @@ def orchestrate_timed_drill(
             raise RecoveryError("marker timestamps do not bracket the selected recovery target")
         stage = "marker WAL archive"
         marker_segment = operations.archive_marker_wal(environ)
-        wal_catch_up["continuity_through"] = marker_segment
+        uploaded_segments = list(wal_catch_up.get("uploaded_segments", []))
+        if marker_segment not in uploaded_segments:
+            uploaded_segments.append(marker_segment)
+        wal_catch_up["uploaded_segments"] = uploaded_segments
+        wal_catch_up["uploaded_count"] = len(uploaded_segments)
+        stage = "remote WAL continuity verification"
+        wal_catch_up.update(operations.verify_wal_continuity(marker_segment, environ))
         stage = "restore"
         operations.restore(volume=resources.volume, recover_to=recover_to, environ=environ)
         stage = "isolated PostgreSQL recovery startup"
@@ -589,6 +599,7 @@ class DockerDrillOperations:
         environ: Mapping[str, str],
         runner: InteractiveRunner = subprocess.run,
         sleeper: Callable[[float], None] = time.sleep,
+        command_started_at: datetime | None = None,
     ) -> None:
         if not _VOLUME_NAME.fullmatch(catalog):
             raise RecoveryError("invalid Polaris catalog name")
@@ -597,8 +608,12 @@ class DockerDrillOperations:
         self.environ = dict(environ)
         self.runner = runner
         self.sleeper = sleeper
+        self.command_started_at = command_started_at or datetime.now(UTC)
         self._postgres_container: str | None = None
         self._uploaded_wal_segments: set[str] = set()
+        self._pending_wal_for_continuity: tuple[str, ...] | None = None
+        self._pending_wal_mtimes: dict[str, datetime] = {}
+        self._repository_archive_max_observed: str | None = None
         self._polaris_container: str | None = None
 
     def _run(
@@ -750,6 +765,19 @@ class DockerDrillOperations:
             or stanza["status"].get("code") != 0
         ):
             raise RecoveryError("pgBackRest repository has no successful Polaris backup")
+        archive = stanza.get("archive")
+        if isinstance(archive, list):
+            maxima: list[str] = []
+            for item in archive:
+                if not isinstance(item, dict):
+                    continue
+                maximum = item.get("max")
+                if isinstance(maximum, str) and _WAL_SEGMENT.fullmatch(maximum):
+                    maxima.append(maximum)
+            if maxima:
+                self._repository_archive_max_observed = max(
+                    maxima, key=lambda value: int(value, 16)
+                )
 
     @staticmethod
     def _quoted_marker(marker: str) -> str:
@@ -829,6 +857,7 @@ class DockerDrillOperations:
                 raise RecoveryError(f"pending WAL name at index {index} is invalid")
             segments.append(match.group(1))
         ordered = tuple(sorted(segments, key=lambda value: int(value, 16)))
+        mtimes: dict[str, datetime] = {}
         for index, segment in enumerate(ordered, start=1):
             status = self.runner(
                 [
@@ -838,7 +867,7 @@ class DockerDrillOperations:
                     "postgres",
                     _ACTIVE_POSTGRES,
                     "stat",
-                    "--format=%F",
+                    "--format=%F|%Y",
                     "--",
                     f"{_DATA_PATH}/pg_wal/{segment}",
                 ],
@@ -847,11 +876,20 @@ class DockerDrillOperations:
                 text=True,
                 env=None,
             )
-            if status.returncode != 0 or status.stdout.strip() != "regular file":
+            fields = status.stdout.strip().split("|")
+            if status.returncode != 0 or len(fields) != 2 or fields[0] != "regular file":
                 raise RecoveryError(
                     f"pending WAL segment {segment} at index {index}/{len(ordered)} "
                     "is not a regular file"
                 )
+            try:
+                mtimes[segment] = datetime.fromtimestamp(int(fields[1]), UTC)
+            except (OverflowError, ValueError) as exc:
+                raise RecoveryError(
+                    f"pending WAL segment {segment} at index {index}/{len(ordered)} "
+                    "has an invalid modification time"
+                ) from exc
+        self._pending_wal_mtimes = mtimes
         return ordered
 
     def _push_wal_segment(
@@ -890,6 +928,7 @@ class DockerDrillOperations:
 
     def catch_up_pending_wal(self, environ: Mapping[str, str]) -> Mapping[str, Any]:
         segments = self._pending_wal_segments()
+        self._pending_wal_for_continuity = segments
         for index, segment in enumerate(segments, start=1):
             self._push_wal_segment(
                 segment,
@@ -897,10 +936,21 @@ class DockerDrillOperations:
                 total=len(segments),
                 environ=environ,
             )
+        oldest_mtime = self._pending_wal_mtimes.get(segments[0]) if segments else None
+        oldest_age = (
+            max(0.0, (self.command_started_at - oldest_mtime).total_seconds())
+            if oldest_mtime is not None
+            else None
+        )
         return {
             "pending_count": len(segments),
             "oldest_pending": segments[0] if segments else None,
             "newest_pending": segments[-1] if segments else None,
+            "oldest_pending_mtime_utc": oldest_mtime.isoformat() if oldest_mtime else None,
+            "oldest_pending_age_seconds": oldest_age,
+            "uploaded_segments": list(segments),
+            "uploaded_count": len(segments),
+            "repository_archive_max_observed": self._repository_archive_max_observed,
             "pre_catch_up_loss_accepted": True,
         }
 
@@ -911,6 +961,125 @@ class DockerDrillOperations:
 
     def archive_marker_wal(self, environ: Mapping[str, str]) -> str:
         return self._archive_wal(environ)
+
+    @staticmethod
+    def _previous_wal_segment(segment: str) -> str:
+        if not _WAL_SEGMENT.fullmatch(segment):
+            raise RecoveryError("PostgreSQL returned an invalid WAL segment name")
+        sequence = int(segment[8:], 16)
+        if sequence == 0:
+            raise RecoveryError("WAL continuity anchor precedes the valid sequence")
+        return segment[:8] + f"{sequence - 1:016X}"
+
+    def _verify_archived_segment(
+        self, segment: str, *, index: int, total: int, environ: Mapping[str, str]
+    ) -> None:
+        verify_path = f"/dev/shm/databox-catalog-recovery-verify-{segment}"
+        absent = self.runner(
+            [
+                "docker",
+                "exec",
+                "--user",
+                "postgres",
+                _ACTIVE_POSTGRES,
+                "test",
+                "!",
+                "-e",
+                verify_path,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=None,
+        )
+        if absent.returncode != 0:
+            raise RecoveryError(
+                f"WAL verification path is not empty for segment {segment} at index {index}/{total}"
+            )
+        command = ["docker", "exec", "--user", "postgres"]
+        for name in _BACKUP_ENV:
+            command.extend(("--env", name))
+        command.extend(
+            (
+                _ACTIVE_POSTGRES,
+                "/usr/local/bin/run-pgbackrest",
+                "--stanza=polaris",
+                "--no-archive-async",
+                "archive-get",
+                segment,
+                verify_path,
+            )
+        )
+        primary: BaseException | None = None
+        try:
+            self._run(command, environ=environ)
+        except BaseException as exc:
+            primary = RecoveryError(
+                f"unable to verify archived WAL segment {segment} at index {index}/{total}: "
+                f"{_report_diagnostic(exc, environ)}"
+            )
+        removed = self.runner(
+            [
+                "docker",
+                "exec",
+                "--user",
+                "postgres",
+                _ACTIVE_POSTGRES,
+                "rm",
+                "-f",
+                "--",
+                verify_path,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=None,
+        )
+        if removed.returncode != 0:
+            cleanup = RecoveryError(
+                f"unable to remove WAL verification file for segment {segment} "
+                f"at index {index}/{total}"
+            )
+            if primary is not None:
+                raise RecoveryError(f"{primary}; {cleanup}") from primary
+            raise cleanup
+        if primary is not None:
+            raise primary
+
+    def verify_wal_continuity(
+        self, marker_segment: str, environ: Mapping[str, str]
+    ) -> Mapping[str, Any]:
+        pending = self._pending_wal_for_continuity
+        if pending is None:
+            raise RecoveryError("pending WAL catch-up did not run before continuity verification")
+        if not _WAL_SEGMENT.fullmatch(marker_segment):
+            raise RecoveryError("PostgreSQL returned an invalid WAL segment name")
+        timeline = marker_segment[:8]
+        if any(segment[:8] != timeline for segment in pending):
+            raise RecoveryError("pending WAL timeline does not match the marker timeline")
+        first = pending[0] if pending else marker_segment
+        if int(first[8:], 16) > int(marker_segment[8:], 16):
+            raise RecoveryError("pending WAL order extends beyond the marker segment")
+        anchor = self._previous_wal_segment(first)
+        anchor_sequence = int(anchor[8:], 16)
+        marker_sequence = int(marker_segment[8:], 16)
+        total = marker_sequence - anchor_sequence + 1
+        if total > _MAX_PENDING_WAL_SEGMENTS:
+            raise RecoveryError(
+                f"WAL continuity sequence exceeds safe bound {_MAX_PENDING_WAL_SEGMENTS}"
+            )
+        sequence = tuple(
+            timeline + f"{number:016X}" for number in range(anchor_sequence, marker_sequence + 1)
+        )
+        for index, segment in enumerate(sequence, start=1):
+            self._verify_archived_segment(
+                segment, index=index, total=len(sequence), environ=environ
+            )
+        return {
+            "continuity_anchor": anchor,
+            "verified_through": marker_segment,
+            "verified_segment_count": len(sequence),
+        }
 
     def restore(self, *, volume: str, recover_to: datetime, environ: Mapping[str, str]) -> None:
         def runner(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
@@ -1266,6 +1435,7 @@ def _drill_main(argv: Sequence[str]) -> int:
         print("catalog recovery refused: marker is not owned by a timed drill", file=sys.stderr)
         return 1
     started_at = time.monotonic()
+    command_started_at = datetime.now(UTC)
     base = _environment_from_dotenv()
     try:
         environment = acquire_backup_role_environment(
@@ -1277,6 +1447,7 @@ def _drill_main(argv: Sequence[str]) -> int:
             catalog=args.catalog,
             source_revision=args.source_revision,
             environ=environment,
+            command_started_at=command_started_at,
         )
         if args.reconcile_marker:
             operations.preflight(_drill_resources(_new_ownership_token()), environment)

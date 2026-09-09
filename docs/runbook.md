@@ -162,10 +162,14 @@ minimum prevents near-expiry cache reuse; it does not guarantee the 60-minute
 RTO objective. Before creating a marker, it enumerates every locally retained
 `.ready` WAL file, validates the bounded list and corresponding regular files,
 and synchronously uploads every segment oldest-first with the same session. It
-never renames or deletes WAL or archive-status files. Successful ordered pushes
-through the subsequently switched marker segment are the continuity proof used
-before restore. This catch-up does not retroactively protect changes that existed
-only on the local machine before the command ran.
+never renames or deletes WAL or archive-status files. After switching and pushing
+the marker segment, it derives a bounded same-timeline sequence from the segment
+before the oldest pending file through the marker and synchronously retrieves each
+segment from the repository into one exact `/dev/shm` verification path. pgBackRest
+validates each retrieved segment and the command removes only that transient path;
+any missing segment or cleanup failure stops before restore. This catch-up does not
+retroactively protect changes that existed only on the local machine before the
+command ran.
 
 Temporary credentials are never written to `.env`, a handoff file, or preserved
 container configuration. Recovery PostgreSQL starts inside a secret-free sleeper
@@ -178,8 +182,11 @@ and is always stopped after validation or failure while its container remains
 preserved. The command uses a microsecond-precise marker bracket,
 synchronous marker and cleanup WAL pushes, a new ownership-labeled volume,
 unexposed archive-disabled PostgreSQL, no-bootstrap Polaris, and the registry-derived
-validator. Its report records the pre-catch-up pending count/oldest/newest segments
-and the marker target-inclusion gap; it does not label that gap as continuous RPO.
+validator. Its report records pending count, oldest/newest segment, oldest pending
+mtime and age at command start, ordered uploads, observed repository maximum,
+continuity anchor/verified-through marker, and the marker target-inclusion gap. The
+observed maximum is informational and is never treated as continuity proof; the
+report does not label the marker gap as continuous RPO.
 End-to-end RTO starts before authentication, and a result over 3,600 seconds exits
 nonzero. It never restarts the active stack, cuts over, or deletes recovery resources.
 

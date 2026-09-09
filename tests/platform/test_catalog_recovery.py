@@ -616,12 +616,25 @@ class _FakeDrillOperations:
             "pending_count": 2,
             "oldest_pending": "000000010000000000000015",
             "newest_pending": "000000010000000000000016",
+            "uploaded_segments": [
+                "000000010000000000000015",
+                "000000010000000000000016",
+            ],
+            "uploaded_count": 2,
             "pre_catch_up_loss_accepted": True,
         }
 
     def archive_marker_wal(self, _environ) -> str:
         self._call("archive_marker")
         return "000000010000000000000017"
+
+    def verify_wal_continuity(self, _marker_segment, _environ):
+        self._call("verify_wal_continuity")
+        return {
+            "continuity_anchor": "000000010000000000000014",
+            "verified_through": "000000010000000000000017",
+            "verified_segment_count": 4,
+        }
 
     def restore(self, **_kwargs) -> None:
         self._call("restore")
@@ -676,6 +689,7 @@ def test_timed_drill_state_machine_orders_effects_and_measures_end_to_end_path()
         "target",
         "after",
         "archive_marker",
+        "verify_wal_continuity",
         "restore",
         "start_postgres",
         "validate_postgres",
@@ -696,7 +710,15 @@ def test_timed_drill_state_machine_orders_effects_and_measures_end_to_end_path()
         "oldest_pending": "000000010000000000000015",
         "newest_pending": "000000010000000000000016",
         "pre_catch_up_loss_accepted": True,
-        "continuity_through": "000000010000000000000017",
+        "uploaded_segments": [
+            "000000010000000000000015",
+            "000000010000000000000016",
+            "000000010000000000000017",
+        ],
+        "uploaded_count": 3,
+        "continuity_anchor": "000000010000000000000014",
+        "verified_through": "000000010000000000000017",
+        "verified_segment_count": 4,
     }
     assert result["resources"]["preserved"] is True
     assert result["catalog"]["counts"]["validatedTables"] == 25
@@ -729,6 +751,21 @@ def test_timed_drill_enforces_only_rto_objective(
     else:
         assert result["postgres_quiesce"] == "not-required"
         assert "quiesce_postgres" not in operations.calls
+
+
+def test_timed_drill_remote_continuity_failure_stops_before_restore() -> None:
+    operations = _FakeDrillOperations(fail_at="verify_wal_continuity")
+
+    with pytest.raises(recovery.RecoveryError, match="remote WAL continuity verification"):
+        recovery.orchestrate_timed_drill(
+            operations=operations,
+            environ=_BACKUP_ENV,
+            monotonic=lambda: 100.0,
+            token_factory=lambda: "abcdef1234567890",
+        )
+
+    assert "restore" not in operations.calls
+    assert operations.calls[-2:] == ["cleanup", "archive_cleanup"]
 
 
 def test_timed_drill_pending_wal_failure_stops_before_marker_and_restore() -> None:
@@ -989,7 +1026,11 @@ def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names()
             return subprocess.CompletedProcess(
                 command,
                 0,
-                stdout='[{"name":"polaris","status":{"code":0},"backup":[{"label":"full"}]}]',
+                stdout=(
+                    '[{"name":"polaris","status":{"code":0},'
+                    '"backup":[{"label":"full"}],'
+                    '"archive":[{"max":"00000001000000000000001A"}]}]'
+                ),
                 stderr="",
             )
         raise AssertionError(command)
@@ -1012,6 +1053,7 @@ def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names()
     info_call = next(call for call, _ in calls if call[:2] == ("docker", "exec"))
     assert info_call[:4] == ("docker", "exec", "--user", "postgres")
     assert all(name in info_call[4:] for name in recovery._BACKUP_ENV)
+    assert operations._repository_archive_max_observed == "00000001000000000000001A"
 
 
 @pytest.mark.parametrize(
@@ -1246,7 +1288,9 @@ def _pending_wal_runner(
         if "find" in command:
             return subprocess.CompletedProcess(command, 0, stdout=listing, stderr="")
         if "stat" in command:
-            return subprocess.CompletedProcess(command, 0, stdout=stat_type + "\n", stderr="")
+            return subprocess.CompletedProcess(
+                command, 0, stdout=stat_type + "|1788969600\n", stderr=""
+            )
         if "archive-push" in command:
             segment = command[-1].rsplit("/", 1)[-1]
             if segment == failed_push:
@@ -1282,6 +1326,7 @@ def test_pending_wal_catch_up_orders_exact_live_six_file_shape_oldest_first() ->
         source_revision="abc123",
         environ=_drill_environment(),
         runner=runner,
+        command_started_at=datetime(2026, 9, 9, 17, 0, tzinfo=UTC),
     )
 
     report = operations.catch_up_pending_wal(_drill_environment())
@@ -1292,6 +1337,11 @@ def test_pending_wal_catch_up_orders_exact_live_six_file_shape_oldest_first() ->
         "pending_count": 6,
         "oldest_pending": expected[0],
         "newest_pending": expected[-1],
+        "oldest_pending_mtime_utc": "2026-09-09T16:00:00+00:00",
+        "oldest_pending_age_seconds": 3600.0,
+        "uploaded_segments": expected,
+        "uploaded_count": 6,
+        "repository_archive_max_observed": None,
         "pre_catch_up_loss_accepted": True,
     }
     assert pushed == expected
@@ -1353,7 +1403,7 @@ def test_pending_wal_catch_up_rejects_missing_or_nonregular_segment(
             return subprocess.CompletedProcess(command, 0, stdout=f"{segment}.ready\n", stderr="")
         if "stat" in command:
             return subprocess.CompletedProcess(
-                command, returncode, stdout=stat_type + "\n", stderr=""
+                command, returncode, stdout=stat_type + "|1788969600\n", stderr=""
             )
         raise AssertionError(command)
 
@@ -1396,7 +1446,9 @@ def test_marker_archive_does_not_repush_segment_uploaded_in_process() -> None:
         if "find" in command:
             return subprocess.CompletedProcess(command, 0, stdout=f"{segment}.ready\n", stderr="")
         if "stat" in command:
-            return subprocess.CompletedProcess(command, 0, stdout="regular file\n", stderr="")
+            return subprocess.CompletedProcess(
+                command, 0, stdout="regular file|1788969600\n", stderr=""
+            )
         if "pg_walfile_name" in " ".join(command):
             return subprocess.CompletedProcess(command, 0, stdout=segment + "\n", stderr="")
         if "archive-push" in command:
@@ -1426,6 +1478,155 @@ def test_new_process_safely_repushes_repository_duplicate() -> None:
         )
         operations.catch_up_pending_wal(_drill_environment())
     assert sum("archive-push" in call for call in calls) == 2
+
+
+def _continuity_runner(*, failed_get: str | None = None, cleanup_failure: str | None = None):
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command, **_kwargs):
+        command = tuple(command)
+        calls.append(command)
+        if "test" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if "archive-get" in command:
+            segment = command[-2]
+            return subprocess.CompletedProcess(
+                command,
+                1 if segment == failed_get else 0,
+                stdout="",
+                stderr="remote segment unavailable" if segment == failed_get else "",
+            )
+        if "rm" in command:
+            segment = command[-1].rsplit("-", 1)[-1]
+            return subprocess.CompletedProcess(
+                command,
+                1 if segment == cleanup_failure else 0,
+                stdout="",
+                stderr="cleanup refused" if segment == cleanup_failure else "",
+            )
+        raise AssertionError(command)
+
+    return runner, calls
+
+
+def _continuity_operations(runner, pending: tuple[str, ...]):
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    operations._pending_wal_for_continuity = pending
+    return operations
+
+
+def test_wal_continuity_verifies_live_anchor_through_marker_in_order() -> None:
+    pending = tuple(
+        f"0000000100000000000000{value}" for value in ("15", "16", "17", "18", "19", "1A")
+    )
+    runner, calls = _continuity_runner()
+    operations = _continuity_operations(runner, pending)
+
+    report = operations.verify_wal_continuity("00000001000000000000001B", _drill_environment())
+
+    fetches = [call for call in calls if "archive-get" in call]
+    fetched = [call[-2] for call in fetches]
+    assert all("--no-archive-async" in call for call in fetches)
+    assert fetched == [f"0000000100000000000000{value:02X}" for value in range(0x14, 0x1C)]
+    assert report == {
+        "continuity_anchor": "000000010000000000000014",
+        "verified_through": "00000001000000000000001B",
+        "verified_segment_count": 8,
+    }
+
+
+def test_wal_continuity_with_empty_backlog_verifies_marker_predecessor() -> None:
+    runner, calls = _continuity_runner()
+    operations = _continuity_operations(runner, ())
+
+    report = operations.verify_wal_continuity("00000001000000000000001B", _drill_environment())
+
+    assert [call[-2] for call in calls if "archive-get" in call] == [
+        "00000001000000000000001A",
+        "00000001000000000000001B",
+    ]
+    assert report["continuity_anchor"] == "00000001000000000000001A"
+
+
+def test_wal_continuity_fetches_nonpending_gaps_and_handles_rollover() -> None:
+    runner, calls = _continuity_runner()
+    operations = _continuity_operations(
+        runner,
+        ("0000000100000000000000FF", "000000010000000000000101"),
+    )
+
+    operations.verify_wal_continuity("000000010000000000000102", _drill_environment())
+
+    assert [call[-2] for call in calls if "archive-get" in call] == [
+        "0000000100000000000000FE",
+        "0000000100000000000000FF",
+        "000000010000000000000100",
+        "000000010000000000000101",
+        "000000010000000000000102",
+    ]
+
+
+def test_wal_continuity_rejects_timeline_order_and_bound_before_fetch() -> None:
+    runner, calls = _continuity_runner()
+    mismatch = _continuity_operations(runner, ("000000010000000000000015",))
+    with pytest.raises(recovery.RecoveryError, match="timeline"):
+        mismatch.verify_wal_continuity("000000020000000000000016", _drill_environment())
+
+    reversed_order = _continuity_operations(runner, ("000000010000000000000020",))
+    with pytest.raises(recovery.RecoveryError, match="extends beyond"):
+        reversed_order.verify_wal_continuity("00000001000000000000001F", _drill_environment())
+
+    oversized = _continuity_operations(runner, ("000000010000000000000002",))
+    with pytest.raises(recovery.RecoveryError, match="exceeds safe bound"):
+        oversized.verify_wal_continuity("000000010000000000001002", _drill_environment())
+    assert not any("archive-get" in call for call in calls)
+
+
+@pytest.mark.parametrize("failure", ["get", "cleanup"])
+def test_wal_continuity_fails_before_restore_and_always_removes_exact_temp(
+    failure: str,
+) -> None:
+    segment = "000000010000000000000014"
+    runner, calls = _continuity_runner(
+        failed_get=segment if failure == "get" else None,
+        cleanup_failure=segment if failure == "cleanup" else None,
+    )
+    operations = _continuity_operations(runner, ("000000010000000000000015",))
+
+    with pytest.raises(recovery.RecoveryError, match="verify|remove"):
+        operations.verify_wal_continuity("000000010000000000000016", _drill_environment())
+
+    first_get = next(index for index, call in enumerate(calls) if "archive-get" in call)
+    first_rm = next(index for index, call in enumerate(calls) if "rm" in call)
+    assert first_get < first_rm
+    assert calls[first_rm][-1] == f"/dev/shm/databox-catalog-recovery-verify-{segment}"
+    assert not any(
+        "archive_status" in " ".join(call) or ("rm" in call and "/pg_wal/" in " ".join(call))
+        for call in calls
+    )
+
+
+def test_wal_continuity_removes_temp_when_archive_get_is_interrupted() -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command, **_kwargs):
+        command = tuple(command)
+        calls.append(command)
+        if "test" in command or "rm" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        if "archive-get" in command:
+            raise KeyboardInterrupt
+        raise AssertionError(command)
+
+    operations = _continuity_operations(runner, ("000000010000000000000015",))
+    with pytest.raises(recovery.RecoveryError, match="unable to verify"):
+        operations.verify_wal_continuity("000000010000000000000016", _drill_environment())
+    assert any("rm" in call for call in calls)
 
 
 def test_marker_timestamp_accepts_one_quiet_row() -> None:
@@ -1660,7 +1861,7 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
             elif "archive_status" in joined and "find" in command:
                 output = "000000010000000000000017.ready\n000000010000000000000015.ready\n"
             elif "stat" in command:
-                output = "regular file\n"
+                output = "regular file|1788969600\n"
             elif "RETURNING committed_at" in joined:
                 output = (
                     "2026-09-09 12:00:00+00" if "'before'" in joined else "2026-09-09 12:00:02+00"
@@ -1722,8 +1923,21 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
     )
     assert pending_15 < pending_17 < marker_insert
     assert rendered.index("RETURNING committed_at") < rendered.index("pg_walfile_name")
+    restore_index = next(
+        index
+        for index, command in enumerate(commands)
+        if "restore" in command and "/usr/local/bin/run-pgbackrest" in command
+    )
+    archive_get_indices = [
+        index for index, command in enumerate(commands) if "archive-get" in command
+    ]
+    assert archive_get_indices and max(archive_get_indices) < restore_index
     assert rendered.index("pg_walfile_name") < rendered.index(
         "--target=2026-09-09 12:00:01.000000+00"
+    )
+    assert not any(
+        "rm" in command and any("/pg_wal/" in part or "archive_status" in part for part in command)
+        for command in commands
     )
     postgres_execs = [
         command
@@ -1762,7 +1976,8 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
     pgbackrest_commands = [
         command for command in commands if "/usr/local/bin/run-pgbackrest" in command
     ]
-    assert len(pgbackrest_commands) == 6
+    assert len(pgbackrest_commands) == 20
+    assert sum("archive-get" in command for command in pgbackrest_commands) == 14
     for command in pgbackrest_commands:
         user_index = command.index("--user")
         assert command[user_index + 1] == "postgres"
