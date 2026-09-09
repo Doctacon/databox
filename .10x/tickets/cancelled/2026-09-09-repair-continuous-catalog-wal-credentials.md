@@ -38,7 +38,7 @@ Resolve the credential-lifecycle contradiction exposed by the timed drill: Postg
 
 ## Resolution
 
-The user explicitly accepted local-machine loss between authenticated catch-ups and rejected long-lived backup credentials. `.10x/decisions/accept-manual-wal-catchup-for-local-catalog.md` records the replacement contract. Continuous credential renewal is therefore not required for this local deployment; `.10x/tickets/2026-09-09-upload-pending-wal-before-local-recovery.md` owns the manual catch-up implementation.
+The user explicitly accepted local-machine loss between authenticated catch-ups and rejected long-lived backup credentials. `.10x/decisions/accept-manual-wal-catchup-for-local-catalog.md` records the replacement contract. Continuous credential renewal is therefore not required for this local deployment; `.10x/tickets/done/2026-09-09-upload-pending-wal-before-local-recovery.md` owns the manual catch-up implementation.
 
 ## Candidate directions
 

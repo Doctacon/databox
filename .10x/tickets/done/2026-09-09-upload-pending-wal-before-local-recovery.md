@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-09
 Updated: 2026-09-09
 Parent: .10x/tickets/2026-09-04-run-timed-catalog-recovery-drill.md
@@ -44,6 +44,14 @@ Record the pre-catch-up oldest/newest pending WAL, count, ordered upload proof, 
 - 2026-09-09: Implemented bounded exact pending-WAL enumeration, pre-upload regular-file validation, numeric oldest-first synchronous pgBackRest upload, in-process marker deduplication, continuity-through-marker reporting, and RPO terminology repair in the existing drill command. Evidence: `.10x/evidence/2026-09-09-manual-pending-wal-catch-up-implementation.md`. A read-only live check observed the expected six retained regular files; no AWS call, WAL upload, marker, restore, or cleanup occurred.
 - 2026-09-09: Repaired review blockers by adding synchronous pgBackRest `archive-get` proof for every segment in a bounded same-timeline sequence from the continuity anchor through the marker. Verification uses fresh name-only credentials and one exact `/dev/shm` path per segment, always removes only that path, and stops before restore on retrieval or cleanup failure. Reports now include oldest pending mtime/age, ordered uploads, informational repository max, continuity anchor, and verified-through marker.
 
+## Closure evidence
+
+Implementation evidence: `.10x/evidence/2026-09-09-manual-pending-wal-catch-up-implementation.md`. Independent review: `.10x/reviews/2026-09-09-manual-pending-wal-catch-up-review.md`. The review maps ordered upload, remote read-back continuity, reporting, and no-delete safety to 135 focused tests and runtime inspection.
+
+## Retrospective
+
+A newest-WAL archive success does not prove a usable recovery chain. Manual catch-up must begin from a known predecessor, process retained files in order, and read the complete required sequence back before restore. Marker timing must not be mislabeled as continuous off-machine RPO.
+
 ## Blockers
 
-Independent acceptance review before live use.
+None.

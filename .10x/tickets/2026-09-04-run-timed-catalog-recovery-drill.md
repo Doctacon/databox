@@ -1,8 +1,8 @@
-Status: blocked
+Status: active
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
-Depends-On: .10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md, .10x/tickets/done/2026-09-09-add-interactive-catalog-recovery-drill-command.md, .10x/tickets/2026-09-09-upload-pending-wal-before-local-recovery.md
+Depends-On: .10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md, .10x/tickets/done/2026-09-09-add-interactive-catalog-recovery-drill-command.md, .10x/tickets/done/2026-09-09-upload-pending-wal-before-local-recovery.md
 
 # Run timed isolated catalog recovery drill
 
@@ -45,4 +45,4 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 
 ## Blockers
 
-Blocked on `.10x/tickets/2026-09-09-upload-pending-wal-before-local-recovery.md`. Do not retry until one MFA session uploads every retained pending segment oldest-first and verifies remote continuity before selecting the recovery target. Recovery-resource cleanup remains separately authorized.
+None. `.10x/tickets/done/2026-09-09-upload-pending-wal-before-local-recovery.md` passed independent review. Recovery-resource cleanup remains separately authorized.

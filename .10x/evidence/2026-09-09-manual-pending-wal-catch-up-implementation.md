@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-09
 Updated: 2026-09-09
-Relates-To: .10x/tickets/2026-09-09-upload-pending-wal-before-local-recovery.md
+Relates-To: .10x/tickets/done/2026-09-09-upload-pending-wal-before-local-recovery.md
 
 # Manual pending-WAL catch-up implementation
 
