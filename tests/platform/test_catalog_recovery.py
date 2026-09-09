@@ -88,7 +88,12 @@ def test_interactive_credentials_flow_from_aws_pipe_to_memory_only() -> None:
         "--format",
         "process",
     )
-    assert calls[1][1] == {"check": False, "capture_output": True, "text": True}
+    assert calls[1][1] == {
+        "check": False,
+        "stdout": subprocess.PIPE,
+        "text": True,
+    }
+    assert "stderr" not in calls[1][1]
     assert environment["PGBACKREST_REPO1_S3_KEY_SECRET"] == secret
     assert environment["PGBACKREST_REPO1_S3_TOKEN"] == token
     rendered_commands = json.dumps([command for command, _kwargs in calls])
@@ -143,6 +148,34 @@ def test_interactive_credentials_reject_expired_session() -> None:
             stdin_isatty=True,
             stderr_isatty=True,
             now=lambda: datetime(2026, 9, 9, 12, 0, tzinfo=UTC),
+        )
+
+
+@pytest.mark.parametrize("expiration", [None, 123, {}, []])
+def test_interactive_credentials_reject_non_string_expiration(expiration) -> None:
+    def runner(command, **_kwargs):
+        if command[:2] == ("aws", "login"):
+            return subprocess.CompletedProcess(command, 0)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(
+                {
+                    "Version": 1,
+                    "AccessKeyId": "ASIA" + "ABCDEFGHIJKLMNOP",  # secret-scan: allow
+                    "SecretAccessKey": "temporary-secret",  # secret-scan: allow
+                    "SessionToken": "temporary-token",  # secret-scan: allow
+                    "Expiration": expiration,
+                }
+            ),
+        )
+
+    with pytest.raises(recovery.RecoveryError, match="invalid response"):
+        recovery.acquire_backup_role_environment(
+            environ=_BACKUP_ENV,
+            runner=runner,
+            stdin_isatty=True,
+            stderr_isatty=True,
         )
 
 

@@ -43,6 +43,7 @@ Record changed files, exact tests/checks, command interface, credential boundary
 
 - 2026-09-09: Opened after the user rejected both a temporary credential handoff file and another one-off Python script, and explicitly authorized extending the existing recovery tool.
 - 2026-09-09: Ten-minute bounded slice implemented the TTY-gated in-memory AWS authentication seam in the existing recovery tool with exact reviewed profiles, complete/unexpired session validation, child-environment mapping, and bounded secret redaction. Thirty-eight focused tests and static/security checks pass. Evidence: `.10x/evidence/2026-09-09-interactive-drill-authentication-slice.md`. No CLI/Task entry or live operation was added; full orchestration remains required.
+- 2026-09-09: Repaired independent auth-slice findings: credential export now captures stdout only while MFA/error stderr remains on the operator terminal, and malformed non-string expiration values fail with bounded `RecoveryError`. Four focused cases were added; 42 tests and all static/security checks pass.
 
 ## Blockers
 

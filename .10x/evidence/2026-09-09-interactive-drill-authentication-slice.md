@@ -21,6 +21,10 @@ No CLI drill command or Task target is exposed yet because complete marker/resto
 
 Tests cover TTY refusal before AWS, exact reviewed profiles and interactive/captured process boundaries, in-memory credential mapping without command exposure, credential-export redaction, and expired-session refusal.
 
+## Review repair
+
+Independent review found that `capture_output=True` also hid AWS MFA/error stderr and that non-string `Expiration` values could escape as an unbounded attribute error. The export now captures only stdout with `stdout=subprocess.PIPE`, explicitly inherits operator-terminal stderr, and validates `Expiration` is a string before parsing. Four malformed-expiration cases and exact subprocess-boundary assertions were added. The repaired focused suite passes 42 tests plus Ruff, format, MyPy, secret scan, and diff checks.
+
 ## Boundaries and residual work
 
 No AWS, Docker, `.env`, marker, backup, restore, or live-service operation ran. Full drill orchestration, thin Task target, orchestration failure tests, runbook update, and independent review remain required. The ticket remains open and the timed drill remains blocked.

@@ -121,7 +121,12 @@ def acquire_backup_role_environment(
         raise RecoveryError("interactive AWS operator login failed")
 
     try:
-        exported = runner(export_command, check=False, capture_output=True, text=True)
+        exported = runner(
+            export_command,
+            check=False,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
     except OSError as exc:
         raise RecoveryError("unable to invoke backup-role credential export") from exc
     if exported.returncode != 0:
@@ -141,7 +146,10 @@ def acquire_backup_role_environment(
         access_key = credential["AccessKeyId"]
         secret_key = credential["SecretAccessKey"]
         session_token = credential["SessionToken"]
-        expires_at = recovery_target(credential["Expiration"])
+        expiration = credential["Expiration"]
+        if not isinstance(expiration, str):
+            raise RecoveryError("backup-role credential export returned an invalid response")
+        expires_at = recovery_target(expiration)
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         raise RecoveryError("backup-role credential export returned an invalid response") from exc
     if not all(
