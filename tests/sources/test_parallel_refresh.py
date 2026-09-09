@@ -400,19 +400,12 @@ def test_refresh_inspection_reports_iceberg_rows_and_requires_load_status(
 def test_refresh_inspection_uses_complete_ebird_and_noaa_inventories(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    from databox.config.sources import SOURCES
     from databox.orchestration import parallel_refresh
 
-    tables = {
-        "ebird": (
-            "recent_observations",
-            "notable_observations",
-            "hotspots",
-            "species_list",
-            "taxonomy",
-            "region_stats",
-        ),
-        "noaa": ("daily_weather", "stations", "datasets"),
-    }
+    source_names = ("ebird", "noaa")
+    tables = {source.name: source.raw_tables for source in SOURCES if source.name in source_names}
+    assert set(tables) == set(source_names)
     counts = {
         f"raw_{source}.{table}": 1
         for source, source_tables in tables.items()

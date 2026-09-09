@@ -351,6 +351,14 @@ def test_source_resource_inventory_must_match_registry(
     assert any("inventory does not match" in item for item in report.missing)
 
 
+def test_generated_child_tables_do_not_need_independent_dlt_resources(tmp_path: Path) -> None:
+    module = _load_module()
+    _rebind(module, tmp_path)
+    _source(tmp_path, resource_names=("records",))
+    entry = _entry(raw_tables=("records", "records__codes"))
+    assert module.check_source("foo", [entry]).ok
+
+
 def test_missing_profile_artifact_fails(tmp_path: Path) -> None:
     module = _load_module()
     _rebind(module, tmp_path)

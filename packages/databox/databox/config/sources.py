@@ -23,6 +23,9 @@ VerificationProfile = Literal["http", "file_snapshot"]
 OrchestrationMode = Literal["default", "explicit_targets"]
 
 SOURCE_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
+RAW_TABLE_NAME_PATTERN = re.compile(
+    r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*(?:__[a-z][a-z0-9]*(?:_[a-z0-9]+)*)*$"
+)
 
 _DEFAULT_FRESHNESS = dg.FreshnessPolicy.cron(
     deadline_cron="0 8 * * *", lower_bound_delta=timedelta(hours=24)
@@ -37,8 +40,8 @@ class Source:
       name: lowercase snake_case identifier. Must match the domain module name
         (`databox.orchestration.domains.<name>`), the dlt source package
         (`databox_sources.<name>`), and the raw DuckDB catalog (`raw_<name>`).
-      raw_tables: dlt-written tables this source populates, used by
-        `platform_health.sql` codegen for per-source row counts. Order-stable.
+      raw_tables: physical dlt-written tables this source populates, including
+        deterministic normalized child tables. Order-stable.
       freshness_policy: Dagster FreshnessPolicy applied to every sqlmesh asset
         derived from this source (via `_factories.apply_freshness`).
       analytics_anchor: if True, this source's freshness policy is inherited
@@ -84,6 +87,9 @@ SOURCES: list[Source] = [
             "hotspots",
             "species_list",
             "taxonomy",
+            "taxonomy__banding_codes",
+            "taxonomy__com_name_codes",
+            "taxonomy__sci_name_codes",
             "region_stats",
         ),
         iceberg_authoritative=True,
