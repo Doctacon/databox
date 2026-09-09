@@ -40,7 +40,8 @@ Create focused evidence and an adversarial review with changed files, exact comm
 ## Progress and notes
 
 - 2026-09-04: Opened as the automation-first aggregate gate.
+- 2026-09-09: Bounded reconciliation `.10x/evidence/2026-09-09-disaster-recovery-automation-reconciliation.md` passed OpenTofu fmt/validate, 58 focused tests, inert Compose rendering, all generated checks, strict docs, full secret scan, Ruff/format, MyPy, and the complete 458-test suite at 85.02% coverage. No live or implementation operation ran. Adversarial mapping found exact unsupported restore-test, snapshot-divergence, and runbook-semantic criteria in the isolated-recovery dependency; final live evidence also awaits independent review. Timed-drill dependency is not cleared.
 
 ## Blockers
 
-Depends on completion of the three implementation children.
+`.10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md` remains open on the exact findings recorded in the reconciliation evidence. `.10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md` also remains structurally active pending closure reconciliation. Independent review of this aggregate evidence remains required.
