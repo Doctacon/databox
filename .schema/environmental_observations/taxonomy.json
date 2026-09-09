@@ -63,21 +63,6 @@
         "role": "secondary"
       },
       {
-        "table": "taxonomy__com_name_codes",
-        "source_pipeline": "ebird_api",
-        "role": "child"
-      },
-      {
-        "table": "taxonomy__sci_name_codes",
-        "source_pipeline": "ebird_api",
-        "role": "child"
-      },
-      {
-        "table": "taxonomy__banding_codes",
-        "source_pipeline": "ebird_api",
-        "role": "child"
-      },
-      {
         "table": "occurrences",
         "source_pipeline": "gbif_api",
         "role": "secondary_taxonomy"
@@ -411,6 +396,21 @@
       "table": "_dlt_pipeline_state",
       "source_pipeline": "ebird_api",
       "reason": "dlt internal pipeline state table"
+    },
+    {
+      "table": "taxonomy__banding_codes",
+      "source_pipeline": "ebird_api",
+      "reason": "dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM"
+    },
+    {
+      "table": "taxonomy__com_name_codes",
+      "source_pipeline": "ebird_api",
+      "reason": "dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM"
+    },
+    {
+      "table": "taxonomy__sci_name_codes",
+      "source_pipeline": "ebird_api",
+      "reason": "dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM"
     },
     {
       "table": "_dlt_version",

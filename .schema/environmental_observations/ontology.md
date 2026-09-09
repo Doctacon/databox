@@ -80,9 +80,6 @@ Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF o
 |---|---|---|
 | `ebird_api` | `taxonomy` | primary |
 | `ebird_api` | `species_list` | secondary |
-| `ebird_api` | `taxonomy__com_name_codes` | child |
-| `ebird_api` | `taxonomy__sci_name_codes` | child |
-| `ebird_api` | `taxonomy__banding_codes` | child |
 | `xeno_canto_api` | `recordings` | media_context |
 | `gbif_api` | `occurrences` | secondary_taxonomy |
 | `avonet` | `species_traits` | trait_context |
@@ -91,15 +88,11 @@ Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF o
 
 | Name | Type | Source | Notes |
 |---|---|---|---|
-| `_dlt_id` | `text` | `ebird_api.taxonomy`<br>`ebird_api.species_list`<br>`ebird_api.taxonomy__com_name_codes`<br>`ebird_api.taxonomy__sci_name_codes`<br>`ebird_api.taxonomy__banding_codes` | dlt metadata, not null, row_key, unique |
-| `_dlt_list_idx` | `bigint` | `ebird_api.taxonomy__com_name_codes`<br>`ebird_api.taxonomy__sci_name_codes`<br>`ebird_api.taxonomy__banding_codes` | dlt metadata, not null |
+| `_dlt_id` | `text` | `ebird_api.taxonomy`<br>`ebird_api.species_list` | dlt metadata, not null, row_key, unique |
 | `_dlt_load_id` | `text` | `ebird_api.taxonomy`<br>`ebird_api.species_list` | dlt metadata, not null |
-| `_dlt_parent_id` | `text` | `ebird_api.taxonomy__com_name_codes`<br>`ebird_api.taxonomy__sci_name_codes`<br>`ebird_api.taxonomy__banding_codes` | dlt metadata, not null |
 | `_loaded_at` | `timestamp` | `ebird_api.taxonomy`<br>`ebird_api.species_list` |  |
-| `banding_code_value` | `text` | `ebird_api.taxonomy__banding_codes` | source column: taxonomy__banding_codes.value |
 | `category` | `text` | `ebird_api.taxonomy` |  |
 | `com_name` | `text` | `ebird_api.taxonomy` |  |
-| `com_name_code_value` | `text` | `ebird_api.taxonomy__com_name_codes` | source column: taxonomy__com_name_codes.value |
 | `extinct` | `bool` | `ebird_api.taxonomy` |  |
 | `extinct_year` | `bigint` | `ebird_api.taxonomy` |  |
 | `family_code` | `text` | `ebird_api.taxonomy` |  |
@@ -109,7 +102,6 @@ Conformed bird species/taxon concept across eBird taxonomy/species lists, GBIF o
 | `region` | `text` | `ebird_api.species_list` |  |
 | `report_as` | `text` | `ebird_api.taxonomy` |  |
 | `sci_name` | `text` | `ebird_api.taxonomy` | not null, primary_key |
-| `sci_name_code_value` | `text` | `ebird_api.taxonomy__sci_name_codes` | source column: taxonomy__sci_name_codes.value |
 | `species_code` | `text` | `ebird_api.taxonomy`<br>`ebird_api.species_list` | not null, primary_key |
 | `taxon_order` | `double` | `ebird_api.taxonomy` |  |
 | `accepted_scientific_name` | `text` | `gbif_api.occurrences` | GBIF species conformance source column |
@@ -723,6 +715,9 @@ Xeno-canto bird sound recording metadata with recording identifiers, species nam
 | `ebird_api` | `_dlt_version` | dlt internal schema version table |
 | `ebird_api` | `_dlt_loads` | dlt internal load tracking table |
 | `ebird_api` | `_dlt_pipeline_state` | dlt internal pipeline state table |
+| `ebird_api` | `taxonomy__banding_codes` | dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM |
+| `ebird_api` | `taxonomy__com_name_codes` | dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM |
+| `ebird_api` | `taxonomy__sci_name_codes` | dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM |
 | `noaa_api` | `_dlt_version` | dlt internal schema version table |
 | `noaa_api` | `_dlt_loads` | dlt internal load tracking table |
 | `noaa_api` | `_dlt_pipeline_state` | dlt internal pipeline state table |
