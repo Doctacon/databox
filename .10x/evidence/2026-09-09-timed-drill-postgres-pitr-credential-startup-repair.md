@@ -28,4 +28,4 @@ If startup, promotion validation, stop/start, scrubbed launch, or post-scrub val
 
 ## Validation
 
-Focused recovery and validator tests passed, including exact phase ordering, backup names only on the first PostgreSQL exec, no names on the second exec, promotion validation before restart, post-scrub validation before Polaris, and PostgreSQL quiescence on every pre-scrub failure. Disposable no-network pinned-image probing used dummy values only and no mounts; no AWS, active SQL mutation, marker cleanup, retry, artifact deletion, or cutover occurred during the repair.
+Focused recovery and validator tests passed, including exact phase ordering, backup names only on the first PostgreSQL exec, no names on the second exec, promotion validation before restart, post-scrub validation before Polaris, PostgreSQL quiescence on every failure after its start attempt, and credential-free PostgreSQL remaining available after success. Disposable no-network pinned-image probing used dummy values only and no mounts; no AWS, active SQL mutation, marker cleanup, retry, artifact deletion, or cutover occurred during the repair.

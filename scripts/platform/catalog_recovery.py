@@ -442,6 +442,7 @@ def orchestrate_timed_drill(
     started = monotonic() if started_at is None else started_at
     stage = "preflight"
     marker_cleanup_required = False
+    postgres_start_attempted = False
     postgres_may_hold_secrets = False
     polaris_may_hold_secrets = False
     primary: str | None = None
@@ -465,6 +466,7 @@ def orchestrate_timed_drill(
         stage = "restore"
         operations.restore(volume=resources.volume, recover_to=recover_to, environ=environ)
         stage = "isolated PostgreSQL recovery startup"
+        postgres_start_attempted = True
         postgres_may_hold_secrets = True
         operations.start_postgres(
             container=resources.postgres_container,
@@ -530,7 +532,7 @@ def orchestrate_timed_drill(
                 polaris_quiesce = "stopped"
             except Exception as exc:
                 polaris_quiesce = "failed: " + _report_diagnostic(exc, environ)
-        if postgres_may_hold_secrets:
+        if postgres_may_hold_secrets or (primary is not None and postgres_start_attempted):
             try:
                 operations.quiesce_postgres()
                 postgres_quiesce = "stopped"

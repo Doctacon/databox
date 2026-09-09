@@ -728,14 +728,52 @@ def test_timed_drill_failure_cleans_marker_and_preserves_primary_stage(failure: 
         )
 
     assert operations.calls[-2:] == ["cleanup", "archive_cleanup"]
-    if failure in {
-        "start_postgres",
-        "validate_postgres",
-        "restart_postgres_without_credentials",
-    }:
+    if failure != "restore":
         assert "quiesce_postgres" in operations.calls
         assert operations.calls.index("quiesce_postgres") < operations.calls.index("cleanup")
+    if failure in {"start_polaris", "validate_polaris", "validate_catalog"}:
+        assert "quiesce_polaris" in operations.calls
+        assert operations.calls.index("quiesce_polaris") < operations.calls.index(
+            "quiesce_postgres"
+        )
     assert "volume rm" not in " ".join(operations.calls)
+
+
+def test_timed_drill_quiesces_postgres_after_post_scrub_validation_failure() -> None:
+    operations = _FakeDrillOperations()
+    validations = 0
+
+    def fail_second_validation(**_kwargs) -> None:
+        nonlocal validations
+        validations += 1
+        operations.calls.append("validate_postgres")
+        if validations == 2:
+            raise recovery.RecoveryError("post-scrub refused")
+
+    operations.validate_postgres = fail_second_validation
+    with pytest.raises(recovery.RecoveryError, match="post-scrub refused"):
+        recovery.orchestrate_timed_drill(
+            operations=operations,
+            environ=_BACKUP_ENV,
+            monotonic=lambda: 100.0,
+            token_factory=lambda: "abcdef1234567890",
+        )
+
+    assert "quiesce_polaris" not in operations.calls
+    assert operations.calls[-3:] == ["quiesce_postgres", "cleanup", "archive_cleanup"]
+
+
+def test_timed_drill_success_leaves_scrubbed_postgres_running() -> None:
+    operations = _FakeDrillOperations()
+    recovery.orchestrate_timed_drill(
+        operations=operations,
+        environ=_BACKUP_ENV,
+        monotonic=lambda: 100.0,
+        token_factory=lambda: "abcdef1234567890",
+    )
+
+    assert "quiesce_postgres" not in operations.calls
+    assert "quiesce_polaris" in operations.calls
 
 
 def test_timed_drill_preserves_primary_error_when_cleanup_fails() -> None:
