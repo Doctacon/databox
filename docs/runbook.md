@@ -147,12 +147,31 @@ by environment-variable name. It mounts no active volume or socket, opens no
 port, never removes the target on failure, and stops before PostgreSQL or Polaris
 startup, validation, or cutover.
 
+After separately authorized restored PostgreSQL and Polaris startup, validate
+only the explicitly named no-port recovery container:
+
+```bash
+uv run python scripts/platform/catalog_recovery_validate.py \
+  --polaris-container databox-polaris-recovery-validation-20260908-214022 \
+  --catalog databox_lake \
+  --recovery-target 2026-09-08T21:40:22Z
+```
+
+The validator derives every expected raw table and per-source `_dlt_load_status`
+from `databox.config.sources.SOURCES`. It enumerates the restored catalog, loads
+every expected table with Polaris-vended credentials, requires a current
+snapshot, plans its manifests, and performs a read-only limit-one data scan.
+Empty tables pass when that path completes with zero rows. Output is bounded,
+secret-free JSON; missing, unexpected, or unreadable state exits nonzero. It
+never contacts the active catalog, bootstraps, writes, refreshes sources, cuts
+over, or cleans up recovery artifacts. Run it only after separately authorizing
+the exact recovery target and container.
+
 A bad table publication should use a validated Iceberg snapshot rollback while
 its objects remain. Complete primary-warehouse loss requires source rebuild and
 is not covered by the 60-minute catalog RTO. Last-resort table registration must
 use a validated metadata location, never lexicographic S3 listing. Live PITR
-execution, registry-derived restored-table validation, and the timed catalog
-RPO/RTO drill remain separately authorized work.
+execution and the timed catalog RPO/RTO drill remain separately authorized work.
 
 ## SQLMesh dev loop
 
