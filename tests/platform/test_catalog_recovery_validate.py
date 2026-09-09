@@ -77,6 +77,7 @@ class FakeTable:
 def load_response(secret="temporary-vended-value"):  # secret-scan: allow
     return {
         "metadata-location": "s3://warehouse/raw/table/metadata/v1.metadata.json",
+        "metadata": {"current-snapshot-id": 42},
         "config": {"s3.region": "us-west-1"},
         "storage-credentials": [
             {
@@ -226,6 +227,42 @@ def test_metadata_and_snapshot_failures_are_bounded_and_safe():
     assert snapshot.metadata_readable
     assert snapshot.failures == ("current_snapshot_missing",)
     assert inaccessible_snapshot.failures == ("current_snapshot_unreadable",)
+
+
+def test_matching_rest_and_s3_snapshot_ids_pass():
+    outcome = validator.validate_table(
+        "raw_gbif.occurrences",
+        load_response(),
+        table_loader=lambda _location, _properties: FakeTable(snapshot_id=42),
+    )
+
+    assert outcome.failures == ()
+    assert outcome.current_snapshot_id == "42"
+
+
+@pytest.mark.parametrize(
+    ("metadata", "failure"),
+    [
+        ({}, "rest_snapshot_missing"),
+        ({"current-snapshot-id": "42"}, "rest_snapshot_malformed"),
+        ({"current-snapshot-id": 43}, "snapshot_divergent"),
+    ],
+)
+def test_rest_snapshot_missing_malformed_or_divergent_fails_safely(metadata, failure):
+    response = load_response("must-never-appear")  # secret-scan: allow
+    response["metadata"] = metadata
+
+    outcome = validator.validate_table(
+        "raw_gbif.occurrences",
+        response,
+        table_loader=lambda _location, _properties: FakeTable(snapshot_id=42),
+    )
+
+    assert outcome.failures == (failure,)
+    assert outcome.metadata_readable
+    assert outcome.manifests_readable
+    assert outcome.data_readable
+    assert "must-never-appear" not in json.dumps(outcome.__dict__)
 
 
 def test_manifest_and_data_failures_are_aggregated_by_stage_without_exception_text():

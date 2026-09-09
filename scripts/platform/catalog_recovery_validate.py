@@ -234,6 +234,22 @@ def _snapshot_id(snapshot: object) -> str | None:
     return str(value) if isinstance(value, int | str) else None
 
 
+def _rest_snapshot_id(load_response: object) -> tuple[str | None, str | None]:
+    if not isinstance(load_response, dict):
+        return None, "rest_snapshot_missing"
+    metadata = load_response.get("metadata")
+    if metadata is None:
+        return None, "rest_snapshot_missing"
+    if not isinstance(metadata, dict):
+        return None, "rest_snapshot_malformed"
+    if "current-snapshot-id" not in metadata:
+        return None, "rest_snapshot_missing"
+    value = metadata["current-snapshot-id"]
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None, "rest_snapshot_malformed"
+    return str(value), None
+
+
 def _sample_row_count(value: object) -> int:
     rows = getattr(value, "num_rows", None)
     if not isinstance(rows, int):
@@ -271,6 +287,12 @@ def validate_table(
             failures=("current_snapshot_missing",),
         )
 
+    rest_snapshot_id, rest_failure = _rest_snapshot_id(load)
+    if rest_failure is not None:
+        failures.append(rest_failure)
+    elif rest_snapshot_id != snapshot_id:
+        failures.append("snapshot_divergent")
+
     try:
         scan = table.scan(limit=1)
         list(scan.plan_files())
@@ -302,6 +324,7 @@ def validate_table(
         manifests_readable=True,
         data_readable=True,
         sample_rows=sample_rows,
+        failures=tuple(failures),
     )
 
 
