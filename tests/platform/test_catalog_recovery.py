@@ -610,8 +610,18 @@ class _FakeDrillOperations:
         self._call("target")
         return self.target
 
-    def archive_marker_wal(self, _environ) -> None:
+    def catch_up_pending_wal(self, _environ):
+        self._call("catch_up_pending_wal")
+        return {
+            "pending_count": 2,
+            "oldest_pending": "000000010000000000000015",
+            "newest_pending": "000000010000000000000016",
+            "pre_catch_up_loss_accepted": True,
+        }
+
+    def archive_marker_wal(self, _environ) -> str:
         self._call("archive_marker")
+        return "000000010000000000000017"
 
     def restore(self, **_kwargs) -> None:
         self._call("restore")
@@ -661,6 +671,7 @@ def test_timed_drill_state_machine_orders_effects_and_measures_end_to_end_path()
 
     assert operations.calls == [
         "preflight",
+        "catch_up_pending_wal",
         "before",
         "target",
         "after",
@@ -677,20 +688,30 @@ def test_timed_drill_state_machine_orders_effects_and_measures_end_to_end_path()
         "cleanup",
         "archive_cleanup",
     ]
-    assert result["achieved_rpo_seconds"] == 2
+    assert result["marker_target_inclusion_seconds"] == 2
+    assert "achieved_rpo_seconds" not in result
     assert result["achieved_rto_seconds"] == 60.5
+    assert result["wal_catch_up"] == {
+        "pending_count": 2,
+        "oldest_pending": "000000010000000000000015",
+        "newest_pending": "000000010000000000000016",
+        "pre_catch_up_loss_accepted": True,
+        "continuity_through": "000000010000000000000017",
+    }
     assert result["resources"]["preserved"] is True
     assert result["catalog"]["counts"]["validatedTables"] == 25
     assert result["cutover"] == "not_performed"
 
 
 @pytest.mark.parametrize(
-    ("rpo", "rto", "status"),
-    [(300.0, 3600.0, "pass"), (300.001, 3600.0, "fail"), (300.0, 3600.001, "fail")],
+    ("marker_gap", "rto", "status"),
+    [(300.001, 3600.0, "pass"), (300.0, 3600.001, "fail")],
 )
-def test_timed_drill_enforces_objective_boundaries(rpo: float, rto: float, status: str) -> None:
+def test_timed_drill_enforces_only_rto_objective(
+    marker_gap: float, rto: float, status: str
+) -> None:
     operations = _FakeDrillOperations()
-    operations.target = operations.before + timedelta(seconds=rpo)
+    operations.target = operations.before + timedelta(seconds=marker_gap)
     operations.after = operations.target + timedelta(seconds=1)
     result = recovery.orchestrate_timed_drill(
         operations=operations,
@@ -700,7 +721,7 @@ def test_timed_drill_enforces_objective_boundaries(rpo: float, rto: float, statu
         token_factory=lambda: "abcdef1234567890",
     )
     assert result["status"] == status
-    assert result["objectives"]["rpo"]["met"] is (rpo <= 300)
+    assert "rpo" not in result["objectives"]
     assert result["objectives"]["rto"]["met"] is (rto <= 3600)
     if status == "fail":
         assert result["postgres_quiesce"] == "stopped"
@@ -708,6 +729,20 @@ def test_timed_drill_enforces_objective_boundaries(rpo: float, rto: float, statu
     else:
         assert result["postgres_quiesce"] == "not-required"
         assert "quiesce_postgres" not in operations.calls
+
+
+def test_timed_drill_pending_wal_failure_stops_before_marker_and_restore() -> None:
+    operations = _FakeDrillOperations(fail_at="catch_up_pending_wal")
+
+    with pytest.raises(recovery.RecoveryError, match="pending WAL catch-up"):
+        recovery.orchestrate_timed_drill(
+            operations=operations,
+            environ=_BACKUP_ENV,
+            monotonic=lambda: 100.0,
+            token_factory=lambda: "abcdef1234567890",
+        )
+
+    assert operations.calls == ["preflight", "catch_up_pending_wal"]
 
 
 @pytest.mark.parametrize(
@@ -827,7 +862,13 @@ def test_timed_drill_cleans_marker_when_before_insert_commits_then_raises() -> N
             token_factory=lambda: "abcdef1234567890",
         )
 
-    assert operations.calls == ["preflight", "before", "cleanup", "archive_cleanup"]
+    assert operations.calls == [
+        "preflight",
+        "catch_up_pending_wal",
+        "before",
+        "cleanup",
+        "archive_cleanup",
+    ]
 
 
 def test_timed_drill_bounds_and_redacts_operation_recovery_error() -> None:
@@ -1191,6 +1232,202 @@ def test_marker_wal_archive_bypasses_stale_async_spool_with_fresh_session() -> N
     assert all(name in archive for name in recovery._BACKUP_ENV)
 
 
+def _pending_wal_runner(
+    listing: str,
+    *,
+    stat_type: str = "regular file",
+    failed_push: str | None = None,
+):
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command, **_kwargs):
+        command = tuple(command)
+        calls.append(command)
+        if "find" in command:
+            return subprocess.CompletedProcess(command, 0, stdout=listing, stderr="")
+        if "stat" in command:
+            return subprocess.CompletedProcess(command, 0, stdout=stat_type + "\n", stderr="")
+        if "archive-push" in command:
+            segment = command[-1].rsplit("/", 1)[-1]
+            if segment == failed_push:
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="upload refused")
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        raise AssertionError(command)
+
+    return runner, calls
+
+
+def test_pending_wal_catch_up_accepts_empty_listing() -> None:
+    runner, calls = _pending_wal_runner("")
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+
+    report = operations.catch_up_pending_wal(_drill_environment())
+
+    assert report["pending_count"] == 0
+    assert report["oldest_pending"] is None
+    assert report["newest_pending"] is None
+    assert not any("archive-push" in call for call in calls)
+
+
+def test_pending_wal_catch_up_orders_exact_live_six_file_shape_oldest_first() -> None:
+    segments = [f"0000000100000000000000{value}" for value in ("1A", "17", "15", "19", "16", "18")]
+    runner, calls = _pending_wal_runner("\n".join(f"{value}.ready" for value in segments))
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+
+    report = operations.catch_up_pending_wal(_drill_environment())
+
+    expected = [f"0000000100000000000000{value}" for value in ("15", "16", "17", "18", "19", "1A")]
+    pushed = [call[-1].rsplit("/", 1)[-1] for call in calls if "archive-push" in call]
+    assert report == {
+        "pending_count": 6,
+        "oldest_pending": expected[0],
+        "newest_pending": expected[-1],
+        "pre_catch_up_loss_accepted": True,
+    }
+    assert pushed == expected
+    assert all("--no-archive-async" in call for call in calls if "archive-push" in call)
+
+
+@pytest.mark.parametrize(
+    "listing",
+    [
+        "bad.ready\n",
+        "../000000010000000000000015.ready\n",
+        "000000010000000000000015.ready\n000000010000000000000015.ready\n",
+    ],
+)
+def test_pending_wal_catch_up_rejects_malformed_path_or_duplicate_listing(
+    listing: str,
+) -> None:
+    runner, calls = _pending_wal_runner(listing)
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+
+    with pytest.raises(recovery.RecoveryError, match="pending WAL"):
+        operations.catch_up_pending_wal(_drill_environment())
+
+    assert not any("archive-push" in call for call in calls)
+
+
+def test_pending_wal_catch_up_rejects_count_above_bound() -> None:
+    listing = "\n".join(
+        f"{index:024X}.ready" for index in range(recovery._MAX_PENDING_WAL_SEGMENTS + 1)
+    )
+    runner, calls = _pending_wal_runner(listing)
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    with pytest.raises(recovery.RecoveryError, match="exceeds safe bound"):
+        operations.catch_up_pending_wal(_drill_environment())
+    assert not any("stat" in call or "archive-push" in call for call in calls)
+
+
+@pytest.mark.parametrize(("stat_type", "returncode"), [("directory", 0), ("", 1)])
+def test_pending_wal_catch_up_rejects_missing_or_nonregular_segment(
+    stat_type: str, returncode: int
+) -> None:
+    segment = "000000010000000000000015"
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command, **_kwargs):
+        command = tuple(command)
+        calls.append(command)
+        if "find" in command:
+            return subprocess.CompletedProcess(command, 0, stdout=f"{segment}.ready\n", stderr="")
+        if "stat" in command:
+            return subprocess.CompletedProcess(
+                command, returncode, stdout=stat_type + "\n", stderr=""
+            )
+        raise AssertionError(command)
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    with pytest.raises(recovery.RecoveryError, match=f"{segment} at index 1/1"):
+        operations.catch_up_pending_wal(_drill_environment())
+    assert not any("archive-push" in call for call in calls)
+
+
+def test_pending_wal_catch_up_stops_at_first_failed_ordered_push() -> None:
+    first = "000000010000000000000015"
+    second = "000000010000000000000017"
+    runner, calls = _pending_wal_runner(f"{second}.ready\n{first}.ready\n", failed_push=second)
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+
+    with pytest.raises(recovery.RecoveryError, match=f"{second} at index 2/2"):
+        operations.catch_up_pending_wal(_drill_environment())
+
+    pushed = [call[-1].rsplit("/", 1)[-1] for call in calls if "archive-push" in call]
+    assert pushed == [first, second]
+
+
+def test_marker_archive_does_not_repush_segment_uploaded_in_process() -> None:
+    segment = "000000010000000000000023"
+    calls: list[tuple[str, ...]] = []
+
+    def runner(command, **_kwargs):
+        command = tuple(command)
+        calls.append(command)
+        if "find" in command:
+            return subprocess.CompletedProcess(command, 0, stdout=f"{segment}.ready\n", stderr="")
+        if "stat" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="regular file\n", stderr="")
+        if "pg_walfile_name" in " ".join(command):
+            return subprocess.CompletedProcess(command, 0, stdout=segment + "\n", stderr="")
+        if "archive-push" in command:
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        raise AssertionError(command)
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    operations.catch_up_pending_wal(_drill_environment())
+    assert operations.archive_marker_wal(_drill_environment()) == segment
+    assert sum("archive-push" in call for call in calls) == 1
+
+
+def test_new_process_safely_repushes_repository_duplicate() -> None:
+    segment = "000000010000000000000015"
+    runner, calls = _pending_wal_runner(f"{segment}.ready\n")
+    for _ in range(2):
+        operations = recovery.DockerDrillOperations(
+            catalog="databox_lake",
+            source_revision="abc123",
+            environ=_drill_environment(),
+            runner=runner,
+        )
+        operations.catch_up_pending_wal(_drill_environment())
+    assert sum("archive-push" in call for call in calls) == 2
+
+
 def test_marker_timestamp_accepts_one_quiet_row() -> None:
     def runner(command, **_kwargs):
         assert "-qAtX" in command
@@ -1420,6 +1657,10 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
             joined = " ".join(command)
             if "--output=json info" in joined:
                 output = '[{"name":"polaris","status":{"code":0},"backup":[{}]}]'
+            elif "archive_status" in joined and "find" in command:
+                output = "000000010000000000000017.ready\n000000010000000000000015.ready\n"
+            elif "stat" in command:
+                output = "regular file\n"
             elif "RETURNING committed_at" in joined:
                 output = (
                     "2026-09-09 12:00:00+00" if "'before'" in joined else "2026-09-09 12:00:02+00"
@@ -1461,6 +1702,25 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
     commands = [command for command, _kwargs in calls]
     rendered = "\n".join(" ".join(command) for command in commands)
     assert result["status"] == "pass" and result["achieved_rto_seconds"] == 60.0
+    assert result["wal_catch_up"]["pending_count"] == 2
+    assert result["wal_catch_up"]["oldest_pending"] == "000000010000000000000015"
+    assert result["wal_catch_up"]["newest_pending"] == "000000010000000000000017"
+    pending_15 = next(
+        index
+        for index, command in enumerate(commands)
+        if "archive-push" in command and command[-1].endswith("000000010000000000000015")
+    )
+    pending_17 = next(
+        index
+        for index, command in enumerate(commands)
+        if "archive-push" in command and command[-1].endswith("000000010000000000000017")
+    )
+    marker_insert = next(
+        index
+        for index, command in enumerate(commands)
+        if "RETURNING committed_at" in " ".join(command)
+    )
+    assert pending_15 < pending_17 < marker_insert
     assert rendered.index("RETURNING committed_at") < rendered.index("pg_walfile_name")
     assert rendered.index("pg_walfile_name") < rendered.index(
         "--target=2026-09-09 12:00:01.000000+00"
@@ -1502,7 +1762,7 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
     pgbackrest_commands = [
         command for command in commands if "/usr/local/bin/run-pgbackrest" in command
     ]
-    assert len(pgbackrest_commands) == 4
+    assert len(pgbackrest_commands) == 6
     for command in pgbackrest_commands:
         user_index = command.index("--user")
         assert command[user_index + 1] == "postgres"

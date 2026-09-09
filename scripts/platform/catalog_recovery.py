@@ -80,7 +80,8 @@ _RECOVERY_VALIDATION_LABEL = "com.databox.catalog-recovery.validation"
 _ROOT = Path(__file__).resolve().parents[2]
 _VALIDATOR = _ROOT / "scripts/platform/catalog_recovery_validate.py"
 _MINIMUM_CREDENTIAL_LIFETIME = timedelta(minutes=15)
-_RPO_OBJECTIVE_SECONDS = 300.0
+_MAX_PENDING_WAL_SEGMENTS = 4_096
+_WAL_SEGMENT = re.compile(r"^[0-9A-F]{24}$")
 _RTO_OBJECTIVE_SECONDS = 3600.0
 
 
@@ -111,7 +112,9 @@ class DrillOperations(Protocol):
 
     def database_now(self) -> datetime: ...
 
-    def archive_marker_wal(self, environ: Mapping[str, str]) -> None: ...
+    def catch_up_pending_wal(self, environ: Mapping[str, str]) -> Mapping[str, Any]: ...
+
+    def archive_marker_wal(self, environ: Mapping[str, str]) -> str: ...
 
     def restore(self, *, volume: str, recover_to: datetime, environ: Mapping[str, str]) -> None: ...
 
@@ -452,6 +455,8 @@ def orchestrate_timed_drill(
     polaris_quiesce = "not-required"
     try:
         operations.preflight(resources, environ)
+        stage = "pending WAL catch-up"
+        wal_catch_up = dict(operations.catch_up_pending_wal(environ))
         stage = "before marker"
         marker_cleanup_required = True
         before_at = operations.insert_marker(resources.marker, "before")
@@ -462,7 +467,8 @@ def orchestrate_timed_drill(
         if not before_at <= recover_to < after_at:
             raise RecoveryError("marker timestamps do not bracket the selected recovery target")
         stage = "marker WAL archive"
-        operations.archive_marker_wal(environ)
+        marker_segment = operations.archive_marker_wal(environ)
+        wal_catch_up["continuity_through"] = marker_segment
         stage = "restore"
         operations.restore(volume=resources.volume, recover_to=recover_to, environ=environ)
         stage = "isolated PostgreSQL recovery startup"
@@ -498,20 +504,20 @@ def orchestrate_timed_drill(
         if catalog.get("status") != "pass":
             raise RecoveryError("registry-derived catalog validation did not pass")
         finished = monotonic()
-        rpo = max(0.0, (recover_to - before_at).total_seconds())
+        marker_target_inclusion = max(0.0, (recover_to - before_at).total_seconds())
         rto = max(0.0, finished - started)
         objectives = {
-            "rpo": {"limit_seconds": _RPO_OBJECTIVE_SECONDS, "met": rpo <= _RPO_OBJECTIVE_SECONDS},
             "rto": {"limit_seconds": _RTO_OBJECTIVE_SECONDS, "met": rto <= _RTO_OBJECTIVE_SECONDS},
         }
         result = {
-            "status": "pass" if all(item["met"] for item in objectives.values()) else "fail",
+            "status": "pass" if objectives["rto"]["met"] else "fail",
             "recover_to": recover_to.astimezone(UTC).isoformat(),
             "before_marker_at": before_at.astimezone(UTC).isoformat(),
             "after_marker_at": after_at.astimezone(UTC).isoformat(),
-            "achieved_rpo_seconds": rpo,
+            "marker_target_inclusion_seconds": marker_target_inclusion,
             "achieved_rto_seconds": rto,
             "objectives": objectives,
+            "wal_catch_up": wal_catch_up,
             "resources": {
                 "marker": resources.marker,
                 "volume": resources.volume,
@@ -592,6 +598,7 @@ class DockerDrillOperations:
         self.runner = runner
         self.sleeper = sleeper
         self._postgres_container: str | None = None
+        self._uploaded_wal_segments: set[str] = set()
         self._polaris_container: str | None = None
 
     def _run(
@@ -792,10 +799,73 @@ class DockerDrillOperations:
     def database_now(self) -> datetime:
         return recovery_target(self._active_sql("SELECT clock_timestamp();"))
 
-    def _archive_wal(self, environ: Mapping[str, str]) -> None:
-        segment = self._active_sql("SELECT pg_walfile_name(pg_switch_wal() - 1);")
-        if not re.fullmatch(r"[0-9A-F]{24}", segment):
+    def _pending_wal_segments(self) -> tuple[str, ...]:
+        completed = self._run(
+            (
+                "docker",
+                "exec",
+                "--user",
+                "postgres",
+                _ACTIVE_POSTGRES,
+                "find",
+                f"{_DATA_PATH}/pg_wal/archive_status",
+                "-maxdepth",
+                "1",
+                "-name",
+                "*.ready",
+                "-printf",
+                "%f\\n",
+            )
+        )
+        names = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+        if len(names) > _MAX_PENDING_WAL_SEGMENTS:
+            raise RecoveryError(f"pending WAL count exceeds safe bound {_MAX_PENDING_WAL_SEGMENTS}")
+        if len(names) != len(set(names)):
+            raise RecoveryError("pending WAL listing contains duplicate names")
+        segments: list[str] = []
+        for index, name in enumerate(names, start=1):
+            match = re.fullmatch(r"([0-9A-F]{24})\.ready", name)
+            if match is None:
+                raise RecoveryError(f"pending WAL name at index {index} is invalid")
+            segments.append(match.group(1))
+        ordered = tuple(sorted(segments, key=lambda value: int(value, 16)))
+        for index, segment in enumerate(ordered, start=1):
+            status = self.runner(
+                [
+                    "docker",
+                    "exec",
+                    "--user",
+                    "postgres",
+                    _ACTIVE_POSTGRES,
+                    "stat",
+                    "--format=%F",
+                    "--",
+                    f"{_DATA_PATH}/pg_wal/{segment}",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=None,
+            )
+            if status.returncode != 0 or status.stdout.strip() != "regular file":
+                raise RecoveryError(
+                    f"pending WAL segment {segment} at index {index}/{len(ordered)} "
+                    "is not a regular file"
+                )
+        return ordered
+
+    def _push_wal_segment(
+        self,
+        segment: str,
+        *,
+        index: int,
+        total: int,
+        environ: Mapping[str, str],
+    ) -> None:
+        if not _WAL_SEGMENT.fullmatch(segment):
             raise RecoveryError("PostgreSQL returned an invalid WAL segment name")
+        if segment in self._uploaded_wal_segments:
+            return
         command = ["docker", "exec", "--user", "postgres"]
         for name in _BACKUP_ENV:
             command.extend(("--env", name))
@@ -809,10 +879,38 @@ class DockerDrillOperations:
                 f"{_DATA_PATH}/pg_wal/{segment}",
             )
         )
-        self._run(command, environ=environ)
+        try:
+            self._run(command, environ=environ)
+        except RecoveryError as exc:
+            raise RecoveryError(
+                f"unable to archive WAL segment {segment} at index {index}/{total}: "
+                f"{_report_diagnostic(exc, environ)}"
+            ) from exc
+        self._uploaded_wal_segments.add(segment)
 
-    def archive_marker_wal(self, environ: Mapping[str, str]) -> None:
-        self._archive_wal(environ)
+    def catch_up_pending_wal(self, environ: Mapping[str, str]) -> Mapping[str, Any]:
+        segments = self._pending_wal_segments()
+        for index, segment in enumerate(segments, start=1):
+            self._push_wal_segment(
+                segment,
+                index=index,
+                total=len(segments),
+                environ=environ,
+            )
+        return {
+            "pending_count": len(segments),
+            "oldest_pending": segments[0] if segments else None,
+            "newest_pending": segments[-1] if segments else None,
+            "pre_catch_up_loss_accepted": True,
+        }
+
+    def _archive_wal(self, environ: Mapping[str, str]) -> str:
+        segment = self._active_sql("SELECT pg_walfile_name(pg_switch_wal() - 1);")
+        self._push_wal_segment(segment, index=1, total=1, environ=environ)
+        return segment
+
+    def archive_marker_wal(self, environ: Mapping[str, str]) -> str:
+        return self._archive_wal(environ)
 
     def restore(self, *, volume: str, recover_to: datetime, environ: Mapping[str, str]) -> None:
         def runner(command: Sequence[str]) -> subprocess.CompletedProcess[str]:

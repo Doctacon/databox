@@ -41,7 +41,8 @@ Record the pre-catch-up oldest/newest pending WAL, count, ordered upload proof, 
 ## Progress and notes
 
 - 2026-09-09: Opened after the user explicitly accepted local-only loss between authenticated catch-ups and rejected long-lived backup credentials.
+- 2026-09-09: Implemented bounded exact pending-WAL enumeration, pre-upload regular-file validation, numeric oldest-first synchronous pgBackRest upload, in-process marker deduplication, continuity-through-marker reporting, and RPO terminology repair in the existing drill command. Evidence: `.10x/evidence/2026-09-09-manual-pending-wal-catch-up-implementation.md`. A read-only live check observed the expected six retained regular files; no AWS call, WAL upload, marker, restore, or cleanup occurred.
 
 ## Blockers
 
-None.
+Independent acceptance review before live use.
