@@ -20,6 +20,12 @@ Failure handling preserves the primary bounded stage error, records cleanup fail
 
 No AWS CLI, Docker, marker, catalog, warehouse, restore, or live drill operation ran.
 
+## Review repair
+
+Independent review found three state-machine issues. A legacy `drill_result()` helper used an inconsistent RPO formula and was removed, leaving the approved target-minus-last-included-commit definition as the sole implementation. Marker cleanup is now armed immediately before insertion so a commit-then-raise still triggers idempotent cleanup and cleanup-WAL archival. Every operation exception now passes through the existing secret-redacted 2,000-character diagnostic bound before inclusion while preserving the primary stage and cleanup-failure note.
+
+Focused coverage now includes partial before-marker insertion and an oversized credential-bearing `RecoveryError`. The focused suite passes 52 tests; Ruff/format, MyPy, secret scan, and diff checks pass.
+
 ## Remainder
 
 The concrete Docker/PostgreSQL/Polaris/WAL/validator operations adapter, backward-compatible `drill` CLI dispatch, thin Task target, docs, and concrete-adapter hermetic tests remain required before live use. The state machine is intentionally not operator-accessible until those pieces pass review.

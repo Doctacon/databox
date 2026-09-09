@@ -690,14 +690,44 @@ def test_timed_drill_refuses_unbracketed_target_before_restore() -> None:
     assert operations.calls[-2:] == ["cleanup", "archive_cleanup"]
 
 
-def test_drill_metrics_do_not_claim_objectives() -> None:
-    started = datetime.now(UTC)
-    result = recovery.drill_result(
-        started, started - timedelta(minutes=4), started + timedelta(minutes=20)
-    )
-    assert result["achieved_rpo_seconds"] == 240
-    assert result["achieved_rto_seconds"] == 1200
-    assert result["objectives_proven"] is False
+def test_timed_drill_cleans_marker_when_before_insert_commits_then_raises() -> None:
+    operations = _FakeDrillOperations(fail_at="before")
+
+    with pytest.raises(recovery.RecoveryError, match="before refused"):
+        recovery.orchestrate_timed_drill(
+            operations=operations,
+            environ=_BACKUP_ENV,
+            monotonic=lambda: 100.0,
+            token_factory=lambda: "abcdef1234567890",
+        )
+
+    assert operations.calls == ["preflight", "before", "cleanup", "archive_cleanup"]
+
+
+def test_timed_drill_bounds_and_redacts_operation_recovery_error() -> None:
+    secret = "must-never-appear"  # secret-scan: allow
+    environ = dict(_BACKUP_ENV)
+    environ["PGBACKREST_REPO1_S3_KEY_SECRET"] = secret
+    operations = _FakeDrillOperations()
+
+    def failed_restore(**_kwargs) -> None:
+        operations.calls.append("restore")
+        raise recovery.RecoveryError(f"credential={secret} " + "x" * 4_000)
+
+    operations.restore = failed_restore
+    with pytest.raises(recovery.RecoveryError) as error:
+        recovery.orchestrate_timed_drill(
+            operations=operations,
+            environ=environ,
+            monotonic=lambda: 100.0,
+            token_factory=lambda: "abcdef1234567890",
+        )
+
+    message = str(error.value)
+    assert secret not in message
+    assert "[truncated]" in message
+    assert len(message) <= recovery._DIAGNOSTIC_LIMIT + 100
+    assert operations.calls[-2:] == ["cleanup", "archive_cleanup"]
 
 
 @pytest.mark.parametrize(

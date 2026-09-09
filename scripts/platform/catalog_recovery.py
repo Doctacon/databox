@@ -89,9 +89,7 @@ def _run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=True, capture_output=True, text=True, errors="replace")
 
 
-def _redacted_diagnostic(
-    exc: OSError | subprocess.CalledProcessError, environ: Mapping[str, str]
-) -> str:
+def _redacted_diagnostic(exc: BaseException, environ: Mapping[str, str]) -> str:
     if isinstance(exc, subprocess.CalledProcessError):
         parts = [
             part.strip()
@@ -376,15 +374,15 @@ def orchestrate_timed_drill(
     """Run the ordered drill state machine around injected, reviewed effects."""
     resources = _drill_resources(token_factory())
     stage = "preflight"
-    marker_created = False
+    marker_cleanup_required = False
     primary: RecoveryError | None = None
     result: dict[str, Any] | None = None
     started = 0.0
     try:
         operations.preflight(environ)
         stage = "before marker"
+        marker_cleanup_required = True
         before_at = operations.insert_marker(resources.marker, "before")
-        marker_created = True
         stage = "target selection"
         recover_to = operations.database_now()
         stage = "after marker"
@@ -439,13 +437,14 @@ def orchestrate_timed_drill(
             "cutover": "not_performed",
         }
     except RecoveryError as exc:
-        primary = RecoveryError(f"timed catalog drill failed during {stage}: {exc}")
+        diagnostic = _redacted_diagnostic(exc, environ)
+        primary = RecoveryError(f"timed catalog drill failed during {stage}: {diagnostic}")
     except Exception as exc:
-        primary = RecoveryError(f"timed catalog drill failed during {stage}")
-        primary.__cause__ = exc
+        diagnostic = _redacted_diagnostic(exc, environ)
+        primary = RecoveryError(f"timed catalog drill failed during {stage}: {diagnostic}")
     finally:
         cleanup_error = False
-        if marker_created:
+        if marker_cleanup_required:
             try:
                 operations.cleanup_marker(resources.marker)
                 operations.archive_cleanup_wal(environ)
@@ -466,17 +465,6 @@ def orchestrate_timed_drill(
     if result is None:  # Defensive: all non-success paths raise above.
         raise RecoveryError("timed catalog drill produced no result")
     return result
-
-
-def drill_result(started: datetime, recovered_to: datetime, finished: datetime) -> dict[str, Any]:
-    return {
-        "started_at": started.astimezone(UTC).isoformat(),
-        "finished_at": finished.astimezone(UTC).isoformat(),
-        "recovered_to": recovered_to.astimezone(UTC).isoformat(),
-        "achieved_rpo_seconds": max(0, int((started - recovered_to).total_seconds())),
-        "achieved_rto_seconds": max(0, int((finished - started).total_seconds())),
-        "objectives_proven": False,
-    }
 
 
 def main() -> int:
