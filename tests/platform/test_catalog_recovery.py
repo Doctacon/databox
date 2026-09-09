@@ -33,6 +33,119 @@ _BACKUP_ENV = {
 }
 
 
+def test_interactive_credentials_require_tty_before_aws() -> None:
+    runner = Mock(side_effect=AssertionError("AWS invoked without an operator TTY"))
+
+    with pytest.raises(recovery.RecoveryError, match="operator TTY"):
+        recovery.acquire_backup_role_environment(
+            environ=_BACKUP_ENV,
+            runner=runner,
+            stdin_isatty=False,
+            stderr_isatty=True,
+        )
+
+    runner.assert_not_called()
+
+
+def test_interactive_credentials_flow_from_aws_pipe_to_memory_only() -> None:
+    secret = "temporary-exported-secret"  # secret-scan: allow
+    token = "temporary-exported-token"  # secret-scan: allow
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((tuple(command), kwargs))
+        if command[:2] == ("aws", "login"):
+            return subprocess.CompletedProcess(command, 0)
+        payload = json.dumps(
+            {
+                "Version": 1,
+                "AccessKeyId": "ASIA" + "ABCDEFGHIJKLMNOP",  # secret-scan: allow
+                "SecretAccessKey": secret,  # secret-scan: allow
+                "SessionToken": token,  # secret-scan: allow
+                "Expiration": "2026-09-09T13:00:00Z",
+            }
+        )
+        return subprocess.CompletedProcess(command, 0, stdout=payload, stderr="")
+
+    environment = recovery.acquire_backup_role_environment(
+        environ=_BACKUP_ENV,
+        runner=runner,
+        stdin_isatty=True,
+        stderr_isatty=True,
+        now=lambda: datetime(2026, 9, 9, 12, 0, tzinfo=UTC),
+    )
+
+    assert calls[0] == (
+        ("aws", "login", "--remote", "--profile", "databox-recovery-operator"),
+        {"check": False, "text": True},
+    )
+    assert calls[1][0] == (
+        "aws",
+        "configure",
+        "export-credentials",
+        "--profile",
+        "databox-polaris-catalog-backup",
+        "--format",
+        "process",
+    )
+    assert calls[1][1] == {"check": False, "capture_output": True, "text": True}
+    assert environment["PGBACKREST_REPO1_S3_KEY_SECRET"] == secret
+    assert environment["PGBACKREST_REPO1_S3_TOKEN"] == token
+    rendered_commands = json.dumps([command for command, _kwargs in calls])
+    assert secret not in rendered_commands
+    assert token not in rendered_commands
+
+
+def test_interactive_credential_export_failure_is_secret_redacted() -> None:
+    secret = "must-never-appear"  # secret-scan: allow
+
+    def runner(command, **_kwargs):
+        if command[:2] == ("aws", "login"):
+            return subprocess.CompletedProcess(command, 0)
+        payload = json.dumps({"SecretAccessKey": secret})  # secret-scan: allow
+        return subprocess.CompletedProcess(command, 1, stdout=payload, stderr="MFA failed")
+
+    with pytest.raises(recovery.RecoveryError, match="credential export failed") as error:
+        recovery.acquire_backup_role_environment(
+            environ=_BACKUP_ENV,
+            runner=runner,
+            stdin_isatty=True,
+            stderr_isatty=True,
+        )
+
+    assert secret not in str(error.value)
+    assert '"SecretAccessKey": "[REDACTED]"' in str(error.value)  # secret-scan: allow
+
+
+def test_interactive_credentials_reject_expired_session() -> None:
+    def runner(command, **_kwargs):
+        if command[:2] == ("aws", "login"):
+            return subprocess.CompletedProcess(command, 0)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(
+                {
+                    "Version": 1,
+                    "AccessKeyId": "ASIA" + "ABCDEFGHIJKLMNOP",  # secret-scan: allow
+                    "SecretAccessKey": "temporary-secret",  # secret-scan: allow
+                    "SessionToken": "temporary-token",  # secret-scan: allow
+                    "Expiration": "2026-09-09T12:00:00Z",
+                }
+            ),
+            stderr="",
+        )
+
+    with pytest.raises(recovery.RecoveryError, match="expired session"):
+        recovery.acquire_backup_role_environment(
+            environ=_BACKUP_ENV,
+            runner=runner,
+            stdin_isatty=True,
+            stderr_isatty=True,
+            now=lambda: datetime(2026, 9, 9, 12, 0, tzinfo=UTC),
+        )
+
+
 def test_recovery_target_must_be_zoned() -> None:
     with pytest.raises(ValueError, match="timezone"):
         recovery.recovery_target("2026-09-04T12:00:00")

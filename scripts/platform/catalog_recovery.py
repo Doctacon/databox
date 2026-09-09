@@ -37,7 +37,11 @@ _BACKUP_ENV = (
     "PGBACKREST_REPO1_S3_ENDPOINT",
 )
 Runner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
+InteractiveRunner = Callable[..., subprocess.CompletedProcess[str]]
 TokenFactory = Callable[[], str]
+
+_OPERATOR_PROFILE = "databox-recovery-operator"
+_BACKUP_ROLE_PROFILE = "databox-polaris-catalog-backup"
 
 
 class RecoveryError(RuntimeError):
@@ -77,6 +81,86 @@ def _redacted_diagnostic(
 
 def _new_ownership_token() -> str:
     return secrets.token_urlsafe(32)
+
+
+def acquire_backup_role_environment(
+    *,
+    environ: Mapping[str, str],
+    runner: InteractiveRunner = subprocess.run,
+    stdin_isatty: bool | None = None,
+    stderr_isatty: bool | None = None,
+    now: Callable[[], datetime] = lambda: datetime.now(UTC),
+    operator_profile: str = _OPERATOR_PROFILE,
+    backup_role_profile: str = _BACKUP_ROLE_PROFILE,
+) -> dict[str, str]:
+    """Obtain MFA-issued pgBackRest credentials without persisting or printing them.
+
+    AWS login and MFA remain attached to the operator terminal. Only the role
+    export's stdout is captured, parsed, and returned in process memory.
+    """
+    input_tty = sys.stdin.isatty() if stdin_isatty is None else stdin_isatty
+    error_tty = sys.stderr.isatty() if stderr_isatty is None else stderr_isatty
+    if not input_tty or not error_tty:
+        raise RecoveryError("interactive catalog drill requires an operator TTY")
+
+    login_command = ("aws", "login", "--remote", "--profile", operator_profile)
+    export_command = (
+        "aws",
+        "configure",
+        "export-credentials",
+        "--profile",
+        backup_role_profile,
+        "--format",
+        "process",
+    )
+    try:
+        login = runner(login_command, check=False, text=True)
+    except OSError as exc:
+        raise RecoveryError("unable to invoke interactive AWS operator login") from exc
+    if login.returncode != 0:
+        raise RecoveryError("interactive AWS operator login failed")
+
+    try:
+        exported = runner(export_command, check=False, capture_output=True, text=True)
+    except OSError as exc:
+        raise RecoveryError("unable to invoke backup-role credential export") from exc
+    if exported.returncode != 0:
+        diagnostic = _redacted_diagnostic(
+            subprocess.CalledProcessError(
+                exported.returncode,
+                export_command,
+                output=exported.stdout,
+                stderr=exported.stderr,
+            ),
+            environ,
+        )
+        raise RecoveryError(f"backup-role credential export failed: {diagnostic}")
+
+    try:
+        credential = json.loads(exported.stdout)
+        access_key = credential["AccessKeyId"]
+        secret_key = credential["SecretAccessKey"]
+        session_token = credential["SessionToken"]
+        expires_at = recovery_target(credential["Expiration"])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RecoveryError("backup-role credential export returned an invalid response") from exc
+    if not all(
+        isinstance(value, str) and value for value in (access_key, secret_key, session_token)
+    ):
+        raise RecoveryError("backup-role credential export returned an incomplete session")
+    if expires_at <= now().astimezone(UTC):
+        raise RecoveryError("backup-role credential export returned an expired session")
+
+    values = dict(environ)
+    values.update(
+        {
+            "PGBACKREST_REPO1_S3_KEY": access_key,
+            "PGBACKREST_REPO1_S3_KEY_SECRET": secret_key,
+            "PGBACKREST_REPO1_S3_TOKEN": session_token,
+        }
+    )
+    _require_backup_environment(values)
+    return values
 
 
 def recovery_target(value: str) -> datetime:
