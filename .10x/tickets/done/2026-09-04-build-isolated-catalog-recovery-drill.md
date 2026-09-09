@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -83,7 +83,16 @@ Record adversarial restore-safety cases, registry-derived restored-table validat
 - 2026-09-09: User authorized the remaining snapshot-divergence check. `.10x/evidence/2026-09-09-rest-s3-snapshot-divergence-check.md` records a bounded comparison between Polaris REST embedded current snapshot and the snapshot independently loaded from its S3 metadata location, with match/missing/malformed/mismatch tests. Seventeen focused tests and all static/security checks passed; no live operation ran.
 - 2026-09-09: Independent review `.10x/reviews/2026-09-09-rest-s3-snapshot-divergence-review.md` passed with no findings.
 - 2026-09-09: User authorized one live read-only rerun. `.10x/evidence/2026-09-09-live-rest-s3-snapshot-validation.md` records exit `0` in 59.725 seconds: all 25 canonical tables passed REST-versus-S3 current-snapshot comparison, manifest planning, and representative data reads with zero failures; noncanonical state remained six explicit warnings. Active and recovery services remained unchanged, healthy/running, and unexposed.
+- 2026-09-09: Independent review `.10x/reviews/2026-09-09-live-rest-s3-snapshot-validation-review.md` passed with no findings.
+
+## Closure evidence
+
+The progress evidence and reviews map all implementation criteria: fail-closed new-volume restore, compatible pinned versions, no bootstrap/writers/archive push, registry-derived validation, metadata/snapshot/manifest/data checks, bounded failure cases, source-rebuild boundary, timing instrumentation, and unchanged active services. Timed RPO/RTO measurement remains correctly owned by the timed-drill ticket.
+
+## Retrospective
+
+Recovery proof is layered: restored files, promoted PostgreSQL, restored application identity, catalog/object coherence, and timed objectives require separate evidence. Explicit ownership labels, source-contract provenance, and REST-to-S3 snapshot comparison keep those boundaries testable.
 
 ## Blockers
 
-Independent acceptance review of the live snapshot-comparison evidence. Timed-drill authorization is already recorded. Do not delete or reuse recovery artifacts without authorization.
+None. Recovery artifacts remain preserved until separately authorized cleanup.

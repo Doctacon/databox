@@ -1,7 +1,7 @@
 Status: done
 Created: 2026-09-09
 Updated: 2026-09-09
-Parent: .10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md
+Parent: .10x/tickets/done/2026-09-04-build-isolated-catalog-recovery-drill.md
 Depends-On: None
 
 # Reconcile restored-catalog registry drift

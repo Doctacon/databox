@@ -1,7 +1,7 @@
 Status: blocked
 Created: 2026-09-08
 Updated: 2026-09-08
-Relates-To: .10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md
+Relates-To: .10x/tickets/done/2026-09-04-build-isolated-catalog-recovery-drill.md
 
 # Isolated catalog restore retry
 
