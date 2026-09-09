@@ -12,7 +12,8 @@ The user confirmed that `taxonomy__banding_codes`, `taxonomy__com_name_codes`, a
 ## Implementation
 
 - Added exactly the three deterministic normalized child tables to the eBird `raw_tables` registry inventory.
-- Added the dlt normalized-child `__` table-name grammar and a named `Source.resource_tables` projection so resource construction/layout and legacy Quack top-level dedupe checks do not confuse generated physical children with independent dlt resources.
+- Added explicit `Source.normalized_child_tables` metadata containing exactly the three authorized eBird children. `Source.resource_tables` subtracts only this explicit subset, so `__` is never used as an ownership heuristic.
+- Registry validation rejects duplicate/invalid normalized children, children absent from `raw_tables`, orphan parent prefixes, and any `__` raw table not explicitly declared as normalized. Source layout still compares actual dlt resources with the explicit `resource_tables` projection.
 - Removed the three tables from the Species taxonomy concept and source DBML child-role annotations.
 - Classified all three under taxonomy `_excluded` and DBML `excluded:` with the consistent reason: `dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM`.
 - Removed the three excluded source tables and their code/list linkage fields from `ontology.ison` and `ontology.md`; the human-readable ontology lists them as exclusions. `CDM.dbml` and SQLMesh were unchanged because neither claimed or consumed these fields.
@@ -22,7 +23,8 @@ No Docker, AWS, catalog, warehouse, source-refresh, recovery, or cleanup command
 
 ## Validation
 
-- `uv run pytest --no-cov -q tests/sources/test_source_registry.py tests/sources/test_check_source_layout.py tests/sources/test_source_builders.py tests/sources/test_parallel_refresh.py tests/sources/test_quack_destinations.py tests/sources/test_source_modeling_contract.py tests/platform/test_catalog_recovery_validate.py tests/sources/test_avonet_orchestration.py` — 147 passed.
+- Initial implementation validation: 147 focused tests passed.
+- P1 repair validation: `uv run pytest --no-cov -q tests/sources/test_check_source_layout.py tests/sources/test_source_registry.py tests/sources/test_source_builders.py tests/sources/test_parallel_refresh.py tests/sources/test_quack_destinations.py tests/sources/test_source_modeling_contract.py tests/platform/test_catalog_recovery_validate.py` — 148 passed.
 - `uv run python scripts/sources/check_source_layout.py` — seven sources OK, zero incomplete/failing/registry errors.
 - `uv run python scripts/sources/check_source_modeling.py` — seven registered sources complete the modeling workflow.
 - `uv run python scripts/analytics/generate_platform_health.py --check` — generated SQL matches the registry.
@@ -33,4 +35,4 @@ No Docker, AWS, catalog, warehouse, source-refresh, recovery, or cleanup command
 
 ## Limits
 
-Independent review remains required. A live recovery-validation rerun was not authorized and did not run. The separate warning/failure policy for restored noncanonical USFWS and probe namespaces remains blocked in `.10x/tickets/2026-09-09-classify-noncanonical-restored-catalog-state.md`.
+The initial review's P1 `__` ownership-heuristic finding was repaired with explicit child metadata and regression tests; follow-up independent review remains required. A live recovery-validation rerun was not authorized and did not run. The separate warning/failure policy for restored noncanonical USFWS and probe namespaces remains blocked in `.10x/tickets/2026-09-09-classify-noncanonical-restored-catalog-state.md`.

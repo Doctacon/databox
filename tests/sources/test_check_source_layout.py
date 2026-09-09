@@ -32,12 +32,14 @@ def _entry(
     scheduled: bool = True,
     anchor: bool = False,
     raw_tables: tuple[str, ...] = ("records",),
+    normalized_child_tables: tuple[str, ...] = (),
     orchestration_mode: str = "default",
     parallel_refresh: bool = True,
 ) -> Source:
     return Source(
         name=name,
         raw_tables=raw_tables,
+        normalized_child_tables=normalized_child_tables,
         scheduled=scheduled,
         analytics_anchor=anchor,
         parallel_refresh=parallel_refresh,
@@ -355,8 +357,45 @@ def test_generated_child_tables_do_not_need_independent_dlt_resources(tmp_path: 
     module = _load_module()
     _rebind(module, tmp_path)
     _source(tmp_path, resource_names=("records",))
-    entry = _entry(raw_tables=("records", "records__codes"))
+    entry = _entry(
+        raw_tables=("records", "records__codes"),
+        normalized_child_tables=("records__codes",),
+    )
     assert module.check_source("foo", [entry]).ok
+
+
+def test_registry_rejects_undeclared_normalized_child_table() -> None:
+    module = _load_module()
+    errors = module.registry_errors([_entry(raw_tables=("records", "records__codes"))])
+    assert any("normalized child table not explicitly declared" in item for item in errors)
+
+
+def test_registry_rejects_normalized_child_absent_from_raw_inventory() -> None:
+    module = _load_module()
+    entry = _entry(raw_tables=("records",), normalized_child_tables=("records__codes",))
+    errors = module.registry_errors([entry])
+    assert any("normalized child table absent from raw inventory" in item for item in errors)
+
+
+@pytest.mark.parametrize("child", ["codes", "missing__codes"])
+def test_registry_rejects_invalid_or_orphan_normalized_child(child: str) -> None:
+    module = _load_module()
+    entry = _entry(raw_tables=("records", child), normalized_child_tables=(child,))
+    errors = module.registry_errors([entry])
+    expected = (
+        "invalid normalized child table"
+        if "__" not in child
+        else "normalized child parent is not a top-level resource table"
+    )
+    assert any(expected in item for item in errors)
+
+
+def test_registry_rejects_duplicate_normalized_child() -> None:
+    module = _load_module()
+    child = "records__codes"
+    entry = _entry(raw_tables=("records", child), normalized_child_tables=(child, child))
+    errors = module.registry_errors([entry])
+    assert any("duplicate normalized child table" in item for item in errors)
 
 
 def test_missing_profile_artifact_fails(tmp_path: Path) -> None:

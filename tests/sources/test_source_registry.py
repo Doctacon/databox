@@ -96,6 +96,19 @@ def test_source_complete_raw_table_inventory() -> None:
         "taxonomy__sci_name_codes",
         "region_stats",
     )
+    assert sources["ebird"].normalized_child_tables == (
+        "taxonomy__banding_codes",
+        "taxonomy__com_name_codes",
+        "taxonomy__sci_name_codes",
+    )
+    assert sources["ebird"].resource_tables == (
+        "recent_observations",
+        "notable_observations",
+        "hotspots",
+        "species_list",
+        "taxonomy",
+        "region_stats",
+    )
     assert sources["noaa"].raw_tables == ("daily_weather", "stations", "datasets")
 
 

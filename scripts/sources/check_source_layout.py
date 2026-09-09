@@ -227,11 +227,37 @@ def registry_errors(sources: Sequence[Source] = SOURCES) -> list[str]:
         if not source.raw_tables:
             errors.append(f"empty raw table inventory for {source.name}")
         table_counts = Counter(source.raw_tables)
+        normalized_child_counts = Counter(source.normalized_child_tables)
+        normalized_children = set(source.normalized_child_tables)
+        resource_tables = set(source.resource_tables)
         for table, count in sorted(table_counts.items()):
             if not RAW_TABLE_NAME_PATTERN.fullmatch(table):
                 errors.append(f"invalid raw table name for {source.name}: {table!r}")
             if count > 1:
                 errors.append(f"duplicate raw table for {source.name}: {table}")
+            if "__" in table and table not in normalized_children:
+                errors.append(
+                    f"normalized child table not explicitly declared for {source.name}: {table}"
+                )
+        for child, count in sorted(normalized_child_counts.items()):
+            if count > 1:
+                errors.append(f"duplicate normalized child table for {source.name}: {child}")
+            if child not in table_counts:
+                errors.append(
+                    f"normalized child table absent from raw inventory for {source.name}: {child}"
+                )
+            if not RAW_TABLE_NAME_PATTERN.fullmatch(child) or "__" not in child:
+                errors.append(
+                    f"invalid normalized child table for {source.name}: {child!r}; "
+                    "expected parent__child"
+                )
+                continue
+            parent = child.split("__", 1)[0]
+            if parent not in resource_tables:
+                errors.append(
+                    f"normalized child parent is not a top-level resource table for "
+                    f"{source.name}: {child}"
+                )
     if not sources:
         errors.append("canonical source registry is empty")
     return errors
