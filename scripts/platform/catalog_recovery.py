@@ -23,6 +23,7 @@ _IMAGE = "databox-polaris-postgres:17.6-pgbackrest-2.59.1"
 _ACTIVE_VOLUME = "databox_polaris_postgres"
 _DATA_PATH = "/var/lib/postgresql/data"
 _VOLUME_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]+$")
+_DRILL_MARKER = re.compile(r"^databox_recovery_drill_[a-z0-9]{12,16}$")
 _OWNERSHIP_LABEL = "com.databox.catalog-recovery.owner"
 _DIAGNOSTIC_LIMIT = 2_000
 _AWS_ACCESS_KEY = re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")
@@ -966,6 +967,20 @@ class DockerDrillOperations:
     def cleanup_marker(self, marker: str) -> None:
         self._active_sql(f"DROP TABLE IF EXISTS {self._quoted_marker(marker)};")
 
+    def reconcile_marker(self, marker: str) -> None:
+        if not _DRILL_MARKER.fullmatch(marker):
+            raise RecoveryError("marker is not owned by a timed drill")
+        relation = self._active_sql(
+            "SELECT n.nspname, c.relkind, pg_get_userbyid(c.relowner) "
+            "FROM pg_catalog.pg_class c "
+            "JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace "
+            f"WHERE c.relname = '{marker}';"
+        )
+        rows = [row.strip() for row in relation.splitlines() if row.strip()]
+        if rows != ["public|r|polaris"]:
+            raise RecoveryError("marker relation identity is invalid; no cleanup was performed")
+        self._active_sql(f'DROP TABLE public."{marker}";')
+
     def archive_cleanup_wal(self, environ: Mapping[str, str]) -> None:
         self._archive_wal(environ)
 
@@ -1015,7 +1030,7 @@ def _cleanup_marker_main(argv: Sequence[str]) -> int:
     parser.add_argument("--operator-profile", default=_OPERATOR_PROFILE)
     parser.add_argument("--backup-role-profile", default=_BACKUP_ROLE_PROFILE)
     args = parser.parse_args(argv)
-    if not args.marker.startswith("databox_recovery_drill_"):
+    if not _DRILL_MARKER.fullmatch(args.marker):
         print("catalog recovery refused: marker is not owned by a timed drill", file=sys.stderr)
         return 1
     base = _environment_from_dotenv()
@@ -1031,7 +1046,7 @@ def _cleanup_marker_main(argv: Sequence[str]) -> int:
             environ=environment,
         )
         operations.preflight(_drill_resources(_new_ownership_token()), environment)
-        operations.cleanup_marker(args.marker)
+        operations.reconcile_marker(args.marker)
         operations.archive_cleanup_wal(environment)
     except (RecoveryError, ValueError) as exc:
         print(f"catalog recovery refused: {_redacted_diagnostic(exc, base)}", file=sys.stderr)

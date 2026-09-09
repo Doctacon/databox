@@ -1038,7 +1038,16 @@ def test_marker_timestamp_accepts_one_quiet_row() -> None:
     assert operations.insert_marker("safe_marker", "before") == datetime(2026, 9, 9, 12, tzinfo=UTC)
 
 
-def test_cleanup_marker_rejects_non_drill_marker_before_auth() -> None:
+@pytest.mark.parametrize(
+    "marker",
+    [
+        "databox_recovery_drill_short",
+        "databox_recovery_drill_abcdefghijklmnopq",
+        "databox_recovery_drill_abcdefghijkl_m",
+        "unowned_marker",
+    ],
+)
+def test_cleanup_marker_rejects_non_drill_marker_before_auth(marker: str) -> None:
     with patch.object(
         recovery, "acquire_backup_role_environment", side_effect=AssertionError("auth reached")
     ):
@@ -1047,7 +1056,7 @@ def test_cleanup_marker_rejects_non_drill_marker_before_auth() -> None:
                 [
                     "cleanup-marker",
                     "--marker",
-                    "unowned_marker",
+                    marker,
                     "--catalog",
                     "databox_lake",
                     "--source-revision",
@@ -1056,6 +1065,50 @@ def test_cleanup_marker_rejects_non_drill_marker_before_auth() -> None:
             )
             == 1
         )
+
+
+@pytest.mark.parametrize(
+    "identity",
+    [
+        "",
+        "private|r|polaris",
+        "public|v|polaris",
+        "public|r|root",
+        "public|r|polaris\npublic|r|polaris",
+    ],
+)
+def test_reconcile_marker_refuses_unexpected_relation_without_drop(identity: str) -> None:
+    calls = []
+
+    def runner(command, **_kwargs):
+        calls.append(tuple(command))
+        return subprocess.CompletedProcess(command, 0, stdout=identity, stderr="")
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake", source_revision="abc123", environ={}, runner=runner
+    )
+    with pytest.raises(recovery.RecoveryError, match="identity is invalid"):
+        operations.reconcile_marker("databox_recovery_drill_abcdefghijkl")
+    assert not any("DROP TABLE" in " ".join(call) for call in calls)
+
+
+def test_reconcile_marker_checks_identity_then_drops_exact_table() -> None:
+    calls = []
+
+    def runner(command, **_kwargs):
+        calls.append(tuple(command))
+        output = "public|r|polaris\n" if "pg_catalog.pg_class" in " ".join(command) else ""
+        return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake", source_revision="abc123", environ={}, runner=runner
+    )
+    marker = "databox_recovery_drill_abcdefghijkl"
+    operations.reconcile_marker(marker)
+    assert "pg_catalog.pg_class" in " ".join(calls[0])
+    assert f'DROP TABLE public."{marker}";' in " ".join(calls[1])
+    assert "IF EXISTS" not in " ".join(calls[1])
+    assert len(calls) == 2
 
 
 def test_catalog_adapter_requires_exact_canonical_success() -> None:
