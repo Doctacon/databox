@@ -1,4 +1,4 @@
-Status: blocked
+Status: active
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -30,7 +30,8 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 - 2026-09-09: All dependencies are now done and live-drill authorization remains active. Execute with a fresh marker-bracketed target and new ownership-labeled recovery resources; stop before cutover or cleanup.
 - 2026-09-09: Credential preflight stopped before the RTO clock and before any mutation because the three required temporary backup-role environment values were unavailable. `.10x/evidence/2026-09-09-timed-recovery-drill-credential-preflight.md` records the exact prerequisite and no-mutation boundary. No role assumption was attempted.
 - 2026-09-09: A second preflight proved that the operator's MFA role session was not reusable by the separate non-TTY Pi worker. The user rejected both a temporary credential handoff file and another one-off script, then authorized extending the existing recovery entrypoint. No marker, backup-bucket, or Docker mutation occurred.
+- 2026-09-09: `.10x/tickets/done/2026-09-09-add-interactive-catalog-recovery-drill-command.md` implemented and independently passed review. The operator can now run the already authorized drill from the TTY that owns MFA without a credential file or new script.
 
 ## Blockers
 
-Blocked only on `.10x/tickets/done/2026-09-09-add-interactive-catalog-recovery-drill-command.md`. Existing drill authorization remains valid. Cleanup remains separately authorized.
+None. Cleanup remains separately authorized.
