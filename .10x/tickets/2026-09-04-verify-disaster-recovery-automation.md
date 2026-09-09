@@ -41,7 +41,8 @@ Create focused evidence and an adversarial review with changed files, exact comm
 
 - 2026-09-04: Opened as the automation-first aggregate gate.
 - 2026-09-09: Bounded reconciliation `.10x/evidence/2026-09-09-disaster-recovery-automation-reconciliation.md` passed OpenTofu fmt/validate, 58 focused tests, inert Compose rendering, all generated checks, strict docs, full secret scan, Ruff/format, MyPy, and the complete 458-test suite at 85.02% coverage. No live or implementation operation ran. Adversarial mapping found exact unsupported restore-test, snapshot-divergence, and runbook-semantic criteria in the isolated-recovery dependency; final live evidence also awaits independent review. Timed-drill dependency is not cleared.
+- 2026-09-09: User authorized repair of only absent-backup/missing-WAL tests and stale runbook semantics plus closure bookkeeping. Those repairs and final-evidence provenance clarification are recorded in `.10x/evidence/2026-09-09-bounded-recovery-reconciliation-repair.md`. The live rollout ticket closed against existing reviewed evidence. Snapshot divergence was explicitly excluded and remains unsupported.
 
 ## Blockers
 
-`.10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md` remains open on the exact findings recorded in the reconciliation evidence. `.10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md` also remains structurally active pending closure reconciliation. Independent review of this aggregate evidence remains required.
+`.10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md` remains open only on REST-response-versus-S3-metadata snapshot-divergence validation. Independent review of the bounded repair and clarified final live evidence remains required. The timed-drill dependency is not cleared.

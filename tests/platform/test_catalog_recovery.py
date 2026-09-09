@@ -256,6 +256,55 @@ def test_failed_restore_preserves_target_and_reports_bounded_redacted_diagnostic
     assert "volume rm" not in rendered
 
 
+def _assert_repository_restore_failure_is_fail_closed(diagnostic: str) -> None:
+    calls: list[tuple[str, ...]] = []
+    ownership_token = "owned-test-volume"  # secret-scan: allow
+    repository_secret = _BACKUP_ENV["PGBACKREST_REPO1_CIPHER_PASS"]
+
+    def runner(command):
+        calls.append(tuple(command))
+        if command[-1] == "restore":
+            raise subprocess.CalledProcessError(
+                1,
+                command,
+                stderr=f"{diagnostic}; cipher={repository_secret}",
+            )
+        stdout = ownership_token if command[1:3] == ("volume", "inspect") else ""
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    with pytest.raises(recovery.RecoveryError) as error:
+        recovery.prepare_or_execute_restore(
+            target_volume="databox_missing_archive_recovery",
+            active_volume="databox_polaris_postgres",
+            recover_to=recovery.recovery_target("2026-09-05T12:00:00Z"),
+            execute=True,
+            environ=_BACKUP_ENV,
+            runner=runner,
+            ownership_token_factory=lambda: ownership_token,
+        )
+
+    message = str(error.value)
+    assert diagnostic in message
+    assert repository_secret not in message
+    assert "[REDACTED]" in message
+    rendered = " ".join(part for call in calls for part in call)
+    assert "type=volume,src=databox_polaris_postgres" not in rendered
+    assert "volume rm" not in rendered
+    assert calls[-1][-1] == "restore"
+
+
+def test_restore_fails_closed_when_repository_has_no_base_backup() -> None:
+    _assert_repository_restore_failure_is_fail_closed(
+        "unable to find backup set for the requested recovery target"
+    )
+
+
+def test_restore_fails_closed_when_required_wal_segment_is_missing() -> None:
+    _assert_repository_restore_failure_is_fail_closed(
+        "unable to find the required WAL segment in the archive"
+    )
+
+
 def test_diagnostic_redacts_quoted_credential_process_json() -> None:
     secret_key = "not-configured-secret-key"  # secret-scan: allow
     non_iqo_token = "FwoGZXIvYXdzEXAMPLE-not-an-iqo-token"  # secret-scan: allow

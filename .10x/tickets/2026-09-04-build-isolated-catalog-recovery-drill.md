@@ -2,7 +2,7 @@ Status: open
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
-Depends-On: .10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md, .10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md
+Depends-On: .10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md, .10x/tickets/done/2026-09-04-add-pgbackrest-catalog-protection.md
 
 # Build isolated Polaris catalog recovery drill
 
@@ -77,7 +77,8 @@ Record adversarial restore-safety cases, registry-derived restored-table validat
 - 2026-09-09: After the noncanonical-warning policy passed independent review, the user authorized one final live rerun. `.10x/evidence/2026-09-09-final-restored-catalog-validation-pass.md` records exit `0` in 53.539 seconds: 25/25 canonical tables passed metadata/snapshot/manifest/limit-one reads with zero missing, unreadable, malformed, or canonical-namespace drift; two noncanonical namespaces and four tables remained explicit warnings. Active and recovery services remained unchanged, healthy/running, and unexposed.
 
 - 2026-09-09: Bounded closure reconciliation `.10x/evidence/2026-09-09-disaster-recovery-automation-reconciliation.md` passed every fresh gate but found three unsupported closure criteria: no explicit hermetic absent-base-backup/missing-WAL restore test, no REST-response-versus-metadata-location snapshot-divergence check, and semantically stale runbook validator instructions. Final live-pass evidence also awaits independent acceptance review. No implementation was repaired.
+- 2026-09-09: User authorized only findings 1 and 3 plus closure bookkeeping. Source-named absent-base-backup and missing-WAL tests now prove preserved owned targets, no active-volume mount/deletion, and secret-redacted fail-closed errors. The runbook now uses the reviewed corrected contract revision and distinguishes canonical failures from noncanonical warnings. Final live evidence now distinguishes historical recovery code from its corrected validation contract and explicitly identifies inherited versus remeasured invariants.
 
 ## Blockers
 
-Repair and independently review the three exact reconciliation findings, then independently accept the final live-pass evidence. The separately authorized timed drill remains blocked until this ticket and aggregate automation verification close. Do not delete or reuse recovery artifacts without authorization.
+Snapshot divergence remains unsupported: validation does not compare the current snapshot embedded in the Polaris REST response with the current snapshot loaded from its S3 `metadata-location`. Per explicit user direction, this criterion was not implemented, waived, superseded, or weakened. The separately authorized timed drill remains blocked. Do not delete or reuse recovery artifacts without authorization.

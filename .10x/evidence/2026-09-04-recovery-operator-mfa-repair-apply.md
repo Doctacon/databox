@@ -1,7 +1,7 @@
 Status: blocked
 Created: 2026-09-04
 Updated: 2026-09-04
-Relates-To: .10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md
+Relates-To: .10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md
 
 # Recovery operator MFA repair apply attempt
 

@@ -1,4 +1,4 @@
-Status: active
+Status: done
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -67,6 +67,19 @@ Record the approved replacement catalog-only plan hash/summary, local-state path
 - 2026-09-05: User approved Debian `ca-certificates`; commit `5f9bd43` added only that package, bundle assertion, and focused coverage. Evidence `.10x/evidence/2026-09-05-first-catalog-backup-success.md` records successful image/pin/trust validation, readiness exit `0`, stanza `ok`, full backup `20260905-162355F`, WAL range through `000000010000000000000007`, zero archiver failures, 1327 S3 objects containing archive and backup paths, healthy PostgreSQL/Polaris, and preserved volume/data. No restore or RPO/RTO claim was made.
 - 2026-09-05: Independent acceptance review `.10x/reviews/2026-09-05-first-live-catalog-backup-review.md` passed with no findings. The primary-warehouse token issue does not invalidate catalog proof and is separately owned by `.10x/tickets/2026-09-05-establish-primary-warehouse-session-credentials.md`.
 
+## Closure evidence
+
+- Exact reviewed/approved plans and same-account `us-west-1` applies: `.10x/evidence/2026-09-04-catalog-only-final-opentofu-plan.md`, `.10x/reviews/2026-09-04-catalog-only-final-plan-review.md`, `.10x/evidence/2026-09-04-catalog-backup-infrastructure-apply.md`, `.10x/evidence/2026-09-04-recovery-operator-mfa-local-plan.md`, `.10x/reviews/2026-09-04-recovery-operator-lineage-safe-plan-review.md`, `.10x/evidence/2026-09-04-recovery-operator-mfa-repair-apply-success.md`, and `.10x/evidence/2026-09-04-recovery-operator-login-repair-apply.md`.
+- Local state path, mode, lineage, retention, and reviewed-import recovery policy: the apply evidence above and `.10x/decisions/filevault-only-local-opentofu-state.md`.
+- Console-only operator, no access key, manual MFA, exact-user trust, scoped OAuth login, least-privilege role proof, and root logout: `.10x/evidence/2026-09-04-recovery-operator-live-role-proof.md` and the reviewed operator plan/apply evidence above. The later first-backup evidence records closure of the root browser session.
+- Successful stanza, physical full backup, WAL round trip, repository metadata, retained backup/state, and healthy services: `.10x/evidence/2026-09-05-first-catalog-backup-success.md` and passing independent review `.10x/reviews/2026-09-05-first-live-catalog-backup-review.md`.
+
+Every acceptance criterion is supported by reviewed evidence; no remaining item belongs to this rollout ticket.
+
+## Retrospective
+
+Saved OpenTofu plans are valid only against their exact working directory, provider selections, and state lineage. Human MFA role assumption must be proved with the intended non-root operator, not root. Database-role and CA-bundle assumptions belong in image-level tests before the first live repository operation.
+
 ## Blockers
 
-None. Ticket closure still requires final criterion reconciliation and retrospective extraction.
+None.

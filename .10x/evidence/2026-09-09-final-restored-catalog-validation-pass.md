@@ -7,9 +7,9 @@ Relates-To: .10x/tickets/2026-09-04-build-isolated-catalog-recovery-drill.md
 
 ## Procedure
 
-The user authorized one final read-only rerun against preserved recovery Polaris container `databox-polaris-recovery-validation-20260908-214022`, catalog `databox_lake`, PITR target `2026-09-08T21:40:22Z`, and reviewed validation-contract revision `e27990e9a87582db4d467b3fe2adab13bae0319c`. The run occurred once with no retry, write, bootstrap, restart, port publication, cutover, or cleanup.
+The user authorized one final read-only rerun against preserved recovery Polaris container `databox-polaris-recovery-validation-20260908-214022`, catalog `databox_lake`, and PITR target `2026-09-08T21:40:22Z`. The historical Databox code revision immediately preceding that recovery point was `e95b333092483a7103df9cfcfb39b8124fb7ed82`. Validation used reviewed corrected contract revision `e27990e9a87582db4d467b3fe2adab13bae0319c`, which declares physical child tables that already existed at the recovery point and implements the approved warning policy. The corrected contract revision is not represented as the historical running revision. The run occurred once with no retry, write, bootstrap, restart, port publication, cutover, or cleanup.
 
-Active PostgreSQL and Polaris were healthy before and after with unchanged start times `2026-09-08T21:38:31.476511987Z` and `2026-09-05T16:26:22.471908317Z`. Both recovery containers remained running and unexposed.
+The final command directly remeasured active PostgreSQL/Polaris health and unchanged start times `2026-09-08T21:38:31.476511987Z` and `2026-09-05T16:26:22.471908317Z`; it also remeasured that both recovery containers were running without host port bindings. Recovery promotion, `archive_mode=off`, before/after marker counts, readiness, and validation labels were established by prior evidence and validator gating but were not all independently remeasured by this final command.
 
 ## Result
 

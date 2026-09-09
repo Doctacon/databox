@@ -45,7 +45,7 @@ The isolated-recovery dependency cannot close yet:
 3. `docs/runbook.md` is operationally stale after reviewed registry corrections: its sample `--source-revision e95b333` no longer matches the imported working-tree registry and would fail the validator provenance guard; it also says all unexpected state exits nonzero without explaining reviewed noncanonical warnings. Strict MkDocs and generated-doc checks cannot detect this semantic mismatch.
 4. `.10x/evidence/2026-09-09-final-restored-catalog-validation-pass.md` has not yet received an independent acceptance review.
 
-The live rollout evidence substantially satisfies provisioning and first-backup obligations, but `.10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md` remains structurally active pending its own closure reconciliation.
+The live rollout evidence substantially satisfies provisioning and first-backup obligations, but `.10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md` remains structurally active pending its own closure reconciliation.
 
 ## Verdict
 

@@ -1,7 +1,7 @@
 Status: blocked
 Created: 2026-09-05
 Updated: 2026-09-05
-Relates-To: .10x/tickets/2026-09-04-apply-and-prove-disaster-recovery.md
+Relates-To: .10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md
 
 # pgBackRest Polaris-user repair and live retry
 
