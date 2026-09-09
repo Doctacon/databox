@@ -544,6 +544,152 @@ def test_diagnostic_redacts_quoted_credential_process_json() -> None:
     assert non_iqo_token not in diagnostic
 
 
+class _FakeDrillOperations:
+    def __init__(self, fail_at: str | None = None) -> None:
+        self.fail_at = fail_at
+        self.calls: list[str] = []
+        self.before = datetime(2026, 9, 9, 12, 0, 0, tzinfo=UTC)
+        self.target = self.before + timedelta(seconds=2)
+        self.after = self.target + timedelta(seconds=1)
+
+    def _call(self, name: str) -> None:
+        self.calls.append(name)
+        if self.fail_at == name:
+            raise recovery.RecoveryError(f"{name} refused")
+
+    def preflight(self, _environ) -> None:
+        self._call("preflight")
+
+    def insert_marker(self, _marker, phase):
+        self._call(phase)
+        return self.before if phase == "before" else self.after
+
+    def database_now(self):
+        self._call("target")
+        return self.target
+
+    def archive_marker_wal(self, _environ) -> None:
+        self._call("archive_marker")
+
+    def restore(self, **_kwargs) -> None:
+        self._call("restore")
+
+    def start_postgres(self, **_kwargs) -> None:
+        self._call("start_postgres")
+
+    def validate_postgres(self, **_kwargs) -> None:
+        self._call("validate_postgres")
+
+    def start_polaris(self, **_kwargs) -> None:
+        self._call("start_polaris")
+
+    def validate_polaris(self, **_kwargs) -> None:
+        self._call("validate_polaris")
+
+    def validate_catalog(self, **_kwargs):
+        self._call("validate_catalog")
+        return {"status": "pass", "counts": {"validatedTables": 25}}
+
+    def cleanup_marker(self, _marker) -> None:
+        self._call("cleanup")
+
+    def archive_cleanup_wal(self, _environ) -> None:
+        self._call("archive_cleanup")
+
+
+def test_timed_drill_state_machine_orders_effects_and_measures_only_restore_path() -> None:
+    operations = _FakeDrillOperations()
+    times = iter((100.0, 160.5))
+
+    result = recovery.orchestrate_timed_drill(
+        operations=operations,
+        environ=_BACKUP_ENV,
+        monotonic=lambda: next(times),
+        token_factory=lambda: "abcdef1234567890",
+    )
+
+    assert operations.calls == [
+        "preflight",
+        "before",
+        "target",
+        "after",
+        "archive_marker",
+        "restore",
+        "start_postgres",
+        "validate_postgres",
+        "start_polaris",
+        "validate_polaris",
+        "validate_catalog",
+        "cleanup",
+        "archive_cleanup",
+    ]
+    assert result["achieved_rpo_seconds"] == 2
+    assert result["achieved_rto_seconds"] == 60.5
+    assert result["resources"]["preserved"] is True
+    assert result["catalog"]["counts"]["validatedTables"] == 25
+    assert result["cutover"] == "not_performed"
+
+
+@pytest.mark.parametrize(
+    "failure",
+    (
+        "restore",
+        "start_postgres",
+        "validate_postgres",
+        "start_polaris",
+        "validate_polaris",
+        "validate_catalog",
+    ),
+)
+def test_timed_drill_failure_cleans_marker_and_preserves_primary_stage(failure: str) -> None:
+    operations = _FakeDrillOperations(fail_at=failure)
+
+    with pytest.raises(recovery.RecoveryError, match=f"{failure} refused"):
+        recovery.orchestrate_timed_drill(
+            operations=operations,
+            environ=_BACKUP_ENV,
+            monotonic=lambda: 100.0,
+            token_factory=lambda: "abcdef1234567890",
+        )
+
+    assert operations.calls[-2:] == ["cleanup", "archive_cleanup"]
+    assert "volume rm" not in " ".join(operations.calls)
+
+
+def test_timed_drill_preserves_primary_error_when_cleanup_fails() -> None:
+    operations = _FakeDrillOperations(fail_at="restore")
+    original_cleanup = operations.cleanup_marker
+
+    def failed_cleanup(marker):
+        original_cleanup(marker)
+        raise RuntimeError("unsafe detail")
+
+    operations.cleanup_marker = failed_cleanup
+    with pytest.raises(recovery.RecoveryError, match="failed during restore.*cleanup also failed"):
+        recovery.orchestrate_timed_drill(
+            operations=operations,
+            environ=_BACKUP_ENV,
+            monotonic=lambda: 100.0,
+            token_factory=lambda: "abcdef1234567890",
+        )
+
+
+def test_timed_drill_refuses_unbracketed_target_before_restore() -> None:
+    operations = _FakeDrillOperations()
+    operations.target = operations.after
+
+    with pytest.raises(recovery.RecoveryError, match="do not bracket"):
+        recovery.orchestrate_timed_drill(
+            operations=operations,
+            environ=_BACKUP_ENV,
+            monotonic=lambda: 100.0,
+            token_factory=lambda: "abcdef1234567890",
+        )
+
+    assert "restore" not in operations.calls
+    assert operations.calls[-2:] == ["cleanup", "archive_cleanup"]
+
+
 def test_drill_metrics_do_not_claim_objectives() -> None:
     started = datetime.now(UTC)
     result = recovery.drill_result(

@@ -12,7 +12,7 @@ import subprocess
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NamedTuple, Protocol
 
 _IMAGE = "databox-polaris-postgres:17.6-pgbackrest-2.59.1"
 _ACTIVE_VOLUME = "databox_polaris_postgres"
@@ -39,6 +39,7 @@ _BACKUP_ENV = (
 Runner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
 InteractiveRunner = Callable[..., subprocess.CompletedProcess[str]]
 TokenFactory = Callable[[], str]
+MonotonicClock = Callable[[], float]
 
 _OPERATOR_PROFILE = "databox-recovery-operator"
 _BACKUP_ROLE_PROFILE = "databox-polaris-catalog-backup"
@@ -46,6 +47,42 @@ _BACKUP_ROLE_PROFILE = "databox-polaris-catalog-backup"
 
 class RecoveryError(RuntimeError):
     """The requested isolated recovery operation is unsafe or unavailable."""
+
+
+class DrillOperations(Protocol):
+    """Security-bounded effects required by the timed drill state machine."""
+
+    def preflight(self, environ: Mapping[str, str]) -> None: ...
+
+    def insert_marker(self, marker: str, phase: str) -> datetime: ...
+
+    def database_now(self) -> datetime: ...
+
+    def archive_marker_wal(self, environ: Mapping[str, str]) -> None: ...
+
+    def restore(self, *, volume: str, recover_to: datetime, environ: Mapping[str, str]) -> None: ...
+
+    def start_postgres(self, *, container: str, network: str, volume: str) -> None: ...
+
+    def validate_postgres(self, *, container: str, marker: str) -> None: ...
+
+    def start_polaris(self, *, container: str, network: str) -> None: ...
+
+    def validate_polaris(self, *, container: str) -> None: ...
+
+    def validate_catalog(self, *, container: str, recover_to: datetime) -> Mapping[str, Any]: ...
+
+    def cleanup_marker(self, marker: str) -> None: ...
+
+    def archive_cleanup_wal(self, environ: Mapping[str, str]) -> None: ...
+
+
+class DrillResources(NamedTuple):
+    marker: str
+    volume: str
+    network: str
+    postgres_container: str
+    polaris_container: str
 
 
 def _run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
@@ -314,6 +351,121 @@ def prepare_or_execute_restore(
         "target_preserved": True,
         "next": "start reviewed isolated services; do not cut over",
     }
+
+
+def _drill_resources(token: str) -> DrillResources:
+    suffix = re.sub(r"[^a-z0-9]", "", token.lower())[:16]
+    if len(suffix) < 12:
+        raise RecoveryError("unable to generate unique drill resource names")
+    return DrillResources(
+        marker=f"databox_recovery_drill_{suffix}",
+        volume=f"databox_polaris_recovery_drill_{suffix}",
+        network=f"databox_polaris_recovery_drill_{suffix}",
+        postgres_container=f"databox-polaris-recovery-drill-postgres-{suffix}",
+        polaris_container=f"databox-polaris-recovery-drill-polaris-{suffix}",
+    )
+
+
+def orchestrate_timed_drill(
+    *,
+    operations: DrillOperations,
+    environ: Mapping[str, str],
+    monotonic: MonotonicClock,
+    token_factory: TokenFactory = _new_ownership_token,
+) -> dict[str, Any]:
+    """Run the ordered drill state machine around injected, reviewed effects."""
+    resources = _drill_resources(token_factory())
+    stage = "preflight"
+    marker_created = False
+    primary: RecoveryError | None = None
+    result: dict[str, Any] | None = None
+    started = 0.0
+    try:
+        operations.preflight(environ)
+        stage = "before marker"
+        before_at = operations.insert_marker(resources.marker, "before")
+        marker_created = True
+        stage = "target selection"
+        recover_to = operations.database_now()
+        stage = "after marker"
+        after_at = operations.insert_marker(resources.marker, "after")
+        if not before_at <= recover_to < after_at:
+            raise RecoveryError("marker timestamps do not bracket the selected recovery target")
+        stage = "marker WAL archive"
+        operations.archive_marker_wal(environ)
+
+        stage = "restore"
+        started = monotonic()
+        operations.restore(volume=resources.volume, recover_to=recover_to, environ=environ)
+        stage = "isolated PostgreSQL startup"
+        operations.start_postgres(
+            container=resources.postgres_container,
+            network=resources.network,
+            volume=resources.volume,
+        )
+        stage = "isolated PostgreSQL validation"
+        operations.validate_postgres(
+            container=resources.postgres_container, marker=resources.marker
+        )
+        stage = "isolated Polaris startup"
+        operations.start_polaris(container=resources.polaris_container, network=resources.network)
+        stage = "isolated Polaris validation"
+        operations.validate_polaris(container=resources.polaris_container)
+        stage = "catalog validation"
+        catalog = dict(
+            operations.validate_catalog(
+                container=resources.polaris_container,
+                recover_to=recover_to,
+            )
+        )
+        if catalog.get("status") != "pass":
+            raise RecoveryError("registry-derived catalog validation did not pass")
+        finished = monotonic()
+        result = {
+            "status": "pass",
+            "recover_to": recover_to.astimezone(UTC).isoformat(),
+            "before_marker_at": before_at.astimezone(UTC).isoformat(),
+            "after_marker_at": after_at.astimezone(UTC).isoformat(),
+            "achieved_rpo_seconds": max(0.0, (recover_to - before_at).total_seconds()),
+            "achieved_rto_seconds": max(0.0, finished - started),
+            "resources": {
+                "volume": resources.volume,
+                "network": resources.network,
+                "postgres_container": resources.postgres_container,
+                "polaris_container": resources.polaris_container,
+                "preserved": True,
+            },
+            "catalog": catalog,
+            "cutover": "not_performed",
+        }
+    except RecoveryError as exc:
+        primary = RecoveryError(f"timed catalog drill failed during {stage}: {exc}")
+    except Exception as exc:
+        primary = RecoveryError(f"timed catalog drill failed during {stage}")
+        primary.__cause__ = exc
+    finally:
+        cleanup_error = False
+        if marker_created:
+            try:
+                operations.cleanup_marker(resources.marker)
+                operations.archive_cleanup_wal(environ)
+            except Exception:
+                cleanup_error = True
+        if primary is not None:
+            if cleanup_error:
+                raise RecoveryError(
+                    f"{primary}; active marker cleanup also failed; "
+                    "recovery artifacts were preserved"
+                ) from primary
+            raise primary
+        if cleanup_error:
+            raise RecoveryError(
+                "timed catalog drill validation passed but active marker cleanup failed; "
+                "recovery artifacts were preserved"
+            )
+    if result is None:  # Defensive: all non-success paths raise above.
+        raise RecoveryError("timed catalog drill produced no result")
+    return result
 
 
 def drill_result(started: datetime, recovered_to: datetime, finished: datetime) -> dict[str, Any]:
