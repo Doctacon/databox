@@ -1094,6 +1094,18 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
     )
     assert "--publish" not in rendered and " -p " not in f" {rendered} "
     assert rendered.count("pg_walfile_name") == 2
+    pgbackrest_commands = [
+        command for command in commands if "/usr/local/bin/run-pgbackrest" in command
+    ]
+    assert len(pgbackrest_commands) == 4
+    for command in pgbackrest_commands:
+        user_index = command.index("--user")
+        assert command[user_index + 1] == "postgres"
+    assert all(
+        secret not in " ".join(command)
+        for secret in environment.values()
+        for command in pgbackrest_commands
+    )
 
 
 def test_cli_dispatch_and_task_use_existing_recovery_entrypoint() -> None:

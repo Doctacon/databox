@@ -34,6 +34,8 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 - 2026-09-09: The first operator-terminal execution authenticated successfully, then failed closed before mutation because active-port preflight incorrectly rejected Compose's intentional loopback-only Polaris ports. `.10x/evidence/2026-09-09-interactive-drill-active-port-preflight-repair.md` records the scoped repair: exact service-specific active bindings are required, while wildcard, extra, missing, changed, or wrong-network states fail. Sixty-four tests and static/security/Task checks pass; no live rerun occurred.
 - 2026-09-09: The second operator-terminal execution completed AWS login and MFA, then failed closed before mutation because the pgBackRest repository probe ran as container root. `.10x/evidence/2026-09-09-interactive-drill-pgbackrest-user-preflight-repair.md` records the repair to require `docker exec --user postgres` while preserving name-only credential inheritance. No live rerun occurred during repair.
 
+- 2026-09-09: Before another live attempt, a proactive command audit found and repaired the same operating-system-user omission on marker and cleanup WAL `archive-push`; integrated coverage now requires every pgBackRest invocation to select `postgres`. Evidence: `.10x/evidence/2026-09-09-interactive-drill-wal-archive-user-repair.md`. No live operation occurred.
+
 ## Blockers
 
-None. Cleanup remains separately authorized.
+Independent review of the proactive WAL-user repair. Cleanup remains separately authorized.

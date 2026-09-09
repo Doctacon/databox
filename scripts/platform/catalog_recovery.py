@@ -724,7 +724,7 @@ class DockerDrillOperations:
         segment = self._active_sql("SELECT pg_walfile_name(pg_switch_wal() - 1);")
         if not re.fullmatch(r"[0-9A-F]{24}", segment):
             raise RecoveryError("PostgreSQL returned an invalid WAL segment name")
-        command = ["docker", "exec"]
+        command = ["docker", "exec", "--user", "postgres"]
         for name in _BACKUP_ENV:
             command.extend(("--env", name))
         command.extend(
