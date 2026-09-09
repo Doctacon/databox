@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-09
 Updated: 2026-09-09
 Parent: .10x/tickets/2026-09-04-run-timed-catalog-recovery-drill.md
@@ -48,7 +48,16 @@ Record changed files, exact tests/checks, command interface, credential boundary
 - 2026-09-09: Repaired state-machine review findings without widening scope: removed the inconsistent legacy metric helper, armed cleanup before marker insertion, and bounded/redacted all operation errors. Partial-insert and oversized-secret diagnostics are covered; 52 focused tests and all static/security checks pass.
 - 2026-09-09: Added the concrete Docker/PostgreSQL/Polaris/WAL/validator adapter, backward-compatible `drill` dispatch, thin Task target, runbook command, and hermetic command-shape/preflight tests without adding a script or running live effects. Evidence `.10x/evidence/2026-09-09-interactive-drill-concrete-adapter-slice.md` records 74 focused passing tests plus Task dry-run and static/security checks.
 - 2026-09-09: Repaired all four adapter review blockers: shared source-revision preflight before Docker, exact active Compose network/no-port enforcement, exhaustive child-secret value redaction, and an integrated real-adapter/stateful-runner test across every drill stage. The repaired suite passed 80 tests plus all static/security/Task checks. No live operation ran.
+- 2026-09-09: Independent review `.10x/reviews/2026-09-09-interactive-catalog-recovery-drill-command-review.md` passed after all authentication, state-machine, and adapter findings were repaired.
+
+## Closure evidence
+
+The authentication, state-machine, and concrete-adapter evidence records plus final review map every acceptance criterion. `task catalog:recovery-drill` is the sole operator command; no new script or credential file exists. Live execution remains owned by the parent timed-drill ticket.
+
+## Retrospective
+
+Interactive credentials must stay in the process tree that owns the operator TTY. A state machine is only trustworthy when its concrete adapter is exercised as one integrated hermetic path; unit testing either layer alone misses command-order and boundary gaps.
 
 ## Blockers
 
-Independent re-review before live use.
+None.

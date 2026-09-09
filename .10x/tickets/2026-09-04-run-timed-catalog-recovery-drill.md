@@ -2,7 +2,7 @@ Status: blocked
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
-Depends-On: .10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md, .10x/tickets/2026-09-09-add-interactive-catalog-recovery-drill-command.md
+Depends-On: .10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md, .10x/tickets/done/2026-09-09-add-interactive-catalog-recovery-drill-command.md
 
 # Run timed isolated catalog recovery drill
 
@@ -33,4 +33,4 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 
 ## Blockers
 
-Blocked only on `.10x/tickets/2026-09-09-add-interactive-catalog-recovery-drill-command.md`. Existing drill authorization remains valid. Cleanup remains separately authorized.
+Blocked only on `.10x/tickets/done/2026-09-09-add-interactive-catalog-recovery-drill-command.md`. Existing drill authorization remains valid. Cleanup remains separately authorized.
