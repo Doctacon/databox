@@ -1,4 +1,4 @@
-Status: open
+Status: done
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -43,7 +43,16 @@ Create focused evidence and an adversarial review with changed files, exact comm
 - 2026-09-09: Bounded reconciliation `.10x/evidence/2026-09-09-disaster-recovery-automation-reconciliation.md` passed OpenTofu fmt/validate, 58 focused tests, inert Compose rendering, all generated checks, strict docs, full secret scan, Ruff/format, MyPy, and the complete 458-test suite at 85.02% coverage. No live or implementation operation ran. Adversarial mapping found exact unsupported restore-test, snapshot-divergence, and runbook-semantic criteria in the isolated-recovery dependency; final live evidence also awaits independent review. Timed-drill dependency is not cleared.
 - 2026-09-09: User authorized repair of only absent-backup/missing-WAL tests and stale runbook semantics plus closure bookkeeping. Those repairs and final-evidence provenance clarification are recorded in `.10x/evidence/2026-09-09-bounded-recovery-reconciliation-repair.md`. The live rollout ticket closed against existing reviewed evidence. Snapshot divergence was explicitly excluded and remains unsupported.
 - 2026-09-09: Independent review `.10x/reviews/2026-09-09-bounded-recovery-reconciliation-repair-review.md` passed the authorized scope after the absent-backup fixture was corrected to model an empty repository inventory.
+- 2026-09-09: The isolated-recovery dependency closed after reviewed snapshot-divergence implementation and live validation. Final adversarial review `.10x/reviews/2026-09-09-disaster-recovery-automation-final-review.md` passed all technical criteria with no findings.
+
+## Closure evidence
+
+`.10x/evidence/2026-09-09-disaster-recovery-automation-reconciliation.md` records green OpenTofu, Compose, focused and full tests, generated checks, docs, static analysis, and secret scanning. Subsequent evidence and reviews close its three identified gaps: distinct absent-backup/missing-WAL scenarios, current runbook semantics, and REST-to-S3 snapshot comparison exercised live across all 25 canonical tables.
+
+## Retrospective
+
+Aggregate gates should reconcile against cumulative evidence before rerunning work. Scenario names are not evidence unless fixtures model distinct system states, and generated/docs checks do not prove semantic freshness without targeted review.
 
 ## Blockers
 
-`.10x/tickets/done/2026-09-04-build-isolated-catalog-recovery-drill.md` remains open only on REST-response-versus-S3-metadata snapshot-divergence validation. The timed-drill dependency is not cleared.
+None. Timed RPO/RTO remains owned by the authorized timed-drill ticket.

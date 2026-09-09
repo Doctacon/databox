@@ -2,7 +2,7 @@ Status: blocked
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
-Depends-On: .10x/tickets/2026-09-04-verify-disaster-recovery-automation.md
+Depends-On: .10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md
 
 # Run timed isolated catalog recovery drill
 
@@ -26,8 +26,8 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 
 ## Progress and notes
 
-- 2026-09-09: User explicitly authorized the timed drill. Execution remains blocked by `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md`; authorization does not bypass that safety gate.
+- 2026-09-09: User explicitly authorized the timed drill. Execution remains blocked by `.10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md`; authorization does not bypass that safety gate.
 
 ## Blockers
 
-Blocked only on `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md`. Live-drill authorization is recorded.
+Blocked only on `.10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md`. Live-drill authorization is recorded.

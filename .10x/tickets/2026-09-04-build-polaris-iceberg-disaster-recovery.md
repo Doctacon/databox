@@ -17,7 +17,7 @@ Deliver reviewable, tested automation for Polaris catalog PITR while retaining I
 3. `.10x/tickets/2026-09-04-simplify-recovery-infrastructure-to-catalog-only.md` — remove the rejected Iceberg replication plane and generate a fresh catalog-only plan.
 4. `.10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md` — after exact plan approval, provision catalog-only infrastructure and prove the first real backup/WAL round trip.
 5. `.10x/tickets/done/2026-09-04-build-isolated-catalog-recovery-drill.md` — add fail-closed catalog PITR restore and conventional validation using the proven backup interface.
-6. `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md` — adversarially review and verify the complete catalog automation and documentation.
+6. `.10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md` — adversarially review and verify the complete catalog automation and documentation.
 7. `.10x/tickets/2026-09-04-run-timed-catalog-recovery-drill.md` — run the final live isolated restore and record achieved RPO/RTO.
 
 Child 3 supersedes the Iceberg portions of child 1. Live child 4 requires separate exact-plan approval and proves a real backup before restore automation begins. Final verification precedes the separately authorized timed restore drill.
