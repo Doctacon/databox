@@ -80,6 +80,9 @@ tasks:
   catalog:backup-info:
     desc: "Inspect pgBackRest backup and WAL state"
     cmds: ["docker compose --env-file .env -f compose.iceberg.yml exec --user postgres postgres /usr/local/bin/run-pgbackrest --stanza=polaris info"]
+  catalog:recovery-drill:
+    desc: "Run the interactive isolated catalog PITR drill"
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/catalog_recovery.py drill {{.CLI_ARGS}}"]
 
   dagster:dev:
     desc: "Launch the local Dagster UI for Polaris Iceberg pipelines"

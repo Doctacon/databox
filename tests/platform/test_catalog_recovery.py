@@ -557,7 +557,7 @@ class _FakeDrillOperations:
         if self.fail_at == name:
             raise recovery.RecoveryError(f"{name} refused")
 
-    def preflight(self, _environ) -> None:
+    def preflight(self, _resources, _environ) -> None:
         self._call("preflight")
 
     def insert_marker(self, _marker, phase):
@@ -728,6 +728,153 @@ def test_timed_drill_bounds_and_redacts_operation_recovery_error() -> None:
     assert "[truncated]" in message
     assert len(message) <= recovery._DIAGNOSTIC_LIMIT + 100
     assert operations.calls[-2:] == ["cleanup", "archive_cleanup"]
+
+
+def _drill_environment():
+    return {
+        **_BACKUP_ENV,
+        "DATABOX_POLARIS_POSTGRES_PASSWORD": "database-password",  # secret-scan: allow
+        "DATABOX_POLARIS_CLIENT_ID": "client-id",
+        "DATABOX_POLARIS_CLIENT_SECRET": "client-secret",  # secret-scan: allow
+        "DATABOX_AWS_ACCESS_KEY_ID": "warehouse-access",  # secret-scan: allow
+        "DATABOX_AWS_SECRET_ACCESS_KEY": "warehouse-secret",  # secret-scan: allow
+        "DATABOX_AWS_REGION": "us-west-1",
+    }
+
+
+def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names() -> None:
+    calls = []
+    active_mounts = [{"Name": "databox_polaris_postgres", "Destination": recovery._DATA_PATH}]
+
+    def runner(command, **kwargs):
+        command = tuple(command)
+        calls.append((command, kwargs))
+        if command[:2] == ("docker", "inspect"):
+            image = (
+                recovery._IMAGE if command[-1].endswith("postgres-1") else recovery._POLARIS_IMAGE
+            )
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=json.dumps(
+                    {
+                        "running": True,
+                        "health": "healthy",
+                        "image": image,
+                        "ports": {},
+                        "mounts": active_mounts if image == recovery._IMAGE else [],
+                    }
+                ),
+                stderr="",
+            )
+        if command[:3] in {
+            ("docker", "container", "inspect"),
+            ("docker", "network", "inspect"),
+            ("docker", "volume", "inspect"),
+        }:
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="not found")
+        if command[:2] == ("docker", "exec"):
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout='[{"name":"polaris","status":{"code":0},"backup":[{"label":"full"}]}]',
+                stderr="",
+            )
+        raise AssertionError(command)
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    resources = recovery._drill_resources("abcdef1234567890")
+    operations.preflight(resources, _drill_environment())
+
+    rendered = json.dumps([command for command, _kwargs in calls])
+    assert ".Mounts" in rendered
+    assert resources.volume in rendered
+    assert all(secret not in rendered for secret in _drill_environment().values())
+    info_call = next(call for call, _ in calls if call[:2] == ("docker", "exec"))
+    assert all(name in info_call for name in recovery._BACKUP_ENV)
+
+
+def test_concrete_recovery_containers_are_labeled_unexposed_and_never_mount_active() -> None:
+    calls = []
+
+    def runner(command, **kwargs):
+        command = tuple(command)
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0, stdout="container-id", stderr="")
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+        sleeper=lambda _seconds: None,
+    )
+    operations.start_postgres(
+        container="recovery-postgres", network="recovery-network", volume="recovery-volume"
+    )
+    operations.start_polaris(container="recovery-polaris", network="recovery-network")
+
+    run_calls = [call for call, _ in calls if call[:2] == ("docker", "run")]
+    assert len(run_calls) == 2
+    rendered = " ".join(part for call in run_calls for part in call)
+    assert "--publish" not in rendered and " -p " not in f" {rendered} "
+    assert "--restart no" in rendered
+    assert f"type=volume,src=recovery-volume,dst={recovery._DATA_PATH}" in rendered
+    assert recovery._ACTIVE_VOLUME not in rendered
+    assert f"{recovery._RECOVERY_VALIDATION_LABEL}=postgres" in rendered
+    assert f"{recovery._RECOVERY_VALIDATION_LABEL}=polaris" in rendered
+    assert "bootstrap" not in rendered
+    assert all(secret not in rendered for secret in _drill_environment().values())
+
+
+def test_marker_identifier_and_phase_are_rejected_before_sql() -> None:
+    runner = Mock(side_effect=AssertionError("unsafe SQL reached Docker"))
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    with pytest.raises(recovery.RecoveryError, match="marker identifier"):
+        operations.insert_marker('bad";drop table x', "before")
+    with pytest.raises(recovery.RecoveryError, match="marker phase"):
+        operations.insert_marker("safe_marker", "bad'phase")
+    runner.assert_not_called()
+
+
+def test_catalog_adapter_requires_exact_canonical_success() -> None:
+    def runner(command, **_kwargs):
+        report = {
+            "status": "pass",
+            "counts": {"expectedTables": 25, "validatedTables": 25, "failedTables": 0},
+        }
+        return subprocess.CompletedProcess(command, 0, stdout=json.dumps(report), stderr="")
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    result = operations.validate_catalog(
+        container="recovery-polaris", recover_to=datetime(2026, 9, 9, tzinfo=UTC)
+    )
+    assert result["status"] == "pass"
+
+
+def test_cli_dispatch_and_task_use_existing_recovery_entrypoint() -> None:
+    with patch.object(recovery, "_drill_main", return_value=0) as drill:
+        assert recovery.main(["drill", "--catalog", "databox_lake"]) == 0
+    drill.assert_called_once_with(["--catalog", "databox_lake"])
+    taskfile = (ROOT / "Taskfile.yaml").read_text()
+    assert "catalog:recovery-drill:" in taskfile
+    assert "scripts/platform/catalog_recovery.py drill {{.CLI_ARGS}}" in taskfile
+    assert "run_timed_catalog_drill.py" not in taskfile
 
 
 @pytest.mark.parametrize(

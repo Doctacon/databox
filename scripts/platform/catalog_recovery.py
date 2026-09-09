@@ -10,9 +10,13 @@ import re
 import secrets
 import subprocess
 import sys
+import time
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, NamedTuple, Protocol
+
+from dotenv import dotenv_values
 
 _IMAGE = "databox-polaris-postgres:17.6-pgbackrest-2.59.1"
 _ACTIVE_VOLUME = "databox_polaris_postgres"
@@ -43,6 +47,12 @@ MonotonicClock = Callable[[], float]
 
 _OPERATOR_PROFILE = "databox-recovery-operator"
 _BACKUP_ROLE_PROFILE = "databox-polaris-catalog-backup"
+_ACTIVE_POSTGRES = "databox-iceberg-postgres-1"
+_ACTIVE_POLARIS = "databox-iceberg-polaris-1"
+_POLARIS_IMAGE = "apache/polaris:1.7.0"
+_RECOVERY_VALIDATION_LABEL = "com.databox.catalog-recovery.validation"
+_ROOT = Path(__file__).resolve().parents[2]
+_VALIDATOR = _ROOT / "scripts/platform/catalog_recovery_validate.py"
 
 
 class RecoveryError(RuntimeError):
@@ -52,7 +62,7 @@ class RecoveryError(RuntimeError):
 class DrillOperations(Protocol):
     """Security-bounded effects required by the timed drill state machine."""
 
-    def preflight(self, environ: Mapping[str, str]) -> None: ...
+    def preflight(self, resources: DrillResources, environ: Mapping[str, str]) -> None: ...
 
     def insert_marker(self, marker: str, phase: str) -> datetime: ...
 
@@ -379,7 +389,7 @@ def orchestrate_timed_drill(
     result: dict[str, Any] | None = None
     started = 0.0
     try:
-        operations.preflight(environ)
+        operations.preflight(resources, environ)
         stage = "before marker"
         marker_cleanup_required = True
         before_at = operations.insert_marker(resources.marker, "before")
@@ -467,7 +477,448 @@ def orchestrate_timed_drill(
     return result
 
 
-def main() -> int:
+class DockerDrillOperations:
+    """Concrete, no-port drill effects composed from existing recovery tools."""
+
+    def __init__(
+        self,
+        *,
+        catalog: str,
+        source_revision: str,
+        environ: Mapping[str, str],
+        runner: InteractiveRunner = subprocess.run,
+        sleeper: Callable[[float], None] = time.sleep,
+    ) -> None:
+        if not _VOLUME_NAME.fullmatch(catalog):
+            raise RecoveryError("invalid Polaris catalog name")
+        self.catalog = catalog
+        self.source_revision = source_revision
+        self.environ = dict(environ)
+        self.runner = runner
+        self.sleeper = sleeper
+        self._postgres_container: str | None = None
+
+    def _run(
+        self,
+        command: Sequence[str],
+        *,
+        environ: Mapping[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        try:
+            completed = self.runner(
+                list(command),
+                check=False,
+                capture_output=True,
+                text=True,
+                env=dict(environ) if environ is not None else None,
+            )
+        except OSError as exc:
+            raise RecoveryError("unable to invoke drill child process") from exc
+        if completed.returncode != 0:
+            raise RecoveryError(
+                "drill child process failed: "
+                + _redacted_diagnostic(
+                    subprocess.CalledProcessError(
+                        completed.returncode,
+                        command,
+                        output=completed.stdout,
+                        stderr=completed.stderr,
+                    ),
+                    environ or self.environ,
+                )
+            )
+        return completed
+
+    def _docker_json(self, container: str) -> Mapping[str, Any]:
+        output = self._run(
+            (
+                "docker",
+                "inspect",
+                "--format",
+                '{"running":{{json .State.Running}},"health":{{json .State.Health.Status}},'
+                '"image":{{json .Config.Image}},"ports":{{json .HostConfig.PortBindings}},'
+                '"mounts":{{json .Mounts}}}',
+                container,
+            )
+        ).stdout
+        try:
+            value = json.loads(output)
+        except json.JSONDecodeError as exc:
+            raise RecoveryError("Docker returned invalid active-service state") from exc
+        if not isinstance(value, dict):
+            raise RecoveryError("Docker returned invalid active-service state")
+        return value
+
+    def _assert_absent(self, kind: str, name: str) -> None:
+        command = (
+            ("docker", kind, "inspect", name)
+            if kind != "container"
+            else (
+                "docker",
+                "container",
+                "inspect",
+                name,
+            )
+        )
+        completed = self.runner(
+            list(command), check=False, capture_output=True, text=True, env=None
+        )
+        if completed.returncode == 0:
+            raise RecoveryError(f"drill {kind} name already exists: {name}")
+
+    def preflight(self, resources: DrillResources, environ: Mapping[str, str]) -> None:
+        _require_backup_environment(environ)
+        postgres = self._docker_json(_ACTIVE_POSTGRES)
+        polaris = self._docker_json(_ACTIVE_POLARIS)
+        if (
+            postgres.get("running") is not True
+            or postgres.get("health") != "healthy"
+            or postgres.get("image") != _IMAGE
+            or polaris.get("running") is not True
+            or polaris.get("health") != "healthy"
+            or polaris.get("image") != _POLARIS_IMAGE
+        ):
+            raise RecoveryError("active PostgreSQL and Polaris must be healthy and pinned")
+        mounts = postgres.get("mounts")
+        if not isinstance(mounts, list) or not any(
+            isinstance(item, dict)
+            and item.get("Name") == _ACTIVE_VOLUME
+            and item.get("Destination") == _DATA_PATH
+            for item in mounts
+        ):
+            raise RecoveryError("active PostgreSQL volume identity is invalid")
+        for name in (resources.postgres_container, resources.polaris_container):
+            self._assert_absent("container", name)
+        self._assert_absent("network", resources.network)
+        self._assert_absent("volume", resources.volume)
+        info = (
+            "docker",
+            "exec",
+            *sum((("--env", name) for name in _BACKUP_ENV), ()),
+            _ACTIVE_POSTGRES,
+            "/usr/local/bin/run-pgbackrest",
+            "--stanza=polaris",
+            "--output=json",
+            "info",
+        )
+        response = self._run(info, environ=environ)
+        try:
+            repository = json.loads(response.stdout)
+        except json.JSONDecodeError as exc:
+            raise RecoveryError("pgBackRest repository info is invalid") from exc
+        if not isinstance(repository, list) or not repository:
+            raise RecoveryError("pgBackRest repository has no stanza metadata")
+        stanza = repository[0]
+        if (
+            not isinstance(stanza, dict)
+            or stanza.get("name") != "polaris"
+            or not isinstance(stanza.get("backup"), list)
+            or not stanza["backup"]
+            or not isinstance(stanza.get("status"), dict)
+            or stanza["status"].get("code") != 0
+        ):
+            raise RecoveryError("pgBackRest repository has no successful Polaris backup")
+
+    @staticmethod
+    def _quoted_marker(marker: str) -> str:
+        if not re.fullmatch(r"[a-z0-9_]+", marker):
+            raise RecoveryError("invalid generated marker identifier")
+        return f'public."{marker}"'
+
+    def _active_sql(self, sql: str) -> str:
+        return self._run(
+            (
+                "docker",
+                "exec",
+                _ACTIVE_POSTGRES,
+                "psql",
+                "-U",
+                "polaris",
+                "-d",
+                "polaris",
+                "-AtX",
+                "-c",
+                sql,
+            )
+        ).stdout.strip()
+
+    def insert_marker(self, marker: str, phase: str) -> datetime:
+        table = self._quoted_marker(marker)
+        if phase not in {"before", "after"}:
+            raise RecoveryError("invalid marker phase")
+        prefix = (
+            f"CREATE TABLE {table} (phase text PRIMARY KEY, committed_at timestamptz NOT NULL);"
+            if phase == "before"
+            else ""
+        )
+        value = self._active_sql(
+            prefix
+            + f"INSERT INTO {table}(phase, committed_at) VALUES ('{phase}', clock_timestamp()) "
+            "RETURNING committed_at;"
+        ).splitlines()[-1]
+        return recovery_target(value)
+
+    def database_now(self) -> datetime:
+        return recovery_target(self._active_sql("SELECT clock_timestamp();"))
+
+    def _archive_wal(self, environ: Mapping[str, str]) -> None:
+        segment = self._active_sql("SELECT pg_walfile_name(pg_switch_wal() - 1);")
+        if not re.fullmatch(r"[0-9A-F]{24}", segment):
+            raise RecoveryError("PostgreSQL returned an invalid WAL segment name")
+        command = ["docker", "exec"]
+        for name in _BACKUP_ENV:
+            command.extend(("--env", name))
+        command.extend(
+            (
+                _ACTIVE_POSTGRES,
+                "/usr/local/bin/run-pgbackrest",
+                "--stanza=polaris",
+                "archive-push",
+                f"{_DATA_PATH}/pg_wal/{segment}",
+            )
+        )
+        self._run(command, environ=environ)
+
+    def archive_marker_wal(self, environ: Mapping[str, str]) -> None:
+        self._archive_wal(environ)
+
+    def restore(self, *, volume: str, recover_to: datetime, environ: Mapping[str, str]) -> None:
+        def runner(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+            return self._run(command, environ=environ)
+
+        prepare_or_execute_restore(
+            target_volume=volume,
+            active_volume=_ACTIVE_VOLUME,
+            recover_to=recover_to,
+            execute=True,
+            environ=environ,
+            runner=runner,
+        )
+
+    def _wait_exec(self, container: str, command: Sequence[str], description: str) -> None:
+        for _ in range(60):
+            completed = self.runner(
+                ["docker", "exec", container, *command],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=None,
+            )
+            if completed.returncode == 0:
+                return
+            self.sleeper(1)
+        raise RecoveryError(f"{description} did not become ready")
+
+    def start_postgres(self, *, container: str, network: str, volume: str) -> None:
+        self._run(
+            (
+                "docker",
+                "network",
+                "create",
+                "--label",
+                f"{_RECOVERY_VALIDATION_LABEL}=network",
+                network,
+            )
+        )
+        command = [
+            "docker",
+            "run",
+            "--detach",
+            "--name",
+            container,
+            "--label",
+            f"{_RECOVERY_VALIDATION_LABEL}=postgres",
+            "--network",
+            network,
+            "--user",
+            "postgres",
+            "--restart",
+            "no",
+        ]
+        for name in _BACKUP_ENV:
+            command.extend(("--env", name))
+        command.extend(
+            (
+                "--mount",
+                f"type=volume,src={volume},dst={_DATA_PATH}",
+                _IMAGE,
+                "postgres",
+                "-c",
+                "archive_mode=off",
+                "-c",
+                "listen_addresses=*",
+            )
+        )
+        self._run(command, environ=self.environ)
+        self._postgres_container = container
+        self._wait_exec(
+            container,
+            ("pg_isready", "-U", "polaris", "-d", "polaris"),
+            "isolated PostgreSQL",
+        )
+
+    def validate_postgres(self, *, container: str, marker: str) -> None:
+        table = self._quoted_marker(marker)
+        sql = (
+            "SELECT pg_is_in_recovery(), current_setting('archive_mode'),"
+            "count(*) FILTER (WHERE phase='before'),"
+            "count(*) FILTER (WHERE phase='after'),"
+            f"count(*) FROM {table};"
+        )
+        command = (
+            "docker",
+            "exec",
+            container,
+            "psql",
+            "-U",
+            "polaris",
+            "-d",
+            "polaris",
+            "-AtX",
+            "-F",
+            "|",
+            "-c",
+            sql,
+        )
+        for _ in range(120):
+            completed = self.runner(
+                list(command), check=False, capture_output=True, text=True, env=None
+            )
+            if completed.returncode == 0 and completed.stdout.strip() == "f|off|1|0|1":
+                return
+            self.sleeper(1)
+        raise RecoveryError("isolated PostgreSQL marker boundary is invalid")
+
+    def start_polaris(self, *, container: str, network: str) -> None:
+        if self._postgres_container is None:
+            raise RecoveryError("isolated PostgreSQL was not started")
+        required = (
+            "DATABOX_POLARIS_POSTGRES_PASSWORD",
+            "DATABOX_POLARIS_CLIENT_ID",
+            "DATABOX_POLARIS_CLIENT_SECRET",
+            "DATABOX_AWS_ACCESS_KEY_ID",
+            "DATABOX_AWS_SECRET_ACCESS_KEY",
+            "DATABOX_AWS_REGION",
+        )
+        missing = [name for name in required if not self.environ.get(name)]
+        if missing:
+            raise RecoveryError("missing Polaris drill settings: " + ", ".join(missing))
+        polaris_env = dict(self.environ)
+        polaris_env.update(
+            {
+                "POLARIS_PERSISTENCE_TYPE": "relational-jdbc",
+                "QUARKUS_DATASOURCE_USERNAME": "polaris",
+                "QUARKUS_DATASOURCE_PASSWORD": self.environ["DATABOX_POLARIS_POSTGRES_PASSWORD"],
+                "QUARKUS_DATASOURCE_JDBC_URL": f"jdbc:postgresql://{self._postgres_container}:5432/polaris",
+                "POLARIS_REALM_CONTEXT_REALMS": "POLARIS",
+                "POLARIS_REALM_CONTEXT_REQUIRE_HEADER": "false",
+                "AWS_ACCESS_KEY_ID": self.environ["DATABOX_AWS_ACCESS_KEY_ID"],
+                "AWS_SECRET_ACCESS_KEY": self.environ["DATABOX_AWS_SECRET_ACCESS_KEY"],
+                "AWS_SESSION_TOKEN": self.environ.get("DATABOX_AWS_SESSION_TOKEN", ""),
+                "AWS_REGION": self.environ["DATABOX_AWS_REGION"],
+            }
+        )
+        names = (
+            "POLARIS_PERSISTENCE_TYPE",
+            "POLARIS_REALM_CONTEXT_REALMS",
+            "POLARIS_REALM_CONTEXT_REQUIRE_HEADER",
+            "QUARKUS_DATASOURCE_USERNAME",
+            "QUARKUS_DATASOURCE_PASSWORD",
+            "QUARKUS_DATASOURCE_JDBC_URL",
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "AWS_REGION",
+            "DATABOX_POLARIS_CLIENT_ID",
+            "DATABOX_POLARIS_CLIENT_SECRET",
+        )
+        command = [
+            "docker",
+            "run",
+            "--detach",
+            "--name",
+            container,
+            "--label",
+            f"{_RECOVERY_VALIDATION_LABEL}=polaris",
+            "--network",
+            network,
+            "--restart",
+            "no",
+        ]
+        for name in names:
+            command.extend(("--env", name))
+        command.append(_POLARIS_IMAGE)
+        self._run(command, environ=polaris_env)
+        self._wait_exec(
+            container,
+            ("curl", "--fail", "--silent", "http://localhost:8182/q/health/ready"),
+            "isolated Polaris",
+        )
+
+    def validate_polaris(self, *, container: str) -> None:
+        self._wait_exec(
+            container,
+            ("curl", "--fail", "--silent", "http://localhost:8182/q/health/ready"),
+            "isolated Polaris",
+        )
+
+    def validate_catalog(self, *, container: str, recover_to: datetime) -> Mapping[str, Any]:
+        validator_environment = {
+            key: value for key, value in self.environ.items() if key not in _BACKUP_ENV
+        }
+        completed = self._run(
+            (
+                sys.executable,
+                str(_VALIDATOR),
+                "--polaris-container",
+                container,
+                "--catalog",
+                self.catalog,
+                "--recovery-target",
+                recover_to.isoformat(),
+                "--source-revision",
+                self.source_revision,
+            ),
+            environ=validator_environment,
+        )
+        try:
+            report = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            raise RecoveryError("catalog validator returned invalid JSON") from exc
+        counts = report.get("counts") if isinstance(report, dict) else None
+        if (
+            not isinstance(report, dict)
+            or report.get("status") != "pass"
+            or not isinstance(counts, dict)
+            or counts.get("expectedTables") != 25
+            or counts.get("validatedTables") != 25
+            or counts.get("failedTables") != 0
+        ):
+            raise RecoveryError("catalog validator did not validate all 25 canonical tables")
+        return report
+
+    def cleanup_marker(self, marker: str) -> None:
+        self._active_sql(f"DROP TABLE IF EXISTS {self._quoted_marker(marker)};")
+
+    def archive_cleanup_wal(self, environ: Mapping[str, str]) -> None:
+        self._archive_wal(environ)
+
+
+def _environment_from_dotenv() -> dict[str, str]:
+    values = {key: value for key, value in dotenv_values(_ROOT / ".env").items() if value}
+    values.update(os.environ)
+    region = values.get("DATABOX_AWS_REGION", "")
+    values.update(
+        {
+            "PGBACKREST_REPO1_S3_BUCKET": values.get("DATABOX_CATALOG_BACKUP_BUCKET", ""),
+            "PGBACKREST_REPO1_S3_REGION": region,
+            "PGBACKREST_REPO1_S3_ENDPOINT": f"s3.{region}.amazonaws.com" if region else "",
+        }
+    )
+    return values
+
+
+def _restore_main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target-volume", required=True)
     parser.add_argument("--active-volume", default=_ACTIVE_VOLUME)
@@ -475,7 +926,7 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--prepare-only", action="store_true")
     mode.add_argument("--execute", action="store_true")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         result = prepare_or_execute_restore(
             target_volume=args.target_volume,
@@ -488,6 +939,44 @@ def main() -> int:
         return 1
     print(json.dumps(result, sort_keys=True))
     return 0
+
+
+def _drill_main(argv: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(description="Run the interactive timed catalog drill")
+    parser.add_argument("--catalog", required=True)
+    parser.add_argument("--source-revision", required=True)
+    parser.add_argument("--operator-profile", default=_OPERATOR_PROFILE)
+    parser.add_argument("--backup-role-profile", default=_BACKUP_ROLE_PROFILE)
+    args = parser.parse_args(argv)
+    base = _environment_from_dotenv()
+    try:
+        environment = acquire_backup_role_environment(
+            environ=base,
+            operator_profile=args.operator_profile,
+            backup_role_profile=args.backup_role_profile,
+        )
+        operations = DockerDrillOperations(
+            catalog=args.catalog,
+            source_revision=args.source_revision,
+            environ=environment,
+        )
+        result = orchestrate_timed_drill(
+            operations=operations,
+            environ=environment,
+            monotonic=time.monotonic,
+        )
+    except (RecoveryError, ValueError) as exc:
+        print(f"catalog recovery refused: {_redacted_diagnostic(exc, base)}", file=sys.stderr)
+        return 1
+    print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments and arguments[0] == "drill":
+        return _drill_main(arguments[1:])
+    return _restore_main(arguments)
 
 
 if __name__ == "__main__":

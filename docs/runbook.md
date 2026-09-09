@@ -147,6 +147,24 @@ by environment-variable name. It mounts no active volume or socket, opens no
 port, never removes the target on failure, and stops before PostgreSQL or Polaris
 startup, validation, or cutover.
 
+For a separately authorized complete timed drill, run the existing recovery
+entrypoint from an interactive operator terminal:
+
+```bash
+task catalog:recovery-drill -- \
+  --catalog databox_lake \
+  --source-revision 17c45b0
+```
+
+The command performs AWS remote login and MFA-protected role export on the
+operator TTY, keeps the resulting temporary credentials in process memory, and
+never writes them to `.env` or a handoff file. It creates a marker-bracketed
+database-clock target, pushes the marker and cleanup WAL with the fresh session,
+restores into uniquely named ownership-labeled resources, starts unexposed
+archive-disabled PostgreSQL and no-bootstrap Polaris, invokes the registry-derived
+validator, and reports RPO/RTO. It never restarts the active stack, cuts over, or
+deletes recovery resources. Any failure preserves isolated artifacts for review.
+
 After separately authorized restored PostgreSQL and Polaris startup, validate
 only the explicitly named no-port recovery container:
 
