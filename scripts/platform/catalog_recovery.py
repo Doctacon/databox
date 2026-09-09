@@ -651,6 +651,8 @@ class DockerDrillOperations:
         info = (
             "docker",
             "exec",
+            "--user",
+            "postgres",
             *sum((("--env", name) for name in _BACKUP_ENV), ()),
             _ACTIVE_POSTGRES,
             "/usr/local/bin/run-pgbackrest",

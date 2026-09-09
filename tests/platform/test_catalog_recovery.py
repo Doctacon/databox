@@ -811,7 +811,8 @@ def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names()
     assert resources.volume in rendered
     assert all(secret not in rendered for secret in _drill_environment().values())
     info_call = next(call for call, _ in calls if call[:2] == ("docker", "exec"))
-    assert all(name in info_call for name in recovery._BACKUP_ENV)
+    assert info_call[:4] == ("docker", "exec", "--user", "postgres")
+    assert all(name in info_call[4:] for name in recovery._BACKUP_ENV)
 
 
 @pytest.mark.parametrize(
