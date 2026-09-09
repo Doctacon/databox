@@ -50,6 +50,8 @@ Databox MUST NOT maintain a separate pre-disaster catalog inventory. A completed
 - enumerate restored catalogs, namespaces, and tables through the canonical Polaris/Iceberg interface;
 - derive expected registry-owned tables from the Databox source registry at the Git revision corresponding to the selected recovery point, without a second hardcoded list;
 - load every restored registered table through the Iceberg catalog;
+- derive canonical namespaces from the same source registry; explicitly report every namespace and table outside that set as noncanonical warnings without treating their presence alone as recovery failure;
+- fail on undeclared tables inside canonical namespaces, and on missing, malformed, or unreadable canonical state;
 - when the primary warehouse remains available, verify each current metadata object and snapshot is readable from S3;
 - when the primary warehouse is lost, report catalog-only validation limits and route reconstruction through the existing source-refresh path rather than claiming object recovery;
 - run representative read-only queries when warehouse objects remain available; and
@@ -91,7 +93,7 @@ Given a retained base backup and complete WAL sequence, when an operator selects
 
 ### Verification
 
-Given a completed isolated restore and the Databox code revision corresponding to its recovery point, when the primary warehouse remains available and the recovery validator runs, then it authenticates to Polaris, derives expected registry-owned tables from that revision, enumerates and loads restored tables through the Iceberg catalog, verifies metadata/snapshot readability and representative queries, and reports missing, unexpected, unreadable, or divergent state before any cutover. Complete primary-warehouse loss is rebuilt from sources and is outside the 60-minute catalog-recovery objective.
+Given a completed isolated restore and the Databox code revision corresponding to its recovery point, when the primary warehouse remains available and the recovery validator runs, then it authenticates to Polaris, derives expected registry-owned tables and canonical namespaces from that revision, enumerates and loads restored tables through the Iceberg catalog, verifies metadata/snapshot readability and representative queries, fails on missing, malformed, unreadable, or undeclared-in-canonical-namespace state, and prominently reports outside-registry namespaces and tables as noncanonical warnings. Warning state alone does not fail recovery and is never silently ignored, treated as canonical, or automatically deleted. Complete primary-warehouse loss is rebuilt from sources and is outside the 60-minute catalog-recovery objective.
 
 ### Timed drill
 
