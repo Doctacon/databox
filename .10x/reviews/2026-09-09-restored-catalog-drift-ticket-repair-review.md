@@ -1,7 +1,7 @@
 Status: recorded
 Created: 2026-09-09
 Updated: 2026-09-09
-Target: .10x/tickets/2026-09-09-reconcile-restored-catalog-registry-drift.md
+Target: .10x/tickets/done/2026-09-09-reconcile-restored-catalog-registry-drift.md
 Verdict: pass
 
 # Restored catalog drift-ticket repair review

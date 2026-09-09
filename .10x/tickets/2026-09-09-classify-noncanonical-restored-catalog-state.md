@@ -19,7 +19,7 @@ Define whether tables in namespaces outside the seven canonical registry sources
 
 ## Progress and notes
 
-- 2026-09-09: Split from `.10x/tickets/2026-09-09-reconcile-restored-catalog-registry-drift.md` when the user authorized only the three eBird generated child-table declarations.
+- 2026-09-09: Split from `.10x/tickets/done/2026-09-09-reconcile-restored-catalog-registry-drift.md` when the user authorized only the three eBird generated child-table declarations.
 
 ## Blockers
 
