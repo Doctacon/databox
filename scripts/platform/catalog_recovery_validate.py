@@ -445,7 +445,7 @@ def validate_catalog(
     }
 
 
-def _source_revision(requested: str) -> str:
+def resolve_source_revision(requested: str) -> str:
     resolved = subprocess.run(
         ["git", "rev-parse", "--verify", f"{requested}^{{commit}}"],
         text=True,
@@ -494,7 +494,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     started = time.monotonic()
     source_revision = None
     try:
-        source_revision = _source_revision(args.source_revision)
+        source_revision = resolve_source_revision(args.source_revision)
         transport = DockerExecTransport(
             container=args.polaris_container,
             catalog=args.catalog,

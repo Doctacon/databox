@@ -763,6 +763,13 @@ def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names()
                         "image": image,
                         "ports": {},
                         "mounts": active_mounts if image == recovery._IMAGE else [],
+                        "labels": {
+                            "com.docker.compose.project": "databox-iceberg",
+                            "com.docker.compose.service": (
+                                "postgres" if image == recovery._IMAGE else "polaris"
+                            ),
+                        },
+                        "networks": {"databox-iceberg_default": {}},
                     }
                 ),
                 stderr="",
@@ -789,7 +796,9 @@ def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names()
         runner=runner,
     )
     resources = recovery._drill_resources("abcdef1234567890")
-    operations.preflight(resources, _drill_environment())
+    with patch.object(recovery, "_resolve_source_revision", return_value="a" * 40) as resolve:
+        operations.preflight(resources, _drill_environment())
+    resolve.assert_called_once_with("abc123")
 
     rendered = json.dumps([command for command, _kwargs in calls])
     assert ".Mounts" in rendered
@@ -797,6 +806,93 @@ def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names()
     assert all(secret not in rendered for secret in _drill_environment().values())
     info_call = next(call for call, _ in calls if call[:2] == ("docker", "exec"))
     assert all(name in info_call for name in recovery._BACKUP_ENV)
+
+
+@pytest.mark.parametrize(
+    ("service", "ports", "networks"),
+    [
+        ("postgres", {"5432/tcp": [{"HostPort": "5432"}]}, {"databox-iceberg_default": {}}),
+        ("polaris", {}, {}),
+        ("postgres", {}, {"unexpected": {}}),
+    ],
+)
+def test_concrete_preflight_rejects_ports_and_network_drift(service, ports, networks) -> None:
+    runner = Mock()
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="bad-revision",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    resources = recovery._drill_resources("abcdef1234567890")
+
+    def docker_state(container):
+        current = "postgres" if container.endswith("postgres-1") else "polaris"
+        return {
+            "running": True,
+            "health": "healthy",
+            "image": recovery._IMAGE if current == "postgres" else recovery._POLARIS_IMAGE,
+            "ports": ports if current == service else {},
+            "mounts": (
+                [{"Name": recovery._ACTIVE_VOLUME, "Destination": recovery._DATA_PATH}]
+                if current == "postgres"
+                else []
+            ),
+            "labels": {
+                "com.docker.compose.project": "databox-iceberg",
+                "com.docker.compose.service": current,
+            },
+            "networks": networks if current == service else {"databox-iceberg_default": {}},
+        }
+
+    def fake(command, **_kwargs):
+        return subprocess.CompletedProcess(
+            command, 0, stdout=json.dumps(docker_state(command[-1])), stderr=""
+        )
+
+    runner.side_effect = fake
+    with (
+        patch.object(recovery, "_resolve_source_revision", return_value="a" * 40),
+        pytest.raises(recovery.RecoveryError, match="unexposed.*Compose network"),
+    ):
+        operations.preflight(resources, _drill_environment())
+
+
+def test_concrete_preflight_rejects_source_revision_before_docker() -> None:
+    runner = Mock(side_effect=AssertionError("Docker reached before revision validation"))
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="drifted",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    with (
+        patch.object(
+            recovery,
+            "_resolve_source_revision",
+            side_effect=recovery.RecoveryError(
+                "source revision failed canonical registry validation"
+            ),
+        ),
+        pytest.raises(recovery.RecoveryError, match="source revision"),
+    ):
+        operations.preflight(recovery._drill_resources("abcdef1234567890"), _drill_environment())
+    runner.assert_not_called()
+
+
+def test_all_child_secret_values_are_redacted_before_bounding() -> None:
+    environment = _drill_environment()
+    environment["DATABOX_AWS_SESSION_TOKEN"] = "warehouse-session-token"  # secret-scan: allow
+    environment["QUARKUS_DATASOURCE_PASSWORD"] = environment["DATABOX_POLARIS_POSTGRES_PASSWORD"]
+    environment["AWS_SECRET_ACCESS_KEY"] = environment["DATABOX_AWS_SECRET_ACCESS_KEY"]
+    diagnostic = " ".join(environment.get(name, "") for name in recovery._SECRET_ENV)
+    rendered = recovery._redacted_diagnostic(RuntimeError(diagnostic + "x" * 3000), environment)
+    assert all(
+        not value or value not in rendered
+        for name in recovery._SECRET_ENV
+        if (value := environment.get(name, ""))
+    )
+    assert "[truncated]" in rendered
 
 
 def test_concrete_recovery_containers_are_labeled_unexposed_and_never_mount_active() -> None:
@@ -865,6 +961,113 @@ def test_catalog_adapter_requires_exact_canonical_success() -> None:
         container="recovery-polaris", recover_to=datetime(2026, 9, 9, tzinfo=UTC)
     )
     assert result["status"] == "pass"
+
+
+def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts() -> None:
+    calls = []
+    ownership = ""
+    wal = iter(("000000010000000000000021", "000000010000000000000022"))
+
+    def runner(command, **kwargs):
+        nonlocal ownership
+        command = tuple(command)
+        calls.append((command, kwargs))
+        if command[:2] == ("docker", "inspect"):
+            current = "postgres" if command[-1].endswith("postgres-1") else "polaris"
+            state = {
+                "running": True,
+                "health": "healthy",
+                "image": recovery._IMAGE if current == "postgres" else recovery._POLARIS_IMAGE,
+                "ports": {},
+                "mounts": (
+                    [{"Name": recovery._ACTIVE_VOLUME, "Destination": recovery._DATA_PATH}]
+                    if current == "postgres"
+                    else []
+                ),
+                "labels": {
+                    "com.docker.compose.project": "databox-iceberg",
+                    "com.docker.compose.service": current,
+                },
+                "networks": {"databox-iceberg_default": {}},
+            }
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(state), stderr="")
+        if command[:3] in {
+            ("docker", "container", "inspect"),
+            ("docker", "network", "inspect"),
+        } or command[:3] == ("docker", "volume", "ls"):
+            return subprocess.CompletedProcess(
+                command, 1 if "inspect" in command else 0, stdout="", stderr=""
+            )
+        if command[:3] == ("docker", "volume", "create"):
+            ownership = next(
+                part.split("=", 1)[1]
+                for part in command
+                if part.startswith(recovery._OWNERSHIP_LABEL)
+            )
+            return subprocess.CompletedProcess(command, 0, stdout=command[-1], stderr="")
+        if command[:3] == ("docker", "volume", "inspect"):
+            return subprocess.CompletedProcess(
+                command,
+                0 if ownership else 1,
+                stdout=ownership + "\n" if ownership else "",
+                stderr="",
+            )
+        if command[:2] == ("docker", "network") or command[:2] == ("docker", "run"):
+            return subprocess.CompletedProcess(command, 0, stdout="created", stderr="")
+        if command[:2] == ("docker", "exec"):
+            joined = " ".join(command)
+            if "--output=json info" in joined:
+                output = '[{"name":"polaris","status":{"code":0},"backup":[{}]}]'
+            elif "RETURNING committed_at" in joined:
+                output = (
+                    "2026-09-09 12:00:00+00" if "'before'" in joined else "2026-09-09 12:00:02+00"
+                )
+            elif "SELECT clock_timestamp" in joined:
+                output = "2026-09-09 12:00:01+00"
+            elif "pg_walfile_name" in joined:
+                output = next(wal)
+            elif "count(*) FILTER" in joined:
+                output = "f|off|1|0|1"
+            else:
+                output = ""
+            return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
+        if command[0] == os.fspath(recovery.sys.executable):
+            report = {
+                "status": "pass",
+                "counts": {"expectedTables": 25, "validatedTables": 25, "failedTables": 0},
+            }
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(report), stderr="")
+        raise AssertionError(command)
+
+    environment = _drill_environment()
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="contract",
+        environ=environment,
+        runner=runner,
+        sleeper=lambda _seconds: None,
+    )
+    clock = iter((100.0, 160.0))
+    with patch.object(recovery, "_resolve_source_revision", return_value="a" * 40):
+        result = recovery.orchestrate_timed_drill(
+            operations=operations,
+            environ=environment,
+            monotonic=lambda: next(clock),
+            token_factory=lambda: "abcdef1234567890",
+        )
+
+    commands = [command for command, _kwargs in calls]
+    rendered = "\n".join(" ".join(command) for command in commands)
+    assert result["status"] == "pass" and result["achieved_rto_seconds"] == 60.0
+    assert rendered.index("RETURNING committed_at") < rendered.index("pg_walfile_name")
+    assert rendered.index("pg_walfile_name") < rendered.index("--target=2026-09-09 12:00:01+00")
+    assert rendered.index("archive_mode=off") < rendered.index("catalog_recovery_validate.py")
+    assert "docker rm" not in rendered and "docker volume rm" not in rendered
+    assert recovery._ACTIVE_VOLUME not in "\n".join(
+        line for line in rendered.splitlines() if line.startswith("docker run")
+    )
+    assert "--publish" not in rendered and " -p " not in f" {rendered} "
+    assert rendered.count("pg_walfile_name") == 2
 
 
 def test_cli_dispatch_and_task_use_existing_recovery_entrypoint() -> None:

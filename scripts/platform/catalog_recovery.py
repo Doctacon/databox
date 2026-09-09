@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import runpy
 import secrets
 import subprocess
 import sys
@@ -40,6 +41,23 @@ _BACKUP_ENV = (
     "PGBACKREST_REPO1_S3_REGION",
     "PGBACKREST_REPO1_S3_ENDPOINT",
 )
+_SECRET_ENV = (
+    "PGBACKREST_REPO1_CIPHER_PASS",
+    "PGBACKREST_REPO1_S3_KEY",
+    "PGBACKREST_REPO1_S3_KEY_SECRET",
+    "PGBACKREST_REPO1_S3_TOKEN",
+    "DATABOX_POLARIS_POSTGRES_PASSWORD",
+    "DATABOX_POLARIS_CLIENT_SECRET",
+    "DATABOX_AWS_ACCESS_KEY_ID",
+    "DATABOX_AWS_SECRET_ACCESS_KEY",
+    "DATABOX_AWS_SESSION_TOKEN",
+    "QUARKUS_DATASOURCE_PASSWORD",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
+)
+_COMPOSE_PROJECT = "databox-iceberg"
+_COMPOSE_NETWORK = f"{_COMPOSE_PROJECT}_default"
 Runner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
 InteractiveRunner = Callable[..., subprocess.CompletedProcess[str]]
 TokenFactory = Callable[[], str]
@@ -53,6 +71,20 @@ _POLARIS_IMAGE = "apache/polaris:1.7.0"
 _RECOVERY_VALIDATION_LABEL = "com.databox.catalog-recovery.validation"
 _ROOT = Path(__file__).resolve().parents[2]
 _VALIDATOR = _ROOT / "scripts/platform/catalog_recovery_validate.py"
+
+
+def _resolve_source_revision(requested: str) -> str:
+    namespace = runpy.run_path(str(_VALIDATOR), run_name="catalog_recovery_validator")
+    resolver = namespace.get("resolve_source_revision")
+    if not callable(resolver):
+        raise RecoveryError("catalog validator source-revision contract is unavailable")
+    try:
+        resolved = resolver(requested)
+    except Exception as exc:
+        raise RecoveryError("source revision failed canonical registry validation") from exc
+    if not isinstance(resolved, str):
+        raise RecoveryError("source revision failed canonical registry validation")
+    return resolved
 
 
 class RecoveryError(RuntimeError):
@@ -109,7 +141,7 @@ def _redacted_diagnostic(exc: BaseException, environ: Mapping[str, str]) -> str:
         diagnostic = "\n".join(parts)
     else:
         diagnostic = str(exc)
-    for name in _BACKUP_ENV:
+    for name in _SECRET_ENV:
         value = environ.get(name, "")
         if value:
             diagnostic = diagnostic.replace(value, "[REDACTED]")
@@ -537,7 +569,8 @@ class DockerDrillOperations:
                 "--format",
                 '{"running":{{json .State.Running}},"health":{{json .State.Health.Status}},'
                 '"image":{{json .Config.Image}},"ports":{{json .HostConfig.PortBindings}},'
-                '"mounts":{{json .Mounts}}}',
+                '"mounts":{{json .Mounts}},"labels":{{json .Config.Labels}},'
+                '"networks":{{json .NetworkSettings.Networks}}}',
                 container,
             )
         ).stdout
@@ -567,6 +600,7 @@ class DockerDrillOperations:
             raise RecoveryError(f"drill {kind} name already exists: {name}")
 
     def preflight(self, resources: DrillResources, environ: Mapping[str, str]) -> None:
+        self.source_revision = _resolve_source_revision(self.source_revision)
         _require_backup_environment(environ)
         postgres = self._docker_json(_ACTIVE_POSTGRES)
         polaris = self._docker_json(_ACTIVE_POLARIS)
@@ -579,6 +613,22 @@ class DockerDrillOperations:
             or polaris.get("image") != _POLARIS_IMAGE
         ):
             raise RecoveryError("active PostgreSQL and Polaris must be healthy and pinned")
+        for service, state in (("postgres", postgres), ("polaris", polaris)):
+            ports = state.get("ports")
+            labels = state.get("labels")
+            networks = state.get("networks")
+            if (
+                not isinstance(ports, dict)
+                or any(ports.values())
+                or not isinstance(labels, dict)
+                or labels.get("com.docker.compose.project") != _COMPOSE_PROJECT
+                or labels.get("com.docker.compose.service") != service
+                or not isinstance(networks, dict)
+                or set(networks) != {_COMPOSE_NETWORK}
+            ):
+                raise RecoveryError(
+                    "active services must be unexposed on the exact Compose network"
+                )
         mounts = postgres.get("mounts")
         if not isinstance(mounts, list) or not any(
             isinstance(item, dict)

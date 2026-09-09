@@ -31,13 +31,13 @@ No AWS, Docker, PostgreSQL, Polaris, marker, backup, restore, validation, or cle
 - `task --dry catalog:recovery-drill -- --catalog databox_lake --source-revision 17c45b0` — renders only the existing recovery entrypoint.
 - `git diff --check` — passed.
 
-## Remaining review gaps
+## Review-blocker repairs
 
-Independent review is required before live use. The bounded slice intentionally stops with these exact items for review rather than widening further:
+All four initial independent-review blockers were repaired without live effects:
 
-1. Source-revision provenance is enforced by the reused validator at the final stage, but is not yet preflighted before active marker mutation.
-2. Active preflight proves pinned health and PostgreSQL volume identity but does not yet assert the exact active Docker network and port bindings named by the acceptance text.
-3. Direct-value redaction enumerates backup secrets; primary-warehouse and Polaris secret values are passed only by environment-variable name but are not all enumerated for direct-value replacement if a hostile child diagnostic echoes them.
-4. Concrete tests cover preflight and container command shapes, SQL rejection, exact validator result, CLI dispatch, and Task rendering, but do not yet drive one fully integrated fake concrete-adapter drill across every stage.
+1. Source revision now resolves before Docker or marker access through the validator's single exported registry-byte-coherence contract; malformed or drifted revisions fail before mutation.
+2. Both active containers must have no host bindings, exact Compose project/service labels, and exactly the authoritative `databox-iceberg_default` network.
+3. Redaction now replaces every backup cipher/session, PostgreSQL password, Polaris client secret, and primary warehouse access/secret/optional-token value before bounding, including unlabeled echoes.
+4. A stateful fake runner drives the real `DockerDrillOperations` through preflight, marker SQL, both WAL pushes, existing restore invocation, isolated PostgreSQL/Polaris, validator, cleanup, timing, and retained-artifact assertions.
 
-These are review blockers, not accepted residual risks. No live command is authorized until they are resolved or explicitly accepted and independent review passes.
+The repaired focused suite passed 80 tests. Ruff/format, MyPy for both recovery scripts, focused secret scan, Task dry-run, and diff checks passed. No live command ran. Independent re-review remains required before live use.

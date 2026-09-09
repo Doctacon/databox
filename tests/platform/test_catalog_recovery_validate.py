@@ -129,7 +129,7 @@ def test_source_revision_resolves_commit_and_requires_identical_registry(tmp_pat
         patch.object(validator, "REGISTRY_PATH", registry),
         patch.object(validator.subprocess, "run", side_effect=responses) as run,
     ):
-        assert validator._source_revision("e95b333") == commit
+        assert validator.resolve_source_revision("e95b333") == commit
     assert run.call_args_list[0].args[0][-1] == "e95b333^{commit}"
 
     responses[1] = subprocess.CompletedProcess([], 0, stdout=b"different\n", stderr=b"")
@@ -138,7 +138,7 @@ def test_source_revision_resolves_commit_and_requires_identical_registry(tmp_pat
         patch.object(validator.subprocess, "run", side_effect=responses),
         pytest.raises(validator.ValidationError, match="differs"),
     ):
-        validator._source_revision("e95b333")
+        validator.resolve_source_revision("e95b333")
 
 
 def test_expected_inventory_is_exactly_registry_tables_plus_each_status_table():
@@ -389,7 +389,7 @@ def test_main_emits_secret_free_bounded_json_and_nonzero_on_aggregate_failure(ca
 
     with (
         patch.object(validator, "DockerExecTransport", return_value=FakeTransport(response)),
-        patch.object(validator, "_source_revision", return_value="a" * 40),
+        patch.object(validator, "resolve_source_revision", return_value="a" * 40),
         patch.object(validator.time, "monotonic", side_effect=[10.0, 12.5]),
         patch.object(validator.StaticTable, "from_metadata", return_value=FakeTable()),
     ):
