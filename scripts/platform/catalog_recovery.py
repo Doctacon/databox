@@ -532,7 +532,10 @@ def orchestrate_timed_drill(
                 polaris_quiesce = "stopped"
             except Exception as exc:
                 polaris_quiesce = "failed: " + _report_diagnostic(exc, environ)
-        if postgres_may_hold_secrets or (primary is not None and postgres_start_attempted):
+        objective_failed = result is not None and result.get("status") != "pass"
+        if postgres_may_hold_secrets or (
+            postgres_start_attempted and (primary is not None or objective_failed)
+        ):
             try:
                 operations.quiesce_postgres()
                 postgres_quiesce = "stopped"

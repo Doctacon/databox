@@ -702,6 +702,12 @@ def test_timed_drill_enforces_objective_boundaries(rpo: float, rto: float, statu
     assert result["status"] == status
     assert result["objectives"]["rpo"]["met"] is (rpo <= 300)
     assert result["objectives"]["rto"]["met"] is (rto <= 3600)
+    if status == "fail":
+        assert result["postgres_quiesce"] == "stopped"
+        assert "quiesce_postgres" in operations.calls
+    else:
+        assert result["postgres_quiesce"] == "not-required"
+        assert "quiesce_postgres" not in operations.calls
 
 
 @pytest.mark.parametrize(
