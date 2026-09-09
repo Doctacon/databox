@@ -31,6 +31,7 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 - 2026-09-09: Credential preflight stopped before the RTO clock and before any mutation because the three required temporary backup-role environment values were unavailable. `.10x/evidence/2026-09-09-timed-recovery-drill-credential-preflight.md` records the exact prerequisite and no-mutation boundary. No role assumption was attempted.
 - 2026-09-09: A second preflight proved that the operator's MFA role session was not reusable by the separate non-TTY Pi worker. The user rejected both a temporary credential handoff file and another one-off script, then authorized extending the existing recovery entrypoint. No marker, backup-bucket, or Docker mutation occurred.
 - 2026-09-09: `.10x/tickets/done/2026-09-09-add-interactive-catalog-recovery-drill-command.md` implemented and independently passed review. The operator can now run the already authorized drill from the TTY that owns MFA without a credential file or new script.
+- 2026-09-09: The first operator-terminal execution authenticated successfully, then failed closed before mutation because active-port preflight incorrectly rejected Compose's intentional loopback-only Polaris ports. `.10x/evidence/2026-09-09-interactive-drill-active-port-preflight-repair.md` records the scoped repair: exact service-specific active bindings are required, while wildcard, extra, missing, changed, or wrong-network states fail. Sixty-four tests and static/security/Task checks pass; no live rerun occurred.
 
 ## Blockers
 

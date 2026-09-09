@@ -730,6 +730,10 @@ def test_timed_drill_bounds_and_redacts_operation_recovery_error() -> None:
     assert operations.calls[-2:] == ["cleanup", "archive_cleanup"]
 
 
+def _active_ports(service):
+    return recovery._ACTIVE_PORTS[service]
+
+
 def _drill_environment():
     return {
         **_BACKUP_ENV,
@@ -761,7 +765,9 @@ def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names()
                         "running": True,
                         "health": "healthy",
                         "image": image,
-                        "ports": {},
+                        "ports": _active_ports(
+                            "postgres" if image == recovery._IMAGE else "polaris"
+                        ),
                         "mounts": active_mounts if image == recovery._IMAGE else [],
                         "labels": {
                             "com.docker.compose.project": "databox-iceberg",
@@ -811,12 +817,31 @@ def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names()
 @pytest.mark.parametrize(
     ("service", "ports", "networks"),
     [
-        ("postgres", {"5432/tcp": [{"HostPort": "5432"}]}, {"databox-iceberg_default": {}}),
-        ("polaris", {}, {}),
+        (
+            "polaris",
+            {
+                "8181/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8181"}],
+                "8182/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8182"}],
+            },
+            {"databox-iceberg_default": {}},
+        ),
+        (
+            "polaris",
+            {
+                **_active_ports("polaris"),
+                "9999/tcp": [{"HostIp": "127.0.0.1", "HostPort": "9999"}],
+            },
+            {"databox-iceberg_default": {}},
+        ),
+        (
+            "polaris",
+            {"8181/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8181"}]},
+            {"databox-iceberg_default": {}},
+        ),
         ("postgres", {}, {"unexpected": {}}),
     ],
 )
-def test_concrete_preflight_rejects_ports_and_network_drift(service, ports, networks) -> None:
+def test_concrete_preflight_rejects_port_or_network_drift(service, ports, networks) -> None:
     runner = Mock()
     operations = recovery.DockerDrillOperations(
         catalog="databox_lake",
@@ -832,7 +857,7 @@ def test_concrete_preflight_rejects_ports_and_network_drift(service, ports, netw
             "running": True,
             "health": "healthy",
             "image": recovery._IMAGE if current == "postgres" else recovery._POLARIS_IMAGE,
-            "ports": ports if current == service else {},
+            "ports": ports if current == service else _active_ports(current),
             "mounts": (
                 [{"Name": recovery._ACTIVE_VOLUME, "Destination": recovery._DATA_PATH}]
                 if current == "postgres"
@@ -853,7 +878,7 @@ def test_concrete_preflight_rejects_ports_and_network_drift(service, ports, netw
     runner.side_effect = fake
     with (
         patch.object(recovery, "_resolve_source_revision", return_value="a" * 40),
-        pytest.raises(recovery.RecoveryError, match="unexposed.*Compose network"),
+        pytest.raises(recovery.RecoveryError, match="loopback bindings.*Compose network"),
     ):
         operations.preflight(resources, _drill_environment())
 
@@ -978,7 +1003,7 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
                 "running": True,
                 "health": "healthy",
                 "image": recovery._IMAGE if current == "postgres" else recovery._POLARIS_IMAGE,
-                "ports": {},
+                "ports": _active_ports(current),
                 "mounts": (
                     [{"Name": recovery._ACTIVE_VOLUME, "Destination": recovery._DATA_PATH}]
                     if current == "postgres"

@@ -58,6 +58,13 @@ _SECRET_ENV = (
 )
 _COMPOSE_PROJECT = "databox-iceberg"
 _COMPOSE_NETWORK = f"{_COMPOSE_PROJECT}_default"
+_ACTIVE_PORTS: dict[str, dict[str, list[dict[str, str]]]] = {
+    "postgres": {},
+    "polaris": {
+        "8181/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8181"}],
+        "8182/tcp": [{"HostIp": "127.0.0.1", "HostPort": "8182"}],
+    },
+}
 Runner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
 InteractiveRunner = Callable[..., subprocess.CompletedProcess[str]]
 TokenFactory = Callable[[], str]
@@ -619,7 +626,7 @@ class DockerDrillOperations:
             networks = state.get("networks")
             if (
                 not isinstance(ports, dict)
-                or any(ports.values())
+                or ports != _ACTIVE_PORTS[service]
                 or not isinstance(labels, dict)
                 or labels.get("com.docker.compose.project") != _COMPOSE_PROJECT
                 or labels.get("com.docker.compose.service") != service
@@ -627,7 +634,7 @@ class DockerDrillOperations:
                 or set(networks) != {_COMPOSE_NETWORK}
             ):
                 raise RecoveryError(
-                    "active services must be unexposed on the exact Compose network"
+                    "active services must have exact loopback bindings and Compose network"
                 )
         mounts = postgres.get("mounts")
         if not isinstance(mounts, list) or not any(
