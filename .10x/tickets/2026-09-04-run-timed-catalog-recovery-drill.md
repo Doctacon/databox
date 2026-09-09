@@ -24,6 +24,10 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 - Iceberg object recovery or a 60-minute full-warehouse rebuild guarantee.
 - Unreviewed destructive action.
 
+## Progress and notes
+
+- 2026-09-09: User explicitly authorized the timed drill. Execution remains blocked by `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md`; authorization does not bypass that safety gate.
+
 ## Blockers
 
-Blocked on its dependency and separate authorization for the live drill.
+Blocked only on `.10x/tickets/2026-09-04-verify-disaster-recovery-automation.md`. Live-drill authorization is recorded.
