@@ -16,4 +16,4 @@ Pass. The eBird registry declares exactly the three authorized normalized childr
 
 ## Residual risk
 
-Runtime dlt ingestion was not re-executed; focused implementation evidence reports 148 passing tests and all static/modeling/codegen checks. A live recovery rerun remains separately authorized. Noncanonical USFWS/probe classification remains blocked in `.10x/tickets/2026-09-09-classify-noncanonical-restored-catalog-state.md`.
+Runtime dlt ingestion was not re-executed; focused implementation evidence reports 148 passing tests and all static/modeling/codegen checks. A live recovery rerun remains separately authorized. Noncanonical USFWS/probe classification remains blocked in `.10x/tickets/done/2026-09-09-classify-noncanonical-restored-catalog-state.md`.

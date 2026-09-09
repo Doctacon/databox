@@ -77,4 +77,4 @@ Record adversarial restore-safety cases, registry-derived restored-table validat
 
 ## Blockers
 
-Resolve `.10x/tickets/2026-09-09-classify-noncanonical-restored-catalog-state.md`, then separately authorize a new live validation. Do not delete or reuse recovery artifacts without authorization. Complete failure-path coverage and the timed drill remain unimplemented.
+Noncanonical warning policy is implemented and reviewed; separately authorize a final live validation rerun. Do not delete or reuse recovery artifacts without authorization. Complete failure-path coverage and the timed drill remain unimplemented.

@@ -35,4 +35,4 @@ No Docker, AWS, catalog, warehouse, source-refresh, recovery, or cleanup command
 
 ## Limits
 
-The initial review's P1 `__` ownership-heuristic finding was repaired with explicit child metadata and regression tests; follow-up independent review remains required. A live recovery-validation rerun was not authorized and did not run. The separate warning/failure policy for restored noncanonical USFWS and probe namespaces remains blocked in `.10x/tickets/2026-09-09-classify-noncanonical-restored-catalog-state.md`.
+The initial review's P1 `__` ownership-heuristic finding was repaired with explicit child metadata and regression tests; follow-up independent review remains required. A live recovery-validation rerun was not authorized and did not run. The separate warning/failure policy for restored noncanonical USFWS and probe namespaces remains blocked in `.10x/tickets/done/2026-09-09-classify-noncanonical-restored-catalog-state.md`.

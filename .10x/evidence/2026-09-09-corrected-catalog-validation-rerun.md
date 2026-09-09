@@ -24,7 +24,7 @@ The single run exited `1` after `59.199` seconds, correctly fail-closed on nonca
 - unexpected namespaces: `dlt_polaris_probe`, `raw_usfws`;
 - unexpected tables: `dlt_polaris_probe.events`, `raw_usfws._dlt_load_status`, `raw_usfws.image_records`, `raw_usfws.image_search_runs`.
 
-All 25 corrected registry expectations passed metadata, current-snapshot, manifest-planning, and limit-one data reads. The only remaining failure is the separately owned warning/failure policy for the four explicitly visible noncanonical tables in `.10x/tickets/2026-09-09-classify-noncanonical-restored-catalog-state.md`.
+All 25 corrected registry expectations passed metadata, current-snapshot, manifest-planning, and limit-one data reads. The only remaining failure is the separately owned warning/failure policy for the four explicitly visible noncanonical tables in `.10x/tickets/done/2026-09-09-classify-noncanonical-restored-catalog-state.md`.
 
 ## Limits
 
