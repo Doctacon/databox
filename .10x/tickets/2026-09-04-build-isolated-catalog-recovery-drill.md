@@ -81,7 +81,8 @@ Record adversarial restore-safety cases, registry-derived restored-table validat
 - 2026-09-09: Independent review found the first two failure tests only injected diagnostic strings at the Docker runner seam. Repaired within the authorized scope using a hermetic pgBackRest repository fake: an empty backup inventory stops before WAL lookup, while missing-WAL selects an earlier base and fails the required archive lookup. Both assert one nonzero restore attempt, owned target preservation, no active mount/deletion/retry, and bounded redaction. Production implementation was unchanged.
 - 2026-09-09: Independent review `.10x/reviews/2026-09-09-bounded-recovery-reconciliation-repair-review.md` passed the authorized failure tests, runbook correction, evidence clarification, and closure bookkeeping. Snapshot divergence was not waived.
 - 2026-09-09: User authorized the remaining snapshot-divergence check. `.10x/evidence/2026-09-09-rest-s3-snapshot-divergence-check.md` records a bounded comparison between Polaris REST embedded current snapshot and the snapshot independently loaded from its S3 metadata location, with match/missing/malformed/mismatch tests. Seventeen focused tests and all static/security checks passed; no live operation ran.
+- 2026-09-09: Independent review `.10x/reviews/2026-09-09-rest-s3-snapshot-divergence-review.md` passed with no findings.
 
 ## Blockers
 
-Independent review and a separately authorized live validator rerun. Timed-drill authorization is already recorded. Do not delete or reuse recovery artifacts without authorization.
+A separately authorized live validator rerun must exercise the new comparison against the preserved recovery stack. Timed-drill authorization is already recorded. Do not delete or reuse recovery artifacts without authorization.
