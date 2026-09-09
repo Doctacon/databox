@@ -1263,7 +1263,10 @@ def test_reconcile_marker_checks_identity_then_drops_exact_table() -> None:
 
 
 def test_catalog_adapter_requires_exact_canonical_success() -> None:
-    def runner(command, **_kwargs):
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((tuple(command), kwargs))
         report = {
             "status": "pass",
             "counts": {"expectedTables": 25, "validatedTables": 25, "failedTables": 0},
@@ -1280,6 +1283,13 @@ def test_catalog_adapter_requires_exact_canonical_success() -> None:
         container="recovery-polaris", recover_to=datetime(2026, 9, 9, tzinfo=UTC)
     )
     assert result["status"] == "pass"
+    command, kwargs = calls[0]
+    assert command[1].endswith("catalog_recovery_validate.py")
+    assert kwargs["env"]["DATABOX_POLARIS_CLIENT_ID"] == "client-id"
+    assert kwargs["env"]["DATABOX_POLARIS_CLIENT_SECRET"] == "client-secret"
+    assert "PGBACKREST_REPO1_S3_TOKEN" not in kwargs["env"]
+    assert "client-id" not in command
+    assert "client-secret" not in command
 
 
 def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts() -> None:

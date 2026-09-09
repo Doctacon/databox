@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -130,6 +131,15 @@ class DockerExecTransport:
         self.runner = runner
 
     def inspect(self, expected: Sequence[str]) -> Mapping[str, Any]:
+        credential_names = (
+            "DATABOX_POLARIS_CLIENT_ID",
+            "DATABOX_POLARIS_CLIENT_SECRET",
+        )
+        missing = [name for name in credential_names if not os.environ.get(name)]
+        if missing:
+            raise ValidationError(
+                "missing restored Polaris validation settings: " + ", ".join(missing)
+            )
         inspect_format = (
             '{"running":{{json .State.Running}},"labels":{{json .Config.Labels}},'
             '"portBindings":{{json .HostConfig.PortBindings}}}'
@@ -164,9 +174,13 @@ class DockerExecTransport:
             )
 
         request = json.dumps({"catalog": self.catalog, "expected": list(expected)})
+        command = ["docker", "exec", "-i"]
+        for name in credential_names:
+            command.extend(("--env", name))
+        command.extend((self.container, "python3", "-c", _CONTAINER_HELPER))
         try:
             completed = self.runner(
-                ["docker", "exec", "-i", self.container, "python3", "-c", _CONTAINER_HELPER],
+                command,
                 input=request,
                 text=True,
                 capture_output=True,

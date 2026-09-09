@@ -34,7 +34,9 @@ Without AWS access, secrets, network access, or active mounts, disposable pinned
 
 A read-only active `SELECT clock_timestamp()` through `psql -qAtX` produced exactly one timestamp row. Docker inspection reconfirmed both active services running/healthy, PostgreSQL unexposed, Polaris bound only to loopback 8181/8182, and both attached only to `databox-iceberg_default`.
 
-Focused validation passed 112 recovery/validator tests without coverage, Ruff check/format, MyPy, the 927-file secret scan, Task dry-run, and `git diff --check`.
+Focused validation initially passed 112 recovery/validator tests without coverage. Final integration review then caught that the validator's sibling Docker exec could not inherit credentials from the detached Polaris Java process. `DockerExecTransport` now fails before Docker when either host credential is absent and injects only the two environment-variable names, in exact Docker option order, into the validator exec. Values remain solely in the already-sanitized validator process environment and never enter argv or container configuration.
+
+A disposable `apache/polaris:1.7.0` sleeper on `--network none` proved `plain=unset|unset`, `explicit=present`, `persisted_config_names=0`; dummy nonsecret values were available only with name-only exec injection, and the `--rm` container was stopped automatically. The expanded focused suite passed 113 tests. Ruff check/format, MyPy, the secret scan, Task dry-run, and `git diff --check` also passed.
 
 ## Safety boundary
 

@@ -337,7 +337,28 @@ def test_helper_aggregates_all_per_table_request_or_parse_failures():
     assert 'loaded_tables[identifier] = {"request_failed": True}' in helper
 
 
-def test_docker_transport_requires_labeled_running_unexposed_container():
+def test_docker_transport_missing_credentials_fails_before_docker(monkeypatch):
+    monkeypatch.delenv("DATABOX_POLARIS_CLIENT_ID", raising=False)
+    monkeypatch.delenv("DATABOX_POLARIS_CLIENT_SECRET", raising=False)
+    calls = []
+
+    def runner(command, **_kwargs):
+        calls.append(command)
+        raise AssertionError("Docker must not run without host credentials")
+
+    transport = validator.DockerExecTransport(
+        container="recovery-polaris", catalog="databox_lake", runner=runner
+    )
+    with pytest.raises(validator.ValidationError, match="missing restored Polaris") as caught:
+        transport.inspect(("raw_gbif.occurrences",))
+    assert "DATABOX_POLARIS_CLIENT_ID" in str(caught.value)
+    assert "DATABOX_POLARIS_CLIENT_SECRET" in str(caught.value)
+    assert calls == []
+
+
+def test_docker_transport_requires_labeled_running_unexposed_container(monkeypatch):
+    monkeypatch.setenv("DATABOX_POLARIS_CLIENT_ID", "dummy-client")
+    monkeypatch.setenv("DATABOX_POLARIS_CLIENT_SECRET", "dummy-secret")
     for identity in (
         _identity(running=False),
         _identity(label="active"),
@@ -357,7 +378,11 @@ def test_docker_transport_requires_labeled_running_unexposed_container():
         assert "secret" not in str(caught.value)
 
 
-def test_docker_transport_preflights_then_sends_only_safe_request_on_stdin():
+def test_docker_transport_preflights_then_sends_only_safe_request_on_stdin(monkeypatch):
+    client_id = "dummy-client-id"
+    client_secret = "dummy-client-secret"
+    monkeypatch.setenv("DATABOX_POLARIS_CLIENT_ID", client_id)
+    monkeypatch.setenv("DATABOX_POLARIS_CLIENT_SECRET", client_secret)
     calls = []
     response = {"namespaces": [], "tables": [], "loads": {}}
 
@@ -372,7 +397,19 @@ def test_docker_transport_preflights_then_sends_only_safe_request_on_stdin():
     assert transport.inspect(("raw_gbif.occurrences",)) == response
 
     command, kwargs = calls[1]
-    assert command[:5] == ["docker", "exec", "-i", "recovery-polaris", "python3"]
+    assert command[:9] == [
+        "docker",
+        "exec",
+        "-i",
+        "--env",
+        "DATABOX_POLARIS_CLIENT_ID",
+        "--env",
+        "DATABOX_POLARIS_CLIENT_SECRET",
+        "recovery-polaris",
+        "python3",
+    ]
+    assert client_id not in command
+    assert client_secret not in command
     assert json.loads(kwargs["input"]) == {
         "catalog": "databox_lake",
         "expected": ["raw_gbif.occurrences"],
