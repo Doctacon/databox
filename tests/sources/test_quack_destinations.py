@@ -20,13 +20,12 @@ from databox.destinations.quack import (
 )
 
 
-def test_quack_dedupe_membership_matches_parallel_top_level_inventory() -> None:
+def test_quack_dedupe_membership_matches_parallel_registry_inventory() -> None:
     expected = {
         (source.raw_catalog, table)
         for source in SOURCES
         if source.parallel_refresh
         for table in source.raw_tables
-        if "__" not in table
     }
     assert set(_RAW_DEDUPE_KEYS) == expected
     assert all(keys for keys in _RAW_DEDUPE_KEYS.values())

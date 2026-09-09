@@ -91,9 +91,6 @@ def test_source_complete_raw_table_inventory() -> None:
         "hotspots",
         "species_list",
         "taxonomy",
-        "taxonomy__banding_codes",
-        "taxonomy__com_name_codes",
-        "taxonomy__sci_name_codes",
         "region_stats",
     )
     assert sources["noaa"].raw_tables == ("daily_weather", "stations", "datasets")

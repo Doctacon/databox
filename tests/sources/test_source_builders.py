@@ -11,13 +11,12 @@ from databox.config.sources import SOURCES
 
 
 @pytest.mark.parametrize("source", SOURCES, ids=lambda source: source.name)
-def test_builder_is_callable_singular_and_matches_registered_top_level_tables(source) -> None:
+def test_builder_is_callable_singular_and_matches_registered_resources(source) -> None:
     module = importlib.import_module(source.domain_module)
     builder = vars(module)["_build_source"]
     assert callable(builder)
     built = builder()
-    top_level_tables = {table for table in source.raw_tables if "__" not in table}
-    assert set(built.resources) == top_level_tables
+    assert set(built.resources) == set(source.raw_tables)
 
 
 def test_avonet_builder_owns_source_factory(monkeypatch: pytest.MonkeyPatch) -> None:
