@@ -256,53 +256,122 @@ def test_failed_restore_preserves_target_and_reports_bounded_redacted_diagnostic
     assert "volume rm" not in rendered
 
 
-def _assert_repository_restore_failure_is_fail_closed(diagnostic: str) -> None:
-    calls: list[tuple[str, ...]] = []
-    ownership_token = "owned-test-volume"  # secret-scan: allow
-    repository_secret = _BACKUP_ENV["PGBACKREST_REPO1_CIPHER_PASS"]
+class _HermeticPgBackRestRepository:
+    """Model backup selection and archive lookup at the Docker runner seam."""
 
-    def runner(command):
-        calls.append(tuple(command))
-        if command[-1] == "restore":
-            raise subprocess.CalledProcessError(
-                1,
-                command,
-                stderr=f"{diagnostic}; cipher={repository_secret}",
+    def __init__(
+        self,
+        *,
+        ownership_token: str,
+        backup_stop_times: tuple[str, ...],
+        required_wal: str,
+        archived_wal: frozenset[str],
+    ) -> None:
+        self.ownership_token = ownership_token
+        self.backup_stop_times = backup_stop_times
+        self.required_wal = required_wal
+        self.archived_wal = archived_wal
+        self.calls: list[tuple[str, ...]] = []
+        self.selected_backup: str | None = None
+        self.wal_lookups: list[str] = []
+        self.restore_attempts = 0
+        self.restore_exit_codes: list[int] = []
+
+    def _restore_failure(self, command: tuple[str, ...], diagnostic: str) -> None:
+        return_code = 37
+        self.restore_exit_codes.append(return_code)
+        repository_secret = _BACKUP_ENV["PGBACKREST_REPO1_CIPHER_PASS"]
+        stderr = (
+            "x" * (recovery._DIAGNOSTIC_LIMIT + 100) + f"\n{diagnostic}; cipher={repository_secret}"
+        )
+        raise subprocess.CalledProcessError(return_code, command, stderr=stderr)
+
+    def __call__(self, command):
+        command = tuple(command)
+        self.calls.append(command)
+        if command[1:3] == ("volume", "inspect"):
+            return subprocess.CompletedProcess(command, 0, stdout=self.ownership_token, stderr="")
+        if command[-1] != "restore":
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+        self.restore_attempts += 1
+        target = next(
+            part.removeprefix("--target=") for part in command if part.startswith("--target=")
+        )
+        selectable = [stop for stop in self.backup_stop_times if stop < target]
+        if not selectable:
+            self._restore_failure(
+                command, "unable to find backup set with stop time less than recovery target"
             )
-        stdout = ownership_token if command[1:3] == ("volume", "inspect") else ""
-        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+        self.selected_backup = max(selectable)
+        self.wal_lookups.append(self.required_wal)
+        if self.required_wal not in self.archived_wal:
+            self._restore_failure(
+                command, f"unable to find required WAL segment {self.required_wal} in archive"
+            )
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
+
+def _execute_expected_repository_failure(fake: _HermeticPgBackRestRepository) -> str:
+    target_volume = "databox_missing_archive_recovery"
     with pytest.raises(recovery.RecoveryError) as error:
         recovery.prepare_or_execute_restore(
-            target_volume="databox_missing_archive_recovery",
+            target_volume=target_volume,
             active_volume="databox_polaris_postgres",
             recover_to=recovery.recovery_target("2026-09-05T12:00:00Z"),
             execute=True,
             environ=_BACKUP_ENV,
-            runner=runner,
-            ownership_token_factory=lambda: ownership_token,
+            runner=fake,
+            ownership_token_factory=lambda: fake.ownership_token,
         )
 
     message = str(error.value)
-    assert diagnostic in message
+    repository_secret = _BACKUP_ENV["PGBACKREST_REPO1_CIPHER_PASS"]
     assert repository_secret not in message
     assert "[REDACTED]" in message
-    rendered = " ".join(part for call in calls for part in call)
+    assert "[truncated]" in message
+    assert len(message) <= recovery._DIAGNOSTIC_LIMIT + 200
+    assert fake.restore_attempts == 1
+    assert fake.restore_exit_codes == [37]
+    assert sum(call[1:3] == ("volume", "create") for call in fake.calls) == 1
+    assert sum(call[1:3] == ("volume", "inspect") for call in fake.calls) == 1
+    assert sum(call[-1] == "restore" for call in fake.calls) == 1
+    rendered = " ".join(part for call in fake.calls for part in call)
+    assert f"{recovery._OWNERSHIP_LABEL}={fake.ownership_token}" in rendered
+    assert f"type=volume,src={target_volume},dst=/var/lib/postgresql/data" in rendered
     assert "type=volume,src=databox_polaris_postgres" not in rendered
     assert "volume rm" not in rendered
-    assert calls[-1][-1] == "restore"
+    return message
 
 
-def test_restore_fails_closed_when_repository_has_no_base_backup() -> None:
-    _assert_repository_restore_failure_is_fail_closed(
-        "unable to find backup set for the requested recovery target"
+def test_restore_fails_closed_when_repository_has_no_selectable_base_backup() -> None:
+    fake = _HermeticPgBackRestRepository(
+        ownership_token="owned-no-base-volume",  # secret-scan: allow
+        backup_stop_times=("2026-09-05 12:00:00+00",),
+        required_wal="00000001000000000000000A",
+        archived_wal=frozenset({"00000001000000000000000A"}),
     )
+
+    message = _execute_expected_repository_failure(fake)
+
+    assert "unable to find backup set with stop time less than recovery target" in message
+    assert fake.selected_backup is None
+    assert fake.wal_lookups == []
 
 
 def test_restore_fails_closed_when_required_wal_segment_is_missing() -> None:
-    _assert_repository_restore_failure_is_fail_closed(
-        "unable to find the required WAL segment in the archive"
+    fake = _HermeticPgBackRestRepository(
+        ownership_token="owned-missing-wal-volume",  # secret-scan: allow
+        backup_stop_times=("2026-09-05 11:59:00+00",),
+        required_wal="00000001000000000000000A",
+        archived_wal=frozenset({"000000010000000000000009"}),
     )
+
+    message = _execute_expected_repository_failure(fake)
+
+    assert "unable to find required WAL segment 00000001000000000000000A" in message
+    assert fake.selected_backup == "2026-09-05 11:59:00+00"
+    assert fake.wal_lookups == ["00000001000000000000000A"]
 
 
 def test_diagnostic_redacts_quoted_credential_process_json() -> None:
