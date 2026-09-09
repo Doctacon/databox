@@ -35,7 +35,8 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 - 2026-09-09: The second operator-terminal execution completed AWS login and MFA, then failed closed before mutation because the pgBackRest repository probe ran as container root. `.10x/evidence/2026-09-09-interactive-drill-pgbackrest-user-preflight-repair.md` records the repair to require `docker exec --user postgres` while preserving name-only credential inheritance. No live rerun occurred during repair.
 
 - 2026-09-09: Before another live attempt, a proactive command audit found and repaired the same operating-system-user omission on marker and cleanup WAL `archive-push`; integrated coverage now requires every pgBackRest invocation to select `postgres`. Evidence: `.10x/evidence/2026-09-09-interactive-drill-wal-archive-user-repair.md`. No live operation occurred.
+- 2026-09-09: The same pre-live audit found psql command tags could be misparsed as marker timestamps. Quiet output and exact single-row timestamp validation were added with regression coverage; evidence: `.10x/evidence/2026-09-09-interactive-drill-marker-parsing-repair.md`. No live mutation occurred.
 
 ## Blockers
 
-Independent review of the proactive WAL-user repair. Cleanup remains separately authorized.
+Independent review of the marker parsing repair. Cleanup remains separately authorized.

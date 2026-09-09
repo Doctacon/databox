@@ -695,7 +695,7 @@ class DockerDrillOperations:
                 "polaris",
                 "-d",
                 "polaris",
-                "-AtX",
+                "-qAtX",
                 "-c",
                 sql,
             )
@@ -710,12 +710,18 @@ class DockerDrillOperations:
             if phase == "before"
             else ""
         )
-        value = self._active_sql(
+        output = self._active_sql(
             prefix
             + f"INSERT INTO {table}(phase, committed_at) VALUES ('{phase}', clock_timestamp()) "
             "RETURNING committed_at;"
-        ).splitlines()[-1]
-        return recovery_target(value)
+        )
+        rows = [line.strip() for line in output.splitlines() if line.strip()]
+        if len(rows) != 1:
+            raise RecoveryError("PostgreSQL returned an invalid marker timestamp")
+        try:
+            return recovery_target(rows[0])
+        except (TypeError, ValueError) as exc:
+            raise RecoveryError("PostgreSQL returned an invalid marker timestamp") from exc
 
     def database_now(self) -> datetime:
         return recovery_target(self._active_sql("SELECT clock_timestamp();"))

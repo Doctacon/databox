@@ -969,6 +969,49 @@ def test_marker_identifier_and_phase_are_rejected_before_sql() -> None:
     runner.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "output",
+    (
+        "",
+        "2026-09-09 12:00:00+00\nINSERT 0 1\n",
+        "2026-09-09 12:00:00+00\n2026-09-09 12:00:01+00\n",
+        "not-a-timestamp\n",
+    ),
+)
+def test_marker_timestamp_requires_exactly_one_valid_quiet_row(output: str) -> None:
+    calls = []
+
+    def runner(command, **_kwargs):
+        calls.append(tuple(command))
+        return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    with pytest.raises(recovery.RecoveryError, match="invalid marker timestamp"):
+        operations.insert_marker("safe_marker", "before")
+    assert "-qAtX" in calls[0]
+
+
+def test_marker_timestamp_accepts_one_quiet_row() -> None:
+    def runner(command, **_kwargs):
+        assert "-qAtX" in command
+        return subprocess.CompletedProcess(
+            command, 0, stdout="\n2026-09-09 12:00:00+00\n", stderr=""
+        )
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    assert operations.insert_marker("safe_marker", "before") == datetime(2026, 9, 9, 12, tzinfo=UTC)
+
+
 def test_catalog_adapter_requires_exact_canonical_success() -> None:
     def runner(command, **_kwargs):
         report = {
