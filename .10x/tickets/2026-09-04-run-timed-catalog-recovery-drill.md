@@ -1,4 +1,4 @@
-Status: active
+Status: blocked
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -28,7 +28,8 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 
 - 2026-09-09: User explicitly authorized the timed drill. Execution remained blocked until `.10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md` passed final adversarial review and closed.
 - 2026-09-09: All dependencies are now done and live-drill authorization remains active. Execute with a fresh marker-bracketed target and new ownership-labeled recovery resources; stop before cutover or cleanup.
+- 2026-09-09: Credential preflight stopped before the RTO clock and before any mutation because the three required temporary backup-role environment values were unavailable. `.10x/evidence/2026-09-09-timed-recovery-drill-credential-preflight.md` records the exact prerequisite and no-mutation boundary. No role assumption was attempted.
 
 ## Blockers
 
-None. Cleanup remains separately authorized.
+The operator must obtain and export fresh MFA-assumed `databox-polaris-catalog-backup` access key, secret key, and session token through the reviewed path without printing them. Existing drill authorization remains valid. Cleanup remains separately authorized.
