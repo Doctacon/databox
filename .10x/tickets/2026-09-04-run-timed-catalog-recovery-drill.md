@@ -36,7 +36,8 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 
 - 2026-09-09: Before another live attempt, a proactive command audit found and repaired the same operating-system-user omission on marker and cleanup WAL `archive-push`; integrated coverage now requires every pgBackRest invocation to select `postgres`. Evidence: `.10x/evidence/2026-09-09-interactive-drill-wal-archive-user-repair.md`. No live operation occurred.
 - 2026-09-09: The same pre-live audit found psql command tags could be misparsed as marker timestamps. Quiet output and exact single-row timestamp validation were added with regression coverage; evidence: `.10x/evidence/2026-09-09-interactive-drill-marker-parsing-repair.md`. No live mutation occurred.
+- 2026-09-09: A live drill committed marker `databox_recovery_drill_y0puu4ucgfgbx81p` but failed before restore because explicit archive-push entered pgBackRest's asynchronous spool and used the active container's expired startup token. No recovery volume, network, or container was created. Evidence: `.10x/evidence/2026-09-09-timed-drill-stale-async-credential-failure.md`. Explicit drill archival is now synchronous with the fresh MFA session; the known marker requires the separately invocable in-tool reconciliation step before rerun.
 
 ## Blockers
 
-Independent review of the marker parsing repair. Cleanup remains separately authorized.
+Reconcile the known active marker and prove synchronous cleanup WAL archival from the operator TTY before rerunning. Recovery-resource cleanup remains separately authorized.

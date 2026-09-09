@@ -738,6 +738,7 @@ class DockerDrillOperations:
                 _ACTIVE_POSTGRES,
                 "/usr/local/bin/run-pgbackrest",
                 "--stanza=polaris",
+                "--no-archive-async",
                 "archive-push",
                 f"{_DATA_PATH}/pg_wal/{segment}",
             )
@@ -1006,6 +1007,39 @@ def _restore_main(argv: Sequence[str]) -> int:
     return 0
 
 
+def _cleanup_marker_main(argv: Sequence[str]) -> int:
+    parser = argparse.ArgumentParser(description="Reconcile one failed-drill marker")
+    parser.add_argument("--marker", required=True)
+    parser.add_argument("--catalog", required=True)
+    parser.add_argument("--source-revision", required=True)
+    parser.add_argument("--operator-profile", default=_OPERATOR_PROFILE)
+    parser.add_argument("--backup-role-profile", default=_BACKUP_ROLE_PROFILE)
+    args = parser.parse_args(argv)
+    if not args.marker.startswith("databox_recovery_drill_"):
+        print("catalog recovery refused: marker is not owned by a timed drill", file=sys.stderr)
+        return 1
+    base = _environment_from_dotenv()
+    try:
+        environment = acquire_backup_role_environment(
+            environ=base,
+            operator_profile=args.operator_profile,
+            backup_role_profile=args.backup_role_profile,
+        )
+        operations = DockerDrillOperations(
+            catalog=args.catalog,
+            source_revision=args.source_revision,
+            environ=environment,
+        )
+        operations.preflight(_drill_resources(_new_ownership_token()), environment)
+        operations.cleanup_marker(args.marker)
+        operations.archive_cleanup_wal(environment)
+    except (RecoveryError, ValueError) as exc:
+        print(f"catalog recovery refused: {_redacted_diagnostic(exc, base)}", file=sys.stderr)
+        return 1
+    print(json.dumps({"status": "pass", "marker": args.marker, "cleanup_wal": "archived"}))
+    return 0
+
+
 def _drill_main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(description="Run the interactive timed catalog drill")
     parser.add_argument("--catalog", required=True)
@@ -1041,6 +1075,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if arguments and arguments[0] == "drill":
         return _drill_main(arguments[1:])
+    if arguments and arguments[0] == "cleanup-marker":
+        return _cleanup_marker_main(arguments[1:])
     return _restore_main(arguments)
 
 

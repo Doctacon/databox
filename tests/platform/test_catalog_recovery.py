@@ -996,6 +996,32 @@ def test_marker_timestamp_requires_exactly_one_valid_quiet_row(output: str) -> N
     assert "-qAtX" in calls[0]
 
 
+def test_marker_wal_archive_bypasses_stale_async_spool_with_fresh_session() -> None:
+    calls = []
+
+    def runner(command, **_kwargs):
+        calls.append(tuple(command))
+        if "pg_walfile_name" in " ".join(command):
+            return subprocess.CompletedProcess(
+                command, 0, stdout="000000010000000000000023\n", stderr=""
+            )
+        assert "--no-archive-async" in command
+        assert command[:4] == ["docker", "exec", "--user", "postgres"]
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    operations.archive_marker_wal(_drill_environment())
+
+    archive = calls[-1]
+    assert archive.index("--no-archive-async") < archive.index("archive-push")
+    assert all(name in archive for name in recovery._BACKUP_ENV)
+
+
 def test_marker_timestamp_accepts_one_quiet_row() -> None:
     def runner(command, **_kwargs):
         assert "-qAtX" in command
@@ -1010,6 +1036,26 @@ def test_marker_timestamp_accepts_one_quiet_row() -> None:
         runner=runner,
     )
     assert operations.insert_marker("safe_marker", "before") == datetime(2026, 9, 9, 12, tzinfo=UTC)
+
+
+def test_cleanup_marker_rejects_non_drill_marker_before_auth() -> None:
+    with patch.object(
+        recovery, "acquire_backup_role_environment", side_effect=AssertionError("auth reached")
+    ):
+        assert (
+            recovery.main(
+                [
+                    "cleanup-marker",
+                    "--marker",
+                    "unowned_marker",
+                    "--catalog",
+                    "databox_lake",
+                    "--source-revision",
+                    "abc123",
+                ]
+            )
+            == 1
+        )
 
 
 def test_catalog_adapter_requires_exact_canonical_success() -> None:
