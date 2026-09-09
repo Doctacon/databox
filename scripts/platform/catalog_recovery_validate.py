@@ -8,15 +8,22 @@ import json
 import re
 import subprocess
 import sys
+import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
-from typing import Any, Protocol
+from pathlib import Path
+from typing import Any, Protocol, TypeGuard
 
 from databox.config.sources import SOURCES
 from pyiceberg.table import StaticTable
 
 STATUS_TABLE = "_dlt_load_status"
+REGISTRY_PATH = Path("packages/databox/databox/config/sources.py")
+RECOVERY_LABEL = "com.databox.catalog-recovery.validation"
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+_IDENTIFIER_COMPONENT = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
+_MAX_IDENTIFIER_PARTS = 16
+_MAX_IDENTIFIER_LENGTH = 512
 _MAX_IDENTIFIERS = 100
 
 # Runs wholly inside the explicitly named no-port Polaris container. OAuth never
@@ -69,8 +76,8 @@ for identifier in cfg["expected"]:
             "/v1/" + catalog + "/namespaces/" + encoded_namespace + "/tables/" + encoded_name,
             {"X-Iceberg-Access-Delegation": "vended-credentials"},
         )}
-    except urllib.error.HTTPError as error:
-        loaded_tables[identifier] = {"http_status": error.code}
+    except Exception:
+        loaded_tables[identifier] = {"request_failed": True}
 print(json.dumps({"namespaces": namespaces, "tables": tables, "loads": loaded_tables}))
 """
 
@@ -123,6 +130,39 @@ class DockerExecTransport:
         self.runner = runner
 
     def inspect(self, expected: Sequence[str]) -> Mapping[str, Any]:
+        inspect_format = (
+            '{"running":{{json .State.Running}},"labels":{{json .Config.Labels}},'
+            '"portBindings":{{json .HostConfig.PortBindings}}}'
+        )
+        try:
+            identity = self.runner(
+                ["docker", "inspect", "--format", inspect_format, self.container],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        except OSError as error:
+            raise ValidationError("unable to inspect restored Polaris container") from error
+        if identity.returncode != 0:
+            raise ValidationError("restored Polaris container inspection failed")
+        try:
+            details = json.loads(identity.stdout)
+        except (json.JSONDecodeError, TypeError) as error:
+            raise ValidationError("restored Polaris container identity is invalid") from error
+        labels = details.get("labels") if isinstance(details, dict) else None
+        ports = details.get("portBindings") if isinstance(details, dict) else None
+        if (
+            not isinstance(details, dict)
+            or details.get("running") is not True
+            or not isinstance(labels, dict)
+            or labels.get(RECOVERY_LABEL) != "polaris"
+            or (isinstance(ports, dict) and any(ports.values()))
+            or not isinstance(ports, dict)
+        ):
+            raise ValidationError(
+                "container is not a running, unexposed restored Polaris validation container"
+            )
+
         request = json.dumps({"catalog": self.catalog, "expected": list(expected)})
         try:
             completed = self.runner(
@@ -265,24 +305,44 @@ def validate_table(
     )
 
 
-def _identifiers(response: Mapping[str, Any]) -> tuple[set[str], set[str]]:
+def _valid_components(parts: object) -> TypeGuard[list[str]]:
+    return (
+        isinstance(parts, list)
+        and 0 < len(parts) <= _MAX_IDENTIFIER_PARTS
+        and all(isinstance(part, str) and _IDENTIFIER_COMPONENT.fullmatch(part) for part in parts)
+        and sum(len(part) for part in parts) + len(parts) - 1 <= _MAX_IDENTIFIER_LENGTH
+    )
+
+
+def _identifiers(response: Mapping[str, Any]) -> tuple[set[str], set[str], int]:
     namespaces: set[str] = set()
-    for parts in response.get("namespaces", []):
-        if isinstance(parts, list) and parts and all(isinstance(part, str) for part in parts):
+    malformed = 0
+    raw_namespaces = response.get("namespaces", [])
+    if not isinstance(raw_namespaces, list):
+        raw_namespaces = []
+        malformed += 1
+    for parts in raw_namespaces:
+        if _valid_components(parts):
             namespaces.add(".".join(parts))
+        else:
+            malformed += 1
     tables: set[str] = set()
-    for item in response.get("tables", []):
-        if not isinstance(item, dict):
-            continue
-        namespace = item.get("namespace")
-        name = item.get("name")
+    raw_tables = response.get("tables", [])
+    if not isinstance(raw_tables, list):
+        raw_tables = []
+        malformed += 1
+    for item in raw_tables:
+        namespace = item.get("namespace") if isinstance(item, dict) else None
+        name = item.get("name") if isinstance(item, dict) else None
         if (
-            isinstance(namespace, list)
-            and all(isinstance(part, str) for part in namespace)
+            _valid_components(namespace)
             and isinstance(name, str)
+            and _IDENTIFIER_COMPONENT.fullmatch(name)
         ):
             tables.add(".".join([*namespace, name]))
-    return namespaces, tables
+        else:
+            malformed += 1
+    return namespaces, tables, malformed
 
 
 def _bounded(items: set[str]) -> list[str]:
@@ -295,12 +355,12 @@ def validate_catalog(
     container: str,
     catalog: str,
     recovery_target: str,
-    git_revision: str,
+    source_revision: str,
     table_loader: TableLoader = _static_table,
 ) -> dict[str, Any]:
     expected = expected_registry_tables()
     response = transport.inspect(expected)
-    actual_namespaces, actual_tables = _identifiers(response)
+    actual_namespaces, actual_tables, malformed = _identifiers(response)
     expected_tables = set(expected)
     expected_namespaces = {identifier.split(".", 1)[0] for identifier in expected}
     missing = expected_tables - actual_tables
@@ -321,11 +381,11 @@ def validate_catalog(
         for identifier in expected
     ]
     unreadable = sum(bool(outcome.failures) for outcome in outcomes)
-    drift = bool(missing or unexpected or missing_namespaces or unexpected_namespaces)
+    drift = bool(missing or unexpected or missing_namespaces or unexpected_namespaces or malformed)
     status = "pass" if not drift and unreadable == 0 else "fail"
     return {
         "status": status,
-        "gitRevision": git_revision,
+        "sourceRevision": source_revision,
         "recoveryTarget": recovery_target,
         "container": container,
         "catalog": catalog,
@@ -339,6 +399,7 @@ def validate_catalog(
         "unexpectedNamespaces": _bounded(unexpected_namespaces),
         "missingTables": _bounded(missing),
         "unexpectedTables": _bounded(unexpected),
+        "malformedObservedIdentifiers": malformed,
         "identifierListsTruncated": any(
             len(items) > _MAX_IDENTIFIERS
             for items in (missing_namespaces, unexpected_namespaces, missing, unexpected)
@@ -347,19 +408,38 @@ def validate_catalog(
     }
 
 
-def _git_revision() -> str:
-    completed = subprocess.run(
-        ["git", "rev-parse", "HEAD"], text=True, capture_output=True, check=False
+def _source_revision(requested: str) -> str:
+    resolved = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{requested}^{{commit}}"],
+        text=True,
+        capture_output=True,
+        check=False,
     )
-    if completed.returncode != 0 or not completed.stdout.strip():
-        raise ValidationError("unable to determine Git revision")
-    return completed.stdout.strip()
+    commit = resolved.stdout.strip()
+    if resolved.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise ValidationError("source revision does not resolve to a commit")
+    historical = subprocess.run(
+        ["git", "show", f"{commit}:{REGISTRY_PATH.as_posix()}"],
+        capture_output=True,
+        check=False,
+    )
+    if historical.returncode != 0:
+        raise ValidationError("source revision does not contain the canonical registry")
+    try:
+        current = REGISTRY_PATH.read_bytes()
+    except OSError as error:
+        raise ValidationError("unable to read the working-tree canonical registry") from error
+    if historical.stdout != current:
+        raise ValidationError("source revision registry differs from the imported working tree")
+    return commit
 
 
-def _failure_report(args: argparse.Namespace, message: str) -> dict[str, Any]:
+def _failure_report(
+    args: argparse.Namespace, message: str, source_revision: str | None
+) -> dict[str, Any]:
     return {
         "status": "fail",
-        "gitRevision": None,
+        "sourceRevision": source_revision,
         "recoveryTarget": args.recovery_target,
         "container": args.polaris_container,
         "catalog": args.catalog,
@@ -372,8 +452,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--polaris-container", required=True)
     parser.add_argument("--catalog", required=True)
     parser.add_argument("--recovery-target", required=True)
+    parser.add_argument("--source-revision", required=True)
     args = parser.parse_args(argv)
+    started = time.monotonic()
+    source_revision = None
     try:
+        source_revision = _source_revision(args.source_revision)
         transport = DockerExecTransport(
             container=args.polaris_container,
             catalog=args.catalog,
@@ -383,10 +467,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             container=args.polaris_container,
             catalog=args.catalog,
             recovery_target=args.recovery_target,
-            git_revision=_git_revision(),
+            source_revision=source_revision,
         )
     except ValidationError as error:
-        report = _failure_report(args, str(error))
+        report = _failure_report(args, str(error), source_revision)
+    report["elapsedSeconds"] = round(time.monotonic() - started, 3)
     print(json.dumps(report, sort_keys=True, separators=(",", ":")))
     return 0 if report["status"] == "pass" else 1
 

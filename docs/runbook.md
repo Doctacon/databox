@@ -154,11 +154,17 @@ only the explicitly named no-port recovery container:
 uv run python scripts/platform/catalog_recovery_validate.py \
   --polaris-container databox-polaris-recovery-validation-20260908-214022 \
   --catalog databox_lake \
-  --recovery-target 2026-09-08T21:40:22Z
+  --recovery-target 2026-09-08T21:40:22Z \
+  --source-revision e95b333
 ```
 
-The validator derives every expected raw table and per-source `_dlt_load_status`
-from `databox.config.sources.SOURCES`. It enumerates the restored catalog, loads
+The validator resolves `--source-revision` to a commit and fails unless that
+commit's canonical registry bytes exactly match the imported working-tree
+registry (`e95b333` is the commit immediately preceding this example's recovery
+target). It derives every expected raw table and per-source `_dlt_load_status`
+from `databox.config.sources.SOURCES`. It rejects a container that lacks the
+recovery-validation label, is stopped, or publishes a host port. It enumerates
+the restored catalog, loads
 every expected table with Polaris-vended credentials, requires a current
 snapshot, plans its manifests, and performs a read-only limit-one data scan.
 Empty tables pass when that path completes with zero rows. Output is bounded,

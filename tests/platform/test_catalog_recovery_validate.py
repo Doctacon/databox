@@ -6,6 +6,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 ROOT = Path(__file__).parents[2]
 SCRIPT = ROOT / "scripts/platform/catalog_recovery_validate.py"
 
@@ -109,9 +111,33 @@ def validate(response, table_loader=lambda _location, _properties: FakeTable()):
         container="recovery-polaris",
         catalog="databox_lake",
         recovery_target="2026-09-08T21:40:22Z",
-        git_revision="abc123",
+        source_revision="a" * 40,
         table_loader=table_loader,
     )
+
+
+def test_source_revision_resolves_commit_and_requires_identical_registry(tmp_path):
+    registry = tmp_path / "sources.py"
+    registry.write_bytes(b"same registry\n")
+    commit = "a" * 40
+    responses = [
+        subprocess.CompletedProcess([], 0, stdout=commit + "\n", stderr=""),
+        subprocess.CompletedProcess([], 0, stdout=b"same registry\n", stderr=b""),
+    ]
+    with (
+        patch.object(validator, "REGISTRY_PATH", registry),
+        patch.object(validator.subprocess, "run", side_effect=responses) as run,
+    ):
+        assert validator._source_revision("e95b333") == commit
+    assert run.call_args_list[0].args[0][-1] == "e95b333^{commit}"
+
+    responses[1] = subprocess.CompletedProcess([], 0, stdout=b"different\n", stderr=b"")
+    with (
+        patch.object(validator, "REGISTRY_PATH", registry),
+        patch.object(validator.subprocess, "run", side_effect=responses),
+        pytest.raises(validator.ValidationError, match="differs"),
+    ):
+        validator._source_revision("e95b333")
 
 
 def test_expected_inventory_is_exactly_registry_tables_plus_each_status_table():
@@ -125,6 +151,20 @@ def test_expected_inventory_is_exactly_registry_tables_plus_each_status_table():
     }
     assert set(expected) == direct
     assert len(expected) == len(direct)
+
+
+def test_malformed_or_overlong_observed_identifiers_fail_without_echoing_them():
+    expected = validator.expected_registry_tables()
+    response = inventory(expected)
+    response["namespaces"].append(["x" * 129])
+    response["tables"].append({"namespace": ["raw_gbif"], "name": "bad\nname"})
+
+    report = validate(response)
+
+    assert report["status"] == "fail"
+    assert report["malformedObservedIdentifiers"] == 2
+    assert "x" * 129 not in json.dumps(report)
+    assert "bad\\nname" not in json.dumps(report)
 
 
 def test_catalog_report_aggregates_missing_unexpected_and_unreadable_tables():
@@ -229,30 +269,62 @@ def test_vended_storage_credentials_are_given_to_static_table_only_in_memory():
     assert expected_secret not in json.dumps(outcome.__dict__)
 
 
-def test_docker_transport_sends_only_safe_request_on_stdin_and_sanitizes_failure():
+def _identity(*, running=True, label="polaris", ports=None):
+    return json.dumps(
+        {
+            "running": running,
+            "labels": {validator.RECOVERY_LABEL: label},
+            "portBindings": {} if ports is None else ports,
+        }
+    )
+
+
+def test_helper_aggregates_all_per_table_request_or_parse_failures():
+    helper = validator._CONTAINER_HELPER
+    assert "except Exception:" in helper
+    assert 'loaded_tables[identifier] = {"request_failed": True}' in helper
+
+
+def test_docker_transport_requires_labeled_running_unexposed_container():
+    for identity in (
+        _identity(running=False),
+        _identity(label="active"),
+        _identity(ports={"8181/tcp": [{"HostPort": "18181"}]}),
+        "not-json must-never-appear",
+    ):
+
+        def runner(command, identity=identity, **_kwargs):
+            return subprocess.CompletedProcess(command, 0, stdout=identity, stderr="secret")
+
+        transport = validator.DockerExecTransport(
+            container="recovery-polaris", catalog="databox_lake", runner=runner
+        )
+        with pytest.raises(validator.ValidationError) as caught:
+            transport.inspect(("raw_gbif.occurrences",))
+        assert "must-never-appear" not in str(caught.value)
+        assert "secret" not in str(caught.value)
+
+
+def test_docker_transport_preflights_then_sends_only_safe_request_on_stdin():
     calls = []
+    response = {"namespaces": [], "tables": [], "loads": {}}
 
     def runner(command, **kwargs):
         calls.append((command, kwargs))
-        return subprocess.CompletedProcess(command, 1, stdout="", stderr="must-never-appear")
+        stdout = _identity() if command[1] == "inspect" else json.dumps(response)
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
 
     transport = validator.DockerExecTransport(
         container="recovery-polaris", catalog="databox_lake", runner=runner
     )
-    try:
-        transport.inspect(("raw_gbif.occurrences",))
-    except validator.ValidationError as error:
-        message = str(error)
-    else:
-        raise AssertionError("expected failure")
+    assert transport.inspect(("raw_gbif.occurrences",)) == response
 
-    command, kwargs = calls[0]
+    command, kwargs = calls[1]
     assert command[:5] == ["docker", "exec", "-i", "recovery-polaris", "python3"]
     assert json.loads(kwargs["input"]) == {
         "catalog": "databox_lake",
         "expected": ["raw_gbif.occurrences"],
     }
-    assert "must-never-appear" not in message
     assert kwargs["capture_output"] is True
 
 
@@ -264,7 +336,8 @@ def test_main_emits_secret_free_bounded_json_and_nonzero_on_aggregate_failure(ca
 
     with (
         patch.object(validator, "DockerExecTransport", return_value=FakeTransport(response)),
-        patch.object(validator, "_git_revision", return_value="abc123"),
+        patch.object(validator, "_source_revision", return_value="a" * 40),
+        patch.object(validator.time, "monotonic", side_effect=[10.0, 12.5]),
         patch.object(validator.StaticTable, "from_metadata", return_value=FakeTable()),
     ):
         result = validator.main(
@@ -275,6 +348,8 @@ def test_main_emits_secret_free_bounded_json_and_nonzero_on_aggregate_failure(ca
                 "databox_lake",
                 "--recovery-target",
                 "2026-09-08T21:40:22Z",
+                "--source-revision",
+                "e95b333",
             ]
         )
 
@@ -282,5 +357,7 @@ def test_main_emits_secret_free_bounded_json_and_nonzero_on_aggregate_failure(ca
     report = json.loads(output)
     assert result == 1
     assert report["status"] == "fail"
+    assert report["sourceRevision"] == "a" * 40
+    assert report["elapsedSeconds"] == 2.5
     assert secret not in output
     assert len(report["tables"]) == len(expected)
