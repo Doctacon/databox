@@ -82,7 +82,8 @@ Record adversarial restore-safety cases, registry-derived restored-table validat
 - 2026-09-09: Independent review `.10x/reviews/2026-09-09-bounded-recovery-reconciliation-repair-review.md` passed the authorized failure tests, runbook correction, evidence clarification, and closure bookkeeping. Snapshot divergence was not waived.
 - 2026-09-09: User authorized the remaining snapshot-divergence check. `.10x/evidence/2026-09-09-rest-s3-snapshot-divergence-check.md` records a bounded comparison between Polaris REST embedded current snapshot and the snapshot independently loaded from its S3 metadata location, with match/missing/malformed/mismatch tests. Seventeen focused tests and all static/security checks passed; no live operation ran.
 - 2026-09-09: Independent review `.10x/reviews/2026-09-09-rest-s3-snapshot-divergence-review.md` passed with no findings.
+- 2026-09-09: User authorized one live read-only rerun. `.10x/evidence/2026-09-09-live-rest-s3-snapshot-validation.md` records exit `0` in 59.725 seconds: all 25 canonical tables passed REST-versus-S3 current-snapshot comparison, manifest planning, and representative data reads with zero failures; noncanonical state remained six explicit warnings. Active and recovery services remained unchanged, healthy/running, and unexposed.
 
 ## Blockers
 
-A separately authorized live validator rerun must exercise the new comparison against the preserved recovery stack. Timed-drill authorization is already recorded. Do not delete or reuse recovery artifacts without authorization.
+Independent acceptance review of the live snapshot-comparison evidence. Timed-drill authorization is already recorded. Do not delete or reuse recovery artifacts without authorization.
