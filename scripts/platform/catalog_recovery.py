@@ -119,6 +119,10 @@ class DrillOperations(Protocol):
 
     def validate_postgres(self, *, container: str, marker: str) -> None: ...
 
+    def restart_postgres_without_credentials(self, *, container: str) -> None: ...
+
+    def quiesce_postgres(self) -> None: ...
+
     def start_polaris(self, *, container: str, network: str) -> None: ...
 
     def validate_polaris(self, *, container: str) -> None: ...
@@ -438,11 +442,13 @@ def orchestrate_timed_drill(
     started = monotonic() if started_at is None else started_at
     stage = "preflight"
     marker_cleanup_required = False
+    postgres_may_hold_secrets = False
     polaris_may_hold_secrets = False
     primary: str | None = None
     result: dict[str, Any] | None = None
     cleanup = {"marker_drop": "not-required", "wal_archive": "not-required"}
-    quiesce = "not-required"
+    postgres_quiesce = "not-required"
+    polaris_quiesce = "not-required"
     try:
         operations.preflight(resources, environ)
         stage = "before marker"
@@ -458,13 +464,21 @@ def orchestrate_timed_drill(
         operations.archive_marker_wal(environ)
         stage = "restore"
         operations.restore(volume=resources.volume, recover_to=recover_to, environ=environ)
-        stage = "isolated PostgreSQL startup"
+        stage = "isolated PostgreSQL recovery startup"
+        postgres_may_hold_secrets = True
         operations.start_postgres(
             container=resources.postgres_container,
             network=resources.network,
             volume=resources.volume,
         )
-        stage = "isolated PostgreSQL validation"
+        stage = "isolated PostgreSQL recovery validation"
+        operations.validate_postgres(
+            container=resources.postgres_container, marker=resources.marker
+        )
+        stage = "isolated PostgreSQL credential scrub restart"
+        operations.restart_postgres_without_credentials(container=resources.postgres_container)
+        postgres_may_hold_secrets = False
+        stage = "isolated PostgreSQL post-scrub validation"
         operations.validate_postgres(
             container=resources.postgres_container, marker=resources.marker
         )
@@ -513,9 +527,15 @@ def orchestrate_timed_drill(
         if polaris_may_hold_secrets:
             try:
                 operations.quiesce_polaris()
-                quiesce = "stopped"
+                polaris_quiesce = "stopped"
             except Exception as exc:
-                quiesce = "failed: " + _report_diagnostic(exc, environ)
+                polaris_quiesce = "failed: " + _report_diagnostic(exc, environ)
+        if postgres_may_hold_secrets:
+            try:
+                operations.quiesce_postgres()
+                postgres_quiesce = "stopped"
+            except Exception as exc:
+                postgres_quiesce = "failed: " + _report_diagnostic(exc, environ)
         if marker_cleanup_required:
             try:
                 operations.cleanup_marker(resources.marker)
@@ -528,16 +548,18 @@ def orchestrate_timed_drill(
             except Exception as exc:
                 cleanup["wal_archive"] = "failed: " + _report_diagnostic(exc, environ)
     cleanup_failed = any(value.startswith("failed:") for value in cleanup.values())
-    quiesce_failed = quiesce.startswith("failed:")
+    quiesce_failed = postgres_quiesce.startswith("failed:") or polaris_quiesce.startswith("failed:")
     if result is not None:
         result["cleanup"] = cleanup
-        result["polaris_quiesce"] = quiesce
+        result["postgres_quiesce"] = postgres_quiesce
+        result["polaris_quiesce"] = polaris_quiesce
     if primary is not None or cleanup_failed or quiesce_failed:
         details = primary or "timed catalog drill validation completed"
         resource_text = dict(zip(DrillResources._fields, resources, strict=True))
         message = (
             f"{details}; resources={resource_text}; cleanup={cleanup}; "
-            f"polaris_quiesce={quiesce}; recovery artifacts were preserved"
+            f"postgres_quiesce={postgres_quiesce}; polaris_quiesce={polaris_quiesce}; "
+            "recovery artifacts were preserved"
         )
         raise RecoveryError(_redacted_diagnostic(RecoveryError(message), environ))
     if result is None:
@@ -814,6 +836,23 @@ class DockerDrillOperations:
             self.sleeper(1)
         raise RecoveryError(f"{description} did not become ready")
 
+    @staticmethod
+    def _postgres_command() -> tuple[str, ...]:
+        return ("postgres", "-c", "archive_mode=off", "-c", "listen_addresses=*")
+
+    def _start_postgres_exec(self, container: str, *, environ: Mapping[str, str] | None) -> None:
+        command = ["docker", "exec", "--detach", "--user", "postgres"]
+        if environ is not None:
+            for name in _BACKUP_ENV:
+                command.extend(("--env", name))
+        command.extend((container, *self._postgres_command()))
+        self._run(command, environ=environ)
+        self._wait_exec(
+            container,
+            ("pg_isready", "-U", "polaris", "-d", "polaris"),
+            "isolated PostgreSQL",
+        )
+
     def start_postgres(self, *, container: str, network: str, volume: str) -> None:
         self._run(
             (
@@ -825,40 +864,44 @@ class DockerDrillOperations:
                 network,
             )
         )
-        command = [
-            "docker",
-            "run",
-            "--detach",
-            "--name",
-            container,
-            "--label",
-            f"{_RECOVERY_VALIDATION_LABEL}=postgres",
-            "--network",
-            network,
-            "--user",
-            "postgres",
-            "--restart",
-            "no",
-        ]
-        command.extend(
+        # The preserved container configuration is secret-free. PITR credentials
+        # exist only in the first detached PostgreSQL process environment.
+        self._run(
             (
+                "docker",
+                "run",
+                "--detach",
+                "--name",
+                container,
+                "--label",
+                f"{_RECOVERY_VALIDATION_LABEL}=postgres",
+                "--network",
+                network,
+                "--user",
+                "postgres",
+                "--restart",
+                "no",
                 "--mount",
                 f"type=volume,src={volume},dst={_DATA_PATH}",
                 _IMAGE,
-                "postgres",
+                "/bin/sh",
                 "-c",
-                "archive_mode=off",
-                "-c",
-                "listen_addresses=*",
+                "while :; do sleep 3600; done",
             )
         )
-        self._run(command)
         self._postgres_container = container
-        self._wait_exec(
-            container,
-            ("pg_isready", "-U", "polaris", "-d", "polaris"),
-            "isolated PostgreSQL",
-        )
+        self._start_postgres_exec(container, environ=self.environ)
+
+    def restart_postgres_without_credentials(self, *, container: str) -> None:
+        if self._postgres_container != container:
+            raise RecoveryError("isolated PostgreSQL was not started")
+        self._run(("docker", "stop", "--time", "10", container))
+        self._run(("docker", "start", container))
+        self._start_postgres_exec(container, environ=None)
+
+    def quiesce_postgres(self) -> None:
+        if self._postgres_container is not None:
+            self._run(("docker", "stop", "--time", "10", self._postgres_container))
 
     def validate_postgres(self, *, container: str, marker: str) -> None:
         table = self._quoted_marker(marker)

@@ -622,6 +622,12 @@ class _FakeDrillOperations:
     def validate_postgres(self, **_kwargs) -> None:
         self._call("validate_postgres")
 
+    def restart_postgres_without_credentials(self, **_kwargs) -> None:
+        self._call("restart_postgres_without_credentials")
+
+    def quiesce_postgres(self) -> None:
+        self._call("quiesce_postgres")
+
     def start_polaris(self, **_kwargs) -> None:
         self._call("start_polaris")
 
@@ -661,6 +667,8 @@ def test_timed_drill_state_machine_orders_effects_and_measures_end_to_end_path()
         "archive_marker",
         "restore",
         "start_postgres",
+        "validate_postgres",
+        "restart_postgres_without_credentials",
         "validate_postgres",
         "start_polaris",
         "validate_polaris",
@@ -702,6 +710,7 @@ def test_timed_drill_enforces_objective_boundaries(rpo: float, rto: float, statu
         "restore",
         "start_postgres",
         "validate_postgres",
+        "restart_postgres_without_credentials",
         "start_polaris",
         "validate_polaris",
         "validate_catalog",
@@ -719,6 +728,13 @@ def test_timed_drill_failure_cleans_marker_and_preserves_primary_stage(failure: 
         )
 
     assert operations.calls[-2:] == ["cleanup", "archive_cleanup"]
+    if failure in {
+        "start_postgres",
+        "validate_postgres",
+        "restart_postgres_without_credentials",
+    }:
+        assert "quiesce_postgres" in operations.calls
+        assert operations.calls.index("quiesce_postgres") < operations.calls.index("cleanup")
     assert "volume rm" not in " ".join(operations.calls)
 
 
@@ -1037,6 +1053,7 @@ def test_concrete_recovery_containers_are_labeled_unexposed_and_never_mount_acti
     operations.start_postgres(
         container="recovery-postgres", network="recovery-network", volume="recovery-volume"
     )
+    operations.restart_postgres_without_credentials(container="recovery-postgres")
     operations.start_polaris(container="recovery-polaris", network="recovery-network")
 
     run_calls = [call for call, _ in calls if call[:2] == ("docker", "run")]
@@ -1052,8 +1069,12 @@ def test_concrete_recovery_containers_are_labeled_unexposed_and_never_mount_acti
     assert all(secret not in rendered for secret in _drill_environment().values())
     assert all(name not in rendered for name in recovery._SECRET_ENV)
     exec_calls = [call for call, _ in calls if call[:3] == ("docker", "exec", "--detach")]
-    assert len(exec_calls) == 1
-    assert "/opt/jboss/container/java/run/run-java.sh" in exec_calls[0]
+    assert len(exec_calls) == 3
+    recovery_exec, scrubbed_exec, polaris_exec = exec_calls
+    assert all(name in recovery_exec for name in recovery._BACKUP_ENV)
+    assert all(name not in scrubbed_exec for name in recovery._BACKUP_ENV)
+    assert recovery_exec[-5:] == scrubbed_exec[-5:]
+    assert "/opt/jboss/container/java/run/run-java.sh" in polaris_exec
     operations.quiesce_polaris()
     assert calls[-1][0] == ("docker", "stop", "--time", "10", "recovery-polaris")
 
@@ -1348,6 +1369,7 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
             ("docker", "network"),
             ("docker", "run"),
             ("docker", "stop"),
+            ("docker", "start"),
         }:
             return subprocess.CompletedProcess(command, 0, stdout="created", stderr="")
         if command[:2] == ("docker", "exec"):
@@ -1398,6 +1420,33 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
     assert rendered.index("RETURNING committed_at") < rendered.index("pg_walfile_name")
     assert rendered.index("pg_walfile_name") < rendered.index(
         "--target=2026-09-09 12:00:01.000000+00"
+    )
+    postgres_execs = [
+        command
+        for command in commands
+        if command[:3] == ("docker", "exec", "--detach") and "postgres" in command
+    ]
+    assert len(postgres_execs) == 2
+    assert all(name in postgres_execs[0] for name in recovery._BACKUP_ENV)
+    assert all(name not in postgres_execs[1] for name in recovery._BACKUP_ENV)
+    first_validation = next(
+        index for index, command in enumerate(commands) if "count(*) FILTER" in " ".join(command)
+    )
+    stop_index = commands.index(
+        (
+            "docker",
+            "stop",
+            "--time",
+            "10",
+            "databox-polaris-recovery-drill-postgres-abcdef1234567890",
+        )
+    )
+    assert (
+        first_validation
+        < stop_index
+        < commands.index(
+            ("docker", "start", "databox-polaris-recovery-drill-postgres-abcdef1234567890")
+        )
     )
     assert rendered.index("archive_mode=off") < rendered.index("catalog_recovery_validate.py")
     assert "docker rm" not in rendered and "docker volume rm" not in rendered

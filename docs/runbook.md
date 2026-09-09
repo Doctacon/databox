@@ -165,11 +165,14 @@ marker (or safely accepts that it is already absent), synchronously archives the
 cleanup WAL, and then continues into the drill with the same in-memory session.
 
 Temporary credentials are never written to `.env`, a handoff file, or preserved
-container configuration. The recovery PostgreSQL needs no backup credentials
-because archival is disabled. Polaris starts as a secret-free sleeper container;
-the application receives credentials only in a detached child-process environment
-and the container is always stopped after validation or failure, while the stopped
-container remains preserved. The command uses a microsecond-precise marker bracket,
+container configuration. Recovery PostgreSQL starts inside a secret-free sleeper
+container and receives backup credentials only in its first detached child process
+while PITR fetches WAL. After promotion and marker validation, the container is
+stopped, restarted, and PostgreSQL is launched again without backup credentials;
+any earlier failure stops the credential-bearing process. Polaris follows the same
+secret-free sleeper pattern, receives credentials only in a detached child process,
+and is always stopped after validation or failure while its container remains
+preserved. The command uses a microsecond-precise marker bracket,
 synchronous marker and cleanup WAL pushes, a new ownership-labeled volume,
 unexposed archive-disabled PostgreSQL, no-bootstrap Polaris, and the registry-derived
 validator. End-to-end RTO starts before authentication; results exceeding 300-second
