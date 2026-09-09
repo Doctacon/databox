@@ -141,7 +141,7 @@ def test_interactive_credentials_reject_expired_session() -> None:
             stderr="",
         )
 
-    with pytest.raises(recovery.RecoveryError, match="expired session"):
+    with pytest.raises(recovery.RecoveryError, match="less than 15 minutes"):
         recovery.acquire_backup_role_environment(
             environ=_BACKUP_ENV,
             runner=runner,
@@ -149,6 +149,48 @@ def test_interactive_credentials_reject_expired_session() -> None:
             stderr_isatty=True,
             now=lambda: datetime(2026, 9, 9, 12, 0, tzinfo=UTC),
         )
+
+
+@pytest.mark.parametrize(("remaining", "accepted"), [(900, True), (899, False)])
+def test_interactive_credentials_require_fifteen_minutes_remaining(
+    remaining: int, accepted: bool
+) -> None:
+    now = datetime(2026, 9, 9, 12, 0, tzinfo=UTC)
+
+    def runner(command, **_kwargs):
+        if command[:2] == ("aws", "login"):
+            return subprocess.CompletedProcess(command, 0)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(
+                {
+                    "Version": 1,
+                    "AccessKeyId": "ASIA" + "ABCDEFGHIJKLMNOP",  # secret-scan: allow
+                    "SecretAccessKey": "temporary-secret",  # secret-scan: allow
+                    "SessionToken": "temporary-token",  # secret-scan: allow
+                    "Expiration": (now + timedelta(seconds=remaining)).isoformat(),
+                }
+            ),
+        )
+
+    if accepted:
+        recovery.acquire_backup_role_environment(
+            environ=_BACKUP_ENV,
+            runner=runner,
+            stdin_isatty=True,
+            stderr_isatty=True,
+            now=lambda: now,
+        )
+    else:
+        with pytest.raises(recovery.RecoveryError, match="less than 15 minutes"):
+            recovery.acquire_backup_role_environment(
+                environ=_BACKUP_ENV,
+                runner=runner,
+                stdin_isatty=True,
+                stderr_isatty=True,
+                now=lambda: now,
+            )
 
 
 @pytest.mark.parametrize("expiration", [None, 123, {}, []])
@@ -262,8 +304,8 @@ def test_prepare_only_plans_safe_isolated_restore_without_mutation() -> None:
 @pytest.mark.parametrize(
     ("recover_to", "expected"),
     [
-        ("2026-09-05T16:25:13Z", "--target=2026-09-05 16:25:13+00"),
-        ("2026-09-05T12:00:00-07:00", "--target=2026-09-05 19:00:00+00"),
+        ("2026-09-05T16:25:13.123456Z", "--target=2026-09-05 16:25:13.123456+00"),
+        ("2026-09-05T12:00:00-07:00", "--target=2026-09-05 19:00:00.000000+00"),
     ],
 )
 def test_restore_command_renders_pgbackrest_utc_timestamp(recover_to: str, expected: str) -> None:
@@ -318,7 +360,7 @@ def test_execute_uses_only_owned_new_volume_and_secret_variable_names() -> None:
     assert restore[-5:] == (
         "--stanza=polaris",
         "--type=time",
-        "--target=2026-09-05 19:00:00+00",
+        "--target=2026-09-05 19:00:00.000000+00",
         "--target-action=promote",
         "restore",
     )
@@ -590,6 +632,9 @@ class _FakeDrillOperations:
         self._call("validate_catalog")
         return {"status": "pass", "counts": {"validatedTables": 25}}
 
+    def quiesce_polaris(self) -> None:
+        self._call("quiesce_polaris")
+
     def cleanup_marker(self, _marker) -> None:
         self._call("cleanup")
 
@@ -597,7 +642,7 @@ class _FakeDrillOperations:
         self._call("archive_cleanup")
 
 
-def test_timed_drill_state_machine_orders_effects_and_measures_only_restore_path() -> None:
+def test_timed_drill_state_machine_orders_effects_and_measures_end_to_end_path() -> None:
     operations = _FakeDrillOperations()
     times = iter((100.0, 160.5))
 
@@ -620,6 +665,7 @@ def test_timed_drill_state_machine_orders_effects_and_measures_only_restore_path
         "start_polaris",
         "validate_polaris",
         "validate_catalog",
+        "quiesce_polaris",
         "cleanup",
         "archive_cleanup",
     ]
@@ -628,6 +674,26 @@ def test_timed_drill_state_machine_orders_effects_and_measures_only_restore_path
     assert result["resources"]["preserved"] is True
     assert result["catalog"]["counts"]["validatedTables"] == 25
     assert result["cutover"] == "not_performed"
+
+
+@pytest.mark.parametrize(
+    ("rpo", "rto", "status"),
+    [(300.0, 3600.0, "pass"), (300.001, 3600.0, "fail"), (300.0, 3600.001, "fail")],
+)
+def test_timed_drill_enforces_objective_boundaries(rpo: float, rto: float, status: str) -> None:
+    operations = _FakeDrillOperations()
+    operations.target = operations.before + timedelta(seconds=rpo)
+    operations.after = operations.target + timedelta(seconds=1)
+    result = recovery.orchestrate_timed_drill(
+        operations=operations,
+        environ=_BACKUP_ENV,
+        monotonic=lambda: rto,
+        started_at=0.0,
+        token_factory=lambda: "abcdef1234567890",
+    )
+    assert result["status"] == status
+    assert result["objectives"]["rpo"]["met"] is (rpo <= 300)
+    assert result["objectives"]["rto"]["met"] is (rto <= 3600)
 
 
 @pytest.mark.parametrize(
@@ -665,7 +731,7 @@ def test_timed_drill_preserves_primary_error_when_cleanup_fails() -> None:
         raise RuntimeError("unsafe detail")
 
     operations.cleanup_marker = failed_cleanup
-    with pytest.raises(recovery.RecoveryError, match="failed during restore.*cleanup also failed"):
+    with pytest.raises(recovery.RecoveryError, match="failed during restore.*marker_drop.*failed"):
         recovery.orchestrate_timed_drill(
             operations=operations,
             environ=_BACKUP_ENV,
@@ -746,6 +812,36 @@ def _drill_environment():
     }
 
 
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        "Error: No such container: recovery-container",
+        "Error response from daemon: network recovery-container not found",
+        "Error response from daemon: get recovery-container: no such volume",
+    ],
+)
+def test_docker_absence_accepts_only_named_not_found(stderr: str) -> None:
+    def runner(command, **_kwargs):
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr=stderr)
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake", source_revision="abc123", environ={}, runner=runner
+    )
+    operations._assert_absent("container", "recovery-container")
+
+
+@pytest.mark.parametrize("stderr", ["permission denied", "daemon unavailable", "", "not found"])
+def test_docker_absence_rejects_non_not_found_errors(stderr: str) -> None:
+    def runner(command, **_kwargs):
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr=stderr)
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake", source_revision="abc123", environ={}, runner=runner
+    )
+    with pytest.raises(recovery.RecoveryError, match="unable to prove"):
+        operations._assert_absent("container", "recovery-container")
+
+
 def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names() -> None:
     calls = []
     active_mounts = [{"Name": "databox_polaris_postgres", "Destination": recovery._DATA_PATH}]
@@ -785,7 +881,9 @@ def test_concrete_preflight_requires_pinned_healthy_active_stack_and_new_names()
             ("docker", "network", "inspect"),
             ("docker", "volume", "inspect"),
         }:
-            return subprocess.CompletedProcess(command, 1, stdout="", stderr="not found")
+            return subprocess.CompletedProcess(
+                command, 1, stdout="", stderr=f"No such object: {command[-1]}"
+            )
         if command[:2] == ("docker", "exec"):
             return subprocess.CompletedProcess(
                 command,
@@ -952,6 +1050,12 @@ def test_concrete_recovery_containers_are_labeled_unexposed_and_never_mount_acti
     assert f"{recovery._RECOVERY_VALIDATION_LABEL}=polaris" in rendered
     assert "bootstrap" not in rendered
     assert all(secret not in rendered for secret in _drill_environment().values())
+    assert all(name not in rendered for name in recovery._SECRET_ENV)
+    exec_calls = [call for call, _ in calls if call[:3] == ("docker", "exec", "--detach")]
+    assert len(exec_calls) == 1
+    assert "/opt/jboss/container/java/run/run-java.sh" in exec_calls[0]
+    operations.quiesce_polaris()
+    assert calls[-1][0] == ("docker", "stop", "--time", "10", "recovery-polaris")
 
 
 def test_marker_identifier_and_phase_are_rejected_before_sql() -> None:
@@ -1070,7 +1174,6 @@ def test_cleanup_marker_rejects_non_drill_marker_before_auth(marker: str) -> Non
 @pytest.mark.parametrize(
     "identity",
     [
-        "",
         "private|r|polaris",
         "public|v|polaris",
         "public|r|root",
@@ -1090,6 +1193,54 @@ def test_reconcile_marker_refuses_unexpected_relation_without_drop(identity: str
     with pytest.raises(recovery.RecoveryError, match="identity is invalid"):
         operations.reconcile_marker("databox_recovery_drill_abcdefghijkl")
     assert not any("DROP TABLE" in " ".join(call) for call in calls)
+
+
+def test_reconcile_marker_accepts_exact_absence_without_drop() -> None:
+    calls = []
+
+    def runner(command, **_kwargs):
+        calls.append(tuple(command))
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake", source_revision="abc123", environ={}, runner=runner
+    )
+    operations.reconcile_marker("databox_recovery_drill_abcdefghijkl")
+    assert len(calls) == 1
+    assert not any("DROP TABLE" in " ".join(call) for call in calls)
+
+
+def test_reconcile_marker_drop_archive_failure_is_resumable_when_absent() -> None:
+    marker = "databox_recovery_drill_abcdefghijkl"
+    identity = iter(("public|r|polaris\n", ""))
+    calls = []
+
+    def runner(command, **_kwargs):
+        calls.append(tuple(command))
+        joined = " ".join(command)
+        if "pg_catalog.pg_class" in joined:
+            return subprocess.CompletedProcess(command, 0, stdout=next(identity), stderr="")
+        if "pg_walfile_name" in joined:
+            return subprocess.CompletedProcess(
+                command, 0, stdout="000000010000000000000023\n", stderr=""
+            )
+        if "archive-push" in joined and sum("archive-push" in " ".join(c) for c in calls) == 1:
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="archive failed")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    operations = recovery.DockerDrillOperations(
+        catalog="databox_lake",
+        source_revision="abc123",
+        environ=_drill_environment(),
+        runner=runner,
+    )
+    operations.reconcile_marker(marker)
+    with pytest.raises(recovery.RecoveryError, match="archive failed"):
+        operations.archive_cleanup_wal(_drill_environment())
+    operations.reconcile_marker(marker)
+    operations.archive_cleanup_wal(_drill_environment())
+    assert sum("DROP TABLE" in " ".join(call) for call in calls) == 1
+    assert sum("archive-push" in " ".join(call) for call in calls) == 2
 
 
 def test_reconcile_marker_checks_identity_then_drops_exact_table() -> None:
@@ -1164,7 +1315,10 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
             ("docker", "network", "inspect"),
         } or command[:3] == ("docker", "volume", "ls"):
             return subprocess.CompletedProcess(
-                command, 1 if "inspect" in command else 0, stdout="", stderr=""
+                command,
+                1 if "inspect" in command else 0,
+                stdout="",
+                stderr=f"No such object: {command[-1]}" if "inspect" in command else "",
             )
         if command[:3] == ("docker", "volume", "create"):
             ownership = next(
@@ -1178,9 +1332,13 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
                 command,
                 0 if ownership else 1,
                 stdout=ownership + "\n" if ownership else "",
-                stderr="",
+                stderr="" if ownership else f"No such volume: {command[-1]}",
             )
-        if command[:2] == ("docker", "network") or command[:2] == ("docker", "run"):
+        if command[:2] in {
+            ("docker", "network"),
+            ("docker", "run"),
+            ("docker", "stop"),
+        }:
             return subprocess.CompletedProcess(command, 0, stdout="created", stderr="")
         if command[:2] == ("docker", "exec"):
             joined = " ".join(command)
@@ -1228,7 +1386,9 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
     rendered = "\n".join(" ".join(command) for command in commands)
     assert result["status"] == "pass" and result["achieved_rto_seconds"] == 60.0
     assert rendered.index("RETURNING committed_at") < rendered.index("pg_walfile_name")
-    assert rendered.index("pg_walfile_name") < rendered.index("--target=2026-09-09 12:00:01+00")
+    assert rendered.index("pg_walfile_name") < rendered.index(
+        "--target=2026-09-09 12:00:01.000000+00"
+    )
     assert rendered.index("archive_mode=off") < rendered.index("catalog_recovery_validate.py")
     assert "docker rm" not in rendered and "docker volume rm" not in rendered
     assert recovery._ACTIVE_VOLUME not in "\n".join(
@@ -1248,6 +1408,72 @@ def test_integrated_concrete_drill_orders_real_adapters_and_preserves_artifacts(
         for secret in environment.values()
         for command in pgbackrest_commands
     )
+    run_config = "\n".join(
+        " ".join(command)
+        for command in commands
+        if command[:2] == ("docker", "run") and "--rm" not in command
+    )
+    assert all(name not in run_config for name in recovery._SECRET_ENV)
+    assert "docker stop --time 10 databox-polaris-recovery-drill-polaris" in rendered
+
+
+def test_drill_cli_reconciles_marker_then_runs_with_one_auth_and_end_to_end_start() -> None:
+    marker = "databox_recovery_drill_abcdefghijkl"
+    environment = _drill_environment()
+    operations = Mock()
+    events = []
+    operations.preflight.side_effect = lambda *_args: events.append("preflight")
+    operations.reconcile_marker.side_effect = lambda *_args: events.append("reconcile")
+    operations.archive_cleanup_wal.side_effect = lambda *_args: events.append("archive")
+    result = {"status": "pass"}
+
+    with (
+        patch.object(recovery, "_environment_from_dotenv", return_value=environment),
+        patch.object(
+            recovery,
+            "acquire_backup_role_environment",
+            side_effect=lambda **_kwargs: (events.append("auth"), environment)[1],
+        ) as auth,
+        patch.object(recovery, "DockerDrillOperations", return_value=operations),
+        patch.object(recovery, "orchestrate_timed_drill", return_value=result) as orchestrate,
+        patch.object(recovery.time, "monotonic", return_value=42.0),
+    ):
+        assert (
+            recovery.main(
+                [
+                    "drill",
+                    "--catalog",
+                    "databox_lake",
+                    "--source-revision",
+                    "abc123",
+                    "--reconcile-marker",
+                    marker,
+                ]
+            )
+            == 0
+        )
+
+    assert events == ["auth", "preflight", "reconcile", "archive"]
+    auth.assert_called_once()
+    assert orchestrate.call_args.kwargs["started_at"] == 42.0
+
+
+def test_drill_cli_returns_nonzero_for_measured_objective_failure() -> None:
+    environment = _drill_environment()
+    with (
+        patch.object(recovery, "_environment_from_dotenv", return_value=environment),
+        patch.object(recovery, "acquire_backup_role_environment", return_value=environment),
+        patch.object(recovery, "DockerDrillOperations", return_value=Mock()),
+        patch.object(
+            recovery,
+            "orchestrate_timed_drill",
+            return_value={"status": "fail", "achieved_rto_seconds": 3600.001},
+        ),
+    ):
+        assert (
+            recovery.main(["drill", "--catalog", "databox_lake", "--source-revision", "abc123"])
+            == 1
+        )
 
 
 def test_cli_dispatch_and_task_use_existing_recovery_entrypoint() -> None:

@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, NamedTuple, Protocol
 
@@ -79,6 +79,9 @@ _POLARIS_IMAGE = "apache/polaris:1.7.0"
 _RECOVERY_VALIDATION_LABEL = "com.databox.catalog-recovery.validation"
 _ROOT = Path(__file__).resolve().parents[2]
 _VALIDATOR = _ROOT / "scripts/platform/catalog_recovery_validate.py"
+_MINIMUM_CREDENTIAL_LIFETIME = timedelta(minutes=15)
+_RPO_OBJECTIVE_SECONDS = 300.0
+_RTO_OBJECTIVE_SECONDS = 3600.0
 
 
 def _resolve_source_revision(requested: str) -> str:
@@ -122,6 +125,8 @@ class DrillOperations(Protocol):
 
     def validate_catalog(self, *, container: str, recover_to: datetime) -> Mapping[str, Any]: ...
 
+    def quiesce_polaris(self) -> None: ...
+
     def cleanup_marker(self, marker: str) -> None: ...
 
     def archive_cleanup_wal(self, environ: Mapping[str, str]) -> None: ...
@@ -162,6 +167,12 @@ def _redacted_diagnostic(exc: BaseException, environ: Mapping[str, str]) -> str:
     if len(diagnostic) > _DIAGNOSTIC_LIMIT:
         diagnostic = "[truncated]\n" + diagnostic[-_DIAGNOSTIC_LIMIT:]
     return diagnostic
+
+
+def _report_diagnostic(exc: BaseException, environ: Mapping[str, str]) -> str:
+    diagnostic = _redacted_diagnostic(exc, environ)
+    limit = 500
+    return diagnostic if len(diagnostic) <= limit else "[truncated]\n" + diagnostic[-limit:]
 
 
 def _new_ownership_token() -> str:
@@ -241,8 +252,8 @@ def acquire_backup_role_environment(
         isinstance(value, str) and value for value in (access_key, secret_key, session_token)
     ):
         raise RecoveryError("backup-role credential export returned an incomplete session")
-    if expires_at <= now().astimezone(UTC):
-        raise RecoveryError("backup-role credential export returned an expired session")
+    if expires_at - now().astimezone(UTC) < _MINIMUM_CREDENTIAL_LIFETIME:
+        raise RecoveryError("backup-role credential session has less than 15 minutes remaining")
 
     values = dict(environ)
     values.update(
@@ -311,7 +322,7 @@ def _restore_commands(target_volume: str, recover_to: datetime) -> tuple[tuple[s
             "/usr/local/bin/run-pgbackrest",
             "--stanza=polaris",
             "--type=time",
-            f"--target={recover_to.astimezone(UTC).strftime('%Y-%m-%d %H:%M:%S+00')}",
+            f"--target={recover_to.astimezone(UTC).strftime('%Y-%m-%d %H:%M:%S.%f+00')}",
             "--target-action=promote",
             "restore",
         )
@@ -420,14 +431,18 @@ def orchestrate_timed_drill(
     environ: Mapping[str, str],
     monotonic: MonotonicClock,
     token_factory: TokenFactory = _new_ownership_token,
+    started_at: float | None = None,
 ) -> dict[str, Any]:
     """Run the ordered drill state machine around injected, reviewed effects."""
     resources = _drill_resources(token_factory())
+    started = monotonic() if started_at is None else started_at
     stage = "preflight"
     marker_cleanup_required = False
-    primary: RecoveryError | None = None
+    polaris_may_hold_secrets = False
+    primary: str | None = None
     result: dict[str, Any] | None = None
-    started = 0.0
+    cleanup = {"marker_drop": "not-required", "wal_archive": "not-required"}
+    quiesce = "not-required"
     try:
         operations.preflight(resources, environ)
         stage = "before marker"
@@ -441,9 +456,7 @@ def orchestrate_timed_drill(
             raise RecoveryError("marker timestamps do not bracket the selected recovery target")
         stage = "marker WAL archive"
         operations.archive_marker_wal(environ)
-
         stage = "restore"
-        started = monotonic()
         operations.restore(volume=resources.volume, recover_to=recover_to, environ=environ)
         stage = "isolated PostgreSQL startup"
         operations.start_postgres(
@@ -456,27 +469,35 @@ def orchestrate_timed_drill(
             container=resources.postgres_container, marker=resources.marker
         )
         stage = "isolated Polaris startup"
+        polaris_may_hold_secrets = True
         operations.start_polaris(container=resources.polaris_container, network=resources.network)
         stage = "isolated Polaris validation"
         operations.validate_polaris(container=resources.polaris_container)
         stage = "catalog validation"
         catalog = dict(
             operations.validate_catalog(
-                container=resources.polaris_container,
-                recover_to=recover_to,
+                container=resources.polaris_container, recover_to=recover_to
             )
         )
         if catalog.get("status") != "pass":
             raise RecoveryError("registry-derived catalog validation did not pass")
         finished = monotonic()
+        rpo = max(0.0, (recover_to - before_at).total_seconds())
+        rto = max(0.0, finished - started)
+        objectives = {
+            "rpo": {"limit_seconds": _RPO_OBJECTIVE_SECONDS, "met": rpo <= _RPO_OBJECTIVE_SECONDS},
+            "rto": {"limit_seconds": _RTO_OBJECTIVE_SECONDS, "met": rto <= _RTO_OBJECTIVE_SECONDS},
+        }
         result = {
-            "status": "pass",
+            "status": "pass" if all(item["met"] for item in objectives.values()) else "fail",
             "recover_to": recover_to.astimezone(UTC).isoformat(),
             "before_marker_at": before_at.astimezone(UTC).isoformat(),
             "after_marker_at": after_at.astimezone(UTC).isoformat(),
-            "achieved_rpo_seconds": max(0.0, (recover_to - before_at).total_seconds()),
-            "achieved_rto_seconds": max(0.0, finished - started),
+            "achieved_rpo_seconds": rpo,
+            "achieved_rto_seconds": rto,
+            "objectives": objectives,
             "resources": {
+                "marker": resources.marker,
                 "volume": resources.volume,
                 "network": resources.network,
                 "postgres_container": resources.postgres_container,
@@ -486,33 +507,40 @@ def orchestrate_timed_drill(
             "catalog": catalog,
             "cutover": "not_performed",
         }
-    except RecoveryError as exc:
-        diagnostic = _redacted_diagnostic(exc, environ)
-        primary = RecoveryError(f"timed catalog drill failed during {stage}: {diagnostic}")
     except Exception as exc:
-        diagnostic = _redacted_diagnostic(exc, environ)
-        primary = RecoveryError(f"timed catalog drill failed during {stage}: {diagnostic}")
+        primary = f"timed catalog drill failed during {stage}: {_report_diagnostic(exc, environ)}"
     finally:
-        cleanup_error = False
+        if polaris_may_hold_secrets:
+            try:
+                operations.quiesce_polaris()
+                quiesce = "stopped"
+            except Exception as exc:
+                quiesce = "failed: " + _report_diagnostic(exc, environ)
         if marker_cleanup_required:
             try:
                 operations.cleanup_marker(resources.marker)
+                cleanup["marker_drop"] = "complete"
+            except Exception as exc:
+                cleanup["marker_drop"] = "failed: " + _report_diagnostic(exc, environ)
+            try:
                 operations.archive_cleanup_wal(environ)
-            except Exception:
-                cleanup_error = True
-        if primary is not None:
-            if cleanup_error:
-                raise RecoveryError(
-                    f"{primary}; active marker cleanup also failed; "
-                    "recovery artifacts were preserved"
-                ) from primary
-            raise primary
-        if cleanup_error:
-            raise RecoveryError(
-                "timed catalog drill validation passed but active marker cleanup failed; "
-                "recovery artifacts were preserved"
-            )
-    if result is None:  # Defensive: all non-success paths raise above.
+                cleanup["wal_archive"] = "complete"
+            except Exception as exc:
+                cleanup["wal_archive"] = "failed: " + _report_diagnostic(exc, environ)
+    cleanup_failed = any(value.startswith("failed:") for value in cleanup.values())
+    quiesce_failed = quiesce.startswith("failed:")
+    if result is not None:
+        result["cleanup"] = cleanup
+        result["polaris_quiesce"] = quiesce
+    if primary is not None or cleanup_failed or quiesce_failed:
+        details = primary or "timed catalog drill validation completed"
+        resource_text = dict(zip(DrillResources._fields, resources, strict=True))
+        message = (
+            f"{details}; resources={resource_text}; cleanup={cleanup}; "
+            f"polaris_quiesce={quiesce}; recovery artifacts were preserved"
+        )
+        raise RecoveryError(_redacted_diagnostic(RecoveryError(message), environ))
+    if result is None:
         raise RecoveryError("timed catalog drill produced no result")
     return result
 
@@ -537,6 +565,7 @@ class DockerDrillOperations:
         self.runner = runner
         self.sleeper = sleeper
         self._postgres_container: str | None = None
+        self._polaris_container: str | None = None
 
     def _run(
         self,
@@ -606,6 +635,15 @@ class DockerDrillOperations:
         )
         if completed.returncode == 0:
             raise RecoveryError(f"drill {kind} name already exists: {name}")
+        diagnostic = "\n".join(
+            value for value in (completed.stderr, completed.stdout) if isinstance(value, str)
+        )
+        if (
+            completed.returncode != 1
+            or name not in diagnostic
+            or not re.search(r"(?i)(no such|not found)", diagnostic)
+        ):
+            raise RecoveryError(f"unable to prove drill {kind} name is absent")
 
     def preflight(self, resources: DrillResources, environ: Mapping[str, str]) -> None:
         self.source_revision = _resolve_source_revision(self.source_revision)
@@ -802,8 +840,6 @@ class DockerDrillOperations:
             "--restart",
             "no",
         ]
-        for name in _BACKUP_ENV:
-            command.extend(("--env", name))
         command.extend(
             (
                 "--mount",
@@ -816,7 +852,7 @@ class DockerDrillOperations:
                 "listen_addresses=*",
             )
         )
-        self._run(command, environ=self.environ)
+        self._run(command)
         self._postgres_container = container
         self._wait_exec(
             container,
@@ -899,22 +935,32 @@ class DockerDrillOperations:
             "DATABOX_POLARIS_CLIENT_ID",
             "DATABOX_POLARIS_CLIENT_SECRET",
         )
-        command = [
-            "docker",
-            "run",
-            "--detach",
-            "--name",
-            container,
-            "--label",
-            f"{_RECOVERY_VALIDATION_LABEL}=polaris",
-            "--network",
-            network,
-            "--restart",
-            "no",
-        ]
+        # The preserved container Config is secret-free. Credentials exist only
+        # in the detached Polaris child process environment and are erased by stop.
+        self._run(
+            (
+                "docker",
+                "run",
+                "--detach",
+                "--name",
+                container,
+                "--label",
+                f"{_RECOVERY_VALIDATION_LABEL}=polaris",
+                "--network",
+                network,
+                "--restart",
+                "no",
+                _POLARIS_IMAGE,
+                "/bin/sh",
+                "-c",
+                "while :; do sleep 3600; done",
+            )
+        )
+        self._polaris_container = container
+        command = ["docker", "exec", "--detach"]
         for name in names:
             command.extend(("--env", name))
-        command.append(_POLARIS_IMAGE)
+        command.extend((container, "/opt/jboss/container/java/run/run-java.sh"))
         self._run(command, environ=polaris_env)
         self._wait_exec(
             container,
@@ -928,6 +974,10 @@ class DockerDrillOperations:
             ("curl", "--fail", "--silent", "http://localhost:8182/q/health/ready"),
             "isolated Polaris",
         )
+
+    def quiesce_polaris(self) -> None:
+        if self._polaris_container is not None:
+            self._run(("docker", "stop", "--time", "10", self._polaris_container))
 
     def validate_catalog(self, *, container: str, recover_to: datetime) -> Mapping[str, Any]:
         validator_environment = {
@@ -957,11 +1007,12 @@ class DockerDrillOperations:
             not isinstance(report, dict)
             or report.get("status") != "pass"
             or not isinstance(counts, dict)
-            or counts.get("expectedTables") != 25
-            or counts.get("validatedTables") != 25
+            or not isinstance(counts.get("expectedTables"), int)
+            or counts["expectedTables"] <= 0
+            or counts.get("validatedTables") != counts["expectedTables"]
             or counts.get("failedTables") != 0
         ):
-            raise RecoveryError("catalog validator did not validate all 25 canonical tables")
+            raise RecoveryError("catalog validator did not validate all canonical tables")
         return report
 
     def cleanup_marker(self, marker: str) -> None:
@@ -977,6 +1028,8 @@ class DockerDrillOperations:
             f"WHERE c.relname = '{marker}';"
         )
         rows = [row.strip() for row in relation.splitlines() if row.strip()]
+        if not rows:
+            return
         if rows != ["public|r|polaris"]:
             raise RecoveryError("marker relation identity is invalid; no cleanup was performed")
         self._active_sql(f'DROP TABLE public."{marker}";')
@@ -1059,9 +1112,14 @@ def _drill_main(argv: Sequence[str]) -> int:
     parser = argparse.ArgumentParser(description="Run the interactive timed catalog drill")
     parser.add_argument("--catalog", required=True)
     parser.add_argument("--source-revision", required=True)
+    parser.add_argument("--reconcile-marker")
     parser.add_argument("--operator-profile", default=_OPERATOR_PROFILE)
     parser.add_argument("--backup-role-profile", default=_BACKUP_ROLE_PROFILE)
     args = parser.parse_args(argv)
+    if args.reconcile_marker and not _DRILL_MARKER.fullmatch(args.reconcile_marker):
+        print("catalog recovery refused: marker is not owned by a timed drill", file=sys.stderr)
+        return 1
+    started_at = time.monotonic()
     base = _environment_from_dotenv()
     try:
         environment = acquire_backup_role_environment(
@@ -1074,16 +1132,23 @@ def _drill_main(argv: Sequence[str]) -> int:
             source_revision=args.source_revision,
             environ=environment,
         )
+        if args.reconcile_marker:
+            operations.preflight(_drill_resources(_new_ownership_token()), environment)
+            operations.reconcile_marker(args.reconcile_marker)
+            operations.archive_cleanup_wal(environment)
         result = orchestrate_timed_drill(
             operations=operations,
             environ=environment,
             monotonic=time.monotonic,
+            started_at=started_at,
         )
+        if args.reconcile_marker:
+            result["reconciled_marker"] = args.reconcile_marker
     except (RecoveryError, ValueError) as exc:
         print(f"catalog recovery refused: {_redacted_diagnostic(exc, base)}", file=sys.stderr)
         return 1
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
-    return 0
+    return 0 if result.get("status") == "pass" else 1
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -153,17 +153,28 @@ entrypoint from an interactive operator terminal:
 ```bash
 task catalog:recovery-drill -- \
   --catalog databox_lake \
-  --source-revision 17c45b0
+  --source-revision "$(git rev-parse HEAD)" \
+  --reconcile-marker databox_recovery_drill_y0puu4ucgfgbx81p
 ```
 
-The command performs AWS remote login and MFA-protected role export on the
-operator TTY, keeps the resulting temporary credentials in process memory, and
-never writes them to `.env` or a handoff file. It creates a marker-bracketed
-database-clock target, pushes the marker and cleanup WAL with the fresh session,
-restores into uniquely named ownership-labeled resources, starts unexposed
-archive-disabled PostgreSQL and no-bootstrap Polaris, invokes the registry-derived
-validator, and reports RPO/RTO. It never restarts the active stack, cuts over, or
-deletes recovery resources. Any failure preserves isolated artifacts for review.
+The command performs one AWS remote login and MFA-protected role export on the
+operator TTY and refuses sessions with less than 15 minutes remaining. That
+minimum prevents near-expiry cache reuse; it does not guarantee the 60-minute
+RTO objective. `--reconcile-marker` proves and drops the exact known failed-drill
+marker (or safely accepts that it is already absent), synchronously archives the
+cleanup WAL, and then continues into the drill with the same in-memory session.
+
+Temporary credentials are never written to `.env`, a handoff file, or preserved
+container configuration. The recovery PostgreSQL needs no backup credentials
+because archival is disabled. Polaris starts as a secret-free sleeper container;
+the application receives credentials only in a detached child-process environment
+and the container is always stopped after validation or failure, while the stopped
+container remains preserved. The command uses a microsecond-precise marker bracket,
+synchronous marker and cleanup WAL pushes, a new ownership-labeled volume,
+unexposed archive-disabled PostgreSQL, no-bootstrap Polaris, and the registry-derived
+validator. End-to-end RTO starts before authentication; results exceeding 300-second
+RPO or 3,600-second RTO are reported with metrics and exit nonzero. It never restarts
+the active stack, cuts over, or deletes recovery resources.
 
 After separately authorized restored PostgreSQL and Polaris startup, validate
 only the explicitly named no-port recovery container:
