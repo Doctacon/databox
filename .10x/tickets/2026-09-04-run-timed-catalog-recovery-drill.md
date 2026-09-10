@@ -1,4 +1,4 @@
-Status: active
+Status: blocked
 Created: 2026-09-04
 Updated: 2026-09-04
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
@@ -8,14 +8,14 @@ Depends-On: .10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md,
 
 ## Scope
 
-After backup infrastructure, first real backup/WAL proof, isolated restore automation, and final automation verification complete, execute the reviewed PITR drill against an empty isolated target. Validate restored Polaris and readable primary Iceberg tables conventionally, record achieved catalog RPO/RTO, and stop before production cutover.
+After backup infrastructure, authenticated pending-WAL catch-up, isolated restore automation, and final automation verification complete, execute the reviewed PITR drill against an empty isolated target. Validate restored Polaris and readable primary Iceberg tables conventionally, record catch-up lag, marker target-inclusion gap, and end-to-end RTO, and stop before production cutover.
 
 ## Acceptance criteria
 
 - A selected recovery point is restored into a new empty isolated environment without touching the active catalog.
 - Polaris identity and permissions validate without bootstrap replacing restored state.
 - When the primary warehouse remains readable, registry-owned tables, metadata/snapshot pointers, and representative reads validate.
-- Evidence records achieved catalog RPO and end-to-end RTO; results over five minutes or 60 minutes fail their objectives without redefining them.
+- Evidence records pre-catch-up durability lag, marker target-inclusion gap, and end-to-end RTO without representing the marker gap as continuous off-machine RPO; results over 60 minutes fail the RTO objective without redefining it.
 - Recovery resources are cleaned through reviewed non-destructive procedures while retained backups and OpenTofu state remain preserved.
 
 ## Explicit exclusions
@@ -42,7 +42,8 @@ After backup infrastructure, first real backup/WAL proof, isolated restore autom
 - 2026-09-09: Consolidated run `w7x5rxrmlo7lvi4r` reconciled the old marker, restored files successfully, then failed at isolated PostgreSQL startup because PITR `archive-get` still requires fresh repository credentials during replay. Both active markers and cleanup WAL completed; the labeled recovery volume/network and exited secret-free PostgreSQL container remain preserved, and no Polaris container exists. The repair uses a credential-bearing child process only through promotion, then restarts PostgreSQL without credentials before Polaris. Evidence: `.10x/evidence/2026-09-09-timed-drill-postgres-pitr-credential-startup-repair.md`.
 - 2026-09-09: Fresh run `ms8wemjnzcnvnkh9` restored files but could not promote. Read-only inspection found the repository's previously proven sequence ended at segment 14 while locally retained pending segments 15 through 1A had not been uploaded; uploading only the newest marker segment could not bridge the gap. Both active markers and cleanup WAL completed, PostgreSQL was stopped, Polaris never started, and labeled recovery artifacts remain preserved. Evidence: `.10x/evidence/2026-09-09-timed-drill-wal-gap-recovery-failure.md`.
 - 2026-09-09: The user explicitly accepted local-machine loss between authenticated catch-ups and rejected long-lived backup credentials. `.10x/decisions/accept-manual-wal-catchup-for-local-catalog.md` replaces the continuous five-minute local RPO claim with explicit oldest-first manual catch-up before backup/recovery reliance.
+- 2026-09-10: The live drill passed. Six pending segments 15 through 1A were uploaded oldest-first, marker segment 1B was archived, and remote continuity from 14 through 1B was read back before restore. All 25 canonical tables passed; end-to-end RTO was 226.244 seconds; marker cleanup and cleanup WAL completed; active services remained healthy and unchanged; no cutover occurred. Evidence: `.10x/evidence/2026-09-10-timed-catalog-recovery-drill-pass.md`. Review: `.10x/reviews/2026-09-10-timed-catalog-recovery-drill-review.md`.
 
 ## Blockers
 
-None. `.10x/tickets/done/2026-09-09-upload-pending-wal-before-local-recovery.md` passed independent review. Recovery-resource cleanup remains separately authorized.
+Live recovery proof is complete. Ticket closure remains blocked only on separately authorized reviewed cleanup of preserved recovery containers, networks, and volumes.
