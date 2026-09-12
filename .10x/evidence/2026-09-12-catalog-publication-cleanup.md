@@ -1,16 +1,21 @@
 Status: recorded
 Created: 2026-09-12
 Updated: 2026-09-12
-Relates-To: .10x/tickets/2026-09-11-sanitize-catalog-recovery-publication.md, .10x/reviews/2026-09-12-catalog-publication-cleanup-review.md
-Owner: .10x/tickets/2026-09-11-sanitize-catalog-recovery-publication.md
+Relates-To: .10x/tickets/done/2026-09-11-sanitize-catalog-recovery-publication.md, .10x/reviews/2026-09-12-catalog-publication-commit-review.md
+Owner: .10x/tickets/done/2026-09-11-sanitize-catalog-recovery-publication.md
 Source-HEAD: 027af8b4271d60ffc193967d092b5d2497af13ad
 
-# Catalog publication cleanup: working-tree preparation
+# Catalog publication cleanup: execution history and acceptance
 
-> Current continuation (2026-09-12): candidate-only hook preparation passed with healthy existing
-> environments and no formatter changes. No staging or commit is authorized in this preparation
-> stage. See “Candidate-only cached-hook preparation” below for the new observation boundary;
-> earlier blocked-route and fingerprint statements remain historical, not current execution gates.
+> Current continuation (2026-09-12): local cleanup commit
+> `75e2d5bea39d67f9961c68909134db635e3c3ed8` was created through unchanged normal hooks after
+> independent precommit approval. See “Reviewed local commit” below. Earlier no-commit/B1 wording
+> records prior observation boundaries. Only this evidence and the owning ticket receive subsequent
+> unstaged result updates; committed implementation remains byte-identical to the reviewed candidate.
+> Subsequent exact-commit review and parent acceptance completed; see the final section and
+> `.10x/reviews/2026-09-12-catalog-publication-commit-review.md`. Earlier sections retain their
+> historical stage boundaries and old ticket paths in exact inventories/commands; current ownership
+> is under `tickets/done/`. Closure consolidation is record-only, not an implementation change.
 
 ## Candidate identity and authority
 
@@ -435,3 +440,139 @@ Only **this candidate evidence and its owning candidate ticket** are intentional
 this continuation. No formatter changed a file. The same explicit pipeline and checks are
 repeated after these records; final results and complete fingerprint are in the handoff.
 Ready for independent preparation review, not staging/commit, ticket closure or publication.
+
+
+## Reviewed local commit — 2026-09-12
+
+### Independent gate and current authority
+
+The actual external `precommit-independent-review.json` in workflow
+`77aaa315-28ed-4a64-8b6e-e59156c6a1a1` was read in full: verdict **pass**, `readyForCommit=true`.
+Its SHA-256 is `da1322933f64d5b1723e197966becf296a1377f8cd430dfb64b11752cb2e084d`.
+It independently approves the exact 46-path unstaged candidate digest
+`d8b413083011fb9742a2e7ec9050eb19815c6821e9016c9c99708db3d4fea2bd` for the already
+ratified candidate-only normal-hook route after immediate health/preservation checks.
+This continuation explicitly authorizes the local commit, superseding the earlier preparation-only
+stop. No old finding is deleted or reattributed; exact-commit review and closure remain parent-owned.
+
+Before any staging, all 46 reviewed file/type/mode/size/SHA-256 records and all 990 candidate path
+states matched. No record/provenance addition was made before the commit: the complete reviewed
+working tree was committed **without changing any byte**. The complete 46-path committed inventory
+is the exact changed-file list above; no private/config/lock/calendar or ticket-3 feature file enters it.
+
+Fresh commit-boundary snapshot `/tmp/databox-reviewed-local-commit-baseline.json` has SHA-256
+`0b4e178f432727d6792a76b869d570553c9cfb554e2d09b0fdc3403ea5c212cb`. It separately retains
+all 1,001 original states, all 990 candidate states, private-file and raw/logical-index fingerprints,
+refs/worktrees and hooks/configuration at this boundary. All current original states and indices
+also matched the preceding approved preparation boundary; no obsolete 45-path/old raw-index claim.
+
+### Staging, hook execution and exact result
+
+Used candidate cwd only, with `PYTHONDONTWRITEBYTECODE=1 GIT_OPTIONAL_LOCKS=0`.
+Inspected the installed `staged_files_only` runner path before actual commit invocation: staging
+all approved changes leaves no unstaged tracked diff or intent-to-add entry requiring its stash/
+checkout route. Applicable executable and legacy hooks remain as previously inspected. Read-only
+configuration/attribute checks found no signing, fsmonitor, custom clean filter or encoding transform
+requiring another executable path. No hook or Git configuration was changed.
+
+Immediately before staging and again immediately before commit, the existing inspected health
+helper verified both exact pinned cache mappings, Python/base versions, both install states and
+all eleven installed entrypoint probes. Every `_hook_installed` result was true. Private-custody
+checks and original protection also passed. No setup/installer/downloader API was called in health
+checks, and the normal pipeline did not need its environment installation branch.
+
+Exact staging argv was `git add --` followed by the **46 explicitly enumerated paths above**, in
+that sorted order. No `-A`, broad directory, force-add, original-index operation or hook override.
+Then `git --no-optional-locks diff --cached --name-only` matched exactly those paths;
+`git --no-optional-locks diff --cached --check` passed, with no remaining unstaged/untracked file.
+All **990 indexed blobs** were read in memory and verified against reviewed bytes and modes,
+including link-text bytes without following symlinks. `git --no-optional-locks write-tree`
+produced the expected tree below before committing. These shared object/admin writes are part
+of the authorized candidate commit, not changes to the original index or unrelated refs.
+
+Exact normal commit command:
+```sh
+git commit -m "Sanitize catalog recovery publication records"
+```
+
+**One attempt, exit 0.** Installed pre-commit ran through Git's unchanged normal wrapper.
+Whitespace/EOF, large-file, merge-conflict, debug, mixed-line-ending, Ruff lint/fix/format and
+credential hooks passed. YAML/JSON/TOML had no eligible file under normal filtering; no SKIP
+flag was set. No formatter changed any file bytes, no stash/checkout or installation was reported,
+and no retry, amend, bypass, replacement or configuration change occurred.
+
+- Local revision: **`75e2d5bea39d67f9961c68909134db635e3c3ed8`**.
+- Tree: **`ebb7518e31aa6026018a38321548f6c412daf0ef`** (equals the verified staged tree).
+- Sole parent: `027af8b4271d60ffc193967d092b5d2497af13ad`.
+- Branch: `chore/catalog-recovery-publication-cleanup`.
+- Delta: **46 files, 1,487 insertions, 71 deletions; 13 added records and 33 modified paths**.
+- Every committed blob/mode equals the reviewed 990-path candidate inventory. The 46-path
+  committed fingerprint remains `d8b413083011fb9742a2e7ec9050eb19815c6821e9016c9c99708db3d4fea2bd`.
+- Candidate was completely clean immediately after commit. Both actual staged sets were empty;
+  candidate index equaled the new 990-entry HEAD tree, while original index retained all 977 entries.
+
+### Repeated checks and preservation
+
+Before staging, the same inspected focused pytest command recorded above passed **21 tests in
+2.20s**, pinned Ruff lint/format checks passed, and private candidate validation reproduced all
+990-file identifier checks, 946 eligible credential checks, twelve individually source-verified
+principal-label contexts, 30 exact redaction bodies/original hashes, eight non-executable plan
+labels, whole configured main.tf equivalence, original assertion ASTs, 80 graph references and
+scoped ignore/feature-isolation checks. No bucket-substring allowlist or weakened assertion.
+
+After the commit, verified the sole parent, exact tree, exact 46 changed paths and every committed
+blob/mode; all candidate file bytes remained unchanged by normal hooks. Custody recheck passes:
+all three anchors, 42 committed plus 22 working copies / 322,252 bytes, 23 pending dispositions,
+68-file/20-directory enumeration, safe canonical ownership/modes/ACLs, actual destination
+APFS/FileVault/global permissions. Private originals and metadata are retained without regeneration.
+Bounded existing private configuration was compared before/after in memory only and remained equal.
+
+All **1,001 original working states** remain unchanged with no record exception; original branch
+and HEAD remain at the base. Original raw index digest/size/mtime and all 977 logical entries match
+the fresh snapshot; original dirty `uv.lock` retains its previously recorded bytes/digest. Hooks,
+configuration and private bundle fingerprints match. Ref/worktree inventories differ **only** in
+this authorized candidate branch/worktree HEAD advancement; all other refs, published-tracking
+refs, main, original branch and unrelated audit branch/worktree remain unchanged. No network query
+or remote operation was made. Earlier C1 attribution limitations remain historical, not repaired.
+
+Safe external result metadata: `/tmp/databox-reviewed-local-commit-result.json`.
+The authoritative final handoff is `reviewed-local-commit.md` in workflow
+`83f46551-0421-4acd-a497-68a5056df156`; it records post-result-update checks and fingerprints.
+Only this evidence and the owning candidate ticket receive **unstaged result additions after the
+reviewed commit**. Their current working bytes are not the committed 46-path fingerprint; this
+explicit distinction avoids circular commit hashes and does not modify implementation after review.
+No second commit or amend is attempted. Both actual indices remain unstaged at handoff.
+
+Ticket stays active for exact-revision independent review and parent acceptance/closure. No
+original-checkout progress synchronization, ticket-3 execution, new branch/worktree, installation,
+AWS/network/runtime action, credentials change, push/PR/merge or history rewrite occurred. Local
+cleanup does not remove already-public history, establish hosted CI/general merge readiness, prove
+universal credential absence, or make private custody immutable/off-host; prior ignored-file limits
+remain. The unchanged normal non-merge conflict hook retains its documented filtering limitation;
+explicit nonmutating marker checks supplement it rather than replacing it.
+
+## Exact-commit acceptance and retrospective — 2026-09-12
+
+The first exact-commit reviewer was interrupted by a transport error after the successful Git commit. A fresh fallback completed the missing review without repeating implementation or committing again. Canonical material findings, provenance and parent disposition: `.10x/reviews/2026-09-12-catalog-publication-commit-review.md`.
+
+The fallback independently matched all 990 committed blobs/modes to the reviewed candidate and the exact 46-path digest, checked committed identifiers/credential patterns, all 30 original-body/provenance transformations, account-only policy equivalence, preserved assertions, graph/feature isolation and protected state. It executed all nine infrastructure tests against committed blobs and read-only Ruff checks; the full focused 21-test runs and normal hook execution are attributed to the independently inspected precommit and worker evidence.
+
+Before closure metadata changes, the parent independently rechecked the commit/tree/parent and 46-path fingerprint, all 1,001 original states and original raw/logical index, private-file/hook/configuration fingerprints, all 64 custody source/copy comparisons and actual-volume FileVault/ownership/ACL checks. Pinned existing hook environments again passed read-only health/state and eleven entrypoint probes.
+
+### Acceptance mapping
+
+| Owning ticket criterion | Evidence |
+| --- | --- |
+| Private originals verified before operational changes | Anchored 64-copy custody evidence and independent review; repeated actual protection/source comparisons. |
+| Parameterized exact account with unchanged effective policy | Whole original main.tf reconstructed by substituting the configured input; exact committed tree and preserved policy/test assertions. |
+| No unclassified public deployment identifiers | Independent scan of all 990 committed blobs; 12 exact principal-label contexts retained by source classification, not global allowlisting. |
+| Honest public provenance and hashes | Thirty original-body comparisons and eight explicitly historical/non-executable plan exports; original hashes unchanged in meaning. |
+| Scoped graph with no pending feature import | Thirteen added publication/custody/cleanup records; explicit preserved-future references and absent versioning files. |
+| Hermetic checks and independent review | Twenty-one focused tests before/after commit; committed-blob tests, Ruff, secret/identifier/diff/ignore checks; fresh precommit and recovered exact-commit reviews. |
+| Local scoped commit and protected original/private work | Commit 75e2d5be and exact 46-path tree; unchanged original/private/hook state; no push, AWS action or original-checkout synchronization. |
+
+The new post-writer candidate raw-index discrepancy is explicitly accepted as a nonblocking attribution limitation for this immutable committed result. Its actor/cause is unknown; all 990 logical entries still match HEAD, both staged sets were empty at review, and no original/private content loss was found. This is not a benign-refresh claim, not a raw-byte-unchanged assertion through review, and not a reason to recreate an index. Earlier original-index concerns remain separately qualified.
+
+Retrospective learning is recorded in `.10x/knowledge/existing-precommit-environments.md` and `.10x/knowledge/git-index-and-worktree-fingerprints.md`. Healthy cached normal hooks were sufficient; no new hook runner, bypass or installation is warranted. Recover failed reviewer delivery independently from successful Git operations.
+
+Parent closes only this local cleanup ticket. Record-only forward consolidation may include the two result records, canonical final review, ticket move/current references, dependency progress and these lessons through unchanged normal hooks; it must preserve the implementation/redaction body tree. Historical path inventories/commands above intentionally retain their execution-time names. Ticket 3 and hosted publication remain separate, unexecuted gates. The original checkout's records are intentionally not synchronized under the latest read-only boundary.

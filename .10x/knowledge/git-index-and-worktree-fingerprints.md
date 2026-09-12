@@ -14,6 +14,8 @@ For new preservation checks, retain a bounded logical entry inventory alongside 
 
 ## Symlinks and inventory limits
 
+Git records a symlink's link-text blob and type mode (`120000`), not its filesystem permission bits. Compare committed link content/type separately from filesystem permission fingerprints; treating them as the same representation creates a false mismatch. This does not waive either applicable check.
+
 Unrelated preexisting symlinks can be protected by fingerprinting their file type and link-text bytes without following or exporting their targets. They are not regular files to open with `O_NOFOLLOW`, nor authority to copy target contents. This distinction does not relax strict no-follow checks for selected source payloads or destination components.
 
 A tracked/nonignored inventory does not prove historical byte-preservation of ignored private files. State that limit rather than sweeping credentials, caches, state or unrelated data into a preservation bundle. Later authorized record maintenance must be distinguished from the worktree state at the original verification timestamp.

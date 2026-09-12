@@ -1,7 +1,9 @@
 Status: recorded
 Created: 2026-09-12
 Updated: 2026-09-12
-Target: .10x/tickets/2026-09-11-sanitize-catalog-recovery-publication.md
+Target: .10x/tickets/done/2026-09-11-sanitize-catalog-recovery-publication.md
+Reviewed-State: historical uncommitted, pre-hook-approval candidate
+Later-Review: .10x/reviews/2026-09-12-catalog-publication-commit-review.md
 Verdict: concerns
 Execution-Gate: blocked
 Source-Verifier-Verdict: blocked

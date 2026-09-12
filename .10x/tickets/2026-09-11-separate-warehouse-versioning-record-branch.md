@@ -1,8 +1,8 @@
-Status: blocked
+Status: open
 Created: 2026-09-11
-Updated: 2026-09-11
+Updated: 2026-09-12
 Parent: .10x/tickets/2026-09-10-ratify-catalog-recovery-publication-boundary.md
-Depends-On: .10x/tickets/2026-09-11-sanitize-catalog-recovery-publication.md
+Depends-On: .10x/tickets/done/2026-09-11-sanitize-catalog-recovery-publication.md
 
 # Separate versioning records onto a clean local follow-up branch
 
@@ -38,6 +38,8 @@ Implementing/executing versioning tickets, creating/deleting cloud resources, mo
 
 - 2026-09-11: Created after explicit local branch/commit authority. No branch/worktree/ref operation has run.
 
+- 2026-09-12: Dependencies completed in the cleanup candidate. Implementation commit `75e2d5bea39d67f9961c68909134db635e3c3ed8` and its record-only closure handoff are the clean foundation; read `.10x/reviews/2026-09-12-catalog-publication-commit-review.md` and current parent progress. The original checkout and its pending 23-path versioning set remain untouched. This ticket has not started; no follow-up branch exists. Recheck current candidate HEAD and the preserved source snapshot rather than relying on obsolete raw-index equality.
+
 ## Blockers
 
-Sanitized catalog candidate and verified custody snapshot from dependencies. Newly discovered uncaptured/concurrent work must be preserved and reconciled before any removal.
+None from the completed local dependencies. Execution is still a separate user-directed step; newly discovered uncaptured/concurrent work must be preserved and reconciled before any removal. Current candidate records own cleanup closure; original-checkout records deliberately retain their earlier snapshot.
