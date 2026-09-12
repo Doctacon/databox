@@ -5,6 +5,11 @@ Relates-To: .10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md
 
 # pgBackRest Polaris-user repair and live retry
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `e82a134410e7140ad971f86ca19e267beca2e54f41fe3aef812c921dc4f3a10e`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Approved repair
 
 The user approved only configuring pgBackRest with `pg1-user=polaris`; no database role, password, or permission was added. Commit `342825c` adds that exact configuration and focused regression coverage.
@@ -24,7 +29,7 @@ Cached backup-role credentials were exported only into child-process memory and 
 The user repair worked: direct sanitized `stanza-create` no longer reported the nonexistent `postgres` database role. It stopped at the next exact blocker:
 
 ```text
-unable to verify certificate presented by 'databox-lake-catalog-backup.s3.us-west-1.amazonaws.com:443'
+unable to verify certificate presented by '<REDACTED_BUCKET_2>.s3.us-west-1.amazonaws.com:443'
 unable to get local issuer certificate
 ```
 

@@ -5,11 +5,16 @@ Relates-To: .10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md
 
 # Recovery operator MFA repair apply
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `882a3d6b618c22fd53b585a6f693b700f006c15c6e503e3cc7b62a31f3f8a4ac`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Authorization and preconditions
 
 The user explicitly approved only `infra/recovery/recovery-operator-mfa-repair.tfplan`, SHA-256 `45a78d799032c227b1d525433515e2093b452be0f346ea4c2a6d14d9ae5bbc35`.
 
-Immediately before apply, Git was clean; authenticated identity was exactly account root `arn:aws:iam::734815189723:root`; state was mode `0600`, lineage `4303cf7d-c96f-55db-0ba3-a1ff1f492194`, serial `2`; current and embedded state lineage/serial matched; and current and embedded lockfile SHA-256 matched `02d2b020180bf03e77af58e54b0539ff0da8e5b4f06db21ff347be0cf092cfd3`. No init, plan, refresh, regeneration, or configuration edit occurred.
+Immediately before apply, Git was clean; authenticated identity was exactly account root `arn:aws:iam::<REDACTED_ACCOUNT_ID>:root`; state was mode `0600`, lineage `4303cf7d-c96f-55db-0ba3-a1ff1f492194`, serial `2`; current and embedded state lineage/serial matched; and current and embedded lockfile SHA-256 matched `02d2b020180bf03e77af58e54b0539ff0da8e5b4f06db21ff347be0cf092cfd3`. No init, plan, refresh, regeneration, or configuration edit occurred.
 
 ## Apply result
 
@@ -19,7 +24,7 @@ Live verification observed:
 
 - IAM user `databox-recovery-operator` exists;
 - the user has zero access keys and no login profile;
-- its single inline policy allows only `sts:AssumeRole` on `arn:aws:iam::734815189723:role/databox-polaris-catalog-backup`;
+- its single inline policy allows only `sts:AssumeRole` on `arn:aws:iam::<REDACTED_ACCOUNT_ID>:role/databox-polaris-catalog-backup`;
 - the backup role trusts exactly that user and requires `aws:MultiFactorAuthPresent=true`;
 - catalog bucket versioning, AES256 encryption, all four public-access blocks, HTTPS-deny policy, 30-day noncurrent expiry, and seven-day incomplete-upload cleanup remain unchanged;
 - state remains mode `0600`, lineage unchanged, serial advanced to `3`, SHA-256 `4e46ce5086816b7d364105372d95c35892cb3589603b5f0d2da45e093a87ecc1`;

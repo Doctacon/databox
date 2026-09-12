@@ -6,6 +6,11 @@ Verdict: concerns
 
 # Catalog-only TLS plan review
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `b0e594c93d49704a9ab1c71580c251fd77eb86191d2dadfe28be480cbea163cc`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Target
 
 Exact binary plan SHA-256 `4656b197fd1039d4972c614e828ad0be92128fec6c6f83d4a6a6fd88abc98837` and its recorded text/evidence.
@@ -26,7 +31,7 @@ The configuration has no backend and the plan used `init -backend=false`. Applyi
 
 ## Passed checks
 
-The plan contains exactly eight creates, zero changes, and zero destroys. It targets account `734815189723`, `us-west-1`, and bucket `databox-lake-catalog-backup`; uses accepted root bootstrap trust and `force_destroy=false`; enables versioning, AES256, public-access blocking, HTTPS denial, 30-day noncurrent retention, and incomplete-upload cleanup; and contains no primary warehouse, Iceberg, or replication action.
+The plan contains exactly eight creates, zero changes, and zero destroys. It targets account `<REDACTED_ACCOUNT_ID>`, `us-west-1`, and bucket `<REDACTED_BUCKET_2>`; uses accepted root bootstrap trust and `force_destroy=false`; enables versioning, AES256, public-access blocking, HTTPS denial, 30-day noncurrent retention, and incomplete-upload cleanup; and contains no primary warehouse, Iceberg, or replication action.
 
 ## Verdict
 

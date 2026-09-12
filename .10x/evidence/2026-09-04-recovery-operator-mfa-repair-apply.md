@@ -5,11 +5,16 @@ Relates-To: .10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md
 
 # Recovery operator MFA repair apply attempt
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `ed49dc742c0e588f3f2e1c243adf7d25baab414d1ebd1219a1197b744b3544d6`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Authorized plan
 
 The user explicitly approved applying only `/tmp/databox-recovery-operator-mfa-repair.tfplan`, SHA-256 `a65f87e7a160e26ffd9932e48e71431c7c7158ca8b3c0aab49d27187eaf7fcc4`.
 
-Immediately before execution, the worktree was clean; the binary hash matched; `infra/recovery/terraform.tfstate` existed with mode `0600`; and profile `databox-debug` authenticated exactly as `arn:aws:iam::734815189723:root` in account `734815189723`.
+Immediately before execution, the worktree was clean; the binary hash matched; `infra/recovery/terraform.tfstate` existed with mode `0600`; and profile `databox-debug` authenticated exactly as `arn:aws:iam::<REDACTED_ACCOUNT_ID>:root` in account `<REDACTED_ACCOUNT_ID>`.
 
 ## Result
 

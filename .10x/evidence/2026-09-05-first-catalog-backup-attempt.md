@@ -5,13 +5,18 @@ Relates-To: .10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md
 
 # First live catalog backup attempt
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `2e5a026d1e9fd55a468d2fa4e6816d261134ae963be8f1730240ad125453cb74`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Authorization and preconditions
 
 The user explicitly authorized a brief local PostgreSQL/Polaris restart against the existing named volume plus the first real S3 pgBackRest stanza, WAL, and full-backup proof. At `2026-09-05T16:10:45Z`:
 
 - Git was clean;
-- `.env` contained a nonempty repository cipher passphrase and exact bucket `databox-lake-catalog-backup` without either value being printed;
-- `databox-recovery-operator` resolved to exact IAM user `arn:aws:iam::734815189723:user/databox-recovery-operator`;
+- `.env` contained a nonempty repository cipher passphrase and exact bucket `<REDACTED_BUCKET_2>` without either value being printed;
+- `databox-recovery-operator` resolved to exact IAM user `arn:aws:iam::<REDACTED_ACCOUNT_ID>:user/databox-recovery-operator`;
 - `databox-polaris-catalog-backup` resolved to the expected assumed-role ARN;
 - the root CLI profile was logged out;
 - named volume `databox_polaris_postgres`, created `2026-08-31T18:07:11-07:00`, existed; and

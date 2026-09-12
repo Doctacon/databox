@@ -5,9 +5,14 @@ Relates-To: .10x/tickets/2026-09-04-simplify-recovery-infrastructure-to-catalog-
 
 # Catalog-only final OpenTofu plan
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `87d15b0d4ea2b4c2cc610679c4a10332e08fcc71d938baee185ba79bb4220f36`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Result
 
-After repairing multipart-upload authority, rollout ordering, and local-state ownership, authenticated profile `databox-debug` generated a fresh non-mutating plan in account `734815189723`, region `us-west-1`.
+After repairing multipart-upload authority, rollout ordering, and local-state ownership, authenticated profile `databox-debug` generated a fresh non-mutating plan in account `<REDACTED_ACCOUNT_ID>`, region `us-west-1`.
 
 - Binary plan: `/tmp/databox-catalog-only-final.tfplan`
 - Binary SHA-256: `77cf23e243859dac24974be21adfb7f5bdf94bb6ec8168cf70039ddda3b69212`

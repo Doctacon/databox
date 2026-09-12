@@ -1,3 +1,8 @@
+REDACTED HISTORICAL PLAN TEXT — NON-EXECUTABLE
+Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `b0b01c834f54b67297d10fb8a476e151ec7b2c6f4b9ff3135e67375123be8fd9`.
+Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
 
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
@@ -17,7 +22,7 @@ OpenTofu will perform the following actions:
                             "sts:AssumeRole",
                         ]
                         Effect   = "Allow"
-                        Resource = "arn:aws:iam::734815189723:role/databox-polaris-catalog-backup"
+                        Resource = "arn:aws:iam::<REDACTED_ACCOUNT_ID>:role/databox-polaris-catalog-backup"
                     },
                   + {
                       + Action   = [
@@ -25,7 +30,7 @@ OpenTofu will perform the following actions:
                           + "signin:CreateOAuth2Token",
                         ]
                       + Effect   = "Allow"
-                      + Resource = "arn:aws:signin:us-west-1:734815189723:oauth2/public-client/remote"
+                      + Resource = "arn:aws:signin:us-west-1:<REDACTED_ACCOUNT_ID>:oauth2/public-client/remote"
                     },
                 ]
                 # (1 unchanged attribute hidden)

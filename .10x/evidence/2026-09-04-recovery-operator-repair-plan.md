@@ -5,9 +5,14 @@ Relates-To: .10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md
 
 # Recovery operator step-1 repair plan
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `243c412371482410df1b922f5229e85e598f5de30a69611284740a9130a80492`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Result
 
-Step 1 declares a non-root console-only IAM operator path and produced a state-aware non-mutating repair plan using authenticated root profile `databox-debug` in account `734815189723`, region `us-west-1`.
+Step 1 declares a non-root console-only IAM operator path and produced a state-aware non-mutating repair plan using authenticated root profile `databox-debug` in account `<REDACTED_ACCOUNT_ID>`, region `us-west-1`.
 
 - Binary plan: `/tmp/databox-recovery-operator-repair.tfplan`
 - Binary SHA-256: `677f9ce7a6b5ee499f8bebb71b96115d8e443a31b1cbcf6f6f4eb2767fc96bcc`
@@ -20,7 +25,7 @@ No apply or AWS mutation ran.
 ## Exact actions
 
 - Create IAM user `databox-recovery-operator` with `force_destroy=false`.
-- Create its inline policy allowing only `sts:AssumeRole` on `arn:aws:iam::734815189723:role/databox-polaris-catalog-backup`.
+- Create its inline policy allowing only `sts:AssumeRole` on `arn:aws:iam::<REDACTED_ACCOUNT_ID>:role/databox-polaris-catalog-backup`.
 - Update only the existing catalog-backup role trust in place, removing account-root trust and deriving the exact new user ARN.
 - Add non-secret output `recovery_operator_user_arn`.
 

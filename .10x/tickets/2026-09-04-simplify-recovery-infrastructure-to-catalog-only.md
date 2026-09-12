@@ -6,6 +6,11 @@ Depends-On: None
 
 # Simplify recovery infrastructure to catalog-only protection
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `ad23bff030e4343b9659d396c7142eea611f9a90ddd15cd8a28b5cce94b6db9e`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Scope
 
 Remove the rejected Iceberg object-recovery plane from `infra/recovery/` and its operator documentation/tests. Preserve only the encrypted Polaris pgBackRest backup bucket and least-privilege catalog-backup role. Generate a fresh non-mutating OpenTofu plan using the already ratified account, region, profile, primary-bucket-derived catalog backup name, and operator-principal decision after the root-trust question is separately resolved.
@@ -13,7 +18,7 @@ Remove the rejected Iceberg object-recovery plane from `infra/recovery/` and its
 ## Acceptance criteria
 
 - OpenTofu no longer manages an Iceberg recovery bucket, source-bucket versioning, replication configuration, replication role/policy, recovery-reader role/policy, recovery bucket policy, 45-day lifecycle, or related outputs.
-- The existing primary `databox-lake` bucket is not mutated by the plan.
+- The existing primary `<REDACTED_BUCKET_1>` bucket is not mutated by the plan.
 - Catalog backup bucket versioning, encryption, public-access block, lifecycle, and least-privilege pgBackRest role remain; the role can abort its own multipart uploads but has no object-version permissions.
 - Local state ownership, encrypted backup, cleanup exclusion, and loss/import procedure are explicit.
 - Active docs and tests describe catalog backup plus source rebuild, not object recovery.

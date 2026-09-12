@@ -5,11 +5,16 @@ Relates-To: .10x/tickets/done/2026-09-04-build-isolated-catalog-recovery-drill.m
 
 # Isolated catalog restore files success
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `8ac91357b7a6007b152ab5a06a8b75ca832e759869417c3feaa55e9d006a06dc`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Authorization and target
 
 The user explicitly authorized only a dotenv-aware pgBackRest restore into new volume `databox_polaris_recovery_20260905_162514` at PITR input `2026-09-05T16:25:14Z`, strictly after full backup `20260905-162355F` stopped at `2026-09-05T16:25:13Z`. Starting restored PostgreSQL/Polaris, catalog validation, cutover, active-service changes, cleanup/deletion, archive writes, and any read-write access to the three earlier failed volumes remained unauthorized.
 
-Preconditions proved the exact operator IAM user and MFA-assumed backup role, absent target, present active and three prior recovery volumes, healthy active PostgreSQL/Polaris, unchanged active database size `8293523`, and pinned image ID `sha256:7d798550d0d94bfbf8576b0b97fc5b90705e0ebb940756dc9a042ca066b95b93`. Project `python-dotenv` parsing produced exact bucket `databox-lake-catalog-backup`, region `us-west-1`, and a nonempty cipher passphrase without printing values.
+Preconditions proved the exact operator IAM user and MFA-assumed backup role, absent target, present active and three prior recovery volumes, healthy active PostgreSQL/Polaris, unchanged active database size `8293523`, and pinned image ID `sha256:7d798550d0d94bfbf8576b0b97fc5b90705e0ebb940756dc9a042ca066b95b93`. Project `python-dotenv` parsing produced exact bucket `<REDACTED_BUCKET_2>`, region `us-west-1`, and a nonempty cipher passphrase without printing values.
 
 Temporary backup-role credentials were exported into process memory and mapped only to child `PGBACKREST_*` variables. Credentials and the cipher passphrase were not printed, written to `.env`, or recorded.
 

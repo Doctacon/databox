@@ -5,6 +5,11 @@ Relates-To: .10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md
 
 # Recovery operator MFA local state-compatible plan
 
+> Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+> Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `b3cde436125a1fdda71abf0f1a696963f2ab5b74d8a40e8851408608637f04e0`.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
+
 ## Result
 
 A normal-refresh OpenTofu plan was generated literally from `infra/recovery/` as the ignored local file `infra/recovery/recovery-operator-mfa-repair.tfplan`. No `tofu init` ran before or after generation.
@@ -20,7 +25,7 @@ The plan creates console-only IAM user `databox-recovery-operator` and its polic
 
 Before generation:
 
-- authenticated identity: `arn:aws:iam::734815189723:root` in account `734815189723`;
+- authenticated identity: `arn:aws:iam::<REDACTED_ACCOUNT_ID>:root` in account `<REDACTED_ACCOUNT_ID>`;
 - state path/mode: `infra/recovery/terraform.tfstate`, `0600`;
 - state SHA-256: `0794afe7339895a6b59b87c029c800775ea041cebb436fc63839304b0dbd5ab7`;
 - current state lineage: `4303cf7d-c96f-55db-0ba3-a1ff1f492194`;

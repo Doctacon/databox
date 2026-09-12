@@ -76,7 +76,10 @@ def test_recovery_operator_has_only_remote_login_and_backup_role_access() -> Non
     assert "Resource = aws_iam_role.catalog_backup.arn" in main
     assert '"signin:AuthorizeOAuth2Access"' in main
     assert '"signin:CreateOAuth2Token"' in main
-    assert 'Resource = "arn:aws:signin:us-west-1:734815189723:oauth2/public-client/remote"' in main
+    signin_resource = (
+        'Resource = "arn:aws:signin:us-west-1:${var.aws_account_id}:oauth2/public-client/remote"'
+    )
+    assert signin_resource in main
     assert "oauth2/public-client/*" not in main
     assert "oauth2/public-client/localhost" not in main
     assert "identifiers = [aws_iam_user.recovery_operator.arn]" in main
@@ -120,3 +123,12 @@ def test_local_state_ownership_is_documented_and_ignored() -> None:
     assert "FileVault" in runbook
     assert "tofu import" in runbook
     assert "*.tfstate" in gitignore
+
+
+def test_raw_recovery_plan_exports_are_not_public_evidence() -> None:
+    gitignore = (ROOT / ".gitignore").read_text()
+    public_contract = (ROOT / ".10x" / "specs" / "public-catalog-recovery-content.md").read_text()
+    assert "/.10x/evidence/.storage/*.tfplan.txt" in gitignore
+    assert "/.10x/evidence/.storage/*-databox-*-plan.txt" in gitignore
+    assert "Never force-add raw recovery plan exports" in public_contract
+    assert "not a private directory" in public_contract

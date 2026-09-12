@@ -1,3 +1,8 @@
+REDACTED HISTORICAL PLAN TEXT — NON-EXECUTABLE
+Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `ac69ca32d2e7a589d59b7bb5141de952996e80045f63d7850a78d7991a122365`.
+Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
 
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
@@ -45,7 +50,7 @@ OpenTofu will perform the following actions:
                       - Action    = "sts:AssumeRole"
                       - Effect    = "Allow"
                       - Principal = {
-                          - AWS = "arn:aws:iam::734815189723:root"
+                          - AWS = "arn:aws:iam::<REDACTED_ACCOUNT_ID>:root"
                         }
                     },
                 ]
@@ -84,7 +89,7 @@ OpenTofu will perform the following actions:
                           + "sts:AssumeRole",
                         ]
                       + Effect   = "Allow"
-                      + Resource = "arn:aws:iam::734815189723:role/databox-polaris-catalog-backup"
+                      + Resource = "arn:aws:iam::<REDACTED_ACCOUNT_ID>:role/databox-polaris-catalog-backup"
                     },
                 ]
               + Version   = "2012-10-17"

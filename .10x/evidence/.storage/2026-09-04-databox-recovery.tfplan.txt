@@ -1,3 +1,8 @@
+REDACTED HISTORICAL PLAN TEXT — NON-EXECUTABLE
+Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
+Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `a003be1c19ba655607712c27cc7c2e428cc9929c09674676ef1d9c5d5aba75c0`.
+Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+
 
 OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
@@ -26,7 +31,7 @@ OpenTofu will perform the following actions:
 
           + principals {
               + identifiers = [
-                  + "arn:aws:iam::734815189723:role/DataboxPolarisS3Role",
+                  + "arn:aws:iam::<REDACTED_ACCOUNT_ID>:role/DataboxPolarisS3Role",
                 ]
               + type        = "AWS"
             }
@@ -69,7 +74,7 @@ OpenTofu will perform the following actions:
                       + Action    = "sts:AssumeRole"
                       + Effect    = "Allow"
                       + Principal = {
-                          + AWS = "arn:aws:iam::734815189723:root"
+                          + AWS = "arn:aws:iam::<REDACTED_ACCOUNT_ID>:root"
                         }
                     },
                 ]
@@ -100,7 +105,7 @@ OpenTofu will perform the following actions:
                       + Action    = "sts:AssumeRole"
                       + Effect    = "Allow"
                       + Principal = {
-                          + AWS = "arn:aws:iam::734815189723:root"
+                          + AWS = "arn:aws:iam::<REDACTED_ACCOUNT_ID>:root"
                         }
                     },
                 ]
@@ -184,7 +189,7 @@ OpenTofu will perform the following actions:
       + acceleration_status         = (known after apply)
       + acl                         = (known after apply)
       + arn                         = (known after apply)
-      + bucket                      = "databox-lake-catalog-backup"
+      + bucket                      = "<REDACTED_BUCKET_2>"
       + bucket_domain_name          = (known after apply)
       + bucket_namespace            = (known after apply)
       + bucket_prefix               = (known after apply)
@@ -225,7 +230,7 @@ OpenTofu will perform the following actions:
       + acceleration_status         = (known after apply)
       + acl                         = (known after apply)
       + arn                         = (known after apply)
-      + bucket                      = "databox-lake-iceberg-recovery"
+      + bucket                      = "<REDACTED_BUCKET_3>"
       + bucket_domain_name          = (known after apply)
       + bucket_namespace            = (known after apply)
       + bucket_prefix               = (known after apply)
@@ -343,7 +348,7 @@ OpenTofu will perform the following actions:
 
   # aws_s3_bucket_replication_configuration.iceberg will be created
   + resource "aws_s3_bucket_replication_configuration" "iceberg" {
-      + bucket = "databox-lake"
+      + bucket = "<REDACTED_BUCKET_1>"
       + id     = (known after apply)
       + region = "us-west-1"
       + role   = (known after apply)
@@ -430,7 +435,7 @@ Plan: 18 to add, 0 to change, 0 to destroy.
 
 Changes to Outputs:
   + aws_profile                      = "databox-debug"
-  + catalog_backup_bucket            = "databox-lake-catalog-backup"
+  + catalog_backup_bucket            = "<REDACTED_BUCKET_2>"
   + catalog_backup_role_arn          = (known after apply)
-  + iceberg_recovery_bucket          = "databox-lake-iceberg-recovery"
+  + iceberg_recovery_bucket          = "<REDACTED_BUCKET_3>"
   + iceberg_recovery_reader_role_arn = (known after apply)

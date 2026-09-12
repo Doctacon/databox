@@ -106,7 +106,7 @@ resource "aws_iam_user_policy" "recovery_operator" {
           "signin:AuthorizeOAuth2Access",
           "signin:CreateOAuth2Token",
         ]
-        Resource = "arn:aws:signin:us-west-1:734815189723:oauth2/public-client/remote"
+        Resource = "arn:aws:signin:us-west-1:${var.aws_account_id}:oauth2/public-client/remote"
       },
     ]
   })
