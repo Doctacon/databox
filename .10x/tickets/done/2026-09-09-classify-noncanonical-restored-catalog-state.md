@@ -1,0 +1,43 @@
+Status: done
+Created: 2026-09-09
+Updated: 2026-09-09
+Parent: .10x/tickets/done/2026-09-04-build-isolated-catalog-recovery-drill.md
+Depends-On: None
+
+# Classify noncanonical restored-catalog state
+
+## Scope
+
+Define whether tables in namespaces outside the seven canonical registry sources, including restored `raw_usfws` and `dlt_polaris_probe`, remain recovery-validation failures or become explicitly reported warnings. Preserve visibility and fail closed until the policy is approved. Do not silently allowlist identifiers.
+
+## Acceptance criteria
+
+- An approved policy defines warning versus failure behavior for noncanonical namespaces.
+- Every noncanonical namespace and table remains explicit in validation output.
+- Unexpected tables inside canonical namespaces remain failures.
+- No catalog deletion, mutation, or cleanup is implied or performed.
+
+## Progress and notes
+
+- 2026-09-09: Split from `.10x/tickets/done/2026-09-09-reconcile-restored-catalog-registry-drift.md` when the user authorized only the three eBird generated child-table declarations.
+- 2026-09-09: User approved explicit warning treatment for namespaces outside the registry while retaining failure behavior for undeclared tables inside canonical namespaces. Governing decision: `.10x/decisions/classify-noncanonical-recovery-namespaces-as-warnings.md`. Governing specification: `.10x/specs/polaris-catalog-continuity.md`.
+- 2026-09-09: Implemented registry-derived noncanonical namespace/table warnings with a prominent warning count. Canonical-namespace drift and missing/malformed/unreadable canonical state remain failures. Evidence: `.10x/evidence/2026-09-09-noncanonical-recovery-warning-policy-implementation.md`. Thirteen focused tests and static/security checks passed; no live operation ran.
+- 2026-09-09: Independent review `.10x/reviews/2026-09-09-noncanonical-recovery-warning-policy-review.md` passed with no findings.
+
+## Closure evidence
+
+The implementation evidence and review map every acceptance criterion: warnings are explicit and bounded, canonical drift remains failure, and no mutation or cleanup path exists.
+
+## Retrospective
+
+Classify drift by ownership boundary rather than identifier allowlists: unknown state inside a governed namespace blocks recovery; visible state outside governed namespaces warns without redefining ownership.
+
+## Blockers
+
+None. Live validation remains separately authorized.
+
+## Exclusions
+
+- Adding USFWS to the canonical seven-source registry.
+- Catalog/table deletion or cleanup.
+- Source refresh, warehouse writes, cutover, or RPO/RTO claims.

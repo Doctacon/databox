@@ -38,15 +38,11 @@ entity	name	type	master_source	also_in	note
 :Entity:BirdObservation	sci_name	text	ebird_api.recent_observations	ebird_api.notable_observations
 :Entity:BirdObservation	species_code	text	ebird_api.recent_observations	ebird_api.notable_observations	not null, primary_key
 :Entity:BirdObservation	sub_id	text	ebird_api.recent_observations	ebird_api.notable_observations	not null, primary_key
-:Entity:Species	_dlt_id	text	ebird_api.taxonomy	ebird_api.species_list, ebird_api.taxonomy__com_name_codes, ebird_api.taxonomy__sci_name_codes, ebird_api.taxonomy__banding_codes	dlt metadata, not null, row_key, unique
-:Entity:Species	_dlt_list_idx	bigint	ebird_api.taxonomy__com_name_codes	ebird_api.taxonomy__sci_name_codes, ebird_api.taxonomy__banding_codes	dlt metadata, not null
+:Entity:Species	_dlt_id	text	ebird_api.taxonomy	ebird_api.species_list	dlt metadata, not null, row_key, unique
 :Entity:Species	_dlt_load_id	text	ebird_api.taxonomy	ebird_api.species_list	dlt metadata, not null
-:Entity:Species	_dlt_parent_id	text	ebird_api.taxonomy__com_name_codes	ebird_api.taxonomy__sci_name_codes, ebird_api.taxonomy__banding_codes	dlt metadata, not null
 :Entity:Species	_loaded_at	timestamp	ebird_api.taxonomy	ebird_api.species_list
-:Entity:Species	banding_code_value	text	ebird_api.taxonomy__banding_codes		source column: taxonomy__banding_codes.value
 :Entity:Species	category	text	ebird_api.taxonomy
 :Entity:Species	com_name	text	ebird_api.taxonomy
-:Entity:Species	com_name_code_value	text	ebird_api.taxonomy__com_name_codes		source column: taxonomy__com_name_codes.value
 :Entity:Species	extinct	bool	ebird_api.taxonomy
 :Entity:Species	extinct_year	bigint	ebird_api.taxonomy
 :Entity:Species	family_code	text	ebird_api.taxonomy
@@ -56,7 +52,6 @@ entity	name	type	master_source	also_in	note
 :Entity:Species	region	text	ebird_api.species_list
 :Entity:Species	report_as	text	ebird_api.taxonomy
 :Entity:Species	sci_name	text	ebird_api.taxonomy		not null, primary_key
-:Entity:Species	sci_name_code_value	text	ebird_api.taxonomy__sci_name_codes		source column: taxonomy__sci_name_codes.value
 :Entity:Species	species_code	text	ebird_api.taxonomy	ebird_api.species_list	not null, primary_key
 :Entity:Species	taxon_order	double	ebird_api.taxonomy
 

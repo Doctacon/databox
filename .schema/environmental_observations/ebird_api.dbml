@@ -130,21 +130,21 @@ Table "_dlt_pipeline_state" [note: 'excluded: dlt internal pipeline state table'
   "_dlt_id" text [not null, unique, row_key]
 }
 
-Table "taxonomy__com_name_codes" [note: 'concept: Species | role: child'] {
+Table "taxonomy__com_name_codes" [note: 'excluded: dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM'] {
   "value" text
   "_dlt_parent_id" text [not null]
   "_dlt_list_idx" bigint [not null]
   "_dlt_id" text [not null, unique, row_key]
 }
 
-Table "taxonomy__sci_name_codes" [note: 'concept: Species | role: child'] {
+Table "taxonomy__sci_name_codes" [note: 'excluded: dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM'] {
   "value" text
   "_dlt_parent_id" text [not null]
   "_dlt_list_idx" bigint [not null]
   "_dlt_id" text [not null, unique, row_key]
 }
 
-Table "taxonomy__banding_codes" [note: 'concept: Species | role: child'] {
+Table "taxonomy__banding_codes" [note: 'excluded: dlt-normalized taxonomy code list retained raw for recovery but not used by the current CDM'] {
   "value" text
   "_dlt_parent_id" text [not null]
   "_dlt_list_idx" bigint [not null]

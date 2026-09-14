@@ -2,18 +2,20 @@ name: databox-iceberg
 
 services:
   postgres:
-    image: databox-polaris-postgres:17.6-pgbackrest-2.55.1
+    image: databox-polaris-postgres:17.6-pgbackrest-2.59.1
     build:
       context: .
       dockerfile: scripts/platform/polaris-postgres.Dockerfile
       args:
-        PGBACKREST_VERSION: 2.55.1
+        PGBACKREST_VERSION: 2.59.1
     environment:
       POSTGRES_DB: polaris
       POSTGRES_USER: polaris
       POSTGRES_PASSWORD: ${DATABOX_POLARIS_POSTGRES_PASSWORD:?set DATABOX_POLARIS_POSTGRES_PASSWORD}
-      DATABOX_AWS_CREDENTIAL_PROCESS: ${DATABOX_AWS_CREDENTIAL_PROCESS:?set DATABOX_AWS_CREDENTIAL_PROCESS}
       PGBACKREST_REPO1_CIPHER_PASS: ${PGBACKREST_REPO1_CIPHER_PASS:?set PGBACKREST_REPO1_CIPHER_PASS}
+      PGBACKREST_REPO1_S3_KEY: ${DATABOX_BACKUP_AWS_ACCESS_KEY_ID:?set DATABOX_BACKUP_AWS_ACCESS_KEY_ID}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY:?set DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY}
+      PGBACKREST_REPO1_S3_TOKEN: ${DATABOX_BACKUP_AWS_SESSION_TOKEN:?set DATABOX_BACKUP_AWS_SESSION_TOKEN}
       PGBACKREST_REPO1_S3_BUCKET: ${DATABOX_CATALOG_BACKUP_BUCKET:?set DATABOX_CATALOG_BACKUP_BUCKET}
       PGBACKREST_REPO1_S3_REGION: ${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}
       PGBACKREST_REPO1_S3_ENDPOINT: s3.${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}.amazonaws.com
@@ -32,11 +34,14 @@ services:
       retries: 30
     volumes:
       - polaris_postgres:/var/lib/postgresql/data
+      - polaris_postgres_socket:/var/run/postgresql
     restart: unless-stopped
 
   polaris-bootstrap:
     image: apache/polaris-admin-tool:1.7.0
     depends_on:
+      # Bootstrap waits only for database liveness; the backup gate runs after
+      # bootstrap and blocks the Polaris service until protection is verified.
       postgres:
         condition: service_healthy
     environment:
@@ -52,12 +57,36 @@ services:
       - POLARIS,${DATABOX_POLARIS_CLIENT_ID:?set DATABOX_POLARIS_CLIENT_ID},${DATABOX_POLARIS_CLIENT_SECRET:?set DATABOX_POLARIS_CLIENT_SECRET}
     restart: "no"
 
+  catalog-backup-readiness:
+    image: databox-polaris-postgres:17.6-pgbackrest-2.59.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      polaris-bootstrap:
+        condition: service_completed_successfully
+    user: postgres
+    environment:
+      PGBACKREST_REPO1_CIPHER_PASS: ${PGBACKREST_REPO1_CIPHER_PASS:?set PGBACKREST_REPO1_CIPHER_PASS}
+      PGBACKREST_REPO1_S3_KEY: ${DATABOX_BACKUP_AWS_ACCESS_KEY_ID:?set DATABOX_BACKUP_AWS_ACCESS_KEY_ID}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY:?set DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY}
+      PGBACKREST_REPO1_S3_TOKEN: ${DATABOX_BACKUP_AWS_SESSION_TOKEN:?set DATABOX_BACKUP_AWS_SESSION_TOKEN}
+      PGBACKREST_REPO1_S3_BUCKET: ${DATABOX_CATALOG_BACKUP_BUCKET:?set DATABOX_CATALOG_BACKUP_BUCKET}
+      PGBACKREST_REPO1_S3_REGION: ${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}
+      PGBACKREST_REPO1_S3_ENDPOINT: s3.${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}.amazonaws.com
+    command: ["python3", "/opt/databox/catalog-backup-readiness.py"]
+    volumes:
+      - polaris_postgres:/var/lib/postgresql/data
+      - polaris_postgres_socket:/var/run/postgresql
+    restart: "no"
+
   polaris:
     image: apache/polaris:1.7.0
     depends_on:
       postgres:
         condition: service_healthy
       polaris-bootstrap:
+        condition: service_completed_successfully
+      catalog-backup-readiness:
         condition: service_completed_successfully
     environment:
       POLARIS_PERSISTENCE_TYPE: relational-jdbc
@@ -68,7 +97,9 @@ services:
       POLARIS_REALM_CONTEXT_REQUIRE_HEADER: "false"
       AWS_ACCESS_KEY_ID: ${DATABOX_AWS_ACCESS_KEY_ID:?set DATABOX_AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${DATABOX_AWS_SECRET_ACCESS_KEY:?set DATABOX_AWS_SECRET_ACCESS_KEY}
-      AWS_SESSION_TOKEN: ${DATABOX_AWS_SESSION_TOKEN:?set DATABOX_AWS_SESSION_TOKEN}
+      # Long-lived local IAM-user credentials have no session token; temporary
+      # OIDC/STS credentials continue to pass one through when supplied.
+      AWS_SESSION_TOKEN: ${DATABOX_AWS_SESSION_TOKEN:-}
       AWS_REGION: ${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}
       QUARKUS_HTTP_CORS_ENABLED: "true"
       QUARKUS_HTTP_CORS_ORIGINS: http://127.0.0.1:8080
@@ -104,3 +135,4 @@ services:
 volumes:
   polaris_postgres:
     name: databox_polaris_postgres
+  polaris_postgres_socket:

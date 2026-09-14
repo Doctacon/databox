@@ -1,7 +1,12 @@
 """Protect the manual-only real Polaris/S3 integration boundary."""
 
+import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).parents[2]
@@ -72,7 +77,9 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     assert "DATABOX_AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" in generation_step["run"]
     assert "DATABOX_AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}" in generation_step["run"]
     assert "DATABOX_AWS_REGION=${AWS_REGION}" in generation_step["run"]
-    assert "${DATABOX_AWS_SESSION_TOKEN:?set DATABOX_AWS_SESSION_TOKEN}" in COMPOSE.read_text()
+    compose = COMPOSE.read_text()
+    assert "AWS_SESSION_TOKEN: ${DATABOX_AWS_SESSION_TOKEN:-}" in compose
+    assert "PGBACKREST_REPO1_S3_TOKEN: ${DATABOX_BACKUP_AWS_SESSION_TOKEN:?" in compose
     assert "secrets.DATABOX_AWS_ACCESS_KEY_ID" not in WORKFLOW.read_text()
     assert "secrets.DATABOX_AWS_SECRET_ACCESS_KEY" not in WORKFLOW.read_text()
     assert "secrets.DATABOX_POLARIS_" not in WORKFLOW.read_text()
@@ -167,3 +174,69 @@ def test_s3_preflight_is_read_only_scoped_and_runs_before_source_verification() 
         '  --prefix "${DATABOX_ICEBERG_WAREHOUSE_PREFIX}" \\',
         "  --max-items 1",
     ]
+
+
+def _compose_command() -> list[str]:
+    if executable := shutil.which("docker-compose"):
+        return [executable]
+    if executable := shutil.which("docker"):
+        return [executable, "compose"]
+    pytest.skip("Docker Compose is unavailable")
+
+
+def _compose_environment(*, primary_session_token: str) -> dict[str, str]:
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "DATABOX_POLARIS_POSTGRES_PASSWORD": "test-postgres-password",
+            "DATABOX_POLARIS_CLIENT_ID": "test-client-id",
+            "DATABOX_POLARIS_CLIENT_SECRET": "test-client-secret",
+            "DATABOX_AWS_ACCESS_KEY_ID": "test-primary-key",
+            "DATABOX_AWS_SECRET_ACCESS_KEY": "test-primary-secret",
+            "DATABOX_AWS_SESSION_TOKEN": primary_session_token,
+            "DATABOX_AWS_REGION": "us-west-1",
+            "PGBACKREST_REPO1_CIPHER_PASS": "test-repository-passphrase",
+            "DATABOX_BACKUP_AWS_ACCESS_KEY_ID": "test-backup-key",
+            "DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY": "test-backup-secret",
+            "DATABOX_BACKUP_AWS_SESSION_TOKEN": "test-backup-token",
+            "DATABOX_CATALOG_BACKUP_BUCKET": "test-catalog-backups",
+        }
+    )
+    return environment
+
+
+@pytest.mark.parametrize("primary_session_token", ("", "test-primary-token"))
+def test_compose_renders_long_lived_and_temporary_primary_credentials(
+    primary_session_token: str,
+) -> None:
+    result = subprocess.run(
+        [*_compose_command(), "-f", str(COMPOSE), "config", "--format", "json"],
+        cwd=ROOT,
+        env=_compose_environment(primary_session_token=primary_session_token),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    rendered = json.loads(result.stdout)
+    assert rendered["services"]["polaris"]["environment"]["AWS_SESSION_TOKEN"] == (
+        primary_session_token
+    )
+    assert (
+        rendered["services"]["postgres"]["environment"]["PGBACKREST_REPO1_S3_TOKEN"]
+        == "test-backup-token"
+    )
+
+
+def test_compose_still_rejects_missing_backup_session_token() -> None:
+    environment = _compose_environment(primary_session_token="")
+    environment.pop("DATABOX_BACKUP_AWS_SESSION_TOKEN")
+    result = subprocess.run(
+        [*_compose_command(), "-f", str(COMPOSE), "config", "--format", "json"],
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "DATABOX_BACKUP_AWS_SESSION_TOKEN" in result.stderr

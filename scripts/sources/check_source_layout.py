@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from databox.config.sources import SOURCE_NAME_PATTERN, SOURCES, Source
+from databox.config.sources import RAW_TABLE_NAME_PATTERN, SOURCE_NAME_PATTERN, SOURCES, Source
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SOURCES_DIR = Path("packages/databox-sources/databox_sources")
@@ -227,11 +227,37 @@ def registry_errors(sources: Sequence[Source] = SOURCES) -> list[str]:
         if not source.raw_tables:
             errors.append(f"empty raw table inventory for {source.name}")
         table_counts = Counter(source.raw_tables)
+        normalized_child_counts = Counter(source.normalized_child_tables)
+        normalized_children = set(source.normalized_child_tables)
+        resource_tables = set(source.resource_tables)
         for table, count in sorted(table_counts.items()):
-            if not SOURCE_NAME_PATTERN.fullmatch(table):
+            if not RAW_TABLE_NAME_PATTERN.fullmatch(table):
                 errors.append(f"invalid raw table name for {source.name}: {table!r}")
             if count > 1:
                 errors.append(f"duplicate raw table for {source.name}: {table}")
+            if "__" in table and table not in normalized_children:
+                errors.append(
+                    f"normalized child table not explicitly declared for {source.name}: {table}"
+                )
+        for child, count in sorted(normalized_child_counts.items()):
+            if count > 1:
+                errors.append(f"duplicate normalized child table for {source.name}: {child}")
+            if child not in table_counts:
+                errors.append(
+                    f"normalized child table absent from raw inventory for {source.name}: {child}"
+                )
+            if not RAW_TABLE_NAME_PATTERN.fullmatch(child) or "__" not in child:
+                errors.append(
+                    f"invalid normalized child table for {source.name}: {child!r}; "
+                    "expected parent__child"
+                )
+                continue
+            parent = child.split("__", 1)[0]
+            if parent not in resource_tables:
+                errors.append(
+                    f"normalized child parent is not a top-level resource table for "
+                    f"{source.name}: {child}"
+                )
     if not sources:
         errors.append("canonical source registry is empty")
     return errors
@@ -476,10 +502,11 @@ def check_source(name: str, sources: Sequence[Source] = SOURCES) -> SourceReport
                     report.missing.append(str(path))
         if source_tree is not None:
             resources = _resource_names(source_tree)
-            if resources != set(source.raw_tables):
+            resource_tables = set(source.resource_tables)
+            if resources != resource_tables:
                 report.missing.append(
-                    "raw table inventory does not match declared dlt resources: "
-                    f"registry={sorted(source.raw_tables)}, source={sorted(resources)}"
+                    "top-level raw table inventory does not match declared dlt resources: "
+                    f"registry={sorted(resource_tables)}, source={sorted(resources)}"
                 )
 
     domain_file = DOMAINS_DIR / f"{name}.py"

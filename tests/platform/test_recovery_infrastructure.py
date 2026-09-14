@@ -1,4 +1,4 @@
-"""Static contract for automation-first recovery infrastructure."""
+"""Static contract for automation-first catalog recovery infrastructure."""
 
 from pathlib import Path
 
@@ -17,48 +17,118 @@ def test_opentofu_is_bounded_and_same_region() -> None:
     assert 'version = ">= 5.80.0, < 7.0.0"' in versions
     assert 'default     = "us-west-1"' in variables
     assert 'var.aws_region == "us-west-1"' in variables
-    assert "credential_process_command" in variables
+    assert "credential_process_command" not in variables
     assert "aws_account_id" in variables
 
 
-def test_three_buckets_are_distinct_and_recovery_is_versioned() -> None:
+def test_catalog_backup_bucket_is_protected_for_thirty_days() -> None:
     main = _text("main.tf")
-    assert 'check "distinct_bucket_names"' in main
     assert 'resource "aws_s3_bucket" "catalog_backup"' in main
-    assert 'resource "aws_s3_bucket" "iceberg_recovery"' in main
-    assert main.count('status = "Enabled"') >= 4
-    assert "noncurrent_days = 45" in main
+    assert 'resource "aws_s3_bucket_versioning" "catalog_backup"' in main
+    assert 'status = "Enabled"' in main
     assert "noncurrent_days = 30" in main
-    assert main.count("block_public_acls       = true") == 2
-    assert main.count('sse_algorithm = "AES256"') == 2
+    assert "block_public_acls       = true" in main
+    assert 'sse_algorithm = "AES256"' in main
 
 
-def test_replication_preserves_deleted_primary_versions() -> None:
+def test_catalog_backup_bucket_denies_insecure_transport() -> None:
     main = _text("main.tf")
-    assert 'prefix = "${local.warehouse_prefix}/"' in main
-    assert "delete_marker_replication {" in main
-    assert 'status = "Disabled"' in main
-    assert '"s3:ReplicateObject", "s3:ReplicateTags"' in main
-    assert "s3:ReplicateDelete" not in main
-    assert '"DenyRoutineWriterDeletes"' in main
-    assert '"s3:DeleteObject", "s3:DeleteObjectVersion"' in main
+    assert 'data "aws_iam_policy_document" "catalog_backup"' in main
+    assert 'resource "aws_s3_bucket_policy" "catalog_backup"' in main
+    assert 'sid       = "DenyInsecureTransport"' in main
+    assert 'effect    = "Deny"' in main
+    assert 'actions   = ["s3:*"]' in main
+    resources = (
+        'resources = [aws_s3_bucket.catalog_backup.arn, "${aws_s3_bucket.catalog_backup.arn}/*"]'
+    )
+    assert resources in main
+    assert 'variable = "aws:SecureTransport"' in main
+    assert 'values   = ["false"]' in main
 
 
-def test_backup_and_recovery_permissions_are_separate() -> None:
+def test_only_catalog_backup_permissions_remain() -> None:
     main = _text("main.tf")
+    outputs = _text("outputs.tf")
     assert 'resource "aws_iam_role" "catalog_backup"' in main
-    assert 'resource "aws_iam_role" "iceberg_recovery_reader"' in main
-    reader_policy = main.split(
-        'resource "aws_iam_role_policy" "iceberg_recovery_reader"', maxsplit=1
-    )[1].split('resource "aws_iam_role" "iceberg_replication"', maxsplit=1)[0]
-    assert "s3:GetObjectVersion" in reader_policy
-    assert "s3:PutObject" not in reader_policy
-    assert "s3:DeleteObject" not in reader_policy
+    assert 'resource "aws_iam_role_policy" "catalog_backup"' in main
+    assert "s3:GetBucketLocation" in main
+    assert "s3:ListBucket" in main
+    assert "s3:GetObject" in main
+    assert "s3:PutObject" in main
+    assert "s3:DeleteObject" in main
+    assert "s3:AbortMultipartUpload" in main
+    assert "s3:GetObjectVersion" not in main
+    assert "s3:DeleteObjectVersion" not in main
+    assert "iceberg" not in main.lower()
+    assert "replication" not in main.lower()
+    assert "primary" not in main.lower()
+    assert "iceberg_recovery" not in outputs.lower()
+
+
+def test_recovery_operator_has_only_remote_login_and_backup_role_access() -> None:
+    main = _text("main.tf")
+    outputs = _text("outputs.tf")
+    assert 'resource "aws_iam_user" "recovery_operator"' in main
+    assert 'name          = "databox-recovery-operator"' in main
+    assert "force_destroy = false" in main
+    assert 'resource "aws_iam_user_policy" "recovery_operator"' in main
+    assert 'Action   = ["sts:AssumeRole"]' in main
+    assert "Resource = aws_iam_role.catalog_backup.arn" in main
+    assert '"signin:AuthorizeOAuth2Access"' in main
+    assert '"signin:CreateOAuth2Token"' in main
+    signin_resource = (
+        'Resource = "arn:aws:signin:us-west-1:${var.aws_account_id}:oauth2/public-client/remote"'
+    )
+    assert signin_resource in main
+    assert "oauth2/public-client/*" not in main
+    assert "oauth2/public-client/localhost" not in main
+    assert "identifiers = [aws_iam_user.recovery_operator.arn]" in main
+    assert 'variable = "aws:MultiFactorAuthPresent"' in main
+    assert 'values   = ["true"]' in main
+    assert 'output "recovery_operator_user_arn"' in outputs
+    assert "aws_iam_access_key" not in main
+    assert "aws_iam_user_login_profile" not in main
+    assert "operator_principal_arn" not in main
+
+
+def test_rejected_warehouse_inputs_and_outputs_are_absent() -> None:
+    variables = _text("variables.tf")
+    outputs = _text("outputs.tf")
+    example = _text("terraform.tfvars.example")
+    rejected = (
+        "primary_iceberg_bucket",
+        "warehouse_prefix",
+        "iceberg_recovery_bucket",
+        "routine_writer_principal_arn",
+        "iceberg_recovery_reader_role_arn",
+    )
+    for name in rejected:
+        assert name not in variables
+        assert name not in outputs
+        assert name not in example
 
 
 def test_example_contains_no_real_account_or_bucket_identity() -> None:
     example = _text("terraform.tfvars.example")
     assert "123456789012" in example
-    assert "replace-primary-bucket" in example
+    assert "replace-catalog-backup-bucket" in example
     assert "AKIA" not in example
     assert "secret" not in example.lower()
+
+
+def test_local_state_ownership_is_documented_and_ignored() -> None:
+    runbook = (ROOT / "docs" / "runbook.md").read_text()
+    gitignore = (ROOT / ".gitignore").read_text()
+    assert "infra/recovery/terraform.tfstate" in runbook
+    assert "FileVault" in runbook
+    assert "tofu import" in runbook
+    assert "*.tfstate" in gitignore
+
+
+def test_raw_recovery_plan_exports_are_not_public_evidence() -> None:
+    gitignore = (ROOT / ".gitignore").read_text()
+    public_contract = (ROOT / ".10x" / "specs" / "public-catalog-recovery-content.md").read_text()
+    assert "/.10x/evidence/.storage/*.tfplan.txt" in gitignore
+    assert "/.10x/evidence/.storage/*-databox-*-plan.txt" in gitignore
+    assert "Never force-add raw recovery plan exports" in public_contract
+    assert "not a private directory" in public_contract

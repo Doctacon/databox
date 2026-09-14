@@ -73,6 +73,10 @@ htmlcov/
 **/.terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan
+# Raw recovery plan text exports; existing tracked counterparts remain redacted evidence.
+/.10x/evidence/.storage/*.tfplan.txt
+/.10x/evidence/.storage/*-databox-*-plan.txt
 *.tfvars
 !*.tfvars.example
 

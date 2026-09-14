@@ -1,0 +1,57 @@
+Status: done
+Created: 2026-09-09
+Updated: 2026-09-09
+Parent: .10x/tickets/2026-09-04-run-timed-catalog-recovery-drill.md
+Depends-On: None
+
+# Upload pending WAL before local recovery
+
+## Scope
+
+Extend the existing interactive recovery tool so one MFA session enumerates every locally retained pending PostgreSQL WAL file, uploads it oldest-first with synchronous pgBackRest, verifies remote continuity through the newly selected marker, and only then restores. Preserve all existing credential, isolation, redaction, cleanup, and no-cutover boundaries.
+
+## Acceptance criteria
+
+- Pending `.ready` WAL names are enumerated from the active catalog, strictly validated, sorted, bounded, and matched to existing regular WAL files before upload.
+- Every pending segment is synchronously archived oldest-first using the fresh MFA-issued backup-role session; failure stops before restore and reports the exact nonsecret segment position.
+- The new marker segment is included after backlog catch-up and repository continuity through the selected target is verified before restore.
+- No pending file, archive-status file, remote object, backup, or recovery artifact is deleted or manually marked complete.
+- Output distinguishes manual off-machine catch-up lag from the marker target-inclusion gap and does not claim continuous five-minute local RPO.
+- The preserved failed restore remains untouched; a fresh drill uses new ownership-labeled resources.
+- Pinned-image option probes and comprehensive stateful fake coverage exercise multiple ordered pending segments, remote gaps, malformed names, missing local files, partial upload failure, empty backlog, duplicate-safe upload, continuity verification, and successful restore ordering. The separately authorized live drill is the real S3 stateful integration proof; a second credentialed S3 environment is not required.
+
+## Exclusions
+
+- Long-lived AWS credentials.
+- Unattended credential renewal or scheduling.
+- Production cutover.
+- Recovery-artifact cleanup.
+- Claiming that catch-up proves protection before it ran.
+
+## References
+
+- `.10x/decisions/accept-manual-wal-catchup-for-local-catalog.md`
+- `.10x/evidence/2026-09-09-timed-drill-wal-gap-recovery-failure.md`
+- `.10x/specs/polaris-catalog-continuity.md`
+
+## Evidence expectations
+
+Record the pre-catch-up oldest/newest pending WAL, count, ordered upload proof, repository continuity, fresh target, restored marker boundary, RPO terminology, RTO, and explicit limits without credentials.
+
+## Progress and notes
+
+- 2026-09-09: Opened after the user explicitly accepted local-only loss between authenticated catch-ups and rejected long-lived backup credentials.
+- 2026-09-09: Implemented bounded exact pending-WAL enumeration, pre-upload regular-file validation, numeric oldest-first synchronous pgBackRest upload, in-process marker deduplication, continuity-through-marker reporting, and RPO terminology repair in the existing drill command. Evidence: `.10x/evidence/2026-09-09-manual-pending-wal-catch-up-implementation.md`. A read-only live check observed the expected six retained regular files; no AWS call, WAL upload, marker, restore, or cleanup occurred.
+- 2026-09-09: Repaired review blockers by adding synchronous pgBackRest `archive-get` proof for every segment in a bounded same-timeline sequence from the continuity anchor through the marker. Verification uses fresh name-only credentials and one exact `/dev/shm` path per segment, always removes only that path, and stops before restore on retrieval or cleanup failure. Reports now include oldest pending mtime/age, ordered uploads, informational repository max, continuity anchor, and verified-through marker.
+
+## Closure evidence
+
+Implementation evidence: `.10x/evidence/2026-09-09-manual-pending-wal-catch-up-implementation.md`. Independent review: `.10x/reviews/2026-09-09-manual-pending-wal-catch-up-review.md`. The review maps ordered upload, remote read-back continuity, reporting, and no-delete safety to 135 focused tests and runtime inspection.
+
+## Retrospective
+
+A newest-WAL archive success does not prove a usable recovery chain. Manual catch-up must begin from a known predecessor, process retained files in order, and read the complete required sequence back before restore. Marker timing must not be mislabeled as continuous off-machine RPO.
+
+## Blockers
+
+None.
