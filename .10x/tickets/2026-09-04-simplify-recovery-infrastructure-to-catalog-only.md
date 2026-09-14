@@ -1,6 +1,6 @@
 Status: open
 Created: 2026-09-04
-Updated: 2026-09-04
+Updated: 2026-09-10
 Parent: .10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md
 Depends-On: None
 
@@ -10,6 +10,10 @@ Depends-On: None
 > Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `ad23bff030e4343b9659d396c7142eea611f9a90ddd15cd8a28b5cce94b6db9e`.
 > Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
 
+
+> Record recovery (2026-09-14): restored from the verified private snapshot on `feature/warehouse-file-recovery`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. This preserves the captured contract, not new implementation or AWS authority.
+> Original working-artifact SHA-256 (NOT this recovered/redacted text): `f7eba2efe290520eacea6855f2c351fa02857c09b833ac599c10a28a53080504`; source revision `027af8b4271d60ffc193967d092b5d2497af13ad` plus the captured uncommitted variant.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry `source_kind=uncommitted-working-tree`, `source_path=.10x/tickets/2026-09-04-simplify-recovery-infrastructure-to-catalog-only.md`. Deployment identifiers use the approved publication placeholders; generic principal labels are retained.
 
 ## Scope
 
@@ -35,7 +39,7 @@ Remove the rejected Iceberg object-recovery plane from `infra/recovery/` and its
 
 ## References
 
-- `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`
+- `.10x/decisions/superseded/catalog-backup-with-rebuildable-iceberg-warehouse.md`
 - `.10x/specs/polaris-catalog-continuity.md`
 - `.10x/evidence/2026-09-04-recovery-opentofu-plan.md`
 - `infra/recovery/`
@@ -54,6 +58,8 @@ Record changed resources and outputs, exact static validation, proof that no pri
 - 2026-09-04: Independent review `.10x/reviews/2026-09-04-catalog-only-tls-plan-review.md` found the plan must not be applied: backup IAM lacks object-scoped multipart abort, rollout ordering still places apply after restore automation despite the user's corrected proof-first sequence, and local state ownership/preservation is undefined.
 - 2026-09-04: Repaired all three findings: added object-scoped multipart abort without version-history authority; reordered provisioning and real backup/WAL proof before restore automation; and ratified ignored local state at `infra/recovery/terraform.tfstate`, protected by FileVault and normal encrypted machine backup with explicit loss/import handling. Plan hash `4656b197fd1039d4972c614e828ad0be92128fec6c6f83d4a6a6fd88abc98837` is invalid and MUST NOT be applied.
 - 2026-09-04: Fresh non-mutating plan evidence `.10x/evidence/2026-09-04-catalog-only-final-opentofu-plan.md` records binary hash `77cf23e243859dac24974be21adfb7f5bdf94bb6ec8168cf70039ddda3b69212`, exact text, and 8 create / 0 change / 0 destroy. Twenty-four focused tests and OpenTofu/Ruff/format/diff validation pass. No apply or AWS mutation ran.
+
+- 2026-09-10: Subsequent user-approved same-bucket version protection is owned by `.10x/tickets/2026-09-10-protect-iceberg-warehouse-object-versions.md` under `.10x/decisions/version-iceberg-warehouse-objects-for-30-days.md`. This ticket documents the earlier removal of the rejected recovery plane; its historical no-source-versioning constraints MUST NOT cause a later executor to remove the newly approved settings. No replica is reauthorized, old plans remain invalid, and this cross-link does not close or repair this ticket's earlier closure obligations.
 
 ## Blockers
 

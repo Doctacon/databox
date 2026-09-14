@@ -1,8 +1,12 @@
 Status: active
 Created: 2026-09-04
-Updated: 2026-09-04
+Updated: 2026-09-10
 
 # Polaris catalog continuity
+
+> Record recovery (2026-09-14): restored from the verified private snapshot on `feature/warehouse-file-recovery`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. This preserves the captured contract, not new implementation or AWS authority.
+> Original working-artifact SHA-256 (NOT this recovered/redacted text): `f5ffba05f81049de83fc317dbbedceac5a6c5da73adfc445c36b42eba835107d`; source revision `027af8b4271d60ffc193967d092b5d2497af13ad` plus the captured uncommitted variant.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry `source_kind=uncommitted-working-tree`, `source_path=.10x/specs/polaris-catalog-continuity.md`. Deployment identifiers use the approved publication placeholders; generic principal labels are retained.
 
 ## Purpose and scope
 
@@ -112,5 +116,5 @@ Given provisioned live backup infrastructure, when the first full drill runs, th
 - Storing secrets in OpenTofu state, repository files, logs, restore-validation evidence, or other artifacts.
 - Maintaining a separate pre-disaster catalog inventory.
 - Requiring a secondary logical `pg_dump`; physical pgBackRest PITR is the catalog backup mechanism.
-- Independent Iceberg object backup, versioning, replication, or scheduled warehouse copying.
+- Independent Iceberg object backup, replication, or scheduled warehouse copying. Same-bucket object retention and the routine-writer version-delete denial are separately governed by `.10x/specs/iceberg-warehouse-version-retention.md` and `.10x/specs/iceberg-writer-version-delete-denial.md`; they are outside this catalog implementation, not prohibited by it. The existing catalog drill does not restore S3 object versions.
 - Treating a copied Docker volume or backup-command success as recovery proof.

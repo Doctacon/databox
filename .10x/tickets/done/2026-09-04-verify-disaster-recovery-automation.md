@@ -6,13 +6,17 @@ Depends-On: .10x/tickets/2026-09-04-declare-aws-recovery-infrastructure.md, .10x
 
 # Verify disaster-recovery automation
 
+> Record recovery (2026-09-14): restored from the verified private snapshot on `feature/warehouse-file-recovery`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. This preserves the captured contract, not new implementation or AWS authority.
+> Original working-artifact SHA-256 (NOT this recovered/redacted text): `8db4581db6eb3d3cf7b09ce0ab34d5b506efcc53cc85479c438d3eda5499f740`; source revision `027af8b4271d60ffc193967d092b5d2497af13ad` plus the captured uncommitted variant.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry `source_kind=uncommitted-working-tree`, `source_path=.10x/tickets/done/2026-09-04-verify-disaster-recovery-automation.md`. Deployment identifiers use the approved publication placeholders; generic principal labels are retained.
+
 ## Scope
 
 Adversarially review the integrated catalog-only OpenTofu, pgBackRest, credential delivery, registry-derived restore validation, restore safety, source-rebuild boundary, tests, and operator documentation. Repair only findings within the ratified automation-first scope, record evidence and review, and prepare the exact non-secret OpenTofu plan/apply inputs for user review.
 
 ## Acceptance criteria
 
-- Every criterion in `.10x/specs/polaris-catalog-continuity.md` and `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md` is mapped to code, tests, documentation, or an explicitly blocked live-proof criterion.
+- Every criterion in `.10x/specs/polaris-catalog-continuity.md` and `.10x/decisions/superseded/catalog-backup-with-rebuildable-iceberg-warehouse.md` is mapped to code, tests, documentation, or an explicitly blocked live-proof criterion.
 - OpenTofu formatting/validation and policy-focused tests pass.
 - Compose rendering and all focused backup/restore tests pass without credentials or network side effects.
 - Full `task ci`, strict docs, secret scan, generated-file checks, and diff checks pass.
@@ -31,7 +35,7 @@ Adversarially review the integrated catalog-only OpenTofu, pgBackRest, credentia
 
 - `.10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md`
 - `.10x/specs/polaris-catalog-continuity.md`
-- `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`
+- `.10x/decisions/superseded/catalog-backup-with-rebuildable-iceberg-warehouse.md`
 
 ## Evidence expectations
 

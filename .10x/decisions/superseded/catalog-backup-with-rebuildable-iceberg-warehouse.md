@@ -1,13 +1,19 @@
-Status: active
+Status: superseded
 Created: 2026-09-04
-Updated: 2026-09-04
+Updated: 2026-09-10
 
 # Back up the Polaris catalog and rebuild the Iceberg warehouse from sources
 
 > Publication redaction (2026-09-12): deployment account/bucket literals are replaced by labeled placeholders; generic principal labels are retained. This historical record is not a fresh approval or an executable plan. Original conclusions and verification limits still apply.
 > Source revision: `027af8b4271d60ffc193967d092b5d2497af13ad`. Original-artifact SHA-256 (NOT this redacted text): `5c809f49b328b349f99e3c7e3b833e2f43a898faa65c6b88754b3b5f6a11f7ea`.
-> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path=.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
 
+
+> Record recovery (2026-09-14): restored from the verified private snapshot on `feature/warehouse-file-recovery`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. This preserves the captured contract, not new implementation or AWS authority.
+> Original working-artifact SHA-256 (NOT this recovered/redacted text): `8bd07e22954e858127852b21fefc1668d5ffcc2b97f6278c503f49cb9dda1e20`; source revision `027af8b4271d60ffc193967d092b5d2497af13ad` plus the captured uncommitted variant.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry `source_kind=uncommitted-working-tree`, `source_path=.10x/decisions/superseded/catalog-backup-with-rebuildable-iceberg-warehouse.md`. Deployment identifiers use the approved publication placeholders; generic principal labels are retained.
+
+Superseded by `.10x/decisions/version-iceberg-warehouse-objects-for-30-days.md` after the user selected same-bucket versioning, 30-day noncurrent history, and an explicit routine-writer version-delete denial. The historical decision below is preserved; the successor restates retained catalog, no-replica, credential, and state constraints and links their current governing records.
 
 ## Context
 

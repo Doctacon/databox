@@ -1,10 +1,14 @@
 Status: open
 Created: 2026-09-04
-Updated: 2026-09-04
+Updated: 2026-09-10
 Parent: None
 Depends-On: None
 
 # Build Polaris and Iceberg disaster recovery
+
+> Record recovery (2026-09-14): restored from the verified private snapshot on `feature/warehouse-file-recovery`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. This preserves the captured contract, not new implementation or AWS authority.
+> Original working-artifact SHA-256 (NOT this recovered/redacted text): `d3e27da0fd16c7afe2c7f52260b56bc199450fbf65502351712f8c933d0f2575`; source revision `027af8b4271d60ffc193967d092b5d2497af13ad` plus the captured uncommitted variant.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry `source_kind=uncommitted-working-tree`, `source_path=.10x/tickets/2026-09-04-build-polaris-iceberg-disaster-recovery.md`. Deployment identifiers use the approved publication placeholders; generic principal labels are retained.
 
 ## Aggregate outcome
 
@@ -53,7 +57,7 @@ Child 3 supersedes the Iceberg portions of child 1. Live child 4 requires separa
 - `.10x/research/2026-09-04-polaris-iceberg-disaster-recovery.md`
 - `.10x/decisions/startup-only-catalog-backup-gate.md`
 - `.10x/specs/polaris-catalog-continuity.md`
-- `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`
+- `.10x/decisions/superseded/catalog-backup-with-rebuildable-iceberg-warehouse.md`
 - `.10x/specs/superseded/iceberg-object-recovery.md`
 - `docs/adr/0008-polaris-iceberg-raw-authority.md`
 
@@ -70,6 +74,7 @@ Child 3 supersedes the Iceberg portions of child 1. Live child 4 requires separa
 - 2026-09-04: User rejected the Iceberg recovery bucket and S3 replication after clarifying that it duplicates warehouse storage and requires primary-bucket versioning. Warehouse loss now uses source rebuild; 45-day object recovery is removed and the 60-minute RTO applies only when the primary warehouse remains readable. The 18-create plan is invalid and must not be applied.
 - 2026-09-04: User ratified proof-first sequencing and local state ownership. Exact-plan approval precedes provisioning and first real backup/WAL proof; restore automation follows that proof. State remains at `infra/recovery/terraform.tfstate` on the FileVault host and encrypted machine backup, never under project cleanup.
 - 2026-09-04: User later superseded only the encrypted-machine-backup requirement. `.10x/decisions/filevault-only-local-opentofu-state.md` accepts FileVault-only local state and reviewed manual imports after state loss.
+- 2026-09-10: The user selected same-bucket warehouse versioning, 30-day noncurrent history and an explicit routine-writer version-delete Deny, and requested tickets only. `.10x/decisions/version-iceberg-warehouse-objects-for-30-days.md` supersedes the former prohibition on source-bucket versioning without reviving replicas. New warehouse work is separately owned by `.10x/tickets/2026-09-10-protect-iceberg-warehouse-object-versions.md`; it does not alter this plan's prior evidence, close its tickets, authorize cleanup, or claim table recovery from the existing catalog drill.
 
 ## Blockers
 

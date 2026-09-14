@@ -11,6 +11,10 @@ Depends-On: .10x/tickets/2026-09-04-simplify-recovery-infrastructure-to-catalog-
 > Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry with `source_kind=committed-head` and `source_path` equal to this public path. Any preexisting plan/export hashes below identify original artifacts, not this changed counterpart.
 
 
+> Record recovery (2026-09-14): restored from the verified private snapshot on `feature/warehouse-file-recovery`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. This preserves the captured contract, not new implementation or AWS authority.
+> Original working-artifact SHA-256 (NOT this recovered/redacted text): `af697e1032ee76f0c24b0eeb2a8fffc2e10911a8937e68ce31cd35d3fb02eb23`; source revision `027af8b4271d60ffc193967d092b5d2497af13ad` plus the captured uncommitted variant.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry `source_kind=uncommitted-working-tree`, `source_path=.10x/tickets/done/2026-09-04-apply-and-prove-disaster-recovery.md`. Deployment identifiers use the approved publication placeholders; generic principal labels are retained.
+
 ## Scope
 
 After explicit user approval of a fresh catalog-only OpenTofu plan, apply only the reviewed infrastructure in the authenticated AWS account, preserve local OpenTofu state, assume the least-privilege backup role, initialize and verify the pgBackRest repository, and create and inspect the first physical backup plus WAL archive before restore automation begins.
@@ -38,7 +42,7 @@ After explicit user approval of a fresh catalog-only OpenTofu plan, apply only t
 
 - `.10x/decisions/startup-only-catalog-backup-gate.md`
 - `.10x/specs/polaris-catalog-continuity.md`
-- `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`
+- `.10x/decisions/superseded/catalog-backup-with-rebuildable-iceberg-warehouse.md`
 - `.10x/tickets/2026-09-04-simplify-recovery-infrastructure-to-catalog-only.md`
 
 ## Evidence expectations

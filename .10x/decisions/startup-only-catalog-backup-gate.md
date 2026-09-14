@@ -4,6 +4,10 @@ Updated: 2026-09-04
 
 # Gate Polaris startup without enforcing backup health after startup
 
+> Record recovery (2026-09-14): restored from the verified private snapshot on `feature/warehouse-file-recovery`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. This preserves the captured contract, not new implementation or AWS authority.
+> Original working-artifact SHA-256 (NOT this recovered/redacted text): `ae474b426ea4c596b34f3265660706336bd9b5a76922e0626eed1e38f109b4d3`; source revision `027af8b4271d60ffc193967d092b5d2497af13ad` plus the captured uncommitted variant.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry `source_kind=uncommitted-working-tree`, `source_path=.10x/decisions/startup-only-catalog-backup-gate.md`. Deployment identifiers use the approved publication placeholders; generic principal labels are retained.
+
 ## Context
 
 Databox now sequences local startup as PostgreSQL liveness, Polaris realm/schema bootstrap, pgBackRest repository and WAL verification, initial full backup when absent, then Polaris availability. Backup credentials are short-lived session credentials injected by the host; no AWS CLI or host profile is mounted inside PostgreSQL.
@@ -20,7 +24,7 @@ Databox MUST NOT add a custom continuous backup-health monitor, proxy, PostgreSQ
 
 Temporary credential expiry or a later repository outage MAY cause WAL archival and scheduled backup commands to fail without automatically shutting down Polaris or blocking every catalog write. The five-minute RPO is therefore an objective while WAL archival is healthy, not a synchronous write guarantee during an undetected or unresolved archive outage. Documentation and evidence MUST state this limit plainly.
 
-All catalog-recovery choices remain unchanged: one Compose file; pgBackRest with the intentionally fixed catalog repository path `/polaris`; host-injected short-lived dedicated backup credentials; OpenTofu; a same-account and same-region catalog-backup bucket; 30-day catalog PITR; a 60-minute catalog RTO while the primary warehouse remains readable; and no live AWS apply before explicit plan approval. Iceberg object recovery is separately superseded by `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`.
+All catalog-recovery choices remain unchanged: one Compose file; pgBackRest with the intentionally fixed catalog repository path `/polaris`; host-injected short-lived dedicated backup credentials; OpenTofu; a same-account and same-region catalog-backup bucket; 30-day catalog PITR; a 60-minute catalog RTO while the primary warehouse remains readable; and no live AWS apply before explicit plan approval. Iceberg object recovery is separately superseded by `.10x/decisions/superseded/catalog-backup-with-rebuildable-iceberg-warehouse.md`.
 
 ## Alternatives considered
 

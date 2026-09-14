@@ -6,6 +6,10 @@ Depends-On: None
 
 # Repair continuous catalog WAL credential lifecycle
 
+> Record recovery (2026-09-14): restored from the verified private snapshot on `feature/warehouse-file-recovery`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. This preserves the captured contract, not new implementation or AWS authority.
+> Original working-artifact SHA-256 (NOT this recovered/redacted text): `d8a1c94a787ef504e26d6b6bae929420c58d8db9b2f98c9e8895d0047160652f`; source revision `027af8b4271d60ffc193967d092b5d2497af13ad` plus the captured uncommitted variant.
+> Exact private original: `~/Private/databox/recovery-evidence/2026-09-11T235551Z-05aef1141954/`; `manifest.json` entry `source_kind=uncommitted-working-tree`, `source_path=.10x/tickets/cancelled/2026-09-09-repair-continuous-catalog-wal-credentials.md`. Deployment identifiers use the approved publication placeholders; generic principal labels are retained.
+
 ## Scope
 
 Resolve the credential-lifecycle contradiction exposed by the timed drill: PostgreSQL's long-running `archive_command` cannot continuously archive WAL using a temporary MFA-issued role session injected only at container startup. Restore the five-minute catalog RPO contract without mounting AWS profiles, persisting temporary session credentials, silently backfilling a failed objective, or weakening backup-role isolation.
@@ -29,7 +33,7 @@ Resolve the credential-lifecycle contradiction exposed by the timed drill: Postg
 
 - `.10x/evidence/2026-09-09-timed-drill-wal-gap-recovery-failure.md`
 - `.10x/decisions/startup-only-catalog-backup-gate.md`
-- `.10x/decisions/catalog-backup-with-rebuildable-iceberg-warehouse.md`
+- `.10x/decisions/superseded/catalog-backup-with-rebuildable-iceberg-warehouse.md`
 - `.10x/specs/polaris-catalog-continuity.md`
 
 ## Progress and notes
