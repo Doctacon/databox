@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/Doctacon/databox/compare/v0.9.0...v0.10.0) (2026-09-04)
+
+
+### Features
+
+* declare Iceberg recovery infrastructure ([75218ea](https://github.com/Doctacon/databox/commit/75218ea9ad89b1c5552d5aecafca87fa2978a142))
+* prepare Polaris catalog recovery ([50d787f](https://github.com/Doctacon/databox/commit/50d787f8f012cf4df595b230ed1a0b52978c7759))
+
+
+### Documentation
+
+* define Polaris Iceberg recovery plan ([d64ea95](https://github.com/Doctacon/databox/commit/d64ea95553c814613cb1bfbcd054fe8ec379e2f5))
+
 ## [0.9.0](https://github.com/Doctacon/databox/compare/v0.8.0...v0.9.0) (2026-09-03)
 
 
