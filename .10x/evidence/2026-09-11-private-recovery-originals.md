@@ -1,12 +1,12 @@
 Status: recorded
 Created: 2026-09-11
-Updated: 2026-09-12
+Updated: 2026-09-14
 Relates-To: .10x/tickets/done/2026-09-11-preserve-private-recovery-originals.md, .10x/reviews/2026-09-12-private-recovery-originals-review.md
 Owner: .10x/tickets/done/2026-09-11-preserve-private-recovery-originals.md
 
 # Private recovery originals: custody execution
 
-> Candidate reference scope: the following paths denote preserved pending/future third-ticket material in the original dirty checkout and private custody snapshot, NOT files in this catalog-only candidate. No versioning follow-up branch/revision exists yet; final branch-qualified reconciliation belongs to ticket 3.
+> Follow-up reference scope (2026-09-14): the following feature paths are recovered on local `feature/warehouse-file-recovery` at `7d402878addf2dc1585e499b1809c4e1cbddbd49`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. They are present in this follow-up tree, not in that catalog-only base. Historical observations below retain their execution-time meaning; recovery does not authorize feature implementation or AWS changes.
 > `.10x/decisions/superseded/catalog-backup-with-rebuildable-iceberg-warehouse.md`
 > `.10x/decisions/version-iceberg-warehouse-objects-for-30-days.md`
 > `.10x/research/2026-09-10-s3-warehouse-versioning-semantics.md`

@@ -1,14 +1,14 @@
 Status: open
 Created: 2026-09-10
-Updated: 2026-09-12
+Updated: 2026-09-14
 Parent: None
 Depends-On: None
 
 # Prepare public-safe catalog recovery and separate versioning work
 
-> Candidate-local authority (2026-09-12): child 2 is complete at implementation commit `75e2d5bea39d67f9961c68909134db635e3c3ed8`, with candidate-local closure records below. The original checkout and its older progress snapshot remain untouched under the user's read-only boundary. Current owner: `.10x/tickets/done/2026-09-11-sanitize-catalog-recovery-publication.md`; exact-commit review: `.10x/reviews/2026-09-12-catalog-publication-commit-review.md`. Child 3 has not started.
+> Candidate-local authority (2026-09-12): child 2 is complete at implementation commit `75e2d5bea39d67f9961c68909134db635e3c3ed8`, with candidate-local closure records below. The original checkout and its older progress snapshot remain untouched under the user's read-only boundary. Current owner: `.10x/tickets/done/2026-09-11-sanitize-catalog-recovery-publication.md`; exact-commit review: `.10x/reviews/2026-09-12-catalog-publication-commit-review.md`. Child 3 record recovery is now implemented on the follow-up below; independent review/closure remain pending.
 
-> Candidate reference scope: the following paths denote preserved pending/future third-ticket material in the original dirty checkout and private custody snapshot, NOT files in this catalog-only candidate. No versioning follow-up branch/revision exists yet; final branch-qualified reconciliation belongs to ticket 3.
+> Follow-up reference scope (2026-09-14): the following feature paths are recovered on local `feature/warehouse-file-recovery` at `7d402878addf2dc1585e499b1809c4e1cbddbd49`, based on merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. They are present in this follow-up tree, not in that catalog-only base. Historical observations below retain their execution-time meaning; recovery does not authorize feature implementation or AWS changes.
 > `.10x/tickets/2026-09-10-protect-iceberg-warehouse-object-versions.md`
 
 ## Aggregate scope — parent plan, not executable
@@ -37,7 +37,7 @@ Implementation authorization is present for these concrete boundaries. Do not as
 
 1. `.10x/tickets/done/2026-09-11-preserve-private-recovery-originals.md` — done: verify protection/ownership, inventory originals and pending variants, copy and verify private custody. **Verify:** exact-byte/digest matches, permissions, safe destination and preserved pending work.
 2. `.10x/tickets/done/2026-09-11-sanitize-catalog-recovery-publication.md` — done: create a clean local catalog candidate, parameterize the existing account input and sanitize public records after preservation. **Verify:** effective-policy equivalence, scoped hermetic tests, identifier/credential checks, provenance/link coherence and independent review.
-3. `.10x/tickets/2026-09-11-separate-warehouse-versioning-record-branch.md` — open, not started: carry the complete versioning record set onto a local follow-up branch from the cleaned foundation. **Verify:** exact path accounting, retained semantics, no reintroduced identifiers, coherent branches, local-only commits and unchanged unrelated work.
+3. `.10x/tickets/2026-09-11-separate-warehouse-versioning-record-branch.md` — open, implemented pending independent review: recovered the complete versioning record set on the user-directed merged-main follow-up. **Verify:** exact path accounting, retained semantics, no reintroduced identifiers, coherent branches, local-only commits and unchanged unrelated work.
 
 Keep mutations sequential with one writer per worktree. Assign executable children to subagents with all governing records. The parent reviews evidence, reconciles ownership and records closure only when the criteria below are supported. No implementation occurs in the turn authoring these governing specs/first executable children.
 
@@ -68,6 +68,8 @@ Hosted CI for the final candidate and any PR/push/merge remain a separately auth
 - 2026-09-12: User approved installed normal hooks only on scoped candidate files, after health checks, with no installation/bypass or original-checkout edit. Both scoped preparation hook runs and the local commit passed with no formatter byte changes. Committed reviewed cleanup as `75e2d5bea39d67f9961c68909134db635e3c3ed8`. Fresh precommit and recovered exact-commit reviews, 21 focused tests and parent checks support completion. New post-writer candidate raw-index attribution remains explicitly qualified and accepted as nonblocking; committed/logical content and original/private state verify, no repair performed.
 - 2026-09-12: Aggregate progress 2/3 local children complete. Candidate-local record-only handoff closes child 2 and repairs current owner/dependency links; historical execution inventories retain old filenames. Retrospective captured in the local pre-commit and fingerprint knowledge records. Original checkout, its records, dirty lock and pending versioning work remain unchanged. Child 3 is ready but has not been executed; no versioning branch, push, PR, merge or AWS action follows from this closure.
 
+- 2026-09-14: User reported the catalog feature merged and requested a new warehouse/file-recovery branch. Parent created `feature/warehouse-file-recovery` from clean merged main `8321475dda7b3a041e8dd8efe668c923cf723fb5`. Child 3 recovered the verified 23-path snapshot delta in `7d402878addf2dc1585e499b1809c4e1cbddbd49`; publication cleanup survives, exact branch-qualified pointers now live on this follow-up, and original private/other-checkout work is not removed. Evidence: `.10x/evidence/2026-09-14-warehouse-versioning-record-recovery.md`. Closure remains 2/3 accepted, child 3 implemented awaiting independent review/parent acceptance. This does not execute any warehouse feature child or authorize AWS mutation.
+
 ## Blockers
 
-No blocker remains for the completed local custody/cleanup children. Child 3 is open and unstarted; its future branch/ref reconciliation remains owned there. Recheck its current source state, preserved pending originals and protection before execution. The original checkout is intentionally an older untouched snapshot; this candidate holds the current cleanup outcome. The aggregate remains open for child 3, and hosted publication stays separately gated.
+Child 3 independent exact-commit review and parent acceptance remain. Main and the old cleanup branch are intentionally unchanged; current follow-up records own the branch/revision reconciliation while those historical trees retain dated snapshots. The feature's read-only inspection is the next separately directed work item; deployment and restore choices remain independently gated. Hosted publication remains outside this pass.

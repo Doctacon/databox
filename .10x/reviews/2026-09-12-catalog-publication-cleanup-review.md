@@ -1,6 +1,6 @@
 Status: recorded
 Created: 2026-09-12
-Updated: 2026-09-12
+Updated: 2026-09-14
 Target: .10x/tickets/done/2026-09-11-sanitize-catalog-recovery-publication.md
 Reviewed-State: historical uncommitted, pre-hook-approval candidate
 Later-Review: .10x/reviews/2026-09-12-catalog-publication-commit-review.md
@@ -10,6 +10,8 @@ Source-Verifier-Verdict: blocked
 Repair-Within-Scope: false
 
 # Independent catalog-publication cleanup review
+
+> Subsequent record separation (2026-09-14): warehouse feature records are now owned by local `feature/warehouse-file-recovery` at `7d402878addf2dc1585e499b1809c4e1cbddbd49`; catalog-only merged base `8321475dda7b3a041e8dd8efe668c923cf723fb5` has no feature contract. Statements below about absent follow-up revisions/paths describe the original cleanup execution, not current status. Historical path inventories are retained unchanged. Current evidence: `.10x/evidence/2026-09-14-warehouse-versioning-record-recovery.md`.
 
 ## Verdict and candidate identity
 
