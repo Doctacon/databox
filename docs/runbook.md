@@ -449,6 +449,31 @@ loopback endpoint cannot remain stale. A restore helper is accepted only on
 Docker's built-in `none` network with no aliases, DNS names, addresses, gateways,
 or MAC address; any connected shape is rejected.
 
+A separately authorized validation-only continuation can complete the missing
+final read against that exact restored retained state without replaying recovery:
+
+```bash
+task catalog:recovery-stage2c -- prepare-validation \
+  --plan .recovery/catalog-warehouse-stage2c/<run-id>/campaign.plan.json \
+  --sha256 <exact-original-campaign-plan-sha256>
+task catalog:recovery-stage2c -- validate \
+  --plan .recovery/catalog-warehouse-stage2c/<run-id>/validation.plan.json \
+  --sha256 <exact-validation-plan-sha256>
+```
+
+The validation plan hash-binds the campaign, recovery plan, damage journal,
+terminal failure, restoration correction, detached Docker resource projections,
+and exact bounded-prefix version timelines. Validation starts only the retained
+restored PostgreSQL volume with archival disabled and the restored Polaris service;
+it never runs backup/restore or changes warehouse objects. It is one-shot and has
+a ten-minute objective plus per-command bounds. A separate watchdog removes
+credential-bearing containers on objective expiry; this is not a hard whole-process
+or RTO claim. Interrupted re-entry performs Docker-only containment without current
+AWS credentials, source/image freshness, or plan-expiry gates and never revalidates.
+Success proves eventual point-A catalog/warehouse coherence, point-B exclusion, and
+unchanged object-version timelines. It does not rewrite the original terminal
+evidence or claim uninterrupted recovery or the 20-minute RTO.
+
 ## Catalog backup and recovery preparation
 
 The PostgreSQL image includes pgBackRest and archives WAL with

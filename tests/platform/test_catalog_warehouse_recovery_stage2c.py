@@ -6,6 +6,7 @@ import inspect
 import json
 import subprocess
 import sys
+import threading
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -130,6 +131,8 @@ class FakeOperations:
         self.events: list[str] = []
         self.fail_at = fail_at
         self.restore_counter = 0
+        self.resource_sha256 = "4" * 64
+        self.timeline_sha256 = "5" * 64
 
     def preflight(self, scope: Any) -> Any:
         assert scope == self.scope
@@ -198,6 +201,18 @@ class FakeOperations:
         if self.fail_at == "catalog-restore":
             raise stage2c.Stage2CError("injected catalog failure")
 
+    def retained_resources_sha256(self) -> str:
+        return self.resource_sha256
+
+    def prefix_timeline_sha256(self, canary: Any, point_a: Any, point_b: Any) -> str:
+        assert canary.key == f"{self.scope.prefix}/capability-canary.bin"
+        assert tuple(point_a) == self.points
+        assert tuple(point_b) == self.point_b
+        return self.timeline_sha256
+
+    def start_retained_restored_catalog(self) -> None:
+        self.events.append("start-retained-catalog")
+
     def restore_object(self, node: Any) -> Any:
         self.events.append(f"restore:{node.key}")
         self.restore_counter += 1
@@ -215,10 +230,14 @@ class FakeOperations:
         assert tuple(point_a) == self.points
         assert tuple(point_b) == self.point_b
         self.events.append("validate-final")
+        if self.fail_at == "final-validation":
+            raise stage2c.Stage2CError("injected validation failure")
         return self.points
 
     def contain(self) -> None:
         self.events.append("contain")
+        if self.fail_at == "resource-drift-on-contain":
+            self.resource_sha256 = "6" * 64
 
 
 def _plan(tmp_path: Path) -> tuple[Path, str]:
@@ -284,6 +303,430 @@ def _execute(tmp_path: Path, operations: FakeOperations, monotonic: Any = lambda
         image_inspector=_pin,
         docker_fingerprint=lambda: "3" * 64,
     )
+
+
+def _seed_restored_terminal(tmp_path: Path) -> tuple[Path, str, FakeOperations]:
+    operations = FakeOperations(fail_at="catalog-restore")
+    path, digest = _seed_nonterminal_resume(tmp_path, operations)
+    recovery_path = path.parent / "recovery.plan.json"
+    recovery_sha = hashlib.sha256(recovery_path.read_bytes()).hexdigest()
+    journal_path = path.parent / "damage-journal.json"
+    journal = json.loads(journal_path.read_text())
+    journal["milestones"] = {
+        "deletes": "complete",
+        "breakProof": "passed",
+        "catalogRestore": "complete",
+        "objectRestore": "complete",
+        "finalValidation": "pending",
+        "containment": "passed",
+    }
+    nodes_by_key = {node.key: node for node in operations.nodes}
+    for index, item in enumerate(journal["nodes"]):
+        node = nodes_by_key[item["key"]]
+        item["phase"] = "promoted"
+        item["promotedVersionId"] = f"promoted-{index}"
+        operations.states[node.key] = ir.ObjectState(
+            True,
+            False,
+            item["promotedVersionId"],
+            node.size,
+            node.sha256,
+        )
+    stage2c._atomic_private_replace(journal_path, journal)
+    stage2c._atomic_private_write(
+        path.parent / "failure.json",
+        {
+            "schemaVersion": 1,
+            "status": "failed-uncertain",
+            "stage": "2c",
+            "campaignSha256": digest,
+            "recoveryPlanSha256": recovery_sha,
+            "primaryErrorKind": "stage2-c-error",
+            "catalogCompensationErrorKind": "stage2-c-error",
+            "objectCompensationErrorKind": None,
+            "containmentErrorKind": "stage2-c-error",
+            "failedAt": "catalog-restore",
+            "damage": {"present": True},
+            "recordedAt": NOW.isoformat().replace("+00:00", "Z"),
+        },
+    )
+    stage2c._atomic_private_write(
+        path.parent / "restoration-correction.json",
+        {
+            "schemaVersion": 1,
+            "status": "restored-and-contained",
+            "stage": "2c",
+            "catalogRestore": "complete",
+            "objectRestore": "complete",
+            "containment": "passed",
+            "damageCycleConsumed": True,
+            "resultClaimed": False,
+        },
+    )
+    return path, digest, operations
+
+
+def _prepare_validation_plan(
+    campaign_path: Path, campaign_sha: str, operations: FakeOperations
+) -> dict[str, object]:
+    return stage2c.prepare_validation_plan(
+        settings=_settings(),
+        campaign_path=campaign_path,
+        expected_campaign_sha256=campaign_sha,
+        operations_factory=lambda *_: operations,
+        clock=lambda: NOW,
+        image_inspector=_pin,
+        docker_fingerprint=lambda: "3" * 64,
+    )
+
+
+def test_prepare_validation_plan_binds_exact_terminal_evidence(tmp_path: Path) -> None:
+    campaign_path, campaign_sha, _operations = _seed_restored_terminal(tmp_path)
+
+    result = _prepare_validation_plan(campaign_path, campaign_sha, _operations)
+
+    path = Path(result["plan"])
+    assert path.name == "validation.plan.json"
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == result["planSha256"]
+    plan = json.loads(path.read_text())
+    assert plan["planType"] == "stage-2c-validation-only"
+    assert plan["scope"] == stage2c._scope_dict(stage2c._scope(RUN_ID))
+    for name in (
+        "campaign.plan.json",
+        "recovery.plan.json",
+        "damage-journal.json",
+        "failure.json",
+        "restoration-correction.json",
+    ):
+        assert (
+            plan["evidenceSha256"][name]
+            == hashlib.sha256((campaign_path.parent / name).read_bytes()).hexdigest()
+        )
+    assert plan["retainedResourcesSha256"] == "4" * 64
+    assert plan["prefixTimelineSha256"] == "5" * 64
+    assert plan["contract"]["eventualCoherenceOnly"] is True
+    assert plan["contract"]["rtoClaimed"] is False
+    assert "delete" not in " ".join(plan["contract"]["operations"])
+    payload = path.read_text()
+    assert _settings().run_secret not in payload
+    assert "AWS_SECRET_ACCESS_KEY" not in payload
+
+
+def test_validation_only_orders_retained_reads_final_validation_and_containment(
+    tmp_path: Path,
+) -> None:
+    campaign_path, campaign_sha, operations = _seed_restored_terminal(tmp_path)
+    planned = _prepare_validation_plan(campaign_path, campaign_sha, operations)
+
+    retained_names = (
+        "campaign.plan.json",
+        "recovery.plan.json",
+        "damage-journal.json",
+        "failure.json",
+        "restoration-correction.json",
+    )
+    retained_before = {name: (campaign_path.parent / name).read_bytes() for name in retained_names}
+
+    result = stage2c.execute_validation(
+        settings=_settings(),
+        plan_path=Path(planned["plan"]),
+        expected_sha256=planned["planSha256"],
+        operations_factory=lambda *_: operations,
+        clock=lambda: NOW,
+        image_inspector=_pin,
+        docker_fingerprint=lambda: "3" * 64,
+    )
+
+    assert result == {
+        "schemaVersion": 1,
+        "status": "pass",
+        "stage": "2c-validation-only",
+        "runId": RUN_ID,
+        "validationPlanSha256": planned["planSha256"],
+        "eventualCoherentCorrectness": True,
+        "uninterruptedRecoveryClaimed": False,
+        "rtoClaimed": False,
+        "pointBExcluded": True,
+        "containersAbsent": True,
+        "retainedEvidence": True,
+    }
+    assert operations.events[0] == "start-retained-catalog"
+    current_events = [event for event in operations.events if event.startswith("current:")]
+    assert len(current_events) == len(
+        json.loads((campaign_path.parent / "damage-journal.json").read_text())["nodes"]
+    )
+    assert operations.events.index("validate-final") < operations.events.index("inventory")
+    assert operations.events[-1] == "contain"
+    assert not any(
+        event.startswith(prefix)
+        for event in operations.events
+        for prefix in ("delete:", "restore:", "restore-catalog", "backup-a", "point-b")
+    )
+    assert not (campaign_path.parent / "result.json").exists()
+    assert (
+        json.loads((campaign_path.parent / "damage-journal.json").read_text())["milestones"][
+            "finalValidation"
+        ]
+        == "pending"
+    )
+    assert (campaign_path.parent / "validation-result.json").exists()
+    assert retained_before == {
+        name: (campaign_path.parent / name).read_bytes() for name in retained_names
+    }
+
+
+@pytest.mark.parametrize("drift", ("resource", "timeline"))
+def test_validation_refuses_retained_state_drift_before_start(tmp_path: Path, drift: str) -> None:
+    campaign_path, campaign_sha, operations = _seed_restored_terminal(tmp_path)
+    planned = _prepare_validation_plan(campaign_path, campaign_sha, operations)
+    if drift == "resource":
+        operations.resource_sha256 = "6" * 64
+    else:
+        operations.timeline_sha256 = "6" * 64
+
+    with pytest.raises(stage2c.Stage2CError, match="differ"):
+        stage2c.execute_validation(
+            settings=_settings(),
+            plan_path=Path(planned["plan"]),
+            expected_sha256=planned["planSha256"],
+            operations_factory=lambda *_: operations,
+            clock=lambda: NOW,
+            image_inspector=_pin,
+            docker_fingerprint=lambda: "3" * 64,
+        )
+
+    assert operations.events == []
+    assert not (campaign_path.parent / "validation-started.json").exists()
+
+
+def test_validation_reports_retained_resource_drift_as_uncertain_containment(
+    tmp_path: Path,
+) -> None:
+    campaign_path, campaign_sha, operations = _seed_restored_terminal(tmp_path)
+    planned = _prepare_validation_plan(campaign_path, campaign_sha, operations)
+    operations.fail_at = "resource-drift-on-contain"
+
+    with pytest.raises(stage2c.Stage2CError, match="containment is incomplete"):
+        stage2c.execute_validation(
+            settings=_settings(),
+            plan_path=Path(planned["plan"]),
+            expected_sha256=planned["planSha256"],
+            operations_factory=lambda *_: operations,
+            clock=lambda: NOW,
+            image_inspector=_pin,
+            docker_fingerprint=lambda: "3" * 64,
+        )
+
+    failure = json.loads((campaign_path.parent / "validation-failure.json").read_text())
+    assert failure["status"] == "failed-containment-uncertain"
+    assert failure["containmentErrorKind"] == "stage2-c-error"
+    assert not (campaign_path.parent / "validation-result.json").exists()
+
+
+def test_validation_watchdog_contains_before_a_blocked_operation_can_start(
+    tmp_path: Path,
+) -> None:
+    campaign_path, campaign_sha, operations = _seed_restored_terminal(tmp_path)
+    planned = _prepare_validation_plan(campaign_path, campaign_sha, operations)
+
+    class ImmediateWatchdog:
+        daemon = False
+
+        def __init__(self, seconds: float, callback: Any) -> None:
+            assert 0 < seconds <= stage2c._VALIDATION_OBJECTIVE_SECONDS
+            self.callback = callback
+
+        def start(self) -> None:
+            self.callback()
+
+        def cancel(self) -> None:
+            return None
+
+    with pytest.raises(stage2c.Stage2CError, match="safety deadline expired"):
+        stage2c.execute_validation(
+            settings=_settings(),
+            plan_path=Path(planned["plan"]),
+            expected_sha256=planned["planSha256"],
+            operations_factory=lambda *_: operations,
+            clock=lambda: NOW,
+            image_inspector=_pin,
+            docker_fingerprint=lambda: "3" * 64,
+            watchdog_factory=ImmediateWatchdog,
+        )
+
+    assert "start-retained-catalog" not in operations.events
+    assert operations.events == ["contain", "contain"]
+    assert (
+        json.loads((campaign_path.parent / "validation-failure.json").read_text())["status"]
+        == "failed-contained"
+    )
+
+
+def test_validation_safety_deadline_contains_without_claiming_rto(tmp_path: Path) -> None:
+    campaign_path, campaign_sha, operations = _seed_restored_terminal(tmp_path)
+    planned = _prepare_validation_plan(campaign_path, campaign_sha, operations)
+
+    with pytest.raises(stage2c.Stage2CError, match="safety deadline expired"):
+        stage2c.execute_validation(
+            settings=_settings(),
+            plan_path=Path(planned["plan"]),
+            expected_sha256=planned["planSha256"],
+            operations_factory=lambda *_: operations,
+            clock=lambda: NOW,
+            monotonic=lambda: (
+                stage2c._VALIDATION_OBJECTIVE_SECONDS + 1
+                if "start-retained-catalog" in operations.events
+                else 0
+            ),
+            image_inspector=_pin,
+            docker_fingerprint=lambda: "3" * 64,
+        )
+
+    assert operations.events == ["start-retained-catalog", "contain"]
+    failure = json.loads((campaign_path.parent / "validation-failure.json").read_text())
+    assert failure["failedAt"] == "retained-catalog-start"
+    assert failure["status"] == "failed-contained"
+
+
+def test_validation_failure_is_contained_sanitized_and_not_replayed(tmp_path: Path) -> None:
+    campaign_path, campaign_sha, operations = _seed_restored_terminal(tmp_path)
+    operations.fail_at = "final-validation"
+    planned = _prepare_validation_plan(campaign_path, campaign_sha, operations)
+    kwargs = {
+        "settings": _settings(),
+        "plan_path": Path(planned["plan"]),
+        "expected_sha256": planned["planSha256"],
+        "clock": lambda: NOW,
+        "image_inspector": _pin,
+        "docker_fingerprint": lambda: "3" * 64,
+    }
+
+    with pytest.raises(stage2c.Stage2CError, match="injected validation failure"):
+        stage2c.execute_validation(
+            **kwargs,
+            operations_factory=lambda *_: operations,
+        )
+
+    assert operations.events[-1] == "contain"
+    assert not (campaign_path.parent / "validation-result.json").exists()
+    failure = json.loads((campaign_path.parent / "validation-failure.json").read_text())
+    assert failure["status"] == "failed-contained"
+    assert failure["failedAt"] == "final-validation"
+    assert failure["primaryErrorKind"] == "stage2-c-error"
+    assert "injected" not in json.dumps(failure)
+
+    with pytest.raises(stage2c.Stage2CError, match="terminal evidence"):
+        stage2c.execute_validation(
+            **kwargs,
+            operations_factory=lambda *_: pytest.fail("terminal validation replayed"),
+        )
+
+
+def test_interrupted_validation_only_contains_and_never_revalidates(tmp_path: Path) -> None:
+    campaign_path, campaign_sha, operations = _seed_restored_terminal(tmp_path)
+    planned = _prepare_validation_plan(campaign_path, campaign_sha, operations)
+    stage2c._atomic_private_write(
+        campaign_path.parent / "validation-started.json",
+        {
+            "schemaVersion": 1,
+            "stage": "2c-validation-only",
+            "runId": RUN_ID,
+            "validationPlanSha256": planned["planSha256"],
+        },
+    )
+
+    def interrupted_containment(*_args: Any) -> str:
+        operations.events.append("contain")
+        return "4" * 64
+
+    with pytest.raises(stage2c.Stage2CError, match="cannot be replayed"):
+        stage2c.execute_validation(
+            settings=replace(
+                _settings(),
+                run_secret="changed-" * 8,  # secret-scan: allow
+            ),
+            plan_path=Path(planned["plan"]),
+            expected_sha256=planned["planSha256"],
+            operations_factory=lambda *_: pytest.fail(
+                "interrupted containment created AWS-backed operations"
+            ),
+            clock=lambda: NOW + stage2c._PLAN_LIFETIME * 2,
+            image_inspector=lambda _reference: pytest.fail(
+                "interrupted containment inspected mutable image tags"
+            ),
+            docker_fingerprint=lambda: pytest.fail(
+                "interrupted containment required the current Docker fingerprint"
+            ),
+            interrupted_containment=interrupted_containment,
+        )
+
+    assert operations.events == ["contain"]
+    assert (
+        json.loads((campaign_path.parent / "validation-failure.json").read_text())["failedAt"]
+        == "interrupted"
+    )
+
+
+@pytest.mark.parametrize(
+    "name",
+    (
+        "campaign.plan.json",
+        "recovery.plan.json",
+        "damage-journal.json",
+        "failure.json",
+        "restoration-correction.json",
+    ),
+)
+def test_validation_rejects_any_changed_retained_evidence(tmp_path: Path, name: str) -> None:
+    campaign_path, campaign_sha, operations = _seed_restored_terminal(tmp_path)
+    planned = _prepare_validation_plan(campaign_path, campaign_sha, operations)
+    evidence = campaign_path.parent / name
+    evidence.write_bytes(evidence.read_bytes() + b" ")
+    evidence.chmod(0o600)
+
+    with pytest.raises(stage2c.Stage2CError):
+        stage2c.execute_validation(
+            settings=_settings(),
+            plan_path=Path(planned["plan"]),
+            expected_sha256=planned["planSha256"],
+            operations_factory=lambda *_: pytest.fail("tampered evidence created operations"),
+            clock=lambda: NOW,
+            image_inspector=_pin,
+            docker_fingerprint=lambda: "3" * 64,
+        )
+
+    assert not (campaign_path.parent / "validation-started.json").exists()
+    assert operations.events == []
+
+
+@pytest.mark.parametrize("mutation", ("final-validation", "node-receipt", "campaign-link"))
+def test_prepare_validation_rejects_nonexact_restored_terminal_state(
+    tmp_path: Path, mutation: str
+) -> None:
+    campaign_path, campaign_sha, _operations = _seed_restored_terminal(tmp_path)
+    journal_path = campaign_path.parent / "damage-journal.json"
+    journal = json.loads(journal_path.read_text())
+    if mutation == "final-validation":
+        journal["milestones"]["finalValidation"] = "passed"
+    elif mutation == "node-receipt":
+        journal["nodes"][0]["deleteMarkerVersionId"] = None
+    else:
+        journal["campaignSha256"] = "f" * 64
+    stage2c._atomic_private_replace(journal_path, journal)
+
+    with pytest.raises(stage2c.Stage2CError):
+        _prepare_validation_plan(campaign_path, campaign_sha, _operations)
+
+    assert not (campaign_path.parent / "validation.plan.json").exists()
+
+
+def test_prepare_validation_rejects_existing_campaign_success(tmp_path: Path) -> None:
+    campaign_path, campaign_sha, _operations = _seed_restored_terminal(tmp_path)
+    stage2c._atomic_private_write(campaign_path.parent / "result.json", {"status": "pass"})
+
+    with pytest.raises(stage2c.Stage2CError, match="successful Stage 2C evidence"):
+        _prepare_validation_plan(campaign_path, campaign_sha, _operations)
 
 
 def test_prepare_is_private_bounded_secret_free_and_exactly_two_tables(tmp_path: Path) -> None:
@@ -619,6 +1062,18 @@ def test_damage_selection_is_recomputed_from_point_b_live_dependencies_only() ->
         point_b=point_b,
     )
     assert [item["key"] for item in recovery["damageNodes"]] == [node.key for node in selected]
+
+
+def test_validation_prefix_fingerprint_rejects_foreign_keys() -> None:
+    operations = object.__new__(stage2c.LiveJointRecoveryOperations)
+    operations.store = SimpleNamespace(prefix_keys=lambda: frozenset({"foreign/key"}))
+    points = tuple(
+        _point(table, index) for index, table in enumerate(stage2c._scope(RUN_ID).tables)
+    )
+    point_b = tuple(_point_b(point, index) for index, point in enumerate(points))
+
+    with pytest.raises(stage2c.Stage2CError, match="foreign or missing keys"):
+        operations.prefix_timeline_sha256(_canary(), points, point_b)
 
 
 def test_break_proof_uses_exact_stage1_uri_boundaries() -> None:
@@ -1031,6 +1486,98 @@ def _local_stack(executor: Any) -> Any:
         region="us-west-1",
         executor=executor,
     )
+
+
+def test_watchdog_containment_and_container_start_share_a_latched_effect_boundary() -> None:
+    stack = _local_stack(RecordingExecutor())
+    entered = threading.Event()
+    release = threading.Event()
+    order: list[str] = []
+
+    def start_unlocked() -> None:
+        entered.set()
+        assert release.wait(timeout=2)
+        order.append("start")
+
+    def contain_unlocked() -> None:
+        order.append("contain")
+
+    stack._launch_retained_restored_catalog_unlocked = start_unlocked  # type: ignore[method-assign]
+    stack._wait_postgres = lambda _name: None  # type: ignore[method-assign]
+    stack._validate_restored_postgres = lambda _name: None  # type: ignore[method-assign]
+    stack._contain_unlocked = contain_unlocked  # type: ignore[method-assign]
+    starter = threading.Thread(target=stack.start_retained_restored_catalog)
+    container = threading.Thread(target=stack.contain)
+    starter.start()
+    assert entered.wait(timeout=2)
+    container.start()
+    assert container.is_alive()
+    release.set()
+    starter.join(timeout=2)
+    container.join(timeout=2)
+
+    assert not starter.is_alive()
+    assert not container.is_alive()
+    assert order == ["start", "contain"]
+    with pytest.raises(stage2c.Stage2CError, match="containment-latched"):
+        stack.start_retained_restored_catalog()
+    assert order == ["start", "contain"]
+
+
+def test_retained_catalog_start_uses_restored_volume_without_pgbackrest_restore() -> None:
+    class RetainedExecutor(RecordingExecutor):
+        def run(self, command: Any, *, stdin: str | None = None) -> Any:
+            completed = super().run(command, stdin=stdin)
+            joined = " ".join(command)
+            if "SELECT phase,value" in joined:
+                return subprocess.CompletedProcess(command, 0, "A|101", "")
+            if "SELECT pg_is_in_recovery" in joined:
+                return subprocess.CompletedProcess(command, 0, "f", "")
+            return completed
+
+    executor = RetainedExecutor()
+    stack = _local_stack(executor)
+    stack._owned_inventory = lambda *, require_retained: {}  # type: ignore[method-assign]
+    stack._owned_id = lambda name: f"owned-{name}"  # type: ignore[method-assign]
+    stack._wait_postgres = lambda name: None  # type: ignore[method-assign]
+
+    stack.start_retained_restored_catalog()
+
+    commands = [" ".join(command) for command in executor.commands]
+    joined = "\n".join(commands)
+    assert stack.resources["restoredVolume"] in joined
+    assert stack.resources["repositoryVolume"] in joined
+    assert stack.resources["sourceVolume"] not in joined
+    assert stack.resources["sourcePostgres"] not in joined
+    assert f"{stack.resources['restoredPostgres']}-restore" not in joined
+    assert "pgbackrest" not in joined
+    assert "archive_mode=off" in joined
+    assert any("SELECT phase,value" in command for command in commands)
+    assert any("SELECT pg_is_in_recovery" in command for command in commands)
+
+
+@pytest.mark.parametrize(
+    ("rows", "promoted"),
+    (("A|101\nB|202", "f"), ("A|101", "t")),
+)
+def test_retained_catalog_start_rejects_wrong_catalog_boundary(rows: str, promoted: str) -> None:
+    class WrongBoundaryExecutor(RecordingExecutor):
+        def run(self, command: Any, *, stdin: str | None = None) -> Any:
+            completed = super().run(command, stdin=stdin)
+            joined = " ".join(command)
+            if "SELECT phase,value" in joined:
+                return subprocess.CompletedProcess(command, 0, rows, "")
+            if "SELECT pg_is_in_recovery" in joined:
+                return subprocess.CompletedProcess(command, 0, promoted, "")
+            return completed
+
+    stack = _local_stack(WrongBoundaryExecutor())
+    stack._owned_inventory = lambda *, require_retained: {}  # type: ignore[method-assign]
+    stack._owned_id = lambda name: f"owned-{name}"  # type: ignore[method-assign]
+    stack._wait_postgres = lambda name: None  # type: ignore[method-assign]
+
+    with pytest.raises(stage2c.Stage2CError, match="does not bracket point A and B"):
+        stack.start_retained_restored_catalog()
 
 
 def test_point_a_backup_restarts_polaris_after_postgres_archive_restart() -> None:

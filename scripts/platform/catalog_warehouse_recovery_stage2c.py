@@ -6,6 +6,8 @@ that plan once. A run uses only generated Docker resources and the existing
 ``integration/recovery/<16hex>/stage1/warehouse/`` S3 sandbox. Once damage is
 journaled, expiry aborts the success path into mandatory restoration and containment;
 that compensation ignores the aggregate objective but retains per-command bounds.
+``prepare-validation`` and ``validate`` separately bind one read-only final check to
+an already-restored failed campaign without replaying its recovery plan.
 """
 
 from __future__ import annotations
@@ -45,6 +47,7 @@ _MAX_VERSIONS = 16
 _MAX_PRIVATE_BYTES = 1024 * 1024
 _PLAN_LIFETIME = timedelta(hours=6)
 _LIVE_OBJECTIVE_SECONDS = 20 * 60
+_VALIDATION_OBJECTIVE_SECONDS = 10 * 60
 _COMMAND_TIMEOUT_SECONDS = 30
 _SERVICE_PROCESS_TIMEOUT_SECONDS = _LIVE_OBJECTIVE_SECONDS + 60
 _SERVICE_STOP_TIMEOUT_SECONDS = 10
@@ -128,6 +131,36 @@ class PointBState:
 @dataclass(frozen=True)
 class RecoveryTarget:
     name: str
+
+
+class JointValidationOperations(Protocol):
+    """Read-only effect seam for one retained-state validation invocation."""
+
+    def retained_resources_sha256(self) -> str: ...
+
+    def prefix_timeline_sha256(
+        self,
+        canary: ir.GraphNode,
+        point_a: Sequence[TablePoint],
+        point_b: Sequence[PointBState],
+    ) -> str: ...
+
+    def start_retained_restored_catalog(self) -> None: ...
+
+    def current_state(self, node: ir.GraphNode) -> ir.ObjectState: ...
+
+    def validate_restored(
+        self, point_a: Sequence[TablePoint], point_b: Sequence[PointBState]
+    ) -> tuple[TablePoint, TablePoint]: ...
+
+    def verify_prefix_inventory(
+        self,
+        canary: ir.GraphNode,
+        point_a: Sequence[TablePoint],
+        point_b: Sequence[PointBState],
+    ) -> None: ...
+
+    def contain(self) -> None: ...
 
 
 class JointRecoveryOperations(Protocol):
@@ -604,6 +637,7 @@ def _atomic_private_write(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(path.parent, 0o700)
     temp = path.parent / f".{path.name}.{secrets.token_hex(8)}.tmp"
+    published = False
     try:
         descriptor = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(descriptor, "wb") as stream:
@@ -612,11 +646,20 @@ def _atomic_private_write(path: Path, value: object) -> None:
             os.fsync(stream.fileno())
         try:
             os.link(temp, path)
+            published = True
         except FileExistsError as exc:
             raise Stage2CError("private Stage 2C evidence already exists") from exc
         directory = os.open(path.parent, os.O_RDONLY)
         try:
             os.fsync(directory)
+        except BaseException:
+            if published:
+                path.unlink(missing_ok=True)
+                try:
+                    os.fsync(directory)
+                except OSError:
+                    pass
+            raise
         finally:
             os.close(directory)
     finally:
@@ -644,20 +687,32 @@ def _atomic_private_replace(path: Path, value: object) -> None:
         temp.unlink(missing_ok=True)
 
 
+def _private_payload(path: Path) -> bytes:
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags)
+        with os.fdopen(descriptor, "rb") as stream:
+            details = os.fstat(stream.fileno())
+            if (
+                not stat.S_ISREG(details.st_mode)
+                or stat.S_IMODE(details.st_mode) != 0o600
+                or details.st_size > _MAX_PRIVATE_BYTES
+            ):
+                raise Stage2CError("private Stage 2C plan is unsafe")
+            payload = stream.read(_MAX_PRIVATE_BYTES + 1)
+    except OSError as exc:
+        raise Stage2CError("private Stage 2C plan is unavailable") from exc
+    if len(payload) > _MAX_PRIVATE_BYTES:
+        raise Stage2CError("private Stage 2C plan is unsafe")
+    return payload
+
+
 def _read_private(path: Path, expected_sha256: str) -> dict[str, object]:
     if _SHA256.fullmatch(expected_sha256) is None:
         raise Stage2CError("approved Stage 2C plan digest is invalid")
-    try:
-        details = path.lstat()
-        if (
-            not stat.S_ISREG(details.st_mode)
-            or stat.S_IMODE(details.st_mode) != 0o600
-            or details.st_size > _MAX_PRIVATE_BYTES
-        ):
-            raise Stage2CError("private Stage 2C plan is unsafe")
-        payload = path.read_bytes()
-    except OSError as exc:
-        raise Stage2CError("private Stage 2C plan is unavailable") from exc
+    payload = _private_payload(path)
     if not hmac.compare_digest(hashlib.sha256(payload).hexdigest(), expected_sha256):
         raise Stage2CError("private Stage 2C plan digest differs from approval")
     try:
@@ -946,8 +1001,7 @@ def _parse_recovery_plan(
     RecoveryTarget,
     tuple[ir.GraphNode, ...],
 ]:
-    payload = path.read_bytes()
-    raw = _read_private(path, hashlib.sha256(payload).hexdigest())
+    raw = _read_private(path, _evidence_sha256(path))
     if (
         set(raw)
         != {
@@ -1089,7 +1143,7 @@ def _journal_entries(
 def _read_journal(
     path: Path, recovery_sha256: str, scope: JointScope, nodes: Sequence[ir.GraphNode]
 ) -> dict[str, object]:
-    raw = _read_private(path, hashlib.sha256(path.read_bytes()).hexdigest())
+    raw = _read_private(path, _evidence_sha256(path))
     milestones = raw.get("milestones")
     if (
         set(raw)
@@ -1137,6 +1191,633 @@ def _set_milestone(journal: dict[str, object], path: Path, name: str, value: str
     candidate["milestones"] = updated
     _atomic_private_replace(path, candidate)
     journal["milestones"] = updated
+
+
+def _validation_contract() -> dict[str, object]:
+    return {
+        "oneInvocation": True,
+        "safetyDeadlineSeconds": _VALIDATION_OBJECTIVE_SECONDS,
+        "eventualCoherenceOnly": True,
+        "uninterruptedRecoveryClaimed": False,
+        "rtoClaimed": False,
+        "operations": [
+            "verify-exact-retained-evidence-and-object-versions",
+            "start-retained-restored-postgres-with-archival-disabled",
+            "validate-two-table-point-a-equality-through-restored-polaris",
+            "verify-bounded-prefix-inventory",
+            "contain-credential-bearing-containers",
+        ],
+        "prohibited": [
+            "new-prefix",
+            "source-stack",
+            "backup",
+            "pgbackrest-restore",
+            "warehouse-write-delete-or-promotion",
+            "damage-journal-mutation",
+            "cutover",
+            "cleanup",
+        ],
+    }
+
+
+def _evidence_sha256(path: Path) -> str:
+    return hashlib.sha256(_private_payload(path)).hexdigest()
+
+
+def _validate_restored_terminal_evidence(
+    *,
+    run_dir: Path,
+    campaign_sha256: str,
+    recovery_sha256: str,
+    scope: JointScope,
+    nodes: Sequence[ir.GraphNode],
+) -> dict[str, str]:
+    if (run_dir / "result.json").exists():
+        raise Stage2CError("successful Stage 2C evidence cannot enter validation-only")
+    journal_path = run_dir / "damage-journal.json"
+    journal = _read_journal(journal_path, recovery_sha256, scope, nodes)
+    if journal.get("campaignSha256") != campaign_sha256:
+        raise Stage2CError("Stage 2C damage journal differs from campaign")
+    if journal.get("milestones") != {
+        "deletes": "complete",
+        "breakProof": "passed",
+        "catalogRestore": "complete",
+        "objectRestore": "complete",
+        "finalValidation": "pending",
+        "containment": "passed",
+    }:
+        raise Stage2CError("retained Stage 2C milestones are not validation-ready")
+    entries = _journal_entries(journal, nodes)
+    if any(
+        entry.get("phase") != "promoted"
+        or not entry.get("deleteMarkerVersionId")
+        or not entry.get("promotedVersionId")
+        for entry in entries.values()
+    ):
+        raise Stage2CError("retained Stage 2C object receipts are not validation-ready")
+
+    failure_path = run_dir / "failure.json"
+    failure_sha = _evidence_sha256(failure_path)
+    failure = _read_private(failure_path, failure_sha)
+    if (
+        set(failure)
+        != {
+            "schemaVersion",
+            "status",
+            "stage",
+            "campaignSha256",
+            "recoveryPlanSha256",
+            "primaryErrorKind",
+            "catalogCompensationErrorKind",
+            "objectCompensationErrorKind",
+            "containmentErrorKind",
+            "failedAt",
+            "damage",
+            "recordedAt",
+        }
+        or failure.get("schemaVersion") != 1
+        or failure.get("status") not in {"failed-contained", "failed-uncertain"}
+        or failure.get("stage") != "2c"
+        or failure.get("campaignSha256") != campaign_sha256
+        or failure.get("recoveryPlanSha256") != recovery_sha256
+        or not isinstance(failure.get("primaryErrorKind"), str)
+        or not isinstance(failure.get("failedAt"), str)
+        or not isinstance(failure.get("damage"), dict)
+        or not isinstance(failure.get("recordedAt"), str)
+    ):
+        raise Stage2CError("terminal Stage 2C failure evidence is invalid")
+
+    correction_path = run_dir / "restoration-correction.json"
+    correction_sha = _evidence_sha256(correction_path)
+    correction = _read_private(correction_path, correction_sha)
+    if correction != {
+        "schemaVersion": 1,
+        "status": "restored-and-contained",
+        "stage": "2c",
+        "catalogRestore": "complete",
+        "objectRestore": "complete",
+        "containment": "passed",
+        "damageCycleConsumed": True,
+        "resultClaimed": False,
+    }:
+        raise Stage2CError("Stage 2C restoration correction is invalid")
+    return {
+        "campaign.plan.json": campaign_sha256,
+        "recovery.plan.json": recovery_sha256,
+        "damage-journal.json": _evidence_sha256(journal_path),
+        "failure.json": failure_sha,
+        "restoration-correction.json": correction_sha,
+    }
+
+
+def prepare_validation_plan(
+    *,
+    settings: ir.RecoverySettings,
+    campaign_path: Path,
+    expected_campaign_sha256: str,
+    operations_factory: Callable[[dict[str, object], JointScope, Path], JointValidationOperations],
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    image_inspector: Callable[[str], ir.ImagePin] = _inspect_image,
+    docker_fingerprint: Callable[[], str] = _docker_fingerprint,
+) -> dict[str, object]:
+    """Bind one validation-only invocation to an exact restored failed campaign."""
+    campaign, scope, campaign_sha = _parse_campaign_plan(
+        campaign_path,
+        expected_campaign_sha256,
+        settings=settings,
+        restore_only=True,
+        clock=clock,
+        image_inspector=image_inspector,
+        docker_fingerprint=docker_fingerprint,
+    )
+    run_dir = campaign_path.parent
+    recovery_path = run_dir / "recovery.plan.json"
+    recovery_sha = _evidence_sha256(recovery_path)
+    recovery, point_a, point_b, _target, nodes = _parse_recovery_plan(
+        recovery_path,
+        campaign_sha256=campaign_sha,
+        scope=scope,
+        bucket=settings.bucket,
+    )
+    evidence = _validate_restored_terminal_evidence(
+        run_dir=run_dir,
+        campaign_sha256=campaign_sha,
+        recovery_sha256=recovery_sha,
+        scope=scope,
+        nodes=nodes,
+    )
+    stack_raw = campaign["stack"]
+    if not isinstance(stack_raw, dict):
+        raise Stage2CError("private Stage 2C stack is invalid")
+    images = _planned_images(stack_raw)
+    for name in ("postgres", "polaris"):
+        if image_inspector(_IMAGE_REFERENCES[name]).as_manifest() != images[name].as_manifest():
+            raise Stage2CError("current Docker image differs from retained Stage 2C plan")
+    if stack_raw.get("secretBindingSha256") != _secret_binding(settings, scope):
+        raise Stage2CError("retained Stage 2C secret binding is invalid")
+    stack = {
+        "resources": stack_raw["resources"],
+        "images": stack_raw["images"],
+        "dockerRuntimeSha256": docker_fingerprint(),
+        "secretBindingSha256": stack_raw["secretBindingSha256"],
+    }
+    inspection = operations_factory(campaign, scope, run_dir)
+    canary = _node_from_dict(recovery["canary"])
+    retained_resources_sha256 = inspection.retained_resources_sha256()
+    prefix_timeline_sha256 = inspection.prefix_timeline_sha256(canary, point_a, point_b)
+    if any(
+        _SHA256.fullmatch(value) is None
+        for value in (retained_resources_sha256, prefix_timeline_sha256)
+    ):
+        raise Stage2CError("retained Stage 2C validation fingerprint is invalid")
+    created = clock().astimezone(UTC)
+    target = campaign["target"]
+    contract = _validation_contract()
+    configuration = {
+        "scope": _scope_dict(scope),
+        "target": target,
+        "stack": stack,
+        "evidenceSha256": evidence,
+        "retainedResourcesSha256": retained_resources_sha256,
+        "prefixTimelineSha256": prefix_timeline_sha256,
+        "contract": contract,
+    }
+    validation = {
+        "schemaVersion": 1,
+        "planType": "stage-2c-validation-only",
+        "createdAt": created.isoformat().replace("+00:00", "Z"),
+        "expiresAt": (created + _PLAN_LIFETIME).isoformat().replace("+00:00", "Z"),
+        **configuration,
+        "runtime": _binding_dict(_binding(configuration)),
+    }
+    path = run_dir / "validation.plan.json"
+    _atomic_private_write(path, validation)
+    payload = path.read_bytes()
+    return {
+        "status": "validation-planned",
+        "runId": scope.run_id,
+        "plan": str(path),
+        "planSha256": hashlib.sha256(payload).hexdigest(),
+    }
+
+
+def _parse_validation_plan(
+    path: Path,
+    expected_sha256: str,
+    *,
+    settings: ir.RecoverySettings,
+    clock: Callable[[], datetime],
+    image_inspector: Callable[[str], ir.ImagePin],
+    docker_fingerprint: Callable[[], str],
+) -> tuple[
+    dict[str, object],
+    dict[str, object],
+    JointScope,
+    ir.GraphNode,
+    tuple[TablePoint, TablePoint],
+    tuple[PointBState, PointBState],
+    tuple[ir.GraphNode, ...],
+    dict[str, object],
+]:
+    plan = _read_private(path, expected_sha256)
+    if (
+        set(plan)
+        != {
+            "schemaVersion",
+            "planType",
+            "createdAt",
+            "expiresAt",
+            "scope",
+            "target",
+            "stack",
+            "evidenceSha256",
+            "retainedResourcesSha256",
+            "prefixTimelineSha256",
+            "contract",
+            "runtime",
+        }
+        or plan.get("schemaVersion") != 1
+        or plan.get("planType") != "stage-2c-validation-only"
+    ):
+        raise Stage2CError("private Stage 2C validation plan has an unexpected shape")
+    raw_scope = plan["scope"]
+    if not isinstance(raw_scope, dict) or not isinstance(raw_scope.get("runId"), str):
+        raise Stage2CError("private Stage 2C validation scope is invalid")
+    scope = _scope(raw_scope["runId"])
+    if raw_scope != _scope_dict(scope) or path.parent.name != scope.run_id:
+        raise Stage2CError("private Stage 2C validation scope is not generated")
+    target = {
+        "bucket": settings.bucket,
+        "region": settings.region,
+        "profile": settings.profile,
+        "identitySha256": settings.identity_sha256,
+        "storageRoleArn": settings.storage_role_arn,
+        "expectedOwner": settings.storage_role_arn.split(":", 5)[4],
+    }
+    if plan["target"] != target:
+        raise Stage2CError("private Stage 2C validation target differs from current settings")
+    stack = plan["stack"]
+    if (
+        not isinstance(stack, dict)
+        or set(stack)
+        != {
+            "resources",
+            "images",
+            "dockerRuntimeSha256",
+            "secretBindingSha256",
+        }
+        or stack.get("resources") != _resources(scope)
+        or stack.get("secretBindingSha256") != _secret_binding(settings, scope)
+        or stack.get("dockerRuntimeSha256") != docker_fingerprint()
+    ):
+        raise Stage2CError("private Stage 2C validation stack binding is invalid")
+    images = _planned_images(stack)
+    for name in ("postgres", "polaris"):
+        if image_inspector(_IMAGE_REFERENCES[name]).as_manifest() != images[name].as_manifest():
+            raise Stage2CError("current Docker image differs from validation plan")
+    evidence = plan["evidenceSha256"]
+    expected_evidence_names = {
+        "campaign.plan.json",
+        "recovery.plan.json",
+        "damage-journal.json",
+        "failure.json",
+        "restoration-correction.json",
+    }
+    if (
+        not isinstance(evidence, dict)
+        or set(evidence) != expected_evidence_names
+        or any(
+            not isinstance(value, str) or _SHA256.fullmatch(value) is None
+            for value in evidence.values()
+        )
+        or plan["contract"] != _validation_contract()
+        or not isinstance(plan["retainedResourcesSha256"], str)
+        or _SHA256.fullmatch(plan["retainedResourcesSha256"]) is None
+        or not isinstance(plan["prefixTimelineSha256"], str)
+        or _SHA256.fullmatch(plan["prefixTimelineSha256"]) is None
+    ):
+        raise Stage2CError("private Stage 2C validation evidence binding is invalid")
+    configuration = {
+        "scope": raw_scope,
+        "target": target,
+        "stack": stack,
+        "evidenceSha256": evidence,
+        "retainedResourcesSha256": plan["retainedResourcesSha256"],
+        "prefixTimelineSha256": plan["prefixTimelineSha256"],
+        "contract": plan["contract"],
+    }
+    _validate_stored_runtime(plan["runtime"], configuration=configuration)
+    if plan["runtime"] != _binding_dict(_binding(configuration)):
+        raise Stage2CError("current source/runtime differs from Stage 2C validation plan")
+    try:
+        created = datetime.fromisoformat(str(plan["createdAt"]).replace("Z", "+00:00"))
+        expires = datetime.fromisoformat(str(plan["expiresAt"]).replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise Stage2CError("private Stage 2C validation timestamps are invalid") from exc
+    now = clock().astimezone(UTC)
+    if expires - created != _PLAN_LIFETIME or now < created or now > expires:
+        raise Stage2CError("private Stage 2C validation plan is outside its approval window")
+
+    run_dir = path.parent
+    campaign_path = run_dir / "campaign.plan.json"
+    campaign, campaign_scope, campaign_sha = _parse_campaign_plan(
+        campaign_path,
+        evidence["campaign.plan.json"],
+        settings=settings,
+        restore_only=True,
+        clock=clock,
+        image_inspector=image_inspector,
+        docker_fingerprint=docker_fingerprint,
+    )
+    if campaign_scope != scope or campaign_sha != evidence["campaign.plan.json"]:
+        raise Stage2CError("validation plan differs from retained campaign")
+    recovery_path = run_dir / "recovery.plan.json"
+    if _evidence_sha256(recovery_path) != evidence["recovery.plan.json"]:
+        raise Stage2CError("retained recovery evidence differs from validation plan")
+    recovery, point_a, point_b, _target, nodes = _parse_recovery_plan(
+        recovery_path,
+        campaign_sha256=campaign_sha,
+        scope=scope,
+        bucket=settings.bucket,
+    )
+    actual_evidence = _validate_restored_terminal_evidence(
+        run_dir=run_dir,
+        campaign_sha256=campaign_sha,
+        recovery_sha256=evidence["recovery.plan.json"],
+        scope=scope,
+        nodes=nodes,
+    )
+    if actual_evidence != evidence:
+        raise Stage2CError("retained Stage 2C evidence differs from validation plan")
+    journal = _read_journal(
+        run_dir / "damage-journal.json",
+        evidence["recovery.plan.json"],
+        scope,
+        nodes,
+    )
+    canary = _node_from_dict(recovery["canary"])
+    return plan, campaign, scope, canary, point_a, point_b, nodes, journal
+
+
+def _parse_interrupted_validation_plan(
+    path: Path, expected_sha256: str
+) -> tuple[dict[str, object], JointScope]:
+    plan = _read_private(path, expected_sha256)
+    raw_scope = plan.get("scope")
+    stack = plan.get("stack")
+    evidence = plan.get("evidenceSha256")
+    if (
+        plan.get("schemaVersion") != 1
+        or plan.get("planType") != "stage-2c-validation-only"
+        or not isinstance(raw_scope, dict)
+        or not isinstance(raw_scope.get("runId"), str)
+        or not isinstance(stack, dict)
+        or not isinstance(evidence, dict)
+        or not isinstance(evidence.get("campaign.plan.json"), str)
+        or _SHA256.fullmatch(evidence["campaign.plan.json"]) is None
+        or not isinstance(plan.get("retainedResourcesSha256"), str)
+        or _SHA256.fullmatch(plan["retainedResourcesSha256"]) is None
+    ):
+        raise Stage2CError("interrupted Stage 2C validation plan is invalid")
+    scope = _scope(raw_scope["runId"])
+    if (
+        raw_scope != _scope_dict(scope)
+        or path.parent.name != scope.run_id
+        or stack.get("resources") != _resources(scope)
+    ):
+        raise Stage2CError("interrupted Stage 2C validation scope is invalid")
+    _planned_images(stack)
+    return plan, scope
+
+
+def _validate_started_receipt(path: Path, *, run_id: str, validation_sha256: str) -> None:
+    digest = _evidence_sha256(path)
+    receipt = _read_private(path, digest)
+    if receipt != {
+        "schemaVersion": 1,
+        "stage": "2c-validation-only",
+        "runId": run_id,
+        "validationPlanSha256": validation_sha256,
+    }:
+        raise Stage2CError("Stage 2C validation start receipt is invalid")
+
+
+def _write_validation_failure(
+    path: Path,
+    *,
+    run_id: str,
+    validation_sha256: str,
+    failed_at: str,
+    primary: BaseException,
+    containment_error: BaseException | None,
+    clock: Callable[[], datetime],
+) -> None:
+    _atomic_private_write(
+        path,
+        {
+            "schemaVersion": 1,
+            "status": (
+                "failed-contained" if containment_error is None else "failed-containment-uncertain"
+            ),
+            "stage": "2c-validation-only",
+            "runId": run_id,
+            "validationPlanSha256": validation_sha256,
+            "failedAt": failed_at,
+            "primaryErrorKind": _error_kind(primary),
+            "containmentErrorKind": _error_kind(containment_error),
+            "recordedAt": clock().astimezone(UTC).isoformat().replace("+00:00", "Z"),
+        },
+    )
+
+
+def execute_validation(
+    *,
+    settings: ir.RecoverySettings,
+    plan_path: Path,
+    expected_sha256: str,
+    operations_factory: Callable[[dict[str, object], JointScope, Path], JointValidationOperations],
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    monotonic: Callable[[], float] = time.monotonic,
+    image_inspector: Callable[[str], ir.ImagePin] = _inspect_image,
+    docker_fingerprint: Callable[[], str] = _docker_fingerprint,
+    interrupted_containment: Callable[[dict[str, object], JointScope, Path], str] | None = None,
+    watchdog_factory: Callable[[float, Callable[[], None]], Any] = threading.Timer,
+) -> dict[str, object]:
+    """Run one hash-bound validation over an already restored retained campaign."""
+    started_at = monotonic()
+    run_dir = plan_path.parent
+    with _execution_lock(run_dir):
+        if any(
+            (run_dir / name).exists()
+            for name in ("validation-result.json", "validation-failure.json")
+        ):
+            raise Stage2CError("Stage 2C validation already has terminal evidence")
+        started_path = run_dir / "validation-started.json"
+        if started_path.exists():
+            plan, scope = _parse_interrupted_validation_plan(plan_path, expected_sha256)
+            _validate_started_receipt(
+                started_path,
+                run_id=scope.run_id,
+                validation_sha256=expected_sha256,
+            )
+            primary = Stage2CError("interrupted Stage 2C validation cannot be replayed")
+            containment_error: BaseException | None = None
+            try:
+                fingerprint = (interrupted_containment or _contain_interrupted_validation)(
+                    plan, scope, run_dir
+                )
+                if fingerprint != plan["retainedResourcesSha256"]:
+                    raise Stage2CError("retained Docker resources changed during interruption")
+            except BaseException as exc:
+                containment_error = exc
+            _write_validation_failure(
+                run_dir / "validation-failure.json",
+                run_id=scope.run_id,
+                validation_sha256=expected_sha256,
+                failed_at="interrupted",
+                primary=primary,
+                containment_error=containment_error,
+                clock=clock,
+            )
+            if containment_error is not None:
+                raise Stage2CError("Stage 2C interrupted containment is incomplete") from primary
+            raise primary
+        (
+            plan,
+            campaign,
+            scope,
+            canary,
+            point_a,
+            point_b,
+            nodes,
+            journal,
+        ) = _parse_validation_plan(
+            plan_path,
+            expected_sha256,
+            settings=settings,
+            clock=clock,
+            image_inspector=image_inspector,
+            docker_fingerprint=docker_fingerprint,
+        )
+        operations = operations_factory(campaign, scope, run_dir)
+        if operations.retained_resources_sha256() != plan["retainedResourcesSha256"]:
+            raise Stage2CError("retained Docker resources differ from validation plan")
+        if (
+            operations.prefix_timeline_sha256(canary, point_a, point_b)
+            != plan["prefixTimelineSha256"]
+        ):
+            raise Stage2CError("retained warehouse timeline differs from validation plan")
+
+        def contain_and_verify() -> None:
+            operations.contain()
+            if operations.retained_resources_sha256() != plan["retainedResourcesSha256"]:
+                raise Stage2CError("retained Docker resources changed during validation")
+            if (
+                operations.prefix_timeline_sha256(canary, point_a, point_b)
+                != plan["prefixTimelineSha256"]
+            ):
+                raise Stage2CError("warehouse timeline changed during validation")
+
+        remaining_seconds = _VALIDATION_OBJECTIVE_SECONDS - (monotonic() - started_at)
+        if remaining_seconds <= 0:
+            raise Stage2CError("Stage 2C validation safety deadline expired before startup")
+        _atomic_private_write(
+            started_path,
+            {
+                "schemaVersion": 1,
+                "stage": "2c-validation-only",
+                "runId": scope.run_id,
+                "validationPlanSha256": expected_sha256,
+            },
+        )
+        phase = "retained-catalog-start"
+        deadline_expired = threading.Event()
+        watchdog_errors: list[BaseException] = []
+
+        def expire_credential_containers() -> None:
+            deadline_expired.set()
+            try:
+                operations.contain()
+                if operations.retained_resources_sha256() != plan["retainedResourcesSha256"]:
+                    raise Stage2CError("retained Docker resources changed at validation deadline")
+            except BaseException as exc:
+                watchdog_errors.append(exc)
+
+        watchdog = watchdog_factory(remaining_seconds, expire_credential_containers)
+        if hasattr(watchdog, "daemon"):
+            watchdog.daemon = True
+        watchdog.start()
+
+        def safety_deadline() -> None:
+            if deadline_expired.is_set() or (
+                monotonic() - started_at > _VALIDATION_OBJECTIVE_SECONDS
+            ):
+                if watchdog_errors:
+                    raise Stage2CError(
+                        "Stage 2C validation deadline containment is incomplete"
+                    ) from watchdog_errors[0]
+                raise Stage2CError("Stage 2C validation safety deadline expired")
+
+        try:
+            safety_deadline()
+            operations.start_retained_restored_catalog()
+            safety_deadline()
+            phase = "promoted-object-verification"
+            entries = _journal_entries(journal, nodes)
+            for node in nodes:
+                current = operations.current_state(node)
+                safety_deadline()
+                if not _matches(node, current) or current.version_id != entries[node.key].get(
+                    "promotedVersionId"
+                ):
+                    raise Stage2CError("retained promoted object differs from journal")
+            phase = "final-validation"
+            actual = operations.validate_restored(point_a, point_b)
+            safety_deadline()
+            _validate_final(point_a, actual, point_b)
+            phase = "prefix-inventory"
+            operations.verify_prefix_inventory(canary, point_a, point_b)
+            safety_deadline()
+            phase = "containment"
+            contain_and_verify()
+            safety_deadline()
+            result = {
+                "schemaVersion": 1,
+                "status": "pass",
+                "stage": "2c-validation-only",
+                "runId": scope.run_id,
+                "validationPlanSha256": expected_sha256,
+                "eventualCoherentCorrectness": True,
+                "uninterruptedRecoveryClaimed": False,
+                "rtoClaimed": False,
+                "pointBExcluded": True,
+                "containersAbsent": True,
+                "retainedEvidence": True,
+            }
+            _atomic_private_write(run_dir / "validation-result.json", result)
+            return result
+        except BaseException as primary:
+            containment_error: BaseException | None = None
+            try:
+                contain_and_verify()
+            except BaseException as exc:
+                containment_error = exc
+            _write_validation_failure(
+                run_dir / "validation-failure.json",
+                run_id=scope.run_id,
+                validation_sha256=expected_sha256,
+                failed_at=phase,
+                primary=primary,
+                containment_error=containment_error,
+                clock=clock,
+            )
+            if containment_error is not None:
+                raise Stage2CError("Stage 2C validation containment is incomplete") from primary
+            if isinstance(primary, Stage2CError | KeyboardInterrupt | SystemExit):
+                raise
+            raise Stage2CError("Stage 2C validation failed closed") from primary
+        finally:
+            watchdog.cancel()
 
 
 def _matches(node: ir.GraphNode, state: ir.ObjectState) -> bool:
@@ -1736,6 +2417,8 @@ class LocalJointStack:
         self.region = region
         self.executor = executor or CommandExecutor()
         self._children: list[BoundedProcess] = []
+        self._effect_lock = threading.Lock()
+        self._containment_latched = False
         self._source_url: str | None = None
         self._restored_url: str | None = None
 
@@ -2147,6 +2830,19 @@ class LocalJointStack:
                     raise Stage2CError("Docker volume consumer identity changed")
         return validated
 
+    def retained_resources_sha256(self) -> str:
+        """Fingerprint exact detached run-owned resources for validation-only use."""
+        present = self._owned_inventory(require_retained=True)
+        if present:
+            raise Stage2CError("retained validation requires all generated containers absent")
+        network = dict(self._inspect("network", self.resources["network"]))
+        network.pop("Containers", None)
+        volumes = {
+            key: self._inspect("volume", self.resources[key])
+            for key in ("sourceVolume", "restoredVolume", "repositoryVolume")
+        }
+        return _digest({"network": network, "volumes": volumes})
+
     def _owned_id(self, name: str) -> str:
         owned = self._owned_inventory(require_retained=True).get(name)
         if owned is None:
@@ -2370,7 +3066,7 @@ class LocalJointStack:
         self._remove_owned(bootstrap)
         self._source_url = self._start_polaris(self.resources["sourcePolaris"])
 
-    def _start_polaris(self, name: str) -> str:
+    def _launch_polaris(self, name: str) -> None:
         self._checked(
             (
                 "docker",
@@ -2422,6 +3118,9 @@ class LocalJointStack:
             stdin=f"{self.credentials.postgres_password}\n{self.aws_credentials.access_key_id}\n{self.aws_credentials.secret_access_key}\n{self.aws_credentials.session_token}\n{self.region}\n",
         )
         self._children.append(process)
+
+    def _start_polaris(self, name: str) -> str:
+        self._launch_polaris(name)
         return self._wait_polaris(name)
 
     @property
@@ -2439,10 +3138,13 @@ class LocalJointStack:
     def start_restored_polaris(self) -> str:
         """Start Polaris only after catalog and object restoration have completed."""
         name = self.resources["restoredPolaris"]
-        present = self._owned_inventory(require_retained=True)
-        if name in present:
-            return self._wait_polaris(name)
-        return self._start_polaris(name)
+        with self._effect_lock:
+            if self._containment_latched:
+                raise Stage2CError("credential-bearing container startup is containment-latched")
+            present = self._owned_inventory(require_retained=True)
+            if name not in present:
+                self._launch_polaris(name)
+        return self._wait_polaris(name)
 
     def backup_point_a(self) -> RecoveryTarget:
         pg = self._owned_id(self.resources["sourcePostgres"])
@@ -2633,6 +3335,96 @@ class LocalJointStack:
             self._remove_owned(name)
             present = self._owned_inventory(require_retained=True)
 
+    def _validate_restored_postgres(self, restored: str) -> None:
+        restored_id = self._owned_id(restored)
+        rows = self._checked(
+            (
+                "docker",
+                "exec",
+                restored_id,
+                "psql",
+                "-U",
+                "polaris",
+                "-d",
+                "polaris",
+                "-qAtX",
+                "-F",
+                "|",
+                "-c",
+                "SELECT phase,value FROM public.stage2c_catalog_state ORDER BY phase;",
+            )
+        )
+        promoted = self._checked(
+            (
+                "docker",
+                "exec",
+                restored_id,
+                "psql",
+                "-U",
+                "polaris",
+                "-d",
+                "polaris",
+                "-qAtX",
+                "-c",
+                "SELECT pg_is_in_recovery();",
+            )
+        )
+        if rows != "A|101" or promoted != "f":
+            raise Stage2CError("restored catalog does not bracket point A and B")
+
+    def start_retained_restored_catalog(self) -> None:
+        """Start only the already-restored catalog volume, without another restore."""
+        with self._effect_lock:
+            if self._containment_latched:
+                raise Stage2CError("credential-bearing container startup is containment-latched")
+            self._launch_retained_restored_catalog_unlocked()
+        restored = self.resources["restoredPostgres"]
+        self._wait_postgres(restored)
+        self._validate_restored_postgres(restored)
+
+    def _launch_retained_restored_catalog_unlocked(self) -> None:
+        present = self._owned_inventory(require_retained=True)
+        if present:
+            raise Stage2CError("retained validation requires all generated containers absent")
+        restored = self.resources["restoredPostgres"]
+        self._checked(
+            (
+                "docker",
+                "run",
+                "--detach",
+                "--name",
+                restored,
+                "--network",
+                self.resources["network"],
+                "--network-alias",
+                "postgres",
+                *self._labels(),
+                "--mount",
+                f"type=volume,src={self.resources['restoredVolume']},dst=/var/lib/postgresql/data",
+                "--mount",
+                f"type=volume,src={self.resources['repositoryVolume']},dst=/repo",
+                "--entrypoint",
+                "/bin/sh",
+                self.images["postgres"].image_id,
+                "-ceu",
+                "while :; do sleep 3600; done",
+            )
+        )
+        self._owned_inventory(require_retained=True)
+        process = self.executor.spawn(
+            (
+                "docker",
+                "exec",
+                "--interactive",
+                self._owned_id(restored),
+                "/bin/sh",
+                "-ceu",
+                "exec docker-entrypoint.sh postgres -c archive_mode=off -c listen_addresses='*'",
+            ),
+            stdin="",
+        )
+        self._children.append(process)
+
     def restore_catalog(self, target: RecoveryTarget) -> None:
         self.stop_source()
         restored = self.resources["restoredPostgres"]
@@ -2752,43 +3544,14 @@ class LocalJointStack:
             )
             self._children.append(process)
         self._wait_postgres(restored)
-        restored_id = self._owned_id(restored)
-        rows = self._checked(
-            (
-                "docker",
-                "exec",
-                restored_id,
-                "psql",
-                "-U",
-                "polaris",
-                "-d",
-                "polaris",
-                "-qAtX",
-                "-F",
-                "|",
-                "-c",
-                "SELECT phase,value FROM public.stage2c_catalog_state ORDER BY phase;",
-            )
-        )
-        promoted = self._checked(
-            (
-                "docker",
-                "exec",
-                restored_id,
-                "psql",
-                "-U",
-                "polaris",
-                "-d",
-                "polaris",
-                "-qAtX",
-                "-c",
-                "SELECT pg_is_in_recovery();",
-            )
-        )
-        if rows != "A|101" or promoted != "f":
-            raise Stage2CError("restored catalog does not bracket point A and B")
+        self._validate_restored_postgres(restored)
 
     def contain(self) -> None:
+        with self._effect_lock:
+            self._containment_latched = True
+            self._contain_unlocked()
+
+    def _contain_unlocked(self) -> None:
         child_error: BaseException | None = None
         for child in self._children:
             try:
@@ -2813,6 +3576,36 @@ class LocalJointStack:
         self._owned_inventory(require_retained=False)
         if child_error is not None:
             raise Stage2CError("spawned Docker exec containment failed") from child_error
+
+
+def _contain_interrupted_validation(
+    plan: dict[str, object], scope: JointScope, run_dir: Path
+) -> str:
+    """Contain only exact campaign-owned Docker resources without AWS or freshness gates."""
+    del run_dir
+    stack_raw = plan.get("stack")
+    target = plan.get("target")
+    evidence = plan.get("evidenceSha256")
+    if (
+        not isinstance(stack_raw, dict)
+        or not isinstance(stack_raw.get("resources"), dict)
+        or not isinstance(target, dict)
+        or not isinstance(target.get("region"), str)
+        or not isinstance(evidence, dict)
+        or not isinstance(evidence.get("campaign.plan.json"), str)
+    ):
+        raise Stage2CError("interrupted Stage 2C containment binding is invalid")
+    stack = LocalJointStack(
+        scope=scope,
+        resources=stack_raw["resources"],
+        images=_planned_images(stack_raw),
+        campaign_sha256=evidence["campaign.plan.json"],
+        credentials=ir.RunCredentials("unused", "unused", "unused"),
+        aws_credentials=ir.AwsCredentials("unused", "unused", "unused"),
+        region=target["region"],
+    )
+    stack.contain()
+    return stack.retained_resources_sha256()
 
 
 class LiveJointRecoveryOperations:
@@ -3134,6 +3927,39 @@ class LiveJointRecoveryOperations:
             if not _matches(node, source) or source.version_id != node.source_version_id:
                 raise Stage2CError("point-A historical source changed or disappeared")
 
+    def retained_resources_sha256(self) -> str:
+        return self.stack.retained_resources_sha256()
+
+    def prefix_timeline_sha256(
+        self,
+        canary: ir.GraphNode,
+        point_a: Sequence[TablePoint],
+        point_b: Sequence[PointBState],
+    ) -> str:
+        complete = _complete_nodes(canary, point_a, point_b)
+        prefix_keys = self.store.prefix_keys()
+        if prefix_keys != frozenset(complete):
+            raise Stage2CError("complete Stage 2C prefix contains foreign or missing keys")
+        timelines: list[dict[str, object]] = []
+        for key in sorted(complete):
+            entries = sorted(self.store.list_versions(key), key=lambda item: item.version_id)
+            timelines.append(
+                {
+                    "key": key,
+                    "versions": [
+                        {
+                            "versionId": entry.version_id,
+                            "latest": entry.latest,
+                            "deleteMarker": entry.delete_marker,
+                            "etag": entry.etag,
+                            "size": entry.size,
+                        }
+                        for entry in entries
+                    ],
+                }
+            )
+        return _digest({"prefixKeys": sorted(prefix_keys), "timelines": timelines})
+
     def predelete_state(self, node: ir.GraphNode) -> ir.ObjectState:
         if len(self.store.list_versions(node.key)) > _MAX_VERSIONS - 2:
             raise Stage2CError("damage candidate lacks delete-and-promotion version headroom")
@@ -3220,6 +4046,9 @@ class LiveJointRecoveryOperations:
 
     def restore_catalog(self, target: RecoveryTarget) -> None:
         self.stack.restore_catalog(target)
+
+    def start_retained_restored_catalog(self) -> None:
+        self.stack.start_retained_restored_catalog()
 
     def restore_object(self, node: ir.GraphNode) -> ir.ObjectState:
         return self.store.restore(node)
@@ -3338,6 +4167,21 @@ def live_operations_factory(
     return factory
 
 
+def _require_validation_plan_path(path: Path) -> Path:
+    absolute = Path(os.path.abspath(path))
+    root = Path(os.path.abspath(_EVIDENCE_ROOT))
+    if (
+        absolute.name != "validation.plan.json"
+        or absolute.parent.parent != root
+        or _RUN_ID.fullmatch(absolute.parent.name) is None
+    ):
+        raise Stage2CError("Stage 2C validation plan is outside the fixed private evidence root")
+    for item in (root, absolute.parent, absolute):
+        if item.exists() and item.is_symlink():
+            raise Stage2CError("Stage 2C private path contains a symlink")
+    return absolute
+
+
 def _require_plan_path(path: Path) -> Path:
     absolute = Path(os.path.abspath(path))
     root = Path(os.path.abspath(_EVIDENCE_ROOT))
@@ -3360,14 +4204,40 @@ def main(argv: Sequence[str] | None = None) -> int:
     execute = commands.add_parser("execute", help="execute or restore-only one exact plan")
     execute.add_argument("--plan", required=True, type=Path)
     execute.add_argument("--sha256", required=True)
+    prepare_validation = commands.add_parser(
+        "prepare-validation", help="bind one validation to retained restored evidence"
+    )
+    prepare_validation.add_argument("--plan", required=True, type=Path)
+    prepare_validation.add_argument("--sha256", required=True)
+    validate = commands.add_parser(
+        "validate", help="validate retained restored state without replaying recovery"
+    )
+    validate.add_argument("--plan", required=True, type=Path)
+    validate.add_argument("--sha256", required=True)
     args = parser.parse_args(list(argv) if argv is not None else None)
     try:
         settings = ir.RecoverySettings.load()
         if args.command == "prepare":
             result = prepare_plan(settings=settings)
-        else:
+        elif args.command == "execute":
             path = _require_plan_path(args.plan)
             result = execute_campaign(
+                settings=settings,
+                plan_path=path,
+                expected_sha256=args.sha256,
+                operations_factory=live_operations_factory(settings),
+            )
+        elif args.command == "prepare-validation":
+            path = _require_plan_path(args.plan)
+            result = prepare_validation_plan(
+                settings=settings,
+                campaign_path=path,
+                expected_campaign_sha256=args.sha256,
+                operations_factory=live_operations_factory(settings),
+            )
+        else:
+            path = _require_validation_plan_path(args.plan)
+            result = execute_validation(
                 settings=settings,
                 plan_path=path,
                 expected_sha256=args.sha256,
