@@ -86,6 +86,9 @@ tasks:
   catalog:recovery-stage2a:
     desc: "Run one isolated synthetic POSIX pgBackRest PITR proof"
     cmds: ["scripts/platform/catalog-recovery-stage2a"]
+  catalog:recovery-stage2c:
+    desc: "Prepare, execute, or restore-only one isolated joint recovery proof"
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/catalog_warehouse_recovery_stage2c.py {{.CLI_ARGS}}"]
   iceberg:recovery-drill:prepare:
     desc: "Prepare one generated real Iceberg object-recovery drill"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/iceberg_recovery_drill.py prepare {{.CLI_ARGS}}"]

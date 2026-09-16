@@ -1002,14 +1002,25 @@ def capture_iceberg_graph(
     table: Any,
     *,
     location_validator: Callable[[str], object] | None = None,
+    expected_snapshot_count: int = 1,
 ) -> tuple[GraphObject, ...]:
-    """Traverse the complete supported point-A graph using PyIceberg 0.11.1."""
+    """Traverse a complete supported Iceberg graph with an exact snapshot count."""
+    if (
+        isinstance(expected_snapshot_count, bool)
+        or not isinstance(expected_snapshot_count, int)
+        or expected_snapshot_count < 1
+        or expected_snapshot_count > 16
+    ):
+        raise DrillError("expected Iceberg snapshot count is invalid")
     metadata = table.metadata
     snapshot = table.current_snapshot()
     if metadata.format_version != 2 or snapshot is None:
-        raise DrillError("point-A table must have one current Iceberg v2 snapshot")
-    if len(metadata.snapshots) != 1 or snapshot.snapshot_id != metadata.current_snapshot_id:
-        raise DrillError("point-A table must contain exactly one snapshot")
+        raise DrillError("captured table must have a current Iceberg v2 snapshot")
+    if (
+        len(metadata.snapshots) != expected_snapshot_count
+        or snapshot.snapshot_id != metadata.current_snapshot_id
+    ):
+        raise DrillError("captured table has an unexpected snapshot count")
     if set(metadata.refs) != {"main"} or metadata.refs["main"].snapshot_id != snapshot.snapshot_id:
         raise DrillError("point-A table must contain only its current main reference")
 

@@ -397,6 +397,43 @@ AWS or active services, reads canonical data, cuts over, or cleans up resources.
 The deployed S3 backup repository, authenticated WAL catch-up, canonical catalog
 validation, and production RPO/RTO belong to separately authorized Stage 2B.
 
+## Stage 2C: joint isolated catalog and warehouse recovery
+
+Stage 2C composes local POSIX catalog PITR with exact-version recovery in the real
+versioned warehouse sandbox. It is limited to exactly two generated tables under
+`integration/recovery/<run-id>/stage1/warehouse/`, one point-A backup/target, one
+point-B append per table, at most 64 keys and 32 MiB, and one damage cycle. It
+never uses active/canonical services, the deployed catalog-backup repository or
+credentials, root, IAM changes, cutover, version purging, or automatic cleanup.
+
+Prepare a mutation-free private campaign plan, then execute only that exact plan:
+
+```bash
+task catalog:recovery-stage2c -- prepare
+task catalog:recovery-stage2c -- execute \
+  --plan .recovery/catalog-warehouse-stage2c/<run-id>/campaign.plan.json \
+  --sha256 <exact-private-plan-sha256>
+```
+
+The success path has a 20-minute objective. Every child operation is individually
+bounded; after the durable damage journal exists, deadline expiry enters mandatory
+restoration and containment rather than abandoning damaged objects. Re-entry is
+restoration-only. Generated Docker resources are accepted or removed only after
+exact campaign-bound image, label, mount, network, port, attachment, and volume-
+consumer checks. Final success requires both restored catalog pointers, UUIDs,
+snapshots, logical graphs, schemas, and deterministic rows to match point A while
+point-B-only objects remain unreferenced. All generated resources and private
+evidence are retained.
+
+The first authorized live campaign stopped before point A because its ownership
+validator did not distinguish Docker's empty configured ephemeral host port from
+the numeric runtime loopback assignment. No recovery plan or damage journal was
+created; only the capability-canary history and generated evidence resources were
+retained. The corrected validator has focused regression coverage and every
+credential-bearing container from that campaign is confirmed absent. That exact
+campaign is consumed and must not be replayed; a fresh live campaign requires
+new authorization.
+
 ## Catalog backup and recovery preparation
 
 The PostgreSQL image includes pgBackRest and archives WAL with
