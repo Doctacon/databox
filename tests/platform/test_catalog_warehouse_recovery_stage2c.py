@@ -1064,6 +1064,43 @@ def test_damage_selection_is_recomputed_from_point_b_live_dependencies_only() ->
     assert [item["key"] for item in recovery["damageNodes"]] == [node.key for node in selected]
 
 
+def test_prefix_inventory_accepts_new_etag_for_exact_promoted_bytes() -> None:
+    points = tuple(
+        _point(table, index) for index, table in enumerate(stage2c._scope(RUN_ID).tables)
+    )
+    point_b = tuple(_point_b(point, index) for index, point in enumerate(points))
+    canary = _canary()
+    complete = stage2c._complete_nodes(canary, points, point_b)
+
+    class PromotedStore:
+        def prefix_keys(self) -> frozenset[str]:
+            return frozenset(complete)
+
+        def list_versions(self, key: str) -> list[Any]:
+            node = complete[key]
+            return [
+                ir.VersionEntry(
+                    key=key,
+                    version_id=f"promoted-{hashlib.sha256(key.encode()).hexdigest()}",
+                    latest=True,
+                    delete_marker=False,
+                    etag='"new-copy-etag"',
+                    size=node.size,
+                )
+            ]
+
+        def current_state(self, node: Any) -> Any:
+            return ir.ObjectState(True, False, "promoted", node.size, node.sha256)
+
+        def exact_source_state(self, node: Any) -> Any:
+            return ir.ObjectState(True, False, node.source_version_id, node.size, node.sha256)
+
+    operations = object.__new__(stage2c.LiveJointRecoveryOperations)
+    operations.store = PromotedStore()
+
+    operations.verify_prefix_inventory(canary, points, point_b)
+
+
 def test_validation_prefix_fingerprint_rejects_foreign_keys() -> None:
     operations = object.__new__(stage2c.LiveJointRecoveryOperations)
     operations.store = SimpleNamespace(prefix_keys=lambda: frozenset({"foreign/key"}))

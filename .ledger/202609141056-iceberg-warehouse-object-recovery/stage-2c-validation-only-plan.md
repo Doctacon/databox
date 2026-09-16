@@ -1,6 +1,6 @@
 # Stage 2C Retained-State Validation-Only Plan
 
-Status: authorized; implementation validation pending
+Status: consumed; final coherence checks passed, then the command failed-contained on an invalid copied-ETag postcondition
 
 ## Purpose
 
@@ -34,3 +34,7 @@ It must not create a prefix, start source/bootstrap resources, run pgBackRest ba
 ## Permitted claim after success
 
 A successful run may establish eventual coherent point-A recovery for the retained failed attempt. It may not establish that the original automation completed successfully, that recovery was uninterrupted, or that the 20-minute recovery objective was met.
+
+## Outcome
+
+The one authorized invocation is consumed and was not replayed. Promoted-version checks and the exact two-table restored-Polaris validation passed. The command then stopped `failed-contained` at prefix inventory because it incorrectly compared four promoted objects' new S3-copy ETags with their historical source ETags. Read-only diagnosis proved the exact key set and timelines were unchanged and found no size, byte, version-cardinality, delete-marker, or historical-source mismatch. The maintained postcondition now uses exact bytes and recorded source/promoted VersionIds instead of cross-version ETag equality. An append-only adjudication preserves the qualified result: eventual coherent recovery is proven, but the command/workflow did not pass and no RTO or uninterrupted-recovery claim is made.

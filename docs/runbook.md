@@ -474,6 +474,17 @@ Success proves eventual point-A catalog/warehouse coherence, point-B exclusion, 
 unchanged object-version timelines. It does not rewrite the original terminal
 evidence or claim uninterrupted recovery or the 20-minute RTO.
 
+The retained validation invocation described here is now consumed and must not be
+replayed. Its substantive promoted-version and two-table Polaris checks passed, but
+the command stopped `failed-contained` at a later inventory predicate that compared
+new promoted-copy ETags with historical-source ETags. Read-only diagnosis found all
+19 expected keys, unchanged exact timelines, exact current bytes, and intact source
+versions; only the four promoted ETags differed. Because ETag is version metadata,
+not the cross-version content identity, the maintained inventory check now verifies
+exact SHA-256/size plus recorded source/promoted VersionIds instead. The append-only
+adjudication supports eventual coherent recovery only; the validation command,
+original automation, and RTO remain unproven.
+
 ## Catalog backup and recovery preparation
 
 The PostgreSQL image includes pgBackRest and archives WAL with

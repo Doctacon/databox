@@ -3917,7 +3917,6 @@ class LiveJointRecoveryOperations:
                 or len(latest) != 1
                 or latest[0].delete_marker
                 or latest[0].size != node.size
-                or latest[0].etag != node.etag
             ):
                 raise Stage2CError("complete Stage 2C prefix has unexpected version metadata")
             if not _matches(node, self.store.current_state(node)):

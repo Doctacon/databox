@@ -1,6 +1,6 @@
 # Stage 2C Joint Catalog-and-Warehouse Recovery Outcome
 
-Status: not proven; the authorized three-attempt envelope and its one damage-bearing cycle are exhausted
+Status: eventual point-A coherence proven by retained-state validation and adjudication; the automated campaign and recovery-time objective remain unproven
 
 ## Authorization boundary
 
@@ -41,10 +41,18 @@ Mandatory post-failure correction then:
 
 Independent read-only verification found all ten point-A graph objects at their exact expected bytes, all four damage nodes promoted from their recorded historical sources, and journal milestones for catalog restoration, object restoration, and containment complete. This correction restores and contains the failed drill; it does **not** convert the terminal failure into Stage-2C success.
 
+## Validation-only continuation
+
+The separately authorized one-shot validation bound the exact retained campaign, recovery plan, damage journal, failure/correction receipts, detached Docker resources, and all 19 prefix version timelines. It started only the retained restored PostgreSQL and restored Polaris services. Exact promoted-VersionId checks passed, and final restored-Polaris validation proved both tables' pointers, UUIDs, snapshots, logical graphs, schemas, row counts/digests, and point-B exclusion agreed with point A.
+
+The command then stopped `failed-contained` during its final prefix inventory. Read-only diagnosis found no key-set, version-limit, latest-cardinality, delete-marker, size, byte, or historical-source failure. The only mismatch was that the four promoted current objects had new S3-copy ETags rather than their historical source ETags. Promotion already verifies the recorded source ETag before copy and the new current VersionId, SHA-256, and size after copy; requiring a copied object's new ETag to equal its source ETag was an invalid postcondition. The maintained check now relies on exact current bytes and recorded VersionIds instead.
+
+The terminal validation command was not replayed and remains a failure receipt. An append-only adjudication records the passing substantive validation and the invalid ETag predicate; it does not create `validation-result.json` or rewrite any prior evidence.
+
 ## Result
 
-Stage 2C remains **not proven**. The successful-path final Polaris validation did not run after the post-damage failure, so there is no valid claim that both restored catalog pointers, UUIDs, snapshots, logical graphs, schemas, and deterministic rows jointly agreed at point A. No fourth attempt is authorized or running.
+The retained failed attempt now proves **eventual coherent point-A recovery** across the isolated Polaris catalog and both Iceberg warehouse graphs. This is a qualified evidence claim, not a claim that the Stage-2C command or original automation passed. Recovery was not uninterrupted, and the 20-minute recovery-time objective remains unproven. No fourth recovery attempt or second validation invocation is authorized or running.
 
-The failure did not mutate canonical resources, active topology, IAM, bucket controls, or the deployed catalog-backup repository. It did not cut over, call `DeleteObjectVersion`, remove delete markers, or automatically clean retained evidence/resources.
+The work did not mutate canonical resources, active topology, IAM, bucket controls, or the deployed catalog-backup repository. It did not cut over, call `DeleteObjectVersion`, remove delete markers, or automatically clean retained evidence/resources.
 
-Private terminal and correction evidence remains mode `0600` under the ignored recovery root. The current regression suite passes 270 relevant tests plus Ruff, formatting, compilation, secret scanning, and diff checks. Cleanup remains separately gated.
+Private terminal, correction, validation, and adjudication evidence remains mode `0600` under the ignored recovery root. Cleanup remains separately gated.
