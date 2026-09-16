@@ -47,6 +47,41 @@ def test_interactive_credentials_require_tty_before_aws() -> None:
     runner.assert_not_called()
 
 
+def test_primed_credentials_skip_login_and_do_not_require_tty() -> None:
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((tuple(command), kwargs))
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(
+                {
+                    "Version": 1,
+                    "AccessKeyId": "ASIA" + "ABCDEFGHIJKLMNOP",  # secret-scan: allow
+                    "SecretAccessKey": "temporary-secret",  # secret-scan: allow
+                    "SessionToken": "temporary-token",  # secret-scan: allow
+                    "Expiration": "2026-09-09T13:00:00Z",
+                }
+            ),
+            stderr="",
+        )
+
+    environment = recovery.acquire_backup_role_environment(
+        environ=_BACKUP_ENV,
+        runner=runner,
+        stdin_isatty=False,
+        stderr_isatty=False,
+        login_required=False,
+        now=lambda: datetime(2026, 9, 9, 12, 0, tzinfo=UTC),
+    )
+
+    assert [command[:3] for command, _kwargs in calls] == [
+        ("aws", "configure", "export-credentials")
+    ]
+    assert environment["PGBACKREST_REPO1_S3_KEY_SECRET"] == "temporary-secret"
+
+
 def test_interactive_credentials_flow_from_aws_pipe_to_memory_only() -> None:
     secret = "temporary-exported-secret"  # secret-scan: allow
     token = "temporary-exported-token"  # secret-scan: allow

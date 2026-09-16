@@ -1,5 +1,5 @@
 variable "aws_account_id" {
-  description = "AWS account that owns the catalog backup bucket."
+  description = "AWS account that owns the catalog backup and warehouse recovery resources."
   type        = string
   validation {
     condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
@@ -31,4 +31,14 @@ variable "aws_shared_config_files" {
 variable "catalog_backup_bucket" {
   description = "Globally unique bucket name for encrypted pgBackRest backups and WAL."
   type        = string
+}
+
+variable "warehouse_bucket" {
+  description = "Existing warehouse bucket protected by root-only retention controls."
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.warehouse_bucket)) > 0
+    error_message = "warehouse_bucket must not be empty."
+  }
 }

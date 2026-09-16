@@ -10,6 +10,11 @@ output "recovery_operator_user_arn" {
   value = aws_iam_user.recovery_operator.arn
 }
 
+output "recovery_storage_role_arn" {
+  value     = aws_iam_role.warehouse_recovery_storage.arn
+  sensitive = true
+}
+
 output "aws_profile" {
   value = var.aws_profile
 }

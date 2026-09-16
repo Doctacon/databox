@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InspectOnlyWarehouseWriter",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetUser",
+        "iam:ListUserPolicies",
+        "iam:GetUserPolicy",
+        "iam:ListAttachedUserPolicies",
+        "iam:ListGroupsForUser"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:user/databox-lake-user"
+    }
+  ]
+}
