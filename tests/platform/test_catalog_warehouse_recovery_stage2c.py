@@ -1204,6 +1204,73 @@ def test_polaris_ownership_accepts_ephemeral_config_and_exact_runtime_loopback_p
         )
 
 
+def test_restore_helper_ownership_accepts_only_docker_none_network_shape() -> None:
+    stack = _local_stack(RecordingExecutor())
+    name = f"{stack.resources['restoredPostgres']}-restore"
+    container_id = "c" * 64
+    container = {
+        "Id": container_id,
+        "Name": f"/{name}",
+        "Image": stack.images["postgres"].image_id,
+        "Path": "/bin/sh",
+        "Args": ["-ceu", "while :; do sleep 3600; done"],
+        "Config": {
+            "Image": stack.images["postgres"].image_id,
+            "Entrypoint": ["/bin/sh"],
+            "Cmd": ["-ceu", "while :; do sleep 3600; done"],
+            "Env": list(stack.images["postgres"].environment),
+            "User": stack.images["postgres"].user,
+            "WorkingDir": stack.images["postgres"].working_directory,
+            "Labels": stack._label_map(),
+        },
+        "HostConfig": {
+            "NetworkMode": "none",
+            "Privileged": False,
+            "AutoRemove": False,
+            "ReadonlyRootfs": False,
+            "RestartPolicy": {"Name": "no", "MaximumRetryCount": 0},
+            "Binds": None,
+            "PortBindings": {},
+        },
+        "NetworkSettings": {
+            "Networks": {
+                "none": {
+                    "NetworkID": "none-network-id",
+                    "Aliases": None,
+                    "DNSNames": None,
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "MacAddress": "",
+                }
+            },
+            "Ports": {"5432/tcp": None},
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": stack.resources["restoredVolume"],
+                "Destination": "/var/lib/postgresql/data",
+                "RW": True,
+            },
+            {
+                "Type": "volume",
+                "Name": stack.resources["repositoryVolume"],
+                "Destination": "/repo",
+                "RW": True,
+            },
+        ],
+    }
+
+    stack._validate_container(name, container, network_id="campaign-network-id", attachment_id=None)
+    container["NetworkSettings"]["Networks"]["none"]["IPAddress"] = "192.0.2.10"
+    with pytest.raises(stage2c.Stage2CError, match="unexpected network attachment"):
+        stack._validate_container(
+            name, container, network_id="campaign-network-id", attachment_id=None
+        )
+
+
 @pytest.mark.parametrize("mutation", ("label", "image", "mount", "alias", "port"))
 def test_container_ownership_rejects_any_identity_drift(mutation: str) -> None:
     stack = _local_stack(RecordingExecutor())

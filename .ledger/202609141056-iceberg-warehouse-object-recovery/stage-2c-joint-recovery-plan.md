@@ -1,6 +1,6 @@
 # Stage 2C joint catalog and warehouse recovery plan
 
-Status: first authorized execution stopped before point A and is contained; fresh execution requires new authorization
+Status: implementation complete; the later three-attempt campaign exhausted its one damage cycle without a successful proof
 
 ## Decision and endpoint
 
@@ -54,4 +54,6 @@ This would prove composition of local synthetic Polaris PITR with real exact-ver
 
 The implementation passed focused unit and static review, then the first exact campaign stopped before point A. Docker represented an ephemeral loopback publish with an empty configured host port and the assigned numeric port only in runtime network state; the initial ownership validator incorrectly required the configured field itself to be numeric. No recovery plan or damage journal existed, no table/catalog fixture was created, and warehouse scope contained only the successful capability-canary history.
 
-The failure receipt correctly retained `failed-uncertain` because its original containment pass rejected the same valid Docker representation. The validator now separately checks configured loopback intent, runtime numeric loopback binding, and exposed-but-unpublished runtime ports. Focused regressions pass. A separately recorded private containment correction confirms every generated container is absent, the generated network/volumes and evidence remain retained, and the S3 inventory is exactly one canary key with two versions and one delete marker. The failed plan is consumed and will not be replayed. A fresh campaign is outside the consumed authorization.
+The failure receipt correctly retained `failed-uncertain` because its original containment pass rejected the same valid Docker representation. The validator now separately checks configured loopback intent, runtime numeric loopback binding, and exposed-but-unpublished runtime ports. Focused regressions pass. A separately recorded private containment correction confirms every generated container is absent, the generated network/volumes and evidence remain retained, and the S3 inventory is exactly one canary key with two versions and one delete marker. The failed plan is consumed and will not be replayed.
+
+A later authorization permitted up to three additional fresh attempts with at most one damage-bearing cycle. All three attempts were consumed. The first two stopped contained before damage; the third passed deletes and break proof but stopped during catalog restoration. Mandatory catalog/object restoration and containment are now complete, but the final joint Polaris validation did not run, so Stage 2C remains unproven. See [Stage 2C joint recovery outcome](stage-2c-joint-recovery-outcome.md).

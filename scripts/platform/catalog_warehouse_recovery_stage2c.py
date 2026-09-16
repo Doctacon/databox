@@ -1915,7 +1915,7 @@ class LocalJointStack:
         ):
             raise Stage2CError("Docker container ownership labels differ from campaign")
         restorer = name.endswith("-restore")
-        expected_networks = set() if restorer else {self.resources["network"]}
+        expected_networks = {"none"} if restorer else {self.resources["network"]}
         if (
             not isinstance(container_id, str)
             or not container_id
@@ -1941,7 +1941,26 @@ class LocalJointStack:
         ):
             raise Stage2CError("Docker container identity differs from campaign")
         if restorer:
-            if host.get("NetworkMode") != "none" or attachment_id is not None:
+            details = networks.get("none")
+            if (
+                host.get("NetworkMode") != "none"
+                or attachment_id is not None
+                or not isinstance(details, dict)
+                or not isinstance(details.get("NetworkID"), str)
+                or not details["NetworkID"]
+                or details.get("Aliases") not in (None, [])
+                or details.get("DNSNames") not in (None, [])
+                or any(
+                    details.get(field) not in (None, "")
+                    for field in (
+                        "Gateway",
+                        "IPAddress",
+                        "IPv6Gateway",
+                        "GlobalIPv6Address",
+                        "MacAddress",
+                    )
+                )
+            ):
                 raise Stage2CError("restore helper has an unexpected network attachment")
         else:
             details = networks.get(self.resources["network"])

@@ -427,12 +427,27 @@ evidence are retained.
 
 The first authorized live campaign stopped before point A because its ownership
 validator did not distinguish Docker's empty configured ephemeral host port from
-the numeric runtime loopback assignment. No recovery plan or damage journal was
-created; only the capability-canary history and generated evidence resources were
-retained. The corrected validator has focused regression coverage and every
-credential-bearing container from that campaign is confirmed absent. That exact
-campaign is consumed and must not be replayed; a fresh live campaign requires
-new authorization.
+the numeric runtime loopback assignment. A later authorization allowed three
+fresh attempts with at most one damage-bearing cycle. The first two stopped
+contained before damage. The third completed deletes and break proof, then stopped
+during catalog restoration because Docker represents `--network none` as a built-
+in runtime network entry rather than an empty network map. Exact object restoration
+completed automatically; after correcting that fail-closed validator, mandatory
+catalog restoration and containment also completed and were independently checked.
+
+That campaign is **not** a Stage-2C success: final joint Polaris pointer, graph,
+schema, and row validation did not run after the terminal failure. All generated
+containers are absent, while prefixes, networks, volumes, and private evidence are
+retained. Every plan is consumed, the three-attempt envelope and one damage cycle
+are exhausted, and no fresh live execution is authorized. Do not replay any plan
+or infer success from the post-failure restoration receipt.
+
+Two runtime details are now explicit in the maintained implementation. After
+PostgreSQL is restarted into archival mode for the point-A backup, source Polaris
+is recreated and the cached gateway is discarded so its JDBC pool and ephemeral
+loopback endpoint cannot remain stale. A restore helper is accepted only on
+Docker's built-in `none` network with no aliases, DNS names, addresses, gateways,
+or MAC address; any connected shape is rejected.
 
 ## Catalog backup and recovery preparation
 
