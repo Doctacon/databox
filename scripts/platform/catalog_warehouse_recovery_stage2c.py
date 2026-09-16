@@ -50,6 +50,8 @@ _SERVICE_PROCESS_TIMEOUT_SECONDS = _LIVE_OBJECTIVE_SECONDS + 60
 _SERVICE_STOP_TIMEOUT_SECONDS = 10
 _POSTGRES_READY_TIMEOUT_SECONDS = 120
 _POLARIS_READY_TIMEOUT_SECONDS = 180
+_CATALOG_READ_ATTEMPTS = 3
+_CATALOG_RETRY_DELAY_SECONDS = 1.0
 _POSTGRES_IMAGE = "databox-polaris-postgres:17.6-pgbackrest-2.59.1"
 _ADMIN_IMAGE = "apache/polaris-admin-tool:1.7.0"
 _POLARIS_IMAGE = "apache/polaris:1.7.0"
@@ -1275,6 +1277,7 @@ def _write_failure_receipt(
     object_error: BaseException | None,
     containment_error: BaseException | None,
     journal: Mapping[str, object] | None,
+    failed_at: str,
     clock: Callable[[], datetime],
 ) -> None:
     _atomic_private_write(
@@ -1289,6 +1292,7 @@ def _write_failure_receipt(
             "catalogCompensationErrorKind": _error_kind(catalog_error),
             "objectCompensationErrorKind": _error_kind(object_error),
             "containmentErrorKind": _error_kind(containment_error),
+            "failedAt": failed_at,
             "damage": _failure_summary(journal),
             "recordedAt": clock().astimezone(UTC).isoformat().replace("+00:00", "Z"),
         },
@@ -1412,6 +1416,7 @@ def _execute_campaign_locked(
     operations = operations_factory(campaign, scope, run_dir)
     damaged = False
     restore_only_completed = False
+    phase = "initialize"
 
     def live_deadline() -> None:
         if monotonic() - started > _LIVE_OBJECTIVE_SECONDS:
@@ -1419,6 +1424,7 @@ def _execute_campaign_locked(
 
     try:
         if resume_bundle is not None:
+            phase = "restore-only"
             target, nodes = resume_bundle
             if journal is None:
                 raise Stage2CError("Stage 2C restore-only journal is unavailable")
@@ -1431,16 +1437,21 @@ def _execute_campaign_locked(
             raise Stage2CError("interrupted Stage 2C run completed restoration only")
 
         live_deadline()
+        phase = "preflight"
         canary = operations.preflight(scope)
         live_deadline()
+        phase = "point-a"
         point_a = operations.create_point_a(scope)
         _validate_point_a(scope, point_a)
         live_deadline()
+        phase = "catalog-backup"
         target = operations.backup_point_a()
         live_deadline()
+        phase = "point-b"
         point_b = operations.append_point_b(point_a)
         _validate_point_b(point_a, point_b)
         operations.verify_prefix_inventory(canary, point_a, point_b)
+        phase = "recovery-plan"
         recovery = _recovery_plan(
             campaign_sha256=campaign_sha,
             scope=scope,
@@ -1462,6 +1473,7 @@ def _execute_campaign_locked(
         journal = _initial_journal(campaign_sha, recovery_sha, scope, nodes)
         _atomic_private_write(journal_path, journal)
         damaged = True
+        phase = "damage"
         entries = _journal_entries(journal, nodes)
         for node in sorted(nodes, key=lambda item: (-item.depth, item.key)):
             live_deadline()
@@ -1487,14 +1499,17 @@ def _execute_campaign_locked(
             _atomic_private_replace(journal_path, journal)
         _set_milestone(journal, journal_path, "deletes", "complete")
         live_deadline()
+        phase = "break-proof"
         operations.prove_point_b_broken(point_b, nodes)
         live_deadline()
         _set_milestone(journal, journal_path, "breakProof", "passed")
         operations.stop_source()
         live_deadline()
+        phase = "catalog-restore"
         operations.restore_catalog(target)
         live_deadline()
         _set_milestone(journal, journal_path, "catalogRestore", "complete")
+        phase = "object-restore"
         _restore_only(
             operations,
             nodes,
@@ -1503,12 +1518,14 @@ def _execute_campaign_locked(
             objective_check=live_deadline,
         )
         live_deadline()
+        phase = "final-validation"
         actual = operations.validate_restored(point_a, point_b)
         live_deadline()
         _validate_final(point_a, actual, point_b)
         operations.verify_prefix_inventory(canary, point_a, point_b)
         live_deadline()
         _set_milestone(journal, journal_path, "finalValidation", "passed")
+        phase = "containment"
         operations.contain()
         live_deadline()
         _set_milestone(journal, journal_path, "containment", "passed")
@@ -1610,6 +1627,7 @@ def _execute_campaign_locked(
                 object_error=object_error,
                 containment_error=containment_error,
                 journal=journal,
+                failed_at=phase,
                 clock=clock,
             )
         except BaseException as exc:
@@ -2930,6 +2948,68 @@ class LiveJointRecoveryOperations:
         self.stack.create()
         return canary
 
+    def _load_table(self, catalog: Any, identifier: tuple[str, str]) -> Any:
+        from pyiceberg.exceptions import ServerError, ServiceUnavailableError
+
+        for attempt in range(_CATALOG_READ_ATTEMPTS):
+            try:
+                return catalog.load_table(identifier)
+            except (ServerError, ServiceUnavailableError):
+                if attempt + 1 == _CATALOG_READ_ATTEMPTS:
+                    raise
+                time.sleep(_CATALOG_RETRY_DELAY_SECONDS)
+        raise Stage2CError("catalog table read retry exhausted unexpectedly")
+
+    def _append_and_reload(
+        self,
+        *,
+        catalog: Any,
+        identifier: tuple[str, str],
+        table: Any,
+        batch: Any,
+        expected_rows: Sequence[Mapping[str, object]],
+        expected_snapshots: int,
+    ) -> Any:
+        from pyiceberg.exceptions import (
+            CommitStateUnknownException,
+            ServerError,
+            ServiceUnavailableError,
+        )
+
+        previous_uuid = str(table.metadata.table_uuid)
+        previous_metadata = table.metadata_location
+        previous_snapshot = table.current_snapshot()
+        previous_snapshot_id = (
+            previous_snapshot.snapshot_id if previous_snapshot is not None else None
+        )
+        ambiguous: BaseException | None = None
+        try:
+            table.append(batch)
+        except (
+            CommitStateUnknownException,
+            ServerError,
+            ServiceUnavailableError,
+        ) as exc:
+            ambiguous = exc
+        reconciled = self._fence(self._load_table(catalog, identifier))
+        current_snapshot = reconciled.current_snapshot()
+        previous_files = {entry.metadata_file for entry in reconciled.metadata.metadata_log}
+        rows = tuple(dict(row) for row in expected_rows)
+        if (
+            str(reconciled.metadata.table_uuid) != previous_uuid
+            or reconciled.metadata_location == previous_metadata
+            or previous_metadata not in previous_files
+            or len(reconciled.metadata.snapshots) != expected_snapshots
+            or current_snapshot is None
+            or current_snapshot.parent_snapshot_id != previous_snapshot_id
+            or self._rows(reconciled) != rows
+        ):
+            message = "catalog append did not reconcile to the exact expected successor state"
+            if ambiguous is not None:
+                raise Stage2CError(message) from ambiguous
+            raise Stage2CError(message)
+        return reconciled
+
     def create_point_a(self, scope: JointScope) -> tuple[TablePoint, TablePoint]:
         gateway = self._gateway()
         catalog = gateway.provision(self._drill_scope(scope.tables[0]))
@@ -2953,10 +3033,14 @@ class LiveJointRecoveryOperations:
                 properties={"format-version": "2"},
             )
             table = self._fence(table)
-            table.append(
-                ArrowTable.from_pylist([dict(row) for row in rows], schema=schema.as_arrow())
+            fresh = self._append_and_reload(
+                catalog=catalog,
+                identifier=(scope.namespace, table_name),
+                table=table,
+                batch=ArrowTable.from_pylist([dict(row) for row in rows], schema=schema.as_arrow()),
+                expected_rows=rows,
+                expected_snapshots=1,
             )
-            fresh = self._fence(catalog.load_table((scope.namespace, table_name)))
             result.append(self._capture(fresh, rows, 1))
         return result[0], result[1]
 
@@ -2970,14 +3054,19 @@ class LiveJointRecoveryOperations:
         catalog = self._gateway().open(self._drill_scope(self.scope.tables[0]))
         result: list[PointBState] = []
         for index, table_name in enumerate(self.scope.tables):
-            table = self._fence(catalog.load_table((self.scope.namespace, table_name)))
-            table.append(
-                ArrowTable.from_pylist(
-                    [dict(POINT_B_ROWS[index])], schema=table.schema().as_arrow()
-                )
-            )
-            table = self._fence(catalog.load_table((self.scope.namespace, table_name)))
+            identifier = (self.scope.namespace, table_name)
+            table = self._fence(self._load_table(catalog, identifier))
             rows = POINT_A_ROWS[index] + (POINT_B_ROWS[index],)
+            table = self._append_and_reload(
+                catalog=catalog,
+                identifier=identifier,
+                table=table,
+                batch=ArrowTable.from_pylist(
+                    [dict(POINT_B_ROWS[index])], schema=table.schema().as_arrow()
+                ),
+                expected_rows=rows,
+                expected_snapshots=2,
+            )
             point = self._capture(table, rows, 2)
             self._point_b_tables[table_name] = table
             self._point_b_ios[table_name] = table.io
@@ -3118,7 +3207,7 @@ class LiveJointRecoveryOperations:
         catalog = self._gateway(restored=True).open(self._drill_scope(self.scope.tables[0]))
         result: list[TablePoint] = []
         for index, expected in enumerate(point_a):
-            table = self._fence(catalog.load_table((self.scope.namespace, expected.table)))
+            table = self._fence(self._load_table(catalog, (self.scope.namespace, expected.table)))
             result.append(self._capture(table, POINT_A_ROWS[index], 1))
         return result[0], result[1]
 

@@ -1107,6 +1107,7 @@ _MAX_GRAPH_OBJECTS = _MAX_STAGE1_OBJECTS - 1
 _MAX_GRAPH_BYTES = 32 * 1024 * 1024
 _MAX_PREPARE_VERSIONS_PER_KEY = 12
 _MAX_PRIVATE_RESPONSE_BYTES = 1024 * 1024
+_POLARIS_REQUEST_TIMEOUT_SECONDS = 15
 _SEED_PLAN_LIFETIME = timedelta(hours=6)
 _POSTGRES_IMAGE = "postgres:17.6-bookworm"
 _POLARIS_ADMIN_IMAGE = "apache/polaris-admin-tool:1.7.0"
@@ -1404,7 +1405,7 @@ class PolarisGateway:
 
     def _bounded_json(self, request: Request) -> dict[str, object]:
         try:
-            with self._opener.open(request, timeout=15) as response:
+            with self._opener.open(request, timeout=_POLARIS_REQUEST_TIMEOUT_SECONDS) as response:
                 if not 200 <= response.status < 300:
                     message = (
                         "loopback Polaris redirect refused"
@@ -1471,8 +1472,22 @@ class PolarisGateway:
         )
         return self._bounded_json(request)
 
+    @staticmethod
+    def _catalog_request(
+        request: Callable[..., Any], method: str, url: str, **kwargs: object
+    ) -> Any:
+        kwargs["allow_redirects"] = False
+        kwargs["timeout"] = _POLARIS_REQUEST_TIMEOUT_SECONDS
+        response = request(method=method, url=url, **kwargs)
+        if 300 <= response.status_code < 400:
+            response.close()
+            raise DrillError("loopback Polaris redirect refused")
+        return response
+
     def open(self, scope: DrillScope) -> Any:
         from pyiceberg.catalog.rest import RestCatalog
+
+        gateway = self
 
         class NoRedirectRestCatalog(RestCatalog):
             def _create_session(self) -> Any:
@@ -1481,12 +1496,7 @@ class PolarisGateway:
                 request = session.request
 
                 def request_without_redirect(method: str, url: str, **kwargs: object) -> Any:
-                    kwargs["allow_redirects"] = False
-                    response = request(method=method, url=url, **kwargs)
-                    if 300 <= response.status_code < 400:
-                        response.close()
-                        raise DrillError("loopback Polaris redirect refused")
-                    return response
+                    return gateway._catalog_request(request, method, url, **kwargs)
 
                 session.request = request_without_redirect
                 return session

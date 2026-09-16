@@ -3194,6 +3194,38 @@ def test_polaris_gateway_rejects_redirect_without_reading_response_body() -> Non
         gateway._bounded_json(drill.Request("http://127.0.0.1:8181/private"))
 
 
+def test_polaris_catalog_request_forces_finite_timeout_and_refuses_redirects() -> None:
+    calls: list[dict[str, object]] = []
+
+    class Response:
+        status_code = 200
+
+        def close(self) -> None:
+            raise AssertionError("successful response must remain open")
+
+    def request(**kwargs: object) -> Response:
+        calls.append(dict(kwargs))
+        return Response()
+
+    response = drill.PolarisGateway._catalog_request(
+        request,
+        "GET",
+        "http://127.0.0.1:8181/api/catalog/v1/config",
+        timeout=None,
+        allow_redirects=True,
+    )
+
+    assert isinstance(response, Response)
+    assert calls == [
+        {
+            "method": "GET",
+            "url": "http://127.0.0.1:8181/api/catalog/v1/config",
+            "timeout": drill._POLARIS_REQUEST_TIMEOUT_SECONDS,
+            "allow_redirects": False,
+        }
+    ]
+
+
 def test_polaris_catalog_fingerprint_uses_direct_v1_7_catalog_response() -> None:
     token = "0123456789abcdef"  # secret-scan: allow
     scope = drill._scope(token)

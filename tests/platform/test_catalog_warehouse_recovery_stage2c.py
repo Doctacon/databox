@@ -9,7 +9,7 @@ import sys
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
@@ -360,6 +360,7 @@ def test_failure_after_damage_compensates_without_obeying_live_cap(tmp_path: Pat
     failure = json.loads((tmp_path / RUN_ID / "failure.json").read_text())
     assert failure["status"] == "failed-contained"
     assert failure["primaryErrorKind"] == "stage2-c-error"
+    assert failure["failedAt"] == "break-proof"
     assert failure["objectCompensationErrorKind"] is None
     assert failure["containmentErrorKind"] is None
 
@@ -663,6 +664,142 @@ def test_break_proof_rejects_cross_table_missing_object_match() -> None:
 
     with pytest.raises(stage2c.Stage2CError, match="not an approved missing object"):
         operations.prove_point_b_broken(point_b, approved)
+
+
+def test_catalog_read_retries_only_bounded_server_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pyiceberg.exceptions import ServerError
+
+    marker = object()
+
+    class Catalog:
+        calls = 0
+
+        def load_table(self, identifier: tuple[str, str]) -> object:
+            assert identifier == ("namespace", "table")
+            self.calls += 1
+            if self.calls < stage2c._CATALOG_READ_ATTEMPTS:
+                raise ServerError("bounded transient")
+            return marker
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(stage2c.time, "sleep", sleeps.append)
+    catalog = Catalog()
+    operations = object.__new__(stage2c.LiveJointRecoveryOperations)
+
+    assert operations._load_table(catalog, ("namespace", "table")) is marker
+    assert catalog.calls == stage2c._CATALOG_READ_ATTEMPTS
+    assert sleeps == [stage2c._CATALOG_RETRY_DELAY_SECONDS] * 2
+
+    from pyiceberg.exceptions import UnauthorizedError
+
+    class UnauthorizedCatalog:
+        calls = 0
+
+        def load_table(self, identifier: tuple[str, str]) -> object:
+            del identifier
+            self.calls += 1
+            raise UnauthorizedError("not retriable")
+
+    unauthorized = UnauthorizedCatalog()
+    with pytest.raises(UnauthorizedError):
+        operations._load_table(unauthorized, ("namespace", "table"))
+    assert unauthorized.calls == 1
+    assert sleeps == [stage2c._CATALOG_RETRY_DELAY_SECONDS] * 2
+
+
+def test_ambiguous_append_response_reconciles_only_exact_committed_successor() -> None:
+    from pyiceberg.exceptions import CommitStateUnknownException
+
+    expected = ({"event_id": 1, "generation": "point-a", "value": 10},)
+    marker = object()
+    append_calls: list[object] = []
+
+    class BeforeTable:
+        metadata_location = "s3://private-test-bucket/table/metadata/00000.json"
+        metadata = SimpleNamespace(table_uuid="table-uuid", snapshots=[], metadata_log=[])
+
+        def current_snapshot(self) -> None:
+            return None
+
+        def append(self, batch: object) -> None:
+            append_calls.append(batch)
+            raise CommitStateUnknownException("commit response lost")
+
+    def after_table(mutation: str | None = None) -> Any:
+        metadata_location = "s3://private-test-bucket/table/metadata/00001.json"
+        table_uuid = "table-uuid"
+        metadata_log = [SimpleNamespace(metadata_file=BeforeTable.metadata_location)]
+        snapshots = [SimpleNamespace(snapshot_id=101, parent_snapshot_id=None)]
+        if mutation == "uuid":
+            table_uuid = "other-uuid"
+        elif mutation == "metadata":
+            metadata_location = BeforeTable.metadata_location
+        elif mutation == "lineage":
+            metadata_log = []
+        elif mutation == "snapshots":
+            snapshots = []
+        elif mutation == "parent":
+            snapshots[0].parent_snapshot_id = 999
+        return SimpleNamespace(
+            metadata_location=metadata_location,
+            metadata=SimpleNamespace(
+                table_uuid=table_uuid,
+                snapshots=snapshots,
+                metadata_log=metadata_log,
+            ),
+            current_snapshot=lambda: snapshots[-1] if snapshots else None,
+        )
+
+    class Catalog:
+        def __init__(self, mutation: str | None = None) -> None:
+            self.mutation = mutation
+
+        def load_table(self, identifier: tuple[str, str]) -> Any:
+            assert identifier == ("namespace", "table")
+            return after_table(self.mutation)
+
+    operations = object.__new__(stage2c.LiveJointRecoveryOperations)
+    operations._fence = lambda table: table  # type: ignore[method-assign]
+    operations._rows = lambda table: expected  # type: ignore[method-assign]
+
+    reconciled = operations._append_and_reload(
+        catalog=Catalog(),
+        identifier=("namespace", "table"),
+        table=BeforeTable(),
+        batch=marker,
+        expected_rows=expected,
+        expected_snapshots=1,
+    )
+    assert reconciled.metadata.table_uuid == "table-uuid"
+    assert append_calls == [marker]
+
+    for mutation in ("uuid", "metadata", "lineage", "snapshots", "parent"):
+        append_calls.clear()
+        with pytest.raises(stage2c.Stage2CError, match="exact expected successor"):
+            operations._append_and_reload(
+                catalog=Catalog(mutation),
+                identifier=("namespace", "table"),
+                table=BeforeTable(),
+                batch=marker,
+                expected_rows=expected,
+                expected_snapshots=1,
+            )
+        assert append_calls == [marker]
+
+    append_calls.clear()
+    operations._rows = lambda table: ()  # type: ignore[method-assign]
+    with pytest.raises(stage2c.Stage2CError, match="exact expected successor"):
+        operations._append_and_reload(
+            catalog=Catalog(),
+            identifier=("namespace", "table"),
+            table=BeforeTable(),
+            batch=marker,
+            expected_rows=expected,
+            expected_snapshots=1,
+        )
+    assert append_calls == [marker]
 
 
 def test_complete_inventory_enforces_point_b_bytes_and_actual_version_metadata() -> None:
