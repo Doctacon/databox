@@ -1033,6 +1033,71 @@ def _local_stack(executor: Any) -> Any:
     )
 
 
+def test_point_a_backup_restarts_polaris_after_postgres_archive_restart() -> None:
+    executor = RecordingExecutor()
+    stack = _local_stack(executor)
+    stack._owned_id = lambda name: f"owned-{name}"  # type: ignore[method-assign]
+    stack._wait_postgres = lambda name: None  # type: ignore[method-assign]
+    removed: list[str] = []
+    started: list[str] = []
+
+    def remove(name: str) -> None:
+        removed.append(name)
+        executor.commands.append(("test-event", "remove-polaris"))
+
+    stack._remove_owned = remove  # type: ignore[method-assign]
+
+    def start(name: str) -> str:
+        started.append(name)
+        executor.commands.append(("test-event", "start-polaris"))
+        return "http://127.0.0.1:49153"
+
+    stack._start_polaris = start  # type: ignore[method-assign]
+    target = stack.backup_point_a()
+
+    source_polaris = stack.resources["sourcePolaris"]
+    assert removed == [source_polaris]
+    assert started == [source_polaris]
+    assert stack.source_url == "http://127.0.0.1:49153"
+    assert target.name == f"stage2c_target_{RUN_ID}"
+    commands = [" ".join(command) for command in executor.commands]
+    assert any("archive_mode=on" in command for command in commands)
+    backup_index = next(i for i, command in enumerate(commands) if "--type=full backup" in command)
+    target_index = next(
+        i for i, command in enumerate(commands) if "pg_create_restore_point" in command
+    )
+    check_indexes = [i for i, command in enumerate(commands) if "--stanza=polaris check" in command]
+    remove_index = commands.index("test-event remove-polaris")
+    start_index = commands.index("test-event start-polaris")
+    assert backup_index < target_index < check_indexes[-1] < remove_index < start_index
+
+    replacement_url = "http://127.0.0.1:49153"
+
+    class RestartingStack:
+        source_url = "http://127.0.0.1:49152"
+
+        def backup_point_a(self) -> Any:
+            self.source_url = replacement_url
+            return target
+
+    operations = object.__new__(stage2c.LiveJointRecoveryOperations)
+    operations.stack = RestartingStack()
+    operations.settings = _settings()
+    operations.credentials = ir.RunCredentials(
+        "db-secret-value", "client-id", "client-secret-value"
+    )
+    operations._source_gateway = ir.PolarisGateway(
+        config=ir.RuntimeConfig.isolated(
+            settings=operations.settings,
+            polaris_url="http://127.0.0.1:49152",
+            credentials=operations.credentials,
+        )
+    )
+    assert operations.backup_point_a() == target
+    assert operations._source_gateway is None
+    assert operations._gateway().base_url == replacement_url
+
+
 def _owned_postgres_container(stack: Any) -> tuple[str, dict[str, object]]:
     name = stack.resources["sourcePostgres"]
     container_id = "a" * 64

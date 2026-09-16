@@ -2549,6 +2549,9 @@ class LocalJointStack:
                 "check",
             )
         )
+        source_polaris = self.resources["sourcePolaris"]
+        self._remove_owned(source_polaris)
+        self._source_url = self._start_polaris(source_polaris)
         return RecoveryTarget(target)
 
     def archive_point_b(self) -> None:
@@ -3045,7 +3048,9 @@ class LiveJointRecoveryOperations:
         return result[0], result[1]
 
     def backup_point_a(self) -> RecoveryTarget:
-        return self.stack.backup_point_a()
+        target = self.stack.backup_point_a()
+        self._source_gateway = None
+        return target
 
     def append_point_b(self, point_a: Sequence[TablePoint]) -> tuple[PointBState, PointBState]:
         del point_a
