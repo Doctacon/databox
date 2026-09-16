@@ -196,6 +196,7 @@ def acquire_backup_role_environment(
     runner: InteractiveRunner = subprocess.run,
     stdin_isatty: bool | None = None,
     stderr_isatty: bool | None = None,
+    login_required: bool = True,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
     operator_profile: str = _OPERATOR_PROFILE,
     backup_role_profile: str = _BACKUP_ROLE_PROFILE,
@@ -207,7 +208,7 @@ def acquire_backup_role_environment(
     """
     input_tty = sys.stdin.isatty() if stdin_isatty is None else stdin_isatty
     error_tty = sys.stderr.isatty() if stderr_isatty is None else stderr_isatty
-    if not input_tty or not error_tty:
+    if login_required and (not input_tty or not error_tty):
         raise RecoveryError("interactive catalog drill requires an operator TTY")
 
     login_command = ("aws", "login", "--remote", "--profile", operator_profile)
@@ -220,12 +221,13 @@ def acquire_backup_role_environment(
         "--format",
         "process",
     )
-    try:
-        login = runner(login_command, check=False, text=True)
-    except OSError as exc:
-        raise RecoveryError("unable to invoke interactive AWS operator login") from exc
-    if login.returncode != 0:
-        raise RecoveryError("interactive AWS operator login failed")
+    if login_required:
+        try:
+            login = runner(login_command, check=False, text=True)
+        except OSError as exc:
+            raise RecoveryError("unable to invoke interactive AWS operator login") from exc
+        if login.returncode != 0:
+            raise RecoveryError("interactive AWS operator login failed")
 
     try:
         exported = runner(
@@ -1430,6 +1432,11 @@ def _drill_main(argv: Sequence[str]) -> int:
     parser.add_argument("--reconcile-marker")
     parser.add_argument("--operator-profile", default=_OPERATOR_PROFILE)
     parser.add_argument("--backup-role-profile", default=_BACKUP_ROLE_PROFILE)
+    parser.add_argument(
+        "--reuse-authenticated-session",
+        action="store_true",
+        help="reuse an operator-authenticated, MFA-primed AWS CLI role session",
+    )
     args = parser.parse_args(argv)
     if args.reconcile_marker and not _DRILL_MARKER.fullmatch(args.reconcile_marker):
         print("catalog recovery refused: marker is not owned by a timed drill", file=sys.stderr)
@@ -1442,6 +1449,7 @@ def _drill_main(argv: Sequence[str]) -> int:
             environ=base,
             operator_profile=args.operator_profile,
             backup_role_profile=args.backup_role_profile,
+            login_required=not args.reuse_authenticated_session,
         )
         operations = DockerDrillOperations(
             catalog=args.catalog,

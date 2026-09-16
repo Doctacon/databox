@@ -441,10 +441,14 @@ task catalog:recovery-drill -- \
   --source-revision "$(git rev-parse HEAD)"
 ```
 
-The command performs one AWS remote login and MFA-protected role export on the
-operator TTY and refuses sessions with less than 15 minutes remaining. That
-minimum prevents near-expiry cache reuse; it does not guarantee the 60-minute
-RTO objective. Before creating a marker, it enumerates every locally retained
+The command normally performs one AWS remote login and MFA-protected role export
+on the operator TTY. When the operator has just completed that login and primed
+the backup-role session in the same AWS CLI configuration, pass
+`--reuse-authenticated-session` to skip only the redundant login prompt; the
+command still exports the short-lived role session directly into memory and
+refuses credentials with less than 15 minutes remaining. That minimum prevents
+near-expiry cache reuse; it does not guarantee the 60-minute RTO objective.
+Before creating a marker, it enumerates every locally retained
 `.ready` WAL file, validates the bounded list and corresponding regular files,
 and synchronously uploads every segment oldest-first with the same session. It
 never renames or deletes WAL or archive-status files. After switching and pushing
