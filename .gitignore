@@ -68,6 +68,8 @@ htmlcov/
 .task/
 .pi-subagents/
 .deepeval/
+# Private Iceberg recovery manifests, version IDs, and progress markers.
+/.recovery/
 
 # OpenTofu local state and private inputs
 **/.terraform/

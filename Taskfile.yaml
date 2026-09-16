@@ -83,6 +83,15 @@ tasks:
   catalog:recovery-drill:
     desc: "Run or reconcile-and-run the interactive isolated catalog PITR drill"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/catalog_recovery.py drill {{.CLI_ARGS}}"]
+  catalog:recovery-stage2a:
+    desc: "Run one isolated synthetic POSIX pgBackRest PITR proof"
+    cmds: ["scripts/platform/catalog-recovery-stage2a"]
+  iceberg:recovery-drill:prepare:
+    desc: "Prepare one generated real Iceberg object-recovery drill"
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/iceberg_recovery_drill.py prepare {{.CLI_ARGS}}"]
+  iceberg:recovery-drill:execute:
+    desc: "Execute or safely resume one approved Iceberg object-recovery drill"
+    cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/iceberg_recovery_drill.py execute {{.CLI_ARGS}}"]
 
   dagster:dev:
     desc: "Launch the local Dagster UI for Polaris Iceberg pipelines"

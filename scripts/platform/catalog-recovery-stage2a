@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+root="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
+cd "$root"
+token="$(python3 - <<'PY'
+import secrets
+print(secrets.token_hex(8))
+PY
+)"
+evidence_root="${DATABOX_STAGE2A_EVIDENCE_ROOT:-$root/.recovery/catalog-stage2a}"
+run="$evidence_root/$token"
+mkdir -p "$run"
+chmod 700 "$evidence_root" "$run"
+image="databox-polaris-postgres:17.6-pgbackrest-2.59.1"
+polaris_image="apache/polaris:1.7.0"
+admin_image="apache/polaris-admin-tool:1.7.0"
+net="databox-stage2a-$token"
+src="databox_stage2a_src_$token"
+dst="databox_stage2a_dst_$token"
+repo="databox_stage2a_repo_$token"
+pg="databox-stage2a-source-$token"
+restored="databox-stage2a-restored-$token"
+bootstrap="databox-stage2a-bootstrap-$token"
+polaris="databox-stage2a-polaris-$token"
+dbpw="$(python3 - <<'PY'
+import secrets
+print(secrets.token_urlsafe(32))
+PY
+)"
+client_id="stage2a-$token"
+client_secret="$(python3 - <<'PY'
+import secrets
+print(secrets.token_urlsafe(32))
+PY
+)"
+config="$run/pgbackrest.conf"
+cat >"$config" <<'EOF'
+[global]
+repo1-type=posix
+repo1-path=/repo
+repo1-retention-full=2
+archive-async=n
+start-fast=y
+process-max=2
+
+[polaris]
+pg1-path=/var/lib/postgresql/data
+pg1-port=5432
+pg1-user=polaris
+EOF
+chmod 0644 "$config"
+cleanup_containers() {
+  status=$?
+  docker rm -f "$bootstrap" "$polaris" "$restored" "$pg" >/dev/null 2>&1 || true
+  if (( status != 0 )); then
+    containment=passed
+    for name in "$bootstrap" "$polaris" "$restored" "$pg"; do
+      if diagnostic="$(docker inspect "$name" 2>&1)"; then
+        containment=failed
+      elif ! grep -Eq 'No such (object|container)' <<<"$diagnostic"; then
+        containment=unknown
+      fi
+    done
+    containers_absent=false
+    if [[ "$containment" == passed ]]; then
+      containers_absent=true
+    fi
+    printf '{"status":"failed-contained","stage":"2a","repository":"local-posix","containment":"%s","containersAbsent":%s,"retainedEvidence":true}\n' "$containment" "$containers_absent" >"$run/result.json"
+    chmod 0600 "$run/result.json"
+  fi
+  return "$status"
+}
+trap cleanup_containers EXIT
+
+docker network create --label com.databox.catalog-recovery.stage=2a "$net" >/dev/null
+docker volume create --label com.databox.catalog-recovery.stage=2a "$src" >/dev/null
+docker volume create --label com.databox.catalog-recovery.stage=2a "$dst" >/dev/null
+docker volume create --label com.databox.catalog-recovery.stage=2a "$repo" >/dev/null
+docker run --rm --user root --mount "type=volume,src=$repo,dst=/repo" --entrypoint /bin/sh "$image" -ceu 'chown -R postgres:postgres /repo' >/dev/null
+
+docker run -d --name "$pg" --network "$net" --network-alias postgres \
+  --label com.databox.catalog-recovery.stage=2a \
+  --mount "type=volume,src=$src,dst=/var/lib/postgresql/data" \
+  --mount "type=volume,src=$repo,dst=/repo" \
+  --mount "type=bind,src=$config,dst=/etc/pgbackrest/pgbackrest.conf,readonly" \
+  --entrypoint /bin/sh "$image" -ceu 'while :; do sleep 3600; done' >/dev/null
+printf '%s\n' "$dbpw" | docker exec -i "$pg" /bin/sh -ceu '
+IFS= read -r POSTGRES_PASSWORD
+export POSTGRES_PASSWORD POSTGRES_DB=polaris POSTGRES_USER=polaris
+exec docker-entrypoint.sh postgres -c archive_mode=off -c listen_addresses="*"
+' >/dev/null 2>&1 &
+pg_child=$!
+for _ in $(seq 1 60); do
+  if docker exec "$pg" pg_isready -U polaris -d polaris >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+docker exec "$pg" pg_isready -U polaris -d polaris >/dev/null
+
+# Bootstrap the actual Polaris relational schema without retaining credentials in container config.
+docker run -d --name "$bootstrap" --network "$net" --entrypoint /bin/sh "$admin_image" -ceu 'while :; do sleep 3600; done' >/dev/null
+printf '%s\n%s\n%s\n' "$dbpw" "$client_id" "$client_secret" | docker exec -i "$bootstrap" /bin/sh -ceu '
+IFS= read -r DB_PASSWORD
+IFS= read -r CLIENT_ID
+IFS= read -r CLIENT_SECRET
+exec env \
+  polaris.persistence.type=relational-jdbc \
+  quarkus.datasource.username=polaris \
+  quarkus.datasource.password="$DB_PASSWORD" \
+  quarkus.datasource.jdbc.url=jdbc:postgresql://postgres:5432/polaris \
+  /opt/jboss/container/java/run/run-java.sh bootstrap -r POLARIS -c "POLARIS,${CLIENT_ID},${CLIENT_SECRET}"
+' >/dev/null 2>&1
+docker rm -f "$bootstrap" >/dev/null
+
+# Deterministic synthetic catalog marker: A belongs before target; B must not survive PITR.
+docker exec "$pg" psql -U polaris -d polaris -v ON_ERROR_STOP=1 -qAtX -c \
+  "CREATE TABLE public.stage2a_catalog_state (phase text PRIMARY KEY, value bigint NOT NULL); INSERT INTO public.stage2a_catalog_state VALUES ('A', 101);" >/dev/null
+docker exec --user postgres "$pg" pgbackrest --config=/etc/pgbackrest/pgbackrest.conf --stanza=polaris stanza-create >/dev/null
+docker exec --user postgres "$pg" pg_ctl -D /var/lib/postgresql/data -m fast -w stop >/dev/null
+wait "$pg_child" || true
+docker exec "$pg" /bin/sh -ceu '
+exec docker-entrypoint.sh postgres -c archive_mode=on -c archive_command="pgbackrest --config=/etc/pgbackrest/pgbackrest.conf --stanza=polaris archive-push %p" -c listen_addresses="*"
+' >/dev/null 2>&1 &
+pg_child=$!
+for _ in $(seq 1 60); do
+  if docker exec "$pg" pg_isready -U polaris -d polaris >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+docker exec "$pg" pg_isready -U polaris -d polaris >/dev/null
+docker exec --user postgres "$pg" pgbackrest --config=/etc/pgbackrest/pgbackrest.conf --stanza=polaris check >/dev/null
+docker exec --user postgres "$pg" pgbackrest --config=/etc/pgbackrest/pgbackrest.conf --stanza=polaris --type=full backup >/dev/null
+sleep 1
+target="stage2a_target_$token"
+docker exec "$pg" psql -U polaris -d polaris -v ON_ERROR_STOP=1 -qAtX -c \
+  "SELECT pg_create_restore_point('$target'); INSERT INTO public.stage2a_catalog_state VALUES ('B', 202); SELECT pg_switch_wal();" >/dev/null
+docker exec --user postgres "$pg" pgbackrest --config=/etc/pgbackrest/pgbackrest.conf --stanza=polaris check >/dev/null
+docker exec --user postgres "$pg" pg_ctl -D /var/lib/postgresql/data -m fast -w stop >/dev/null
+wait "$pg_child" || true
+docker rm -f "$pg" >/dev/null
+
+docker run --rm --user root --mount "type=volume,src=$dst,dst=/restore" --entrypoint /bin/sh "$image" -ceu 'chown -R postgres:postgres /restore' >/dev/null
+docker run --rm --user postgres \
+  --mount "type=volume,src=$dst,dst=/var/lib/postgresql/data" \
+  --mount "type=volume,src=$repo,dst=/repo" \
+  --mount "type=bind,src=$config,dst=/etc/pgbackrest/pgbackrest.conf,readonly" \
+  --entrypoint pgbackrest "$image" \
+  --config=/etc/pgbackrest/pgbackrest.conf --stanza=polaris --type=name --target="$target" --target-action=promote restore >/dev/null
+
+docker run -d --name "$restored" --network "$net" --network-alias postgres \
+  --label com.databox.catalog-recovery.stage=2a \
+  --mount "type=volume,src=$dst,dst=/var/lib/postgresql/data" \
+  --mount "type=volume,src=$repo,dst=/repo" \
+  --mount "type=bind,src=$config,dst=/etc/pgbackrest/pgbackrest.conf,readonly" \
+  --entrypoint /bin/sh "$image" -ceu 'while :; do sleep 3600; done' >/dev/null
+docker exec -d "$restored" /bin/sh -ceu 'exec docker-entrypoint.sh postgres -c archive_mode=off -c listen_addresses="*"' >/dev/null
+for _ in $(seq 1 60); do
+  if docker exec "$restored" pg_isready -U polaris -d polaris >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+docker exec "$restored" pg_isready -U polaris -d polaris >/dev/null
+rows="$(docker exec "$restored" psql -U polaris -d polaris -qAtX -F '|' -c "SELECT phase,value FROM public.stage2a_catalog_state ORDER BY phase;")"
+[[ "$rows" == 'A|101' ]]
+recovery="$(docker exec "$restored" psql -U polaris -d polaris -qAtX -c 'SELECT pg_is_in_recovery();')"
+[[ "$recovery" == 'f' ]]
+polaris_schema_count="$(docker exec "$restored" psql -U polaris -d polaris -qAtX -c "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema','public');")"
+[[ "$polaris_schema_count" =~ ^[0-9]+$ ]] && (( polaris_schema_count > 0 ))
+
+# Prove the recovered Polaris schema is consumable by the real service.
+docker run -d --name "$polaris" --network "$net" --entrypoint /bin/sh "$polaris_image" -ceu 'while :; do sleep 3600; done' >/dev/null
+printf '%s\n' "$dbpw" | docker exec -i "$polaris" /bin/sh -ceu '
+IFS= read -r DB_PASSWORD
+export POLARIS_PERSISTENCE_TYPE=relational-jdbc
+export QUARKUS_DATASOURCE_USERNAME=polaris
+export QUARKUS_DATASOURCE_PASSWORD="$DB_PASSWORD"
+export QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://postgres:5432/polaris
+export POLARIS_REALM_CONTEXT_REALMS=POLARIS
+export POLARIS_REALM_CONTEXT_REQUIRE_HEADER=false
+exec /opt/jboss/container/java/run/run-java.sh
+' >/dev/null 2>&1 &
+polaris_child=$!
+for _ in $(seq 1 90); do
+  if docker exec "$polaris" curl --fail --silent http://localhost:8182/q/health/ready >/dev/null 2>&1; then break; fi
+  sleep 1
+done
+docker exec "$polaris" curl --fail --silent http://localhost:8182/q/health/ready >/dev/null
+
+# Remove credential-bearing processes/containers; preserve only run-owned evidence resources.
+docker rm -f "$polaris" "$restored" >/dev/null
+wait "$polaris_child" || true
+trap - EXIT
+cat >"$run/result.json" <<EOF
+{"status":"pass","stage":"2a","repository":"local-posix","targetBracket":"A-not-B","postgresPromoted":true,"polarisReady":true,"containersAbsent":true,"retained":{"network":true,"sourceVolume":true,"restoredVolume":true,"repositoryVolume":true}}
+EOF
+chmod 0600 "$run/result.json"
+printf '{"status":"pass","stage":"2a","repository":"local-posix","targetBracket":"A-not-B","postgresPromoted":true,"polarisReady":true,"retainedResources":4}\n'
