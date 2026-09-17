@@ -198,6 +198,38 @@ def test_stable_container_fingerprint_excludes_runtime_health_drift() -> None:
     )
 
 
+def test_network_fingerprint_excludes_runtime_attachment_state() -> None:
+    inspected = {
+        "Name": "recovery-net",
+        "Id": "a" * 64,
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv6": False,
+        "IPAM": {"Driver": "default", "Config": [{"Subnet": "172.20.0.0/16"}]},
+        "Internal": False,
+        "Attachable": False,
+        "Ingress": False,
+        "ConfigFrom": {"Network": ""},
+        "ConfigOnly": False,
+        "Options": {},
+        "Labels": {"owned": "true"},
+        "Created": "before",
+        "Containers": {"container": {"Name": "owned"}},
+        "Peers": [{"runtime": "before"}],
+    }
+    changed = json.loads(json.dumps(inspected))
+    changed["Created"] = "after"
+    changed["Containers"] = {}
+    changed["Peers"] = []
+    assert cleanup._docker_fingerprint("network", inspected) == cleanup._docker_fingerprint(
+        "network", changed
+    )
+    changed["Labels"]["owned"] = "false"
+    assert cleanup._docker_fingerprint("network", inspected) != cleanup._docker_fingerprint(
+        "network", changed
+    )
+
+
 def test_discovery_supports_partial_legacy_and_stage2a_resources() -> None:
     cases = (
         ("network", "databox-stage2a-0123456789abcdef", "stage2a"),

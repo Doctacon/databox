@@ -273,8 +273,24 @@ def _labels(kind: str, inspect: Mapping[str, Any]) -> dict[str, str]:
 def _docker_fingerprint(kind: str, inspect: Mapping[str, Any]) -> str:
     """Hash stable identity/config while excluding changing runtime state."""
     if kind == "network":
-        stable_network = dict(inspect)
-        stable_network.pop("Containers", None)
+        stable_network = {
+            key: inspect.get(key)
+            for key in (
+                "Name",
+                "Id",
+                "Scope",
+                "Driver",
+                "EnableIPv6",
+                "IPAM",
+                "Internal",
+                "Attachable",
+                "Ingress",
+                "ConfigFrom",
+                "ConfigOnly",
+                "Options",
+                "Labels",
+            )
+        }
         return _digest(stable_network)
     if kind != "container":
         return _digest(inspect)
