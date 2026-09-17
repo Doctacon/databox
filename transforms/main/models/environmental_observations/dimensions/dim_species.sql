@@ -105,7 +105,7 @@ gbif_source_rows AS (
       NULLIF(TRIM(scientific_name), ''),
       NULLIF(TRIM(species), '')
     ) AS gbif_scientific_name
-  FROM raw_gbif.occurrences
+  FROM polaris_aws.raw_gbif.occurrences
   WHERE key IS NOT NULL
 ),
 gbif_ranked AS (

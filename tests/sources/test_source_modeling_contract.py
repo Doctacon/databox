@@ -301,6 +301,44 @@ def test_genuine_join_dependency_is_detected_by_sql_ast(tmp_path: Path) -> None:
     assert _errors(tmp_path) == []
 
 
+def test_iceberg_authoritative_source_requires_analytics_catalog(tmp_path: Path) -> None:
+    source = Source(
+        name="example",
+        raw_tables=("records",),
+        iceberg_authoritative=True,
+    )
+    _write_complete_contract(tmp_path, source=source)
+    errors = _errors(tmp_path, source)
+    assert any("dependency on polaris_aws.raw_example.records" in error for error in errors)
+
+    model = tmp_path / "transforms/main/models/domain/fact_record.sql"
+    model.write_text(
+        model.read_text().replace(
+            "FROM raw_example.records",
+            "FROM polaris_aws.raw_example.records",
+        )
+    )
+    assert _errors(tmp_path, source) == []
+
+
+def test_wrong_catalog_does_not_satisfy_authoritative_source(tmp_path: Path) -> None:
+    source = Source(
+        name="example",
+        raw_tables=("records",),
+        iceberg_authoritative=True,
+    )
+    _write_complete_contract(tmp_path, source=source)
+    model = tmp_path / "transforms/main/models/domain/fact_record.sql"
+    model.write_text(
+        model.read_text().replace(
+            "FROM raw_example.records",
+            "FROM legacy.raw_example.records",
+        )
+    )
+    errors = _errors(tmp_path, source)
+    assert any("dependency on polaris_aws.raw_example.records" in error for error in errors)
+
+
 def test_operational_model_dependency_does_not_count(tmp_path: Path) -> None:
     _write_complete_contract(tmp_path)
     model = tmp_path / "transforms/main/models/domain/fact_record.sql"

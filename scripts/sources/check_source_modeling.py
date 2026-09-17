@@ -34,7 +34,7 @@ class SourceDbml:
 class SqlModel:
     path: Path
     output: tuple[str, str]
-    raw_dependencies: frozenset[tuple[str, str]]
+    raw_dependencies: frozenset[tuple[str, str, str]]
 
 
 @dataclass(frozen=True)
@@ -157,7 +157,7 @@ def _sql_models(models_root: Path) -> tuple[list[SqlModel], list[str]]:
         if output is None:
             errors.append(f"SQLMesh MODEL name missing or invalid in {path}")
             continue
-        dependencies: set[tuple[str, str]] = set()
+        dependencies: set[tuple[str, str, str]] = set()
         for expression in expressions:
             if isinstance(expression, Model):
                 continue
@@ -169,7 +169,7 @@ def _sql_models(models_root: Path) -> tuple[list[SqlModel], list[str]]:
                 for table in clause.find_all(exp.Table):
                     schema = table.db.lower()
                     if schema.startswith("raw_"):
-                        dependencies.add((schema.removeprefix("raw_"), table.name.lower()))
+                        dependencies.add((table.catalog.lower(), schema, table.name.lower()))
         models.append(SqlModel(path=path, output=output, raw_dependencies=frozenset(dependencies)))
     return models, errors
 
@@ -288,8 +288,13 @@ def validate_modeling_contract(
                 errors.append(f"{source.name}: CDM source_entity missing for concept {concept!r}")
 
         transformed_tables: set[str] = set()
+        analytics_catalog_parts = source.analytics_raw_catalog.lower().split(".")
+        if len(analytics_catalog_parts) == 1:
+            catalog, schema = "", analytics_catalog_parts[0]
+        else:
+            catalog, schema = analytics_catalog_parts[-2:]
         for table in sorted(modeled_tables):
-            raw_dependency = (source.name, table)
+            raw_dependency = (catalog, schema, table)
             eligible_models = [
                 model
                 for model in sql_models
@@ -300,7 +305,8 @@ def validate_modeling_contract(
             if not eligible_models:
                 errors.append(
                     f"{source.name}.{table}: semantic SQLMesh transformation missing; expected "
-                    f"a real FROM or JOIN dependency on {source.raw_catalog}.{table} in a MODEL "
+                    f"a real FROM or JOIN dependency on {source.analytics_raw_catalog}.{table} "
+                    "in a MODEL "
                     "declared by CDM.dbml with an intersecting source_entity"
                 )
             else:
