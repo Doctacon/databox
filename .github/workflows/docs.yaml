@@ -27,7 +27,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: Check committed dictionary is fresh
         run: uv run python scripts/platform/generate_docs.py --check
       - name: Generate data dictionary

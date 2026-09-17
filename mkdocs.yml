@@ -58,6 +58,7 @@ nav:
       - Home: index.md
       - Configuration: configuration.md
       - Commands: commands.md
+      - Data-product boundary: data-product-boundary.md
   - Warehouse:
       - Data dictionary:
           - Overview: dictionary/index.md
@@ -88,3 +89,4 @@ nav:
       - ADR-0005 Dagster sole orchestrator: adr/0005-dagster-as-sole-orchestrator.md
       - ADR-0006 Superseded cloud path (historical): adr/0006-motherduck-as-cloud-path.md
       - ADR-0007 Quack single-file local ingest: adr/0007-quack-single-file-local-ingest.md
+      - ADR-0008 Polaris Iceberg raw authority: adr/0008-polaris-iceberg-raw-authority.md

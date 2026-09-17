@@ -98,8 +98,9 @@ GitHub OIDC, generated disposable Polaris/Postgres credentials, and
 so failures retain provider/destination attribution. The workflow must not be
 made an automatic PR, push, schedule, or deployment dependency.
 
-The first complete passing matrix is recorded in the
-[protected integration evidence](https://github.com/Doctacon/databox/blob/main/.10x/evidence/2026-09-03-protected-polaris-source-matrix.md).
+The first complete passing matrix was recorded on 2026-09-03. Its former
+planning-workspace evidence was intentionally retired; current executions and
+logs are retained by the protected GitHub Actions workflow.
 
 ## Local verification
 

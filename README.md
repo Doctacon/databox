@@ -23,9 +23,8 @@ application state, product models, APIs, media workflows, web app, and
 deployment in its own repository. Databox does not launch or deploy Rufous, and
 Rufous production remains disabled pending separate authorization.
 
-See the [data-product boundary](.10x/specs/databox-rufous-data-product-boundary.md),
-[artifact exporter](scripts/platform/export_rufous_product.py), and
-[repository split decision](.10x/decisions/split-rufous-into-standalone-repository.md).
+See the [data-product boundary](docs/data-product-boundary.md) and
+[artifact exporter](scripts/platform/export_rufous_product.py).
 
 ```mermaid
 flowchart LR
@@ -115,9 +114,11 @@ S3. Maintainers can manually dispatch
 through its protected GitHub environment. It runs each of the six routine
 sources independently with GitHub OIDC, disposable Polaris credentials, and a
 source-scoped `integration/<run>/<attempt>/<source>/warehouse` prefix. The
-[first complete passing run](.10x/evidence/2026-09-03-protected-polaris-source-matrix.md)
-verified all six real provider-to-Iceberg paths without targeting the normal
-`warehouse/` prefix.
+first complete passing run on 2026-09-03 verified all six real
+provider-to-Iceberg paths without targeting the normal `warehouse/` prefix.
+Historical evidence was retired with the former planning workspace; current
+runs are recorded by the
+[protected workflow](https://github.com/Doctacon/databox/actions/workflows/polaris-iceberg-integration.yaml).
 
 ## Learn more
 

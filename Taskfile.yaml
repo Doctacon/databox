@@ -15,7 +15,7 @@ tasks:
     cmds:
       - test -d {{.VENV_DIR}} || uv venv {{.VENV_DIR}}
       - test -f .env || cp .env.example .env
-      - uv sync
+      - uv sync --locked
       - ./scripts/operations/setup_pre_commit.sh
       # Route SQLMesh's hard-coded `logs/` dir into `.logs/sqlmesh/` so the
       # repo keeps one log root. No equivalent env var / config knob exists

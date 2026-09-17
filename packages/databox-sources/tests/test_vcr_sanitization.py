@@ -12,7 +12,7 @@ import yaml
 
 _ROOT = Path(__file__).parents[3]
 _TESTS_ROOT = Path(__file__).parent
-_MANIFEST = _ROOT / ".10x/evidence/.storage/2026-07-14-source-contract-fixture-sha256.txt"
+_MANIFEST = _TESTS_ROOT / "fixtures.sha256"
 _GBIF_REFERENCE_PLACEHOLDER = "https://example.invalid/gbif-occurrence"
 _EBIRD_PRIVATE_LOCATION_NAME = "Private location (sanitized)"
 _EBIRD_PRIVATE_LOCATION_ID = re.compile(r"^PRIVATE-LOCATION-\d{3}$")

@@ -60,9 +60,9 @@ do not add static AWS credentials or automatic PR/push/schedule triggers.
 
 Dispatch it from the GitHub Actions UI, approve the
 `polaris-iceberg-integration` environment, and inspect every matrix result. The
-workflow skips SQLMesh and does not delete integration objects. See the
-[verified run record](https://github.com/Doctacon/databox/blob/main/.10x/evidence/2026-09-03-protected-polaris-source-matrix.md)
-for the exact claims and limits.
+workflow skips SQLMesh and does not delete integration objects. The first
+complete passing matrix was recorded on 2026-09-03; inspect the protected
+workflow's current GitHub Actions run for exact claims and limits.
 
 ## Plan recovery infrastructure
 
@@ -150,6 +150,11 @@ the operator accepts manual state reconstruction after disk loss. Project cleanu
 commands must never delete these files. If state is lost, stop all changes and
 use reviewed `tofu import` commands for every existing resource, followed by a
 reviewed refresh-only plan; never recreate or apply over untracked live resources.
+
+All recovery plans, journals, raw command exports, and receipts belong under the
+ignored `/.recovery/` custody root with private file permissions. Never force-add
+raw recovery evidence; publish only reviewed, sanitized summaries under
+`.ledger/` or durable documentation.
 
 ## Warehouse object-version protection
 

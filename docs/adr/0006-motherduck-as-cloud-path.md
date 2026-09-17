@@ -1,8 +1,8 @@
 # ADR-0006: MotherDuck as the cloud path
 
 **Status:** Superseded · 2026-07 by the local-only platform decision in
-[ADR-0007](0007-quack-single-file-local-ingest.md) and
-[`.10x/decisions/local-only-birding-product-architecture.md`](https://github.com/Doctacon/databox/blob/main/.10x/decisions/local-only-birding-product-architecture.md)
+[ADR-0007](0007-quack-single-file-local-ingest.md), which was later superseded
+by [ADR-0008](0008-polaris-iceberg-raw-authority.md)
 
 > Historical record only. MotherDuck is no longer a supported backend. The
 > configuration and commands below describe the former implementation and MUST

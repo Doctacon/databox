@@ -498,10 +498,11 @@ def test_local_state_ownership_is_documented_and_ignored() -> None:
     assert "*.tfstate" in gitignore
 
 
-def test_raw_recovery_plan_exports_are_not_public_evidence() -> None:
+def test_raw_recovery_evidence_remains_private() -> None:
     gitignore = (ROOT / ".gitignore").read_text()
-    public_contract = (ROOT / ".10x" / "specs" / "public-catalog-recovery-content.md").read_text()
-    assert "/.10x/evidence/.storage/*.tfplan.txt" in gitignore
-    assert "/.10x/evidence/.storage/*-databox-*-plan.txt" in gitignore
-    assert "Never force-add raw recovery plan exports" in public_contract
-    assert "not a private directory" in public_contract
+    runbook = (ROOT / "docs" / "runbook.md").read_text()
+    assert "/.recovery/" in gitignore
+    assert "*.tfplan" in gitignore
+    assert "Never force-add" in runbook
+    assert "raw recovery evidence" in runbook
+    assert "ignored `/.recovery/` custody root" in runbook

@@ -63,7 +63,7 @@ completes this chain.
 - [Observability](observability.md)
 - [CI routing](ci.md)
 - [Protected Polaris/S3 verification](ci.md#protected-live-integration) — manual real-provider integration gate
-- [Rufous data-product boundary](https://github.com/Doctacon/databox/blob/main/.10x/specs/databox-rufous-data-product-boundary.md) — versioned consumer artifact contract
+- [Rufous data-product boundary](data-product-boundary.md) — versioned consumer artifact contract
 - [Architecture decisions](adr/README.md)
 
 <a id="regenerate"></a>

@@ -97,8 +97,10 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
+      - name: Verify lockfile
+        run: uv lock --check
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: ruff check
         run: uv run ruff check .
       - name: ruff format --check
@@ -116,7 +118,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: mypy
         run: uv run mypy packages/
 
@@ -132,7 +134,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: pytest core (tests/ + packages/databox)
         # Shard runs drop --cov-fail-under; the monolithic `tests-all` job
         # enforces the 70% floor against the whole workspace (where each
@@ -153,7 +155,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: Run shared source harness offline
         run: >-
           uv run pytest packages/databox-sources/tests/test_*.py
@@ -178,7 +180,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: Run source profile offline
         run: >-
           uv run pytest packages/databox-sources/tests/${{ matrix.source }}
@@ -200,7 +202,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: Erase previous coverage
         run: uv run coverage erase
       - name: Coverage — core (tests/ + packages/databox)
@@ -227,7 +229,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: sqlmesh lint
         run: uv run sqlmesh --paths transforms/main lint
 
@@ -243,7 +245,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: Verify every source follows the standard layout
         run: uv run python scripts/sources/check_source_layout.py
 
@@ -259,7 +261,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: Check generated staging SQL matches contracts
         run: uv run python scripts/analytics/generate_staging.py --check
       - name: Check generated platform_health.sql matches source registry
@@ -279,7 +281,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: Write PR body to file
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
@@ -303,7 +305,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install
-        run: uv sync --all-extras --dev
+        run: uv sync --locked --all-extras --dev
       - name: Validate Soda contract YAML structure
         # Soda CLI requires a live data source; no schema-only mode exists.
         # This job statically validates every contract parses as YAML and has
