@@ -197,6 +197,28 @@ def test_discovery_supports_partial_legacy_and_stage2a_resources() -> None:
         cleanup._discovered_spec("volume", "databox_polaris_recovery_unknown")
 
 
+def test_legacy_runtime_container_allows_only_default_bridge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    resource = {
+        "kind": "container",
+        "name": "databox-polaris-recovery-postgres-20260908-214022",
+        "stage": "stage2b",
+        "id": "a" * 64,
+        "group": "stage2b-legacy:20260908_214022",
+    }
+    inspected = {
+        "Config": {"Labels": {cleanup._RUNTIME_LABEL: "true"}},
+        "NetworkSettings": {"Networks": {"bridge": {"NetworkID": "b" * 64}}},
+    }
+    monkeypatch.setattr(cleanup, "_docker_inspect", lambda _kind, _name: inspected)
+    cleanup._validate_attachments([resource])
+
+    inspected["NetworkSettings"]["Networks"]["unexpected"] = {"NetworkID": "c" * 64}
+    with pytest.raises(cleanup.CleanupError, match="network membership"):
+        cleanup._validate_attachments([resource])
+
+
 def test_network_and_volume_with_same_stage2b_name_merge_independently() -> None:
     shared = "databox_polaris_recovery_drill_abcdefghijkl"
     network = {

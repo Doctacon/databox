@@ -886,7 +886,24 @@ def _postgres_recovery_container(name: str) -> bool:
 def _validate_attachments(resources: Sequence[Mapping[str, Any]]) -> None:
     for item in resources:
         same_run = [value for value in resources if value["group"] == item["group"]]
-        if item["kind"] == "network":
+        if item["kind"] == "container":
+            inspect = _docker_inspect("container", item["name"])
+            settings = inspect.get("NetworkSettings") if isinstance(inspect, dict) else None
+            networks = settings.get("Networks") if isinstance(settings, dict) else None
+            expected_names = {
+                value["name"]
+                for value in same_run
+                if item["stage"] == "stage2b" and value["kind"] == "network"
+            }
+            if (
+                not expected_names
+                and _LEGACY_CONTAINER.fullmatch(str(item["name"])) is not None
+                and _labels("container", inspect or {}) == {_RUNTIME_LABEL: "true"}
+            ):
+                expected_names = {"bridge"}
+            if not isinstance(networks, dict) or set(networks) != expected_names:
+                raise CleanupError("Docker container has unplanned network membership")
+        elif item["kind"] == "network":
             inspect = _docker_inspect("network", item["name"])
             attached = set((inspect or {}).get("Containers", {}))
             expected = {
@@ -894,7 +911,7 @@ def _validate_attachments(resources: Sequence[Mapping[str, Any]]) -> None:
                 for value in same_run
                 if item["stage"] == "stage2b" and value["kind"] == "container"
             }
-            if attached != expected:
+            if not attached.issubset(expected):
                 raise CleanupError("Docker network has unplanned attachments")
         elif item["kind"] == "volume":
             consumers = _consumer_ids(item["name"])
