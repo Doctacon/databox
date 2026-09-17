@@ -485,6 +485,31 @@ exact SHA-256/size plus recorded source/promoted VersionIds instead. The append-
 adjudication supports eventual coherent recovery only; the validation command,
 original automation, and RTO remain unproven.
 
+## Recovery-drill cleanup
+
+Cleanup is a separately authorized, one-shot terminal operation. It retains private
+`/.recovery/` evidence, ordinary-deletes only live objects under exact generated
+drill prefixes, and removes only exact ownership-validated drill Docker remnants.
+Ordinary deletion creates new delete markers; it never deletes object versions or
+removes markers. Canonical resources, active Compose services, bucket controls,
+IAM, and the deployed backup repository are outside its mutation scope.
+
+```bash
+task recovery:cleanup -- prepare
+task recovery:cleanup -- execute \
+  --plan .recovery/cleanup/<run-id>/plan.json \
+  --sha256 <exact-plan-sha256>
+```
+
+Preparation is read-only apart from its private mode-`0600` plan. Execution first
+rederives the complete authorized inventory, requires unchanged source evidence,
+exact S3 timelines, exact Docker identities/configuration/attachments, healthy
+active services, and the approved bucket protections. It durably writes intent
+before mutation, immediately rechecks each target, uses no force removal, and
+publishes a private terminal result. Public output contains counts only. A terminal
+plan cannot be replayed. Cleanup does not authorize another drill, RTO rehearsal,
+negative IAM test, cutover, or deletion of private evidence.
+
 ## Catalog backup and recovery preparation
 
 The PostgreSQL image includes pgBackRest and archives WAL with
