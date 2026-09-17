@@ -405,10 +405,11 @@ def _discovered_spec(
             labels: Mapping[str, str] | Sequence[Mapping[str, str]]
             if role == "validation":
                 labels = {_VALIDATION_LABEL: "polaris"}
-            elif role == "probe":
-                labels = {_RUNTIME_LABEL: "true"}
             else:
-                labels = {_VALIDATION_LABEL: "postgres"}
+                labels = (
+                    {_VALIDATION_LABEL: "postgres"},
+                    {_RUNTIME_LABEL: "true"},
+                )
             return "stage2b", labels, f"stage2b-legacy:{timestamp.replace('-', '_')}"
         generated = name.startswith("databox-polaris-recovery-")
     else:

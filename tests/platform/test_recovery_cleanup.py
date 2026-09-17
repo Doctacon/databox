@@ -190,7 +190,8 @@ def test_discovery_supports_partial_legacy_and_stage2a_resources() -> None:
     stage2a_volume = cleanup._discovered_spec("volume", "databox_stage2a_diag_0123456789abcdef")
     probe = cleanup._discovered_spec("container", "databox-polaris-recovery-probe-20260908_214022")
     assert stage2a_volume is not None and stage2a_volume[1] == {cleanup._STAGE_LABEL: "2a"}
-    assert probe is not None and probe[1] == {cleanup._RUNTIME_LABEL: "true"}
+    assert probe is not None and {cleanup._RUNTIME_LABEL: "true"} in probe[1]
+    assert {cleanup._VALIDATION_LABEL: "postgres"} in probe[1]
     assert cleanup._postgres_recovery_container("databox-polaris-recovery-probe-20260908_214022")
     with pytest.raises(cleanup.CleanupError, match="unknown name"):
         cleanup._discovered_spec("volume", "databox_polaris_recovery_unknown")
