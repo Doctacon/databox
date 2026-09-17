@@ -60,6 +60,29 @@ def test_generated_prefix_must_be_exact() -> None:
             cleanup._validate_generated_prefix(run, invalid)
 
 
+def test_version_inventory_uses_the_iam_bounded_max_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    commands = []
+
+    def checked(command, *, env=None):
+        commands.append(command)
+        return json.dumps({"IsTruncated": False, "Versions": [], "DeleteMarkers": []})
+
+    monkeypatch.setattr(cleanup, "_checked", checked)
+    cleanup._timeline_inventory(
+        "integration/recovery/0123456789abcdef/stage1/warehouse/",
+        {
+            "bucket": "private-bucket",
+            "region": "us-east-1",
+            "expectedOwner": "123456789012",
+        },
+        {},
+    )
+    assert "--max-keys" in commands[0]
+    assert commands[0][commands[0].index("--max-keys") + 1] == "1000"
+
+
 def test_ordinary_delete_command_never_selects_a_version() -> None:
     command = cleanup._aws_delete_command(
         "private-bucket", "private/key", "123456789012", "us-east-1"

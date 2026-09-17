@@ -696,6 +696,8 @@ def _timeline_inventory(
         target["bucket"],
         "--prefix",
         prefix,
+        "--max-keys",
+        "1000",
         "--expected-bucket-owner",
         target["expectedOwner"],
         "--region",
