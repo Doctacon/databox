@@ -18,7 +18,6 @@ from databox.config.sources import SOURCES
 EXPECTED_DOMAIN_EXPORTS = (
     "assets",
     "dlt_asset_keys",
-    "sqlmesh_asset_keys",
     "ingest_job",
     "_build_source",
 )
@@ -49,8 +48,9 @@ def test_every_registered_source_has_a_domain_module(source) -> None:
             f"{source_name}.py must export `{source_name}_dlt_assets` "
             "for smoke + definitions wiring"
         )
-    assert hasattr(module, "daily_pipeline") is source.scheduled
-    assert hasattr(module, "schedule") is source.scheduled
+    assert not hasattr(module, "daily_pipeline")
+    assert not hasattr(module, "schedule")
+    assert not hasattr(module, f"{source_name}_iceberg_refresh")
 
 
 def test_every_domain_module_is_registered() -> None:

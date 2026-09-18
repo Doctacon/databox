@@ -39,9 +39,7 @@ REQUIRED_TEST_FILES = {
         "test_staged_publish.py",
     ),
 }
-REQUIRED_DOMAIN_EXPORTS = frozenset(
-    {"assets", "dlt_asset_keys", "sqlmesh_asset_keys", "asset_checks", "ingest_job"}
-)
+REQUIRED_DOMAIN_EXPORTS = frozenset({"assets", "dlt_asset_keys", "asset_checks", "ingest_job"})
 LEGACY_AUTHORITY_PATHS = (
     "packages/databox-sources/databox_sources/base.py",
     "packages/databox-sources/databox_sources/registry.py",
@@ -603,28 +601,22 @@ def check_source(name: str, sources: Sequence[Source] = SOURCES) -> SourceReport
                             f"execution-time call in {domain_file}"
                         )
 
-                allowed_asset_names = {
-                    dlt_assets_name,
-                    f"{name}_load_status",
-                    f"{name}_iceberg_refresh",
-                }
+                required_asset_names = {dlt_assets_name, f"{name}_load_status"}
                 assets_valid = (
                     len(_top_level_bindings(domain_tree, "assets")) == 1
                     and len(asset_values) == 1
                     and isinstance(asset_values[0], ast.List)
-                    and sum(
-                        isinstance(element, ast.Name) and element.id == dlt_assets_name
+                    and {
+                        element.id
                         for element in asset_values[0].elts
-                    )
-                    == 1
-                    and all(
-                        isinstance(element, ast.Name) and element.id in allowed_asset_names
-                        for element in asset_values[0].elts
-                    )
+                        if isinstance(element, ast.Name)
+                    }
+                    == required_asset_names
+                    and len(asset_values[0].elts) == len(required_asset_names)
                 )
                 if not assets_valid:
                     report.missing.append(
-                        f"assets must list {dlt_assets_name} exactly once in {domain_file}"
+                        f"assets must list only {sorted(required_asset_names)} in {domain_file}"
                     )
 
                 if (
@@ -656,42 +648,12 @@ def check_source(name: str, sources: Sequence[Source] = SOURCES) -> SourceReport
                     f"asset_checks must be assigned a list expression in {domain_file}"
                 )
 
-            sqlmesh_key_values = _assigned_values(domain_tree, "sqlmesh_asset_keys")
-            if (
-                len(_top_level_bindings(domain_tree, "sqlmesh_asset_keys")) != 1
-                or len(sqlmesh_key_values) != 1
-                or not isinstance(sqlmesh_key_values[0], ast.List | ast.ListComp)
-            ):
-                report.missing.append(
-                    f"sqlmesh_asset_keys must be assigned a list expression in {domain_file}"
-                )
-
             daily_bindings = _top_level_bindings(domain_tree, "daily_pipeline")
             schedule_bindings = _top_level_bindings(domain_tree, "schedule")
-            if source.scheduled:
-                daily_values = _assigned_values(domain_tree, "daily_pipeline")
-                if (
-                    len(daily_bindings) != 1
-                    or len(daily_values) != 1
-                    or not _is_dagster_call(daily_values[0], "define_asset_job")
-                ):
-                    report.missing.append(
-                        "scheduled source daily_pipeline must be assigned from "
-                        f"dg.define_asset_job in {domain_file}"
-                    )
-                schedule_values = _assigned_values(domain_tree, "schedule")
-                if (
-                    len(schedule_bindings) != 1
-                    or len(schedule_values) != 1
-                    or not _is_dagster_call(schedule_values[0], "ScheduleDefinition")
-                ):
-                    report.missing.append(
-                        "scheduled source schedule must be assigned from "
-                        f"dg.ScheduleDefinition in {domain_file}"
-                    )
-            elif daily_bindings or schedule_bindings:
+            if daily_bindings or schedule_bindings:
                 report.missing.append(
-                    f"unscheduled source omits daily_pipeline and schedule in {domain_file}"
+                    "source domains must omit daily_pipeline and schedule; "
+                    f"the shared parallel workflow owns recurrence in {domain_file}"
                 )
 
             boundary = _BuilderBoundaryVisitor(f"{name}_source")

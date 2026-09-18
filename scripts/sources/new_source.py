@@ -131,7 +131,6 @@ def ensure_env_stub(name: str, path: Path | None = None) -> bool:
 
 
 def print_next_steps(name: str, verification_profile: str) -> None:
-    title = name.title()
     print(f"\nScaffolded source '{name}'. Next steps:\n")
     print(
         f"  1. Fill in `@dlt.resource`s in "
@@ -147,8 +146,9 @@ def print_next_steps(name: str, verification_profile: str) -> None:
         "transforms/main/models/environmental_observations/ when the CDM changes."
     )
     print(
-        f"  4. Wire the real assets in packages/databox/databox/orchestration/domains/{name}.py; "
-        f"the registry exposes `{title.lower()}.daily_pipeline` / `.schedule` to Definitions."
+        f"  4. Wire the ingestion assets in "
+        f"packages/databox/databox/orchestration/domains/{name}.py; "
+        "the shared parallel workflow owns project-wide transformation, quality, and recurrence."
     )
     if verification_profile == "file_snapshot":
         print(

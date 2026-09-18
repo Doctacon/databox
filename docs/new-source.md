@@ -78,10 +78,8 @@ def _build_source(): ...
 
 assets: list[dg.AssetsDefinition] = []
 dlt_asset_keys: list[dg.AssetKey] = []
-sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []
 ingest_job = dg.define_asset_job(...)
-# Scheduled registry entries also expose daily_pipeline and schedule.
 ```
 
 These empty scaffold exports keep Dagster importable; they do not make the
@@ -89,8 +87,8 @@ source contract-valid. The completed domain must replace them with its real dlt
 asset and must use the one builder for definition-time and execution-time source
 construction.
 
-For source domains, `sqlmesh_asset_keys` normally stays empty. Cross-source CDM
-SQLMesh assets are wired from the analytics/CDM domain after the CDM changes.
+Source domains expose ingestion only. The shared parallel workflow owns the one
+routine schedule and runs project-wide SQLMesh and Soda after ingestion succeeds.
 
 ## Related
 

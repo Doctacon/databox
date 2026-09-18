@@ -13,7 +13,8 @@ task full-refresh
 `task full-refresh` validates the configured Polaris catalog and AWS S3 writer,
 launches every source marked `parallel_refresh=True` concurrently as an
 independent Dagster job, verifies each authoritative Iceberg table and explicit
-`_dlt_load_status`, then invokes native SQLMesh only if every source succeeded.
+`_dlt_load_status`, then runs project-wide native SQLMesh and every Soda contract
+only if the preceding phase succeeded.
 `SOURCE_START`/`SOURCE_END` lines and Dagster run IDs attribute interleaved logs;
 overlap is calculated from timestamps around each source's `dg launch`
 subprocess, proving worker-process overlap while including subprocess startup
@@ -48,7 +49,7 @@ cd transforms/main && ../../.venv/bin/sqlmesh test
 ```
 
 `task verify` uses `DATABOX_SMOKE=1` with the same concurrent Polaris Iceberg
-source path, then restates SQLMesh prod through the native CLI.
+source path, then runs the same project-wide SQLMesh and Soda phases.
 
 ## Protected live integration
 

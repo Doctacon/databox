@@ -15,8 +15,8 @@ packages/databox-sources/databox_sources/<name>/
   └── source.py              # dlt @source / @resource definitions
 
 packages/databox/databox/orchestration/domains/<name>.py
-                             # Source builder and registry-governed Dagster exports;
-                             # recurring sources also expose a schedule
+                             # Source builder and ingestion-only Dagster exports;
+                             # the shared parallel workflow owns recurrence
 ```
 
 SQLMesh implementation happens later, after annotation/ontology/CDM review:
@@ -47,7 +47,7 @@ drift in a finished source.
 |---|---|
 | `source.py` | Anchor file — if this doesn't exist, the source isn't loadable. |
 | `databox.config.sources.SOURCES` | Canonical identity, raw-table inventory, cadence flags, freshness, domain identity, verification profile, and orchestration mode. |
-| `domains/<name>.py` | Exactly one callable source builder and exports matching the orchestration mode. Default sources expose Dagster dlt assets/keys/checks and an independent ingest job; recurring sources also expose a daily job and schedule. Explicit-target sources may expose a manual job only when targets come fail-closed from an explicit modeled dependency. |
+| `domains/<name>.py` | Exactly one callable source builder and exports matching the orchestration mode. Default sources expose Dagster dlt assets/keys/checks and an independent ingest job. Transformation, quality, and recurrence belong to the shared parallel workflow. Explicit-target sources may expose a manual job only when targets come fail-closed from an explicit modeled dependency. |
 | `tests/<name>/` | Profile-required resource, schema, smoke, idempotency, and (for file snapshots) fail-closed replacement coverage. |
 
 Static pinned sources set `scheduled=False`, `parallel_refresh=False`, and the

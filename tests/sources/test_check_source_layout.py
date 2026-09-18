@@ -59,7 +59,7 @@ def _source(
     root: Path,
     name: str = "foo",
     *,
-    scheduled_exports: bool = True,
+    scheduled_exports: bool = False,
     builder_count: int = 1,
     required_exports: bool = True,
     resource_names: tuple[str, ...] = ("records",),
@@ -82,20 +82,14 @@ def _source(
     exports = ""
     if required_exports:
         if explicit_targets:
-            exports = (
-                "assets = []\n"
-                "dlt_asset_keys = []\n"
-                "sqlmesh_asset_keys = []\n"
-                "asset_checks = []\n"
-                "ingest_job = None\n"
-            )
+            exports = "assets = []\ndlt_asset_keys = []\nasset_checks = []\ningest_job = None\n"
         else:
             exports = (
                 f"@dlt_assets(dlt_source=_build_source())\n"
                 f"def {name}_dlt_assets():\n    return _build_source()\n"
-                f"assets = [{name}_dlt_assets]\n"
+                f"{name}_load_status = object()\n"
+                f"assets = [{name}_dlt_assets, {name}_load_status]\n"
                 f"dlt_asset_keys = [spec.key for spec in {name}_dlt_assets.specs]\n"
-                "sqlmesh_asset_keys = []\n"
                 "asset_checks = []\n"
                 "ingest_job = dg.define_asset_job(name='ingest')\n"
             )
@@ -525,9 +519,13 @@ def test_required_domain_exports_are_enforced(tmp_path: Path) -> None:
             "foo_dlt_assets = None",
             "callable domain asset",
         ),
-        ("assets = [foo_dlt_assets]", "assets = None", "assets must list"),
         (
-            "assets = [foo_dlt_assets]",
+            "assets = [foo_dlt_assets, foo_load_status]",
+            "assets = None",
+            "assets must list",
+        ),
+        (
+            "assets = [foo_dlt_assets, foo_load_status]",
             "assets = [foo_dlt_assets, object()]",
             "assets must list",
         ),
@@ -543,24 +541,9 @@ def test_required_domain_exports_are_enforced(tmp_path: Path) -> None:
             "dlt_asset_keys must be a list comprehension",
         ),
         (
-            "sqlmesh_asset_keys = []",
-            "sqlmesh_asset_keys = None",
-            "sqlmesh_asset_keys must be assigned",
-        ),
-        (
             "ingest_job = dg.define_asset_job(name='ingest')",
             "ingest_job = None",
             "ingest_job must be assigned",
-        ),
-        (
-            "daily_pipeline = dg.define_asset_job(name='daily')",
-            "daily_pipeline = None",
-            "daily_pipeline must be assigned",
-        ),
-        (
-            "schedule = dg.ScheduleDefinition(job=daily_pipeline, cron_schedule='0 0 * * *')",
-            "schedule = None",
-            "schedule must be assigned",
         ),
     ],
 )
@@ -575,22 +558,12 @@ def test_dagster_exports_require_executable_ast_shapes(
     assert any(message in item for item in module.check_source("foo", [_entry()]).missing)
 
 
-def test_schedule_exports_must_match_registry_flag(tmp_path: Path) -> None:
+def test_source_domains_must_not_own_recurrence(tmp_path: Path) -> None:
     module = _load_module()
-    scheduled_root = tmp_path / "scheduled"
-    _rebind(module, scheduled_root)
-    _source(scheduled_root, scheduled_exports=False)
-    missing = module.check_source("foo", [_entry(scheduled=True)]).missing
-    assert any("daily_pipeline must be assigned" in item for item in missing)
-    assert any("schedule must be assigned" in item for item in missing)
-
-    static_root = tmp_path / "static"
-    _rebind(module, static_root)
-    _source(static_root, scheduled_exports=True)
-    assert any(
-        "unscheduled source omits" in item
-        for item in module.check_source("foo", [_entry(scheduled=False)]).missing
-    )
+    _rebind(module, tmp_path)
+    _source(tmp_path, scheduled_exports=True)
+    missing = module.check_source("foo", [_entry()]).missing
+    assert any("shared parallel workflow owns recurrence" in item for item in missing)
 
 
 def test_unregistered_source_or_domain_fails(tmp_path: Path) -> None:

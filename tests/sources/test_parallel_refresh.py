@@ -17,6 +17,7 @@ from databox.orchestration.parallel_refresh import (
     WarehouseInspection,
     execute_parallel_refresh,
     inspect_refresh_state,
+    run_soda_prod,
     run_source_dagster_job,
 )
 
@@ -29,7 +30,6 @@ def test_parallel_source_jobs_select_only_dlt_ingestion_assets() -> None:
         selection = str(module.ingest_job.selection)
         assert all(key.to_user_string() in selection for key in module.dlt_asset_keys)
         assert getattr(module, f"{source.name}_load_status_key").to_user_string() in selection
-        assert all(key.to_user_string() not in selection for key in module.sqlmesh_asset_keys)
 
 
 def _skip_real_iceberg_preflight() -> None:
@@ -46,6 +46,62 @@ def _result(source: str, start: float, end: float, returncode: int = 0) -> Sourc
         finished_at="2026-07-09T00:00:01+00:00",
         message="completed" if returncode == 0 else "failed",
     )
+
+
+def test_soda_prod_uses_one_polaris_aware_connection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    import duckdb
+    from databox.orchestration import parallel_refresh
+    from soda_core.contracts.contract_verification import ContractVerificationSession
+    from soda_duckdb.common.data_sources.duckdb_data_source import DuckDBDataSourceImpl
+
+    modeled = tmp_path / "soda/contracts/analytics/platform_health.yaml"
+    raw = tmp_path / "soda/contracts/raw_ebird/taxonomy.yaml"
+    for contract in (modeled, raw):
+        contract.parent.mkdir(parents=True, exist_ok=True)
+        contract.write_text("dataset: databox/schema/table\n")
+
+    events: list[str] = []
+
+    class FakeConnection:
+        def execute(self, sql: str) -> None:
+            events.append(sql)
+
+        def close(self) -> None:
+            events.append("close")
+
+    connection = FakeConnection()
+    fake_settings = SimpleNamespace(
+        database_path=str(tmp_path / "databox.duckdb"),
+        attach_iceberg_to_duckdb=lambda actual: events.append(
+            "attach" if actual is connection else "wrong-connection"
+        ),
+    )
+    monkeypatch.setattr(parallel_refresh, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(parallel_refresh, "settings", fake_settings)
+    monkeypatch.setattr(duckdb, "connect", lambda path: connection)
+    monkeypatch.setattr(
+        DuckDBDataSourceImpl,
+        "from_existing_cursor",
+        lambda actual, name: (actual, name),
+    )
+    monkeypatch.setattr(
+        ContractVerificationSession,
+        "execute",
+        staticmethod(
+            lambda **kwargs: SimpleNamespace(
+                is_failed=False,
+                get_errors_str=lambda: "",
+            )
+        ),
+    )
+
+    run_soda_prod()
+
+    assert events == ["attach", "USE databox", "USE polaris_aws", "close"]
 
 
 def test_parallel_refresh_observes_overlap_then_transforms(
@@ -98,7 +154,7 @@ def test_parallel_refresh_observes_overlap_then_transforms(
             row_counts=(("raw_ebird.recent_observations", 1),),
             main_dlt_relations=(),
         ),
-        evaluation_runner=lambda path, refresh_id: events.append(f"evaluate:{path}:{refresh_id}"),
+        quality_runner=lambda: events.append("quality"),
         preflight_runner=_skip_real_iceberg_preflight,
     )
 
@@ -106,9 +162,7 @@ def test_parallel_refresh_observes_overlap_then_transforms(
     assert "server-stop" not in events
     assert "dedupe" not in events
     assert "cleanup" not in events
-    evaluation_event = next(item for item in events if item.startswith("evaluate:"))
-    assert events.index("transform") < events.index(evaluation_event)
-    assert evaluation_event.startswith(f"evaluate:{tmp_path / 'databox.duckdb'}:parallel_refresh_")
+    assert events.index("transform") < events.index("quality")
     assert result.overlap_pairs
     assert result.deduped == ()
     assert all("DATABOX_QUACK_SHARED_SERVER" not in env for env in seen_environments)
@@ -191,7 +245,7 @@ def test_parallel_refresh_failure_preserves_source_attribution_when_maintenance_
             dedupe_runner=failing_dedupe,
             transform_runner=lambda: events.append("transform"),
             cleanup_runner=failing_cleanup,
-            evaluation_runner=lambda *_: events.append("evaluate"),
+            quality_runner=lambda: events.append("quality"),
             preflight_runner=_skip_real_iceberg_preflight,
         )
 
@@ -253,7 +307,7 @@ def test_parallel_gate_rejects_nonoverlapping_ingest_intervals(tmp_path: Path) -
         )
 
 
-def test_evaluator_failure_propagates_only_after_successful_transform(tmp_path: Path) -> None:
+def test_quality_failure_propagates_only_after_successful_transform(tmp_path: Path) -> None:
     events: list[str] = []
 
     class FakeServer:
@@ -267,11 +321,11 @@ def test_evaluator_failure_propagates_only_after_successful_transform(tmp_path: 
         _ = workdir, env
         return _result(source, 1.0, 2.0)
 
-    def fail_evaluation(*_: str) -> None:
-        events.append("evaluate")
-        raise RuntimeError("evaluation failed")
+    def fail_quality() -> None:
+        events.append("quality")
+        raise RuntimeError("quality failed")
 
-    with pytest.raises(RuntimeError, match="evaluation failed"):
+    with pytest.raises(RuntimeError, match="quality failed"):
         execute_parallel_refresh(
             ["ebird"],
             database_path=str(tmp_path / "databox.duckdb"),
@@ -281,13 +335,13 @@ def test_evaluator_failure_propagates_only_after_successful_transform(tmp_path: 
             cleanup_runner=lambda: None,
             inspection_runner=lambda *_: WarehouseInspection((), ()),
             transform_runner=lambda: events.append("transform"),
-            evaluation_runner=fail_evaluation,
+            quality_runner=fail_quality,
             preflight_runner=_skip_real_iceberg_preflight,
         )
-    assert events == ["transform", "evaluate"]
+    assert events == ["transform", "quality"]
 
 
-def test_transform_failure_never_evaluates_watches(tmp_path: Path) -> None:
+def test_transform_failure_never_runs_quality(tmp_path: Path) -> None:
     events: list[str] = []
 
     class FakeServer:
@@ -315,7 +369,7 @@ def test_transform_failure_never_evaluates_watches(tmp_path: Path) -> None:
             cleanup_runner=lambda: None,
             inspection_runner=lambda *_: WarehouseInspection((), ()),
             transform_runner=fail_transform,
-            evaluation_runner=lambda *_: events.append("evaluate"),
+            quality_runner=lambda: events.append("quality"),
             preflight_runner=_skip_real_iceberg_preflight,
         )
     assert events == ["transform"]
@@ -430,14 +484,5 @@ def test_parallel_refresh_job_is_available_in_dagster_definitions() -> None:
     from databox.orchestration.definitions import defs
 
     assert defs.get_job_def("parallel_iceberg_full_refresh").name == "parallel_iceberg_full_refresh"
-    expected_schedules = {
-        "ebird_daily_pipeline_schedule",
-        "gbif_daily_pipeline_schedule",
-        "xeno_canto_daily_pipeline_schedule",
-        "noaa_daily_pipeline_schedule",
-        "usgs_daily_pipeline_schedule",
-        "usgs_earthquakes_daily_pipeline_schedule",
-        "parallel_iceberg_full_refresh_schedule",
-    }
     schedule_names = {schedule.name for schedule in defs.get_repository_def().schedule_defs}
-    assert schedule_names == expected_schedules
+    assert schedule_names == {"parallel_iceberg_full_refresh_schedule"}

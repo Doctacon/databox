@@ -59,7 +59,7 @@ tasks:
     desc: "Run every Soda contract against the __dev schemas"
     cmds: ["{{.VENV_DIR}}/bin/python scripts/platform/verify_dev.py"]
   full-refresh:
-    desc: "Concurrent Dagster dlt source jobs through Polaris Iceberg, then native SQLMesh — logs to .logs/"
+    desc: "Concurrent Dagster ingestion through Polaris Iceberg, then project-wide SQLMesh and Soda — logs to .logs/"
     env: { DAGSTER_HOME: "{{.USER_WORKING_DIR}}/.dagster" }
     cmds:
       - "./scripts/operations/run-logged.sh full-refresh -- {{.VENV_DIR}}/bin/python scripts/sources/load_dlt_iceberg.py"

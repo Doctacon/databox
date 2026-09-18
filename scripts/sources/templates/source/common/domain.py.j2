@@ -8,9 +8,9 @@ Fill in these obligations before removing that marker:
      `@dlt.source` that yields them.
   2. Build `{{ name }}_dlt_assets` here via `@dlt_assets(...)` (see usgs.py
      for the canonical shape), then populate `dlt_asset_keys`.
-  3. Keep `sqlmesh_asset_keys` empty for source domains; CDM SQLMesh assets
-     are owned by the cross-source CDM model layer after `.schema` review.
-  4. Replace the placeholder jobs/schedule below when the source is real.
+  3. Keep transformation and recurrence out of source domains; the shared
+     parallel workflow owns project-wide SQLMesh, Soda, and scheduling.
+  4. Replace the placeholder ingestion job below when the source is real.
 
 Until then, the empty splats are no-ops for Dagster; the contract checker still
 reports the source as an incomplete scaffold.
@@ -30,7 +30,6 @@ def _build_source() -> t.Any:
 
 assets: list[dg.AssetsDefinition] = []
 dlt_asset_keys: list[dg.AssetKey] = []
-sqlmesh_asset_keys: list[dg.AssetKey] = []
 asset_checks: list[dg.AssetChecksDefinition] = []
 
 ingest_job = dg.define_asset_job(
@@ -38,11 +37,3 @@ ingest_job = dg.define_asset_job(
     selection=dg.AssetSelection.assets(*dlt_asset_keys),
     executor_def=dg.in_process_executor,
 )
-
-daily_pipeline = dg.define_asset_job(
-    name="{{ name }}_daily_pipeline",
-    selection=dg.AssetSelection.assets(*dlt_asset_keys),
-    executor_def=dg.in_process_executor,
-)
-
-schedule = dg.ScheduleDefinition(job=daily_pipeline, cron_schedule="0 6 * * *")

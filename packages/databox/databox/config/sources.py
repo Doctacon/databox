@@ -48,7 +48,7 @@ class Source:
         derived from this source (via `_factories.apply_freshness`).
       analytics_anchor: if True, this source's freshness policy is inherited
         by cross-domain CDM/analytics SQLMesh assets (the slowest upstream wins).
-      scheduled: whether the source has a recurring daily pipeline and schedule.
+      scheduled: whether the source participates in the routine shared schedule.
       parallel_refresh: whether the source participates in the shared full refresh.
       verification_profile: profile enforced by the registry-derived source test contract.
       orchestration_mode: whether Dagster may expose the normal unconfigured

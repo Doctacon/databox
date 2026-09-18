@@ -84,7 +84,7 @@ docker compose --env-file .env -f compose.iceberg.yml up -d
 curl --fail --silent http://127.0.0.1:8182/q/health/ready
 DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
   uv run dg launch --target-path packages/databox --job avonet_ingest
-task full-refresh   # ingest Iceberg raw tables, then build local SQLMesh models
+task full-refresh   # ingest Iceberg, run project-wide SQLMesh, then verify Soda contracts
 ```
 
 AVONET is intentionally excluded from routine refreshes. See the

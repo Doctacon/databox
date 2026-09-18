@@ -54,14 +54,15 @@ Start the local Polaris stack and configure the Polaris/AWS values from
 
 ```bash
 docker compose --env-file .env -f compose.iceberg.yml up -d
-task full-refresh   # all routine sources → Iceberg, then SQLMesh
-task verify         # bounded DATABOX_SMOKE=1 refresh, then SQLMesh
+task full-refresh   # all routine sources → Iceberg → SQLMesh → Soda
+task verify         # bounded DATABOX_SMOKE=1 run through the same chain
 ```
 
 The underlying entrypoint is `scripts/sources/load_dlt_iceberg.py`. It validates
 catalog/storage configuration before launching concurrent Dagster source jobs,
-checks authoritative Iceberg tables and `_dlt_load_status`, and does not run
-SQLMesh after a source failure.
+checks authoritative Iceberg tables and `_dlt_load_status`, then runs
+project-wide SQLMesh and every Soda contract. Source or SQLMesh failures stop
+the chain before quality verification.
 
 For a real integration check without running a durable full refresh, a
 maintainer can manually dispatch `.github/workflows/polaris-iceberg-integration.yaml`

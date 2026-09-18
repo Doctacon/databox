@@ -24,10 +24,11 @@ quality checks, schedules, sensors, and asset-observability workflows. A thin
 jobs, `task full-refresh`) for ergonomics.
 
 ADR-0008 narrows this for the Polaris Iceberg full-refresh path: each eligible
-dlt source still runs as a Dagster asset job, but SQLMesh transformations are
-invoked with the native SQLMesh CLI only after every source and authoritative
-Iceberg load-status inspection succeeds. SQLMesh continues to own its planning,
-state, and restatement semantics directly.
+dlt source still runs as a Dagster asset job, but one shared scheduled workflow
+invokes project-wide SQLMesh through its native CLI only after every source and
+authoritative Iceberg load-status inspection succeeds, then verifies all Soda
+contracts. SQLMesh continues to own its planning, state, and restatement
+semantics directly.
 
 ## Consequences
 
@@ -39,10 +40,11 @@ state, and restatement semantics directly.
   `environmental_observations.fact_weather_observation` depends on
   `environmental_observations.dim_weather_station` and `raw_noaa.daily_weather`,
   end to end, without extra wiring.
-- Soda contracts run as Dagster **asset checks**, gating downstream
-  materialization on quality automatically.
-- Schedules, sensors, and partition backfills are first-class. No
-  cron-on-top-of-CLI duct tape.
+- Soda contracts remain visible as Dagster **asset checks**, and the authoritative
+  refresh also verifies the complete contract inventory after SQLMesh; a quality
+  failure fails the workflow without pretending transformation did not occur.
+- One Dagster schedule owns routine refresh. Individual source ingest jobs remain
+  available for manual repair and backfill without duplicating recurrence.
 
 **Negative:**
 - Dagster is a heavier dependency than Typer. It pulls in a web UI,

@@ -20,13 +20,13 @@ Per-source load observability — most recent dlt load id, completion time, stat
 | `load_id` | `UNKNOWN` | missing (must_be=0) | — |
 | `rows_loaded` | `UNKNOWN` | — | — |
 | `schema_name` | `UNKNOWN` | — | — |
-| `source` | `UNKNOWN` | missing (must_be=0), invalid (valid_values=['ebird', 'gbif', 'xeno_canto', 'noaa', 'usgs', 'usgs_earthquakes'], must_be=0) | — |
+| `source` | `UNKNOWN` | missing (must_be=0), invalid (valid_values=['avonet', 'ebird', 'gbif', 'xeno_canto', 'noaa', 'usgs', 'usgs_earthquakes'], must_be=0) | — |
 | `status` | `UNKNOWN` | missing (must_be=0) | — |
 | `status_label` | `TEXT` | — | — |
 
 ## Table-level checks
 
-- **row_count** — must_be=6
+- **row_count** — must_be=7
 
 ## Lineage
 

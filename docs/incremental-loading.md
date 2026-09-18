@@ -100,9 +100,10 @@ A partitioned Dagster backfill is not wired yet, but each default registered
 source has an independent dlt ingest asset job. `task full-refresh` validates
 Polaris/S3 configuration, runs sources marked `parallel_refresh=True`
 concurrently, verifies registry-declared Iceberg tables and explicit load
-status, then uses the native SQLMesh CLI only after every source succeeds.
-Static AVONET remains an explicit `avonet_ingest` bootstrap job with no daily
-schedule; explicit-target USFWS has no unconfigured ingest job.
+status, then runs project-wide SQLMesh followed by every Soda contract. This is
+the sole routine schedule; source ingest jobs remain available for manual repair
+and backfill. Static AVONET remains an explicit `avonet_ingest` bootstrap job;
+explicit-target USFWS has no unconfigured ingest job.
 
 ## When to rely on merge vs replace
 

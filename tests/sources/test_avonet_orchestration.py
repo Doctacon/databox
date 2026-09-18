@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from databox.config.sources import by_name
@@ -40,21 +39,6 @@ def test_avonet_resource_uses_iceberg_replacement_with_lineage_columns() -> None
     assert resource.write_disposition == "replace"
     assert schema["columns"]["avibase_id"]["primary_key"] is True
     assert tuple(schema["columns"]) == tuple(source._COLUMNS)
-
-
-def test_avonet_refresh_targets_all_local_consumers() -> None:
-    with patch("databox.orchestration.domains.avonet.subprocess.run") as run:
-        avonet.avonet_iceberg_refresh.node_def.compute_fn.decorated_fn(None)
-    assert run.call_count == 2
-    bootstrap_command = run.call_args_list[0].args[0]
-    restate_command = run.call_args_list[1].args[0]
-    for model in (
-        "environmental_observations.dim_bird_species_traits",
-        "analytics.platform_health",
-    ):
-        assert bootstrap_command.count(model) == 1
-        assert restate_command.count(model) == 2
-    assert run.call_args.kwargs["check"] is True
 
 
 def test_avonet_schema_artifacts_match_normalized_resource_and_annotations() -> None:

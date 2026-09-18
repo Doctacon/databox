@@ -1,7 +1,5 @@
 """Parallel refresh orchestration for Polaris-authoritative Iceberg sources."""
 
-import hashlib
-import json
 import os
 import shutil
 import subprocess
@@ -78,7 +76,7 @@ SourceRunner = Callable[[str, Path, Mapping[str, str]], SourceRunResult]
 TransformRunner = Callable[[], None]
 InspectionRunner = Callable[[str, Sequence[str]], WarehouseInspection]
 PreflightRunner = Callable[[], None]
-EvaluationRunner = Callable[[str, str], object]
+QualityRunner = Callable[[], None]
 
 
 def _iso_now() -> str:
@@ -143,6 +141,43 @@ def run_sqlmesh_prod() -> None:
     )
 
 
+def run_soda_prod() -> None:
+    """Verify every committed Soda contract through one Polaris-aware connection."""
+    import duckdb
+    from soda_core.common.yaml import ContractYamlSource
+    from soda_core.contracts.contract_verification import ContractVerificationSession
+    from soda_duckdb.common.data_sources.duckdb_data_source import (  # type: ignore[import-untyped]
+        DuckDBDataSourceImpl,
+    )
+
+    contracts_dir = PROJECT_ROOT / "soda" / "contracts"
+    contracts = sorted([*contracts_dir.rglob("*.yaml"), *contracts_dir.rglob("*.yml")])
+    if not contracts:
+        raise RuntimeError("No Soda contracts found")
+
+    connection = duckdb.connect(settings.database_path)
+    try:
+        settings.attach_iceberg_to_duckdb(connection)
+        datasource = DuckDBDataSourceImpl.from_existing_cursor(connection, name="databox")
+        failures: list[str] = []
+        for contract in contracts:
+            relative = contract.relative_to(PROJECT_ROOT)
+            catalog = "polaris_aws" if relative.parts[2].startswith("raw_") else "databox"
+            connection.execute(f"USE {catalog}")
+            result = ContractVerificationSession.execute(
+                contract_yaml_sources=[ContractYamlSource.from_str(contract.read_text())],
+                data_source_impls=[datasource],
+            )
+            if result.is_failed:
+                failures.append(f"{relative}: {result.get_errors_str()}")
+            else:
+                print(f"SODA_OK contract={relative}", flush=True)
+        if failures:
+            raise RuntimeError("Soda contract verification failed:\n" + "\n".join(failures))
+    finally:
+        connection.close()
+
+
 def validate_iceberg_refresh_config() -> None:
     """Fail before workers start when Polaris or S3 writer config is unavailable."""
     if not settings.aws_s3_bucket:
@@ -197,7 +232,7 @@ def execute_parallel_refresh(
     inspection_runner: InspectionRunner = inspect_refresh_state,
     preflight_runner: PreflightRunner = validate_iceberg_refresh_config,
     run_transform: bool = True,
-    evaluation_runner: EvaluationRunner | None = None,
+    quality_runner: QualityRunner = run_soda_prod,
 ) -> ParallelRefreshResult:
     """Run registered Dagster source jobs concurrently against Polaris Iceberg."""
     _ = server_factory, dedupe_runner, cleanup_runner  # Removed Quack compatibility kwargs.
@@ -271,22 +306,8 @@ def execute_parallel_refresh(
     if run_transform:
         print("PHASE_START phase=sqlmesh", flush=True)
         transform_runner()
-        if evaluation_runner is not None:
-            refresh_payload = [
-                {
-                    "source": item.source,
-                    "started_at": item.started_at,
-                    "finished_at": item.finished_at,
-                }
-                for item in result.sources
-            ]
-            refresh_id = (
-                "parallel_refresh_"
-                + hashlib.sha256(
-                    json.dumps(refresh_payload, sort_keys=True, separators=(",", ":")).encode()
-                ).hexdigest()
-            )
-            evaluation_runner(target, refresh_id)
+        print("PHASE_START phase=soda", flush=True)
+        quality_runner()
     return result
 
 
