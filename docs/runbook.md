@@ -22,15 +22,16 @@ time. Raw data lives in S3-backed Iceberg tables registered by Polaris;
 `data/databox.duckdb` contains the local SQLMesh schemas such as
 `environmental_observations` and `analytics`.
 
-Before refreshing, configure the Polaris client, AWS region, S3 bucket, and
-temporary AWS writer credentials documented in `.env.example`, including the
-session token required by the current Compose stack. `databox_lake` must already
-be provisioned with `s3://<bucket>/warehouse` as its base location and the
-bucket-scoped IAM role, then start `compose.iceberg.yml`.
+Before refreshing, configure the Polaris client, AWS region, S3 bucket, and AWS
+runtime credentials documented in `.env.example`. Leave the session token empty
+for the accepted local long-lived key; provide its paired token for temporary
+OIDC/STS credentials. `databox_lake` must already be provisioned with
+`s3://<bucket>/warehouse` as its base location and the bucket-scoped IAM role,
+then start `compose.iceberg.yml`.
 
 PostgreSQL first reports only basic database liveness. Polaris bootstrap then
 initializes the schema and realm. The one-shot `catalog-backup-readiness` service
-validates complete host-injected short-lived backup credentials, the pgBackRest
+validates the primary runtime AWS credential against the separate pgBackRest
 repository and stanza, a WAL archive round trip, and an existing or newly created
 post-bootstrap full backup. The Polaris API remains stopped when any check fails;
 inspect the backup-readiness service output rather than bypassing protection.
@@ -519,13 +520,17 @@ negative IAM test, cutover, or deletion of private evidence.
 ## Catalog backup and recovery preparation
 
 The PostgreSQL image includes pgBackRest and archives WAL with
-`archive_timeout=300s`. On the host, obtain a short-lived session for the
-dedicated catalog-backup role and set `DATABOX_BACKUP_AWS_ACCESS_KEY_ID`,
-`DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY`, and
-`DATABOX_BACKUP_AWS_SESSION_TOKEN`. Configure the OpenTofu catalog-backup
-output and `PGBACKREST_REPO1_CIPHER_PASS`; never commit or log these runtime
-secrets. The PostgreSQL image does not install AWS CLI or mount host AWS
-profiles. The pgBackRest repository path is intentionally fixed at `/polaris`.
+`archive_timeout=300s`. pgBackRest reuses the primary `DATABOX_AWS_*` runtime
+credential: the local `databox-lake-user` credential has no session token, while
+CI's temporary OIDC credential includes one. The catalog-backup bucket policy
+grants these runtime principals only the bucket/object operations pgBackRest
+requires and denies non-root version deletion and protection changes. Production
+uses repository path `/polaris`; protected CI sets a run/source-isolated path.
+Configure the OpenTofu catalog-backup output and `PGBACKREST_REPO1_CIPHER_PASS`; never
+commit or log runtime secrets. The MFA-protected catalog-backup role remains for
+human recovery and is not injected into routine containers. The PostgreSQL image
+does not install AWS CLI or mount host AWS profiles. The production repository
+path remains `/polaris`.
 Run `task catalog:backup-check` before the weekly `catalog:backup-full` or daily
 `catalog:backup-diff`, and inspect `task catalog:backup-info` after each run. All
 four manual commands execute pgBackRest as the container's `postgres` user.

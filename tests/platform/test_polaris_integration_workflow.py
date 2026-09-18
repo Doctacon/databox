@@ -46,6 +46,16 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
         "integration/${{ github.run_id }}/${{ github.run_attempt }}/${{ matrix.source }}/warehouse"
     )
     assert job["env"]["DATABOX_ICEBERG_WAREHOUSE_PREFIX"] != "warehouse"
+    assert job["env"]["DATABOX_CATALOG_BACKUP_BUCKET"] == (
+        "${{ secrets.DATABOX_CATALOG_BACKUP_BUCKET }}"
+    )
+    assert job["env"]["DATABOX_CATALOG_BACKUP_PATH"] == (
+        "/integration/${{ github.run_id }}/${{ github.run_attempt }}/"
+        "${{ matrix.source }}/catalog-backup"
+    )
+    assert job["env"]["PGBACKREST_REPO1_CIPHER_PASS"] == (
+        "${{ secrets.PGBACKREST_REPO1_CIPHER_PASS }}"
+    )
     assert job["env"]["DATABOX_AWS_REGION"] == "us-west-1"
     assert {key for key in job["env"] if key.startswith(("EBIRD", "NOAA", "XENO"))} == set(
         provider_names
@@ -79,7 +89,9 @@ def test_real_iceberg_integration_is_manual_protected_and_oidc_backed() -> None:
     assert "DATABOX_AWS_REGION=${AWS_REGION}" in generation_step["run"]
     compose = COMPOSE.read_text()
     assert "AWS_SESSION_TOKEN: ${DATABOX_AWS_SESSION_TOKEN:-}" in compose
-    assert "PGBACKREST_REPO1_S3_TOKEN: ${DATABOX_BACKUP_AWS_SESSION_TOKEN:?" in compose
+    assert compose.count("DATABOX_RUNTIME_AWS_SESSION_TOKEN: ${DATABOX_AWS_SESSION_TOKEN:-}") == 2
+    assert compose.count("PGBACKREST_REPO1_PATH: ${DATABOX_CATALOG_BACKUP_PATH:-/polaris}") == 2
+    assert "DATABOX_BACKUP_AWS_" not in compose
     assert "secrets.DATABOX_AWS_ACCESS_KEY_ID" not in WORKFLOW.read_text()
     assert "secrets.DATABOX_AWS_SECRET_ACCESS_KEY" not in WORKFLOW.read_text()
     assert "secrets.DATABOX_POLARIS_" not in WORKFLOW.read_text()
@@ -196,9 +208,6 @@ def _compose_environment(*, primary_session_token: str) -> dict[str, str]:
             "DATABOX_AWS_SESSION_TOKEN": primary_session_token,
             "DATABOX_AWS_REGION": "us-west-1",
             "PGBACKREST_REPO1_CIPHER_PASS": "test-repository-passphrase",
-            "DATABOX_BACKUP_AWS_ACCESS_KEY_ID": "test-backup-key",
-            "DATABOX_BACKUP_AWS_SECRET_ACCESS_KEY": "test-backup-secret",
-            "DATABOX_BACKUP_AWS_SESSION_TOKEN": "test-backup-token",
             "DATABOX_CATALOG_BACKUP_BUCKET": "test-catalog-backups",
         }
     )
@@ -222,21 +231,17 @@ def test_compose_renders_long_lived_and_temporary_primary_credentials(
         primary_session_token
     )
     assert (
-        rendered["services"]["postgres"]["environment"]["PGBACKREST_REPO1_S3_TOKEN"]
-        == "test-backup-token"
+        rendered["services"]["postgres"]["environment"]["DATABOX_RUNTIME_AWS_SESSION_TOKEN"]
+        == primary_session_token
     )
-
-
-def test_compose_still_rejects_missing_backup_session_token() -> None:
-    environment = _compose_environment(primary_session_token="")
-    environment.pop("DATABOX_BACKUP_AWS_SESSION_TOKEN")
-    result = subprocess.run(
-        [*_compose_command(), "-f", str(COMPOSE), "config", "--format", "json"],
-        cwd=ROOT,
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
+    assert (
+        rendered["services"]["postgres"]["environment"]["PGBACKREST_REPO1_S3_KEY"]
+        == "test-primary-key"
     )
-    assert result.returncode != 0
-    assert "DATABOX_BACKUP_AWS_SESSION_TOKEN" in result.stderr
+    assert (
+        rendered["services"]["catalog-backup-readiness"]["environment"][
+            "PGBACKREST_REPO1_S3_KEY_SECRET"
+        ]
+        == "test-primary-secret"
+    )
+    assert rendered["services"]["postgres"]["environment"]["PGBACKREST_REPO1_PATH"] == ("/polaris")

@@ -2105,7 +2105,6 @@ def test_cli_dispatch_and_task_use_existing_recovery_entrypoint() -> None:
         "PGBACKREST_REPO1_CIPHER_PASS",
         "PGBACKREST_REPO1_S3_KEY",
         "PGBACKREST_REPO1_S3_KEY_SECRET",
-        "PGBACKREST_REPO1_S3_TOKEN",
     ),
 )
 def test_readiness_gate_rejects_missing_backup_secret(missing_name: str) -> None:
@@ -2122,7 +2121,6 @@ def test_pgbackrest_wrapper_rejects_partial_credentials_without_printing_values(
         "PATH": os.environ.get("PATH", ""),
         "PGBACKREST_REPO1_CIPHER_PASS": secret_value,
         "PGBACKREST_REPO1_S3_KEY": secret_value,
-        "PGBACKREST_REPO1_S3_KEY_SECRET": secret_value,
     }
     result = subprocess.run(
         ["bash", str(ROOT / "scripts/platform/run-pgbackrest.sh"), "info"],
@@ -2132,7 +2130,7 @@ def test_pgbackrest_wrapper_rejects_partial_credentials_without_printing_values(
         check=False,
     )
     assert result.returncode != 0
-    assert "temporary backup session token" in result.stderr
+    assert "runtime AWS secret key" in result.stderr
     assert secret_value not in result.stdout + result.stderr
 
 
@@ -2260,6 +2258,7 @@ def test_pgbackrest_contract_has_fail_closed_gate_archive_and_retention() -> Non
     assert "pg1-user=polaris" in config
     assert "archive_timeout=300s" in compose
     assert "archive_command" in compose
+    assert compose.count("PGBACKREST_REPO1_PATH: ${DATABOX_CATALOG_BACKUP_PATH:-/polaris}") == 2
     assert 'test: ["CMD-SHELL", "pg_isready -U polaris -d polaris"]' in compose
     assert "catalog-backup-readiness:" in compose
     assert 'command: ["python3", "/opt/databox/catalog-backup-readiness.py"]' in compose
@@ -2284,7 +2283,9 @@ def test_pgbackrest_contract_has_fail_closed_gate_archive_and_retention() -> Non
     assert "DATABOX_AWS_CREDENTIAL_PROCESS" not in compose
     assert "credential-process" not in dockerfile
     assert "awscli" not in dockerfile.lower()
-    assert "PGBACKREST_REPO1_S3_TOKEN" in run_pgbackrest
+    assert "PGBACKREST_REPO1_S3_KEY_SECRET" in run_pgbackrest
+    assert 'if [[ -n "${DATABOX_RUNTIME_AWS_SESSION_TOKEN:-}" ]]' in run_pgbackrest
+    assert "unset PGBACKREST_REPO1_S3_TOKEN" in run_pgbackrest
 
 
 def test_manual_pgbackrest_tasks_run_as_postgres_with_fixed_repository_path() -> None:

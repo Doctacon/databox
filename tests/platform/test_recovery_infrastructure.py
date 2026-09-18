@@ -80,6 +80,19 @@ def test_catalog_backup_bucket_denies_insecure_transport() -> None:
     assert 'values   = ["false"]' in main
 
 
+def test_catalog_backup_bucket_grants_runtime_and_protects_versions() -> None:
+    main = _text("main.tf")
+    variables = _text("variables.tf")
+    assert 'variable "warehouse_runtime_role_arn"' in variables
+    assert 'sid    = "AllowRuntimeBackupBucketAccess"' in main
+    assert 'sid    = "AllowRuntimeBackupObjectAccess"' in main
+    assert '"arn:aws:iam::${var.aws_account_id}:user/databox-lake-user"' in main
+    assert "var.warehouse_runtime_role_arn" in main
+    assert 'sid       = "DenyNonRootVersionDeletion"' in main
+    assert 'actions   = ["s3:DeleteObjectVersion"]' in main
+    assert 'sid    = "DenyNonRootProtectionChanges"' in main
+
+
 def test_only_catalog_backup_permissions_remain() -> None:
     main = _text("main.tf")
     outputs = _text("outputs.tf")
@@ -348,6 +361,13 @@ def test_existing_warehouse_is_root_checked_settings_only_data_source() -> None:
           condition = var.warehouse_bucket != var.catalog_backup_bucket
           error_message = "warehouse_bucket must differ from catalog_backup_bucket."
         }}
+        precondition {{
+          condition = startswith(
+            var.warehouse_runtime_role_arn,
+            "arn:aws:iam::${{var.aws_account_id}}:role/",
+          )
+          error_message = "warehouse_runtime_role_arn must belong to aws_account_id."
+        }}
       }}
     }}"""
     _assert_block_tokens(main, 'data "aws_s3_bucket" "warehouse"', expected)
@@ -459,7 +479,7 @@ def test_warehouse_bucket_is_required_nonempty_input_with_safe_example() -> None
       }
     }"""
     _assert_block_tokens(variables, 'variable "warehouse_bucket"', expected)
-    assert 'warehouse_bucket      = "replace-existing-warehouse-bucket"' in example
+    assert 'warehouse_bucket           = "replace-existing-warehouse-bucket"' in example
     assert 'aws_profile           = "replace-root-backed-profile"' in example
 
 

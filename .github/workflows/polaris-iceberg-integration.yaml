@@ -25,6 +25,9 @@ jobs:
     env:
       DATABOX_AWS_S3_BUCKET: ${{ secrets.DATABOX_AWS_S3_BUCKET }}
       DATABOX_ICEBERG_WAREHOUSE_PREFIX: integration/${{ github.run_id }}/${{ github.run_attempt }}/${{ matrix.source }}/warehouse
+      DATABOX_CATALOG_BACKUP_BUCKET: ${{ secrets.DATABOX_CATALOG_BACKUP_BUCKET }}
+      DATABOX_CATALOG_BACKUP_PATH: /integration/${{ github.run_id }}/${{ github.run_attempt }}/${{ matrix.source }}/catalog-backup
+      PGBACKREST_REPO1_CIPHER_PASS: ${{ secrets.PGBACKREST_REPO1_CIPHER_PASS }}
       DATABOX_AWS_REGION: us-west-1
       EBIRD_API_TOKEN: ${{ secrets.EBIRD_API_TOKEN }}
       NOAA_API_TOKEN: ${{ secrets.NOAA_API_TOKEN }}

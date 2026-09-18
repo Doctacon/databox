@@ -33,6 +33,19 @@ variable "catalog_backup_bucket" {
   type        = string
 }
 
+variable "warehouse_runtime_role_arn" {
+  description = "Existing warehouse runtime role that also needs pgBackRest repository access in CI."
+  type        = string
+
+  validation {
+    condition = can(regex(
+      "^arn:aws:iam::[0-9]{12}:role/[A-Za-z0-9+=,.@_/-]+$",
+      var.warehouse_runtime_role_arn,
+    ))
+    error_message = "warehouse_runtime_role_arn must be an IAM role ARN."
+  }
+}
+
 variable "warehouse_bucket" {
   description = "Existing warehouse bucket protected by root-only retention controls."
   type        = string

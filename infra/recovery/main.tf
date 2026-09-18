@@ -42,6 +42,79 @@ data "aws_iam_policy_document" "catalog_backup" {
       values   = ["false"]
     }
   }
+
+  statement {
+    sid    = "AllowRuntimeBackupBucketAccess"
+    effect = "Allow"
+    actions = [
+      "s3:GetBucketLocation",
+      "s3:ListBucket",
+    ]
+    resources = [aws_s3_bucket.catalog_backup.arn]
+    principals {
+      type = "AWS"
+      identifiers = [
+        "arn:aws:iam::${var.aws_account_id}:user/databox-lake-user",
+        var.warehouse_runtime_role_arn,
+      ]
+    }
+  }
+
+  statement {
+    sid    = "AllowRuntimeBackupObjectAccess"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:AbortMultipartUpload",
+    ]
+    resources = ["${aws_s3_bucket.catalog_backup.arn}/*"]
+    principals {
+      type = "AWS"
+      identifiers = [
+        "arn:aws:iam::${var.aws_account_id}:user/databox-lake-user",
+        var.warehouse_runtime_role_arn,
+      ]
+    }
+  }
+
+  statement {
+    sid       = "DenyNonRootVersionDeletion"
+    effect    = "Deny"
+    actions   = ["s3:DeleteObjectVersion"]
+    resources = ["${aws_s3_bucket.catalog_backup.arn}/*"]
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "ArnNotEquals"
+      variable = "aws:PrincipalArn"
+      values   = ["arn:aws:iam::${var.aws_account_id}:root"]
+    }
+  }
+
+  statement {
+    sid    = "DenyNonRootProtectionChanges"
+    effect = "Deny"
+    actions = [
+      "s3:PutBucketVersioning",
+      "s3:PutLifecycleConfiguration",
+      "s3:PutBucketPolicy",
+      "s3:DeleteBucketPolicy",
+    ]
+    resources = [aws_s3_bucket.catalog_backup.arn]
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "ArnNotEquals"
+      variable = "aws:PrincipalArn"
+      values   = ["arn:aws:iam::${var.aws_account_id}:root"]
+    }
+  }
 }
 
 resource "aws_s3_bucket_policy" "catalog_backup" {
@@ -79,6 +152,14 @@ data "aws_s3_bucket" "warehouse" {
     precondition {
       condition     = var.warehouse_bucket != var.catalog_backup_bucket
       error_message = "warehouse_bucket must differ from catalog_backup_bucket."
+    }
+
+    precondition {
+      condition = startswith(
+        var.warehouse_runtime_role_arn,
+        "arn:aws:iam::${var.aws_account_id}:role/",
+      )
+      error_message = "warehouse_runtime_role_arn must belong to aws_account_id."
     }
   }
 }
