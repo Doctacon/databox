@@ -101,7 +101,7 @@ def test_soda_prod_uses_one_polaris_aware_connection(
 
     run_soda_prod()
 
-    assert events == ["attach", "USE databox", "USE polaris_aws", "close"]
+    assert events == ["attach", "USE databox", "USE polaris_aws.raw_ebird", "close"]
 
 
 def test_parallel_refresh_observes_overlap_then_transforms(

@@ -27,7 +27,7 @@ test_dim_species:
         region: US-AZ
         order: 1001
         _loaded_at: '2025-07-20T09:00:00+00:00'
-    raw_gbif.occurrences:
+    polaris_aws.raw_gbif.occurrences:
       rows:
       - key: 9001
         accepted_taxon_key: 12345
@@ -243,7 +243,7 @@ test_fact_bird_occurrence:
         species_natural_key: cardinalis cardinalis
         source_pipeline: ebird_api
         source_id: norcar
-    raw_gbif.occurrences:
+    polaris_aws.raw_gbif.occurrences:
       rows:
       - key: 9001
         gbif_id: '9001'
@@ -511,7 +511,7 @@ test_fact_bird_occurrence_blank_name_fallbacks:
         species_natural_key: null
         source_pipeline: gbif_api
         source_id: '9011'
-    raw_gbif.occurrences:
+    polaris_aws.raw_gbif.occurrences:
       columns:
         key: bigint
         gbif_id: text

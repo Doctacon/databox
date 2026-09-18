@@ -162,8 +162,11 @@ def run_soda_prod() -> None:
         failures: list[str] = []
         for contract in contracts:
             relative = contract.relative_to(PROJECT_ROOT)
-            catalog = "polaris_aws" if relative.parts[2].startswith("raw_") else "databox"
-            connection.execute(f"USE {catalog}")
+            schema = relative.parts[2]
+            # Iceberg catalogs do not have DuckDB's implicit `main` schema, so
+            # selecting only `polaris_aws` fails before the first raw contract.
+            target = f"polaris_aws.{schema}" if schema.startswith("raw_") else "databox"
+            connection.execute(f"USE {target}")
             result = ContractVerificationSession.execute(
                 contract_yaml_sources=[ContractYamlSource.from_str(contract.read_text())],
                 data_source_impls=[datasource],
