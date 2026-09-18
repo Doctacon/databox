@@ -69,19 +69,6 @@ through the protected `polaris-iceberg-integration` environment. Its six jobs
 use GitHub OIDC and isolated `integration/` prefixes; ordinary CI never runs it.
 See [CI routing](ci.md#protected-live-integration).
 
-Export the bounded local data product consumed by Rufous after a successful
-refresh. The exporter attaches Polaris read-only, filters observations to the
-reviewed public-safe subset, and atomically replaces the output:
-
-```bash
-uv run python scripts/platform/export_rufous_product.py \
-  --output build/rufous-inputs-v1.duckdb
-```
-
-Rufous pins `databox-sources` by an immutable repository Git tag or commit and uses
-only the documented `databox_sources.usfws` public interface for explicit-target
-USFWS extraction.
-
 ## Dagster (beyond `dagster:dev` / `full-refresh` / `verify`)
 
 ```bash

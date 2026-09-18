@@ -58,7 +58,6 @@ nav:
       - Home: index.md
       - Configuration: configuration.md
       - Commands: commands.md
-      - Data-product boundary: data-product-boundary.md
   - Warehouse:
       - Data dictionary:
           - Overview: dictionary/index.md

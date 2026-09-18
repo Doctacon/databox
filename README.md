@@ -12,19 +12,10 @@ workflow with Dagster—without always-on infrastructure.
 ## Platform boundary
 
 Databox owns reusable source ingestion, Polaris/Iceberg raw authority, generic
-environmental models, platform health, and bounded versioned DuckDB artifacts.
+environmental models, platform health, and reusable source-quality controls.
 Its canonical registry contains seven sources: six routine refresh sources plus
 the explicit pinned AVONET snapshot. The public `databox_sources.usfws`
 interface is provider-only and requires caller-owned targets.
-
-The standalone [Rufous](https://github.com/Doctacon/rufous) birding application
-consumes the twelve-relation `rufous_inputs_v1` artifact read-only and keeps its
-application state, product models, APIs, media workflows, web app, and
-deployment in its own repository. Databox does not launch or deploy Rufous, and
-Rufous production remains disabled pending separate authorization.
-
-See the [data-product boundary](docs/data-product-boundary.md) and
-[artifact exporter](scripts/platform/export_rufous_product.py).
 
 ```mermaid
 flowchart LR
@@ -94,7 +85,6 @@ curl --fail --silent http://127.0.0.1:8182/q/health/ready
 DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
   uv run dg launch --target-path packages/databox --job avonet_ingest
 task full-refresh   # ingest Iceberg raw tables, then build local SQLMesh models
-uv run python scripts/platform/export_rufous_product.py  # optional consumer artifact
 ```
 
 AVONET is intentionally excluded from routine refreshes. See the

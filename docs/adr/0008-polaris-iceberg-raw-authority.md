@@ -43,8 +43,8 @@ metadata backend run locally through `compose.iceberg.yml`.
 - Local Polaris PostgreSQL contains catalog authority and must be preserved or
   backed up; S3 files alone are not a complete catalog recovery strategy.
 - Refresh requires Polaris, S3, and writer credentials.
-- Off-machine consumers cannot use the local catalog. Public Rufous production
-  remains paused until its release path is separately designed.
+- Off-machine consumers cannot use the local catalog; any future publication
+  path must be designed and operated separately.
 
 **Neutral:**
 

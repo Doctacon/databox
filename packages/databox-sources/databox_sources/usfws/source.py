@@ -1,8 +1,8 @@
 """USFWS image metadata ingestion for caller-supplied bird species.
 
 The source deliberately preserves search and media-page metadata without
-applying a license policy. Commercial-use eligibility is a publication concern
-implemented by ``rufous_public.usfws_commercial_image``.
+applying a license policy. Commercial-use eligibility remains a downstream
+publication concern.
 
 API: https://www.fws.gov/fws_search/search_images
 Media pages: https://www.fws.gov/media/{slug}

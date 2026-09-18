@@ -61,7 +61,10 @@ scaffold does not invent integrity values. AVONET publishes the validated full
 snapshot directly through dlt as a Polaris-managed Iceberg replacement; the
 committed Iceberg snapshot is the atomic publication boundary.
 
-Provider-only packages that require caller-owned targets are intentionally absent from Databox orchestration. The public `databox_sources.usfws` interface remains available to consumers, while target derivation and every target-bearing run belong to Rufous.
+Provider-only packages that require caller-owned targets are intentionally absent
+from Databox orchestration. The public `databox_sources.usfws` interface remains
+available to consumers, while each caller owns target derivation and every
+target-bearing run.
 
 ## Adding model behavior
 
