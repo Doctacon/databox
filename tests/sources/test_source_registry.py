@@ -11,7 +11,8 @@ import pkgutil
 
 import dagster as dg
 import pytest
-from databox.config.settings import settings
+import yaml
+from databox.config.settings import PROJECT_ROOT, settings
 from databox.config.sources import SOURCES
 
 EXPECTED_DOMAIN_EXPORTS = (
@@ -130,6 +131,22 @@ def test_nonrecurring_sources_are_not_scheduled_or_parallel() -> None:
     assert set(nonrecurring) == {"avonet"}
     assert all(source.scheduled is False for source in nonrecurring.values())
     assert all(source.parallel_refresh is False for source in nonrecurring.values())
+
+
+def test_platform_health_contract_matches_registered_sources() -> None:
+    contract = yaml.safe_load(
+        (PROJECT_ROOT / "soda/contracts/analytics/platform_health.yaml").read_text()
+    )
+    source_column = next(column for column in contract["columns"] if column["name"] == "source")
+    invalid_check = next(
+        check["invalid"] for check in source_column["checks"] if "invalid" in check
+    )
+    row_count_check = next(
+        check["row_count"] for check in contract["checks"] if "row_count" in check
+    )
+
+    assert set(invalid_check["valid_values"]) == {source.name for source in SOURCES}
+    assert row_count_check["must_be"] == len(SOURCES)
 
 
 def test_platform_health_load_status_dependencies_are_materializable_assets() -> None:

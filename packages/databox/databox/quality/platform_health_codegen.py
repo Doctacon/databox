@@ -1,14 +1,12 @@
 """Codegen for `transforms/main/models/analytics/platform_health.sql`.
 
-The model is a fan-out over standard parallel-refresh members in
+The model is a fan-out over authoritative members in
 `databox.config.sources.SOURCES`: one `*_loads` CTE per source (joined via UNION
 ALL) and one `*_rows` CTE per source that sums dlt-load row counts across that
-source's raw tables. Explicit static/bootstrap jobs are excluded because their
-raw schema may legitimately be absent from a normal full refresh.
+source's raw tables. This includes independently bootstrapped sources such as
+AVONET so platform health covers the complete authoritative registry.
 
-Keeping this hand-written would mean that adding a fifth source requires two
-edit sites (registry + SQL). The codegen resolves that by making the registry
-the sole declaration site.
+The codegen makes the registry the sole declaration site for the generated SQL.
 """
 
 from __future__ import annotations
