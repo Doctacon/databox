@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.11.0](https://github.com/Doctacon/databox/compare/v0.10.0...v0.11.0) (2026-09-19)
+
+
+### Features
+
+* add bounded joint recovery drill ([9449a0d](https://github.com/Doctacon/databox/commit/9449a0d4fa9a914e5a822ffc3ed38a8e1977c343))
+* add bounded recovery cleanup ([119bd35](https://github.com/Doctacon/databox/commit/119bd35310f6dce1a9e599f6200df4ea305c137a))
+* add warehouse recovery protections and drills ([be1c6a9](https://github.com/Doctacon/databox/commit/be1c6a974a7cd3fdc9663f06f0a97384db1d2e84))
+* migrate SQLMesh production outputs to Trino Iceberg ([3c6c302](https://github.com/Doctacon/databox/commit/3c6c3021b8df0b3b380838c424e94d270061a2d0))
+* prove deployed catalog recovery ([5e59625](https://github.com/Doctacon/databox/commit/5e596254ddffa50188bff7063ef71b5124be130f))
+* validate retained joint recovery ([8e26d4e](https://github.com/Doctacon/databox/commit/8e26d4ec61e93d13f444ce07a7be6f7aa829a129))
+
+
+### Bug Fixes
+
+* accept exact promoted object copies ([5c3daf8](https://github.com/Doctacon/databox/commit/5c3daf88bac0dbc32137196e438df071b0445c19))
+* align cleanup inventory with IAM bounds ([db7f7a3](https://github.com/Doctacon/databox/commit/db7f7a3c99192bb1477472ed734f49d6a5211f07))
+* align platform health source contract ([c6d89d8](https://github.com/Doctacon/databox/commit/c6d89d890716404e306b38831366b0f20b2b5601))
+* contain failed joint recovery ([a49355b](https://github.com/Doctacon/databox/commit/a49355b1253b8fa74e8a81847ff768a251b95620))
+* enforce authoritative raw catalogs ([3b8aaca](https://github.com/Doctacon/databox/commit/3b8aacaa67a44efa5e7e146bb6ddfaf28b354b94))
+* recognize legacy recovery ownership ([04e820a](https://github.com/Doctacon/databox/commit/04e820addc21ea14dc97d94e861f2baa7a15d38a))
+* reconcile transient catalog responses ([221e090](https://github.com/Doctacon/databox/commit/221e09056dee616b58c83e5e085e0d7236a2d384))
+* restart Polaris after catalog backup ([9c87ec8](https://github.com/Doctacon/databox/commit/9c87ec8c7494a759e0f3c031be27a2f28ee00529))
+* restore green repository consistency ([335cf53](https://github.com/Doctacon/databox/commit/335cf5398c6289faa7a01fe370e4fda9d76880bc))
+* stabilize cleanup network identity ([59f0fe8](https://github.com/Doctacon/databox/commit/59f0fe8b3a4c80eac8de4466d753cf62a425d717))
+* use runtime identity for catalog backups ([a2b008f](https://github.com/Doctacon/databox/commit/a2b008f4121432097764dbedc03ecbe59e98d334))
+* validate refreshed Iceberg data ([3c80b1a](https://github.com/Doctacon/databox/commit/3c80b1ab2d20d0620963f5f4ba3911988432b1d4))
+* validate retained Docker attachments ([a80a53e](https://github.com/Doctacon/databox/commit/a80a53e07ccbeae859000130609e82b9b91db4b4))
+
+
+### Documentation
+
+* journal warehouse record recovery and branch ownership ([ba6a6d2](https://github.com/Doctacon/databox/commit/ba6a6d2ab845fce2d3fd8248f83bbeedfce46c50))
+* record completed recovery cleanup ([4c585ae](https://github.com/Doctacon/databox/commit/4c585ae8f3fb55aa06db0b7003b66cf990087292))
+* recover warehouse object-version protection records ([7d40287](https://github.com/Doctacon/databox/commit/7d402878addf2dc1585e499b1809c4e1cbddbd49))
+
+
+### Refactoring
+
+* consolidate routine refresh workflow ([30b9010](https://github.com/Doctacon/databox/commit/30b901085d7840f81e746a6965e2e48b86ebe8da))
+* remove Rufous artifact boundary ([9690875](https://github.com/Doctacon/databox/commit/9690875ef4f710cc62f87017787c13b8c704e665))
+
 ## [0.10.0](https://github.com/Doctacon/databox/compare/v0.9.0...v0.10.0) (2026-09-04)
 
 
