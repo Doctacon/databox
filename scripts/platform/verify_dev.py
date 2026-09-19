@@ -17,8 +17,10 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
 from databox.config.settings import settings
+from databox.quality.verification import create_soda_data_source
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONTRACTS_DIR = PROJECT_ROOT / "soda" / "contracts"
@@ -50,16 +52,35 @@ def main() -> int:
         print("no Soda contracts found", file=sys.stderr)
         return 2
 
-    datasource_yaml = settings.soda_datasource_yaml
+    local_verification_kwargs: dict[str, Any] = {}
+    if settings.gateway != "trino":
+        local_verification_kwargs = {
+            "data_source_yaml_sources": [
+                DataSourceYamlSource.from_str(settings.soda_datasource_yaml)
+            ]
+        }
     failures: list[tuple[Path, str]] = []
 
     for contract in contracts:
         original = contract.read_text()
         rewritten = rewrite_for_dev(original)
-        result = ContractVerificationSession.execute(
-            contract_yaml_sources=[ContractYamlSource.from_str(rewritten)],
-            data_source_yaml_sources=[DataSourceYamlSource.from_str(datasource_yaml)],
-        )
+        datasource = None
+        if settings.gateway == "trino":
+            schema = contract.relative_to(CONTRACTS_DIR).parts[0]
+            catalog = "polaris_aws" if schema.startswith("raw_") else "databox"
+            datasource = create_soda_data_source(settings, catalog=catalog)
+            verification_kwargs = {"data_source_impls": [datasource]}
+        else:
+            verification_kwargs = local_verification_kwargs
+        try:
+            result = ContractVerificationSession.execute(
+                contract_yaml_sources=[ContractYamlSource.from_str(rewritten)],
+                **verification_kwargs,
+            )
+        finally:
+            if datasource is not None:
+                # Soda closes opened implementations; this also covers parse failures.
+                datasource.close_connection()
         if result.is_failed:
             failures.append((contract, result.get_errors_str()))
             print(f"FAIL {contract.relative_to(PROJECT_ROOT)}")

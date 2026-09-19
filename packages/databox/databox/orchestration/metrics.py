@@ -13,7 +13,7 @@ Example:
         "SELECT observation_date, METRIC(species_richness) AS sr "
         "FROM __semantic.__table GROUP BY observation_date"
     )
-    # -> ready-to-execute DuckDB SQL against
+    # -> ready-to-execute SQL for the configured gateway against
     #    environmental_observations.fact_bird_observation
 
 The single source of truth for metric definitions is
@@ -44,7 +44,7 @@ def available_metrics() -> list[str]:
     return sorted(_context()._metrics.keys())
 
 
-def resolve_metric_query(sql: str, dialect: str = "duckdb") -> str:
+def resolve_metric_query(sql: str, dialect: str | None = None) -> str:
     """Rewrite a metric-aware query into executable SQL.
 
     The query should reference metrics via ``METRIC(<name>)`` and select from
@@ -52,6 +52,7 @@ def resolve_metric_query(sql: str, dialect: str = "duckdb") -> str:
     underlying mart and expands each ``METRIC(...)`` into its registered SQL
     expression.
     """
+    dialect = dialect or ("trino" if settings.gateway == "trino" else "duckdb")
     ctx = _context()
     graph = ReferenceGraph(ctx._models.values())
     rewritten = _metric_rewrite(sql, graph=graph, metrics=ctx._metrics, dialect=dialect)

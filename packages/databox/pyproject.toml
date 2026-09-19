@@ -15,8 +15,9 @@ dependencies = [
     "dagster-dlt>=0.1.0",
     "dlt[duckdb,filesystem,pyiceberg]==1.30.0",
     "duckdb==1.5.4",
-    "sqlmesh>=0.204.0",
+    "sqlmesh[trino]>=0.204.0",
     "dagster-sqlmesh==0.22.0",
+    "soda-trino>=3.0.0",
 ]
 
 [project.optional-dependencies]

@@ -71,7 +71,12 @@ def test_moved_sqlmesh_scripts_resolve_the_repository_root(
     )
     sqlmesh.chmod(0o755)
     python = bin_dir / "python"
-    python.write_text("#!/usr/bin/env bash\nexit 1\n", encoding="utf-8")
+    python.write_text(
+        "#!/usr/bin/env bash\n"
+        'if [[ "$1" == "-c" ]]; then echo "$PWD/data/sqlmesh_trino_state.duckdb"; exit 0; fi\n'
+        "exit 1\n",
+        encoding="utf-8",
+    )
     python.chmod(0o755)
 
     capture = tmp_path / "sqlmesh-invocations.tsv"

@@ -17,7 +17,7 @@ SELECT
   num_checklists,
   num_contributors,
   num_species,
-  _loaded_at::TIMESTAMP AS loaded_at,
+  _loaded_at::TIMESTAMP(6) AS loaded_at,
   _dlt_load_id AS dlt_load_id,
   _dlt_id AS dlt_id
 FROM polaris_aws.raw_ebird.region_stats

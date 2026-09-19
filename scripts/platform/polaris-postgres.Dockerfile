@@ -1,3 +1,5 @@
+# Keep the libc/locale family stable for an existing PGDATA volume.
+# Alpine -> Bookworm requires rebuilding collated indexes; see docs/runbook.md.
 FROM postgres:17.6-bookworm
 
 ARG PGBACKREST_VERSION=2.59.1

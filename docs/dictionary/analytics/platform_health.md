@@ -15,7 +15,7 @@ Per-source load observability — most recent dlt load id, completion time, stat
 
 | Column | Type | Checks | Notes |
 | --- | --- | --- | --- |
-| `age` | `UNKNOWN` | — | — |
+| `age_seconds` | `BIGINT` | — | Elapsed seconds since completion |
 | `completed_at` | `UNKNOWN` | missing (must_be=0) | — |
 | `load_id` | `UNKNOWN` | missing (must_be=0) | — |
 | `rows_loaded` | `UNKNOWN` | — | — |

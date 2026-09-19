@@ -19,7 +19,7 @@ WITH ebird_taxonomy_ranked AS (
     report_as,
     extinct,
     extinct_year,
-    _loaded_at::TIMESTAMP AS loaded_at,
+    _loaded_at::TIMESTAMP(6) AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY species_code ORDER BY _loaded_at DESC) AS rn
   FROM polaris_aws.raw_ebird.taxonomy
   WHERE species_code IS NOT NULL
@@ -29,7 +29,7 @@ ebird_species_list_ranked AS (
     species_code,
     region,
     "order"::DOUBLE AS taxonomic_order,
-    _loaded_at::TIMESTAMP AS loaded_at,
+    _loaded_at::TIMESTAMP(6) AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY species_code ORDER BY _loaded_at DESC) AS rn
   FROM polaris_aws.raw_ebird.species_list
   WHERE species_code IS NOT NULL
@@ -82,7 +82,23 @@ ebird_species_all AS (
   WHERE t.rn = 1 AND s.species_code IS NULL
 ),
 ebird_species AS (
-  SELECT * EXCLUDE (rn)
+  SELECT
+    conformed_key,
+    species_natural_key,
+    source_id,
+    species_code,
+    common_name,
+    scientific_name,
+    taxonomic_order,
+    taxonomic_category,
+    family_code,
+    family_common_name,
+    family_scientific_name,
+    report_as,
+    extinct,
+    extinct_year,
+    region,
+    loaded_at
   FROM (
     SELECT
       *,
@@ -127,7 +143,7 @@ gbif_ranked AS (
     taxon_key,
     accepted_taxon_key,
     _query_state_province AS region,
-    _loaded_at::TIMESTAMP AS loaded_at,
+    _loaded_at::TIMESTAMP(6) AS loaded_at,
     ROW_NUMBER() OVER (
       PARTITION BY COALESCE(
         NULLIF(LOWER(TRIM(regexp_replace(TRIM(gbif_scientific_name), '\s*\([^)]*\)\s*$', ''))), ''),
@@ -181,7 +197,7 @@ xeno_ranked AS (
     quality,
     recording_url,
     audio_file_url,
-    _loaded_at::TIMESTAMP AS loaded_at,
+    _loaded_at::TIMESTAMP(6) AS loaded_at,
     COUNT(*) OVER (
       PARTITION BY COALESCE(
         CASE

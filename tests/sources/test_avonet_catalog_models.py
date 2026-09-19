@@ -78,7 +78,7 @@ def test_duplicate_normalized_avonet_keys_fail_even_when_unmatched() -> None:
                 ('Duplicate bird (Author)', 'AVIBASE-TWO', 'load', 'two')
             """
         )
-        with pytest.raises(duckdb.InvalidInputException, match="must be unique"):
+        with pytest.raises(duckdb.ConversionException, match="must be unique"):
             connection.execute(_model_query()).fetchall()
     finally:
         connection.close()
@@ -101,7 +101,7 @@ def test_multiple_conformed_species_rows_for_one_trait_fail() -> None:
                 ('species-two', 'exact bird', 'gbif_api')
             """
         )
-        with pytest.raises(duckdb.InvalidInputException, match="one row per conformed species"):
+        with pytest.raises(duckdb.ConversionException, match="one row per conformed species"):
             connection.execute(_model_query()).fetchall()
     finally:
         connection.close()

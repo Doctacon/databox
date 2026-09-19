@@ -14,7 +14,7 @@ WITH observations AS (
     sci_name,
     loc_id,
     loc_name,
-    obs_dt::TIMESTAMP AS observation_datetime,
+    obs_dt::TIMESTAMP(6) AS observation_datetime,
     how_many,
     lat::DOUBLE AS latitude,
     lng::DOUBLE AS longitude,
@@ -24,7 +24,7 @@ WITH observations AS (
     _region_code,
     FALSE AS is_notable,
     exotic_category,
-    _loaded_at::TIMESTAMP AS loaded_at,
+    _loaded_at::TIMESTAMP(6) AS loaded_at,
     _dlt_load_id,
     _dlt_id
   FROM polaris_aws.raw_ebird.recent_observations
@@ -40,7 +40,7 @@ WITH observations AS (
     sci_name,
     loc_id,
     loc_name,
-    obs_dt::TIMESTAMP AS observation_datetime,
+    obs_dt::TIMESTAMP(6) AS observation_datetime,
     how_many,
     lat::DOUBLE AS latitude,
     lng::DOUBLE AS longitude,
@@ -50,7 +50,7 @@ WITH observations AS (
     _region_code,
     TRUE AS is_notable,
     exotic_category,
-    _loaded_at::TIMESTAMP AS loaded_at,
+    _loaded_at::TIMESTAMP(6) AS loaded_at,
     _dlt_load_id,
     _dlt_id
   FROM polaris_aws.raw_ebird.notable_observations

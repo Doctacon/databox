@@ -63,7 +63,7 @@ SELECT
   r._source_url AS source_url,
   r._query AS query,
   r._query_page AS query_page,
-  r._loaded_at::TIMESTAMP AS loaded_at,
+  r._loaded_at::TIMESTAMP(6) AS loaded_at,
   r._dlt_load_id AS dlt_load_id,
   r._dlt_id AS dlt_id
 FROM ranked r

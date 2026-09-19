@@ -17,7 +17,7 @@ WITH ranked AS (
     maxdate::DATE AS max_date,
     datacoverage::DOUBLE AS data_coverage,
     _location_id AS location_id,
-    _loaded_at::TIMESTAMP AS loaded_at,
+    _loaded_at::TIMESTAMP(6) AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY id ORDER BY _loaded_at DESC) AS rn
   FROM polaris_aws.raw_noaa.stations
   WHERE id IS NOT NULL

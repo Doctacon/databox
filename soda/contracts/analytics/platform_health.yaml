@@ -23,7 +23,7 @@ columns:
       - missing:
           must_be: 0
   - name: rows_loaded
-  - name: age
+  - name: age_seconds
 
 checks:
   - row_count:

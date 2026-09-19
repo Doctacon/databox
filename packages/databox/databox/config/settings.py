@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -107,9 +107,18 @@ class DataboxSettings(BaseSettings):
             + "/api/catalog', SECRET polaris_aws)"
         )
 
+    sqlmesh_gateway: Literal["local", "trino"] = Field(
+        default="local", alias="DATABOX_SQLMESH_GATEWAY"
+    )
+
     @property
     def gateway(self) -> str:
-        return "local"
+        return self.sqlmesh_gateway
+
+    @property
+    def sqlmesh_state_path(self) -> str:
+        name = "sqlmesh_trino_state.duckdb" if self.gateway == "trino" else "sqlmesh_state.duckdb"
+        return str(DATA_DIR / name)
 
     @property
     def database_path(self) -> str:
@@ -130,14 +139,21 @@ class DataboxSettings(BaseSettings):
     def soda_datasource_yaml(self) -> str:
         return f"name: databox\ntype: duckdb\nconnection:\n  database: {self.database_path}\n"
 
+    trino_iceberg_catalog: str = Field(
+        default="databox_analytics", alias="DATABOX_TRINO_ICEBERG_CATALOG"
+    )
+    trino_host: str = Field(default="127.0.0.1", alias="DATABOX_TRINO_HOST")
+    trino_port: int = Field(default=8081, alias="DATABOX_TRINO_PORT")
+
     def sqlmesh_config(self) -> Any:
-        """Build the single local SQLMesh gateway configuration."""
+        """Build the local gateway and opt-in Trino Iceberg migration gateway."""
         from sqlmesh.core.config import (
             Config,
             DuckDBConnectionConfig,
             GatewayConfig,
             LinterConfig,
             ModelDefaultsConfig,
+            TrinoConnectionConfig,
         )
 
         class PolarisDuckDBConnectionConfig(DuckDBConnectionConfig):
@@ -161,11 +177,27 @@ class DataboxSettings(BaseSettings):
                     extensions=[{"name": "h3", "repository": "community"}, "iceberg"],
                 ),
                 state_connection=state_connection,
-            )
+            ),
+            "trino": GatewayConfig(
+                connection=TrinoConnectionConfig(
+                    host=self.trino_host,
+                    port=self.trino_port,
+                    user="databox",
+                    catalog="databox",
+                    http_scheme="http",
+                    concurrent_tasks=1,
+                    # Polaris assigns namespace locations under its warehouse;
+                    # custom locations are intentionally disabled in this catalog.
+                ),
+                # Never mix engine-specific snapshots with the existing DuckDB state.
+                state_connection=DuckDBConnectionConfig(
+                    database=str(DATA_DIR / "sqlmesh_trino_state.duckdb")
+                ),
+            ),
         }
         return Config(
             gateways=gateways,
-            default_gateway="local",
+            default_gateway=self.gateway,
             model_defaults=ModelDefaultsConfig(dialect="duckdb", start="2025-07-25", cron="@daily"),
             linter=LinterConfig(
                 enabled=True,

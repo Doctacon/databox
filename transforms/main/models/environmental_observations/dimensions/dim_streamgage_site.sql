@@ -18,7 +18,7 @@ WITH ranked AS (
     drain_area_va::DOUBLE AS drainage_area_sqmi,
     begin_date::DATE AS begin_date,
     end_date::DATE AS end_date,
-    _loaded_at::TIMESTAMP AS loaded_at,
+    _loaded_at::TIMESTAMP(6) AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY site_no ORDER BY _loaded_at DESC) AS rn
   FROM polaris_aws.raw_usgs.sites
   WHERE site_no IS NOT NULL

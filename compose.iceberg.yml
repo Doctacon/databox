@@ -134,6 +134,36 @@ services:
       - "127.0.0.1:8080:8080"
     restart: unless-stopped
 
+  trino:
+    image: trinodb/trino:483
+    depends_on:
+      polaris:
+        condition: service_healthy
+    environment:
+      DATABOX_ICEBERG_CATALOG: ${DATABOX_ICEBERG_CATALOG:-databox_lake}
+      DATABOX_TRINO_ICEBERG_CATALOG: ${DATABOX_TRINO_ICEBERG_CATALOG:-databox_analytics}
+      DATABOX_POLARIS_CLIENT_ID: ${DATABOX_POLARIS_CLIENT_ID:?set DATABOX_POLARIS_CLIENT_ID}
+      DATABOX_POLARIS_CLIENT_SECRET: ${DATABOX_POLARIS_CLIENT_SECRET:?set DATABOX_POLARIS_CLIENT_SECRET}
+      AWS_ACCESS_KEY_ID: ${DATABOX_AWS_ACCESS_KEY_ID:?set DATABOX_AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${DATABOX_AWS_SECRET_ACCESS_KEY:?set DATABOX_AWS_SECRET_ACCESS_KEY}
+      AWS_SESSION_TOKEN: ${DATABOX_AWS_SESSION_TOKEN:-}
+      AWS_REGION: ${DATABOX_AWS_REGION:?set DATABOX_AWS_REGION}
+    ports:
+      - "127.0.0.1:8081:8080"
+    healthcheck:
+      test: ["CMD", "/usr/lib/trino/bin/health-check"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    volumes:
+      - ./scripts/platform/trino/config.properties:/etc/trino/config.properties:ro
+      - ./scripts/platform/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./scripts/platform/trino/node.properties:/etc/trino/node.properties:ro
+      - ./scripts/platform/trino/transforms.properties:/etc/trino/catalog/databox.properties:ro
+      - ./scripts/platform/trino/catalog.properties:/etc/trino/catalog/polaris_aws.properties:ro
+    restart: unless-stopped
+
 volumes:
   polaris_postgres:
     name: databox_polaris_postgres

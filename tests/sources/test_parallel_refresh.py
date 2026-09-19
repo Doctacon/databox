@@ -73,8 +73,13 @@ def test_soda_prod_uses_one_polaris_aware_connection(
         def close(self) -> None:
             events.append("close")
 
+    class FakeDataSource:
+        def close_connection(self) -> None:
+            events.append("datasource-close")
+
     connection = FakeConnection()
     fake_settings = SimpleNamespace(
+        gateway="local",
         database_path=str(tmp_path / "databox.duckdb"),
         attach_iceberg_to_duckdb=lambda actual: events.append(
             "attach" if actual is connection else "wrong-connection"
@@ -86,7 +91,7 @@ def test_soda_prod_uses_one_polaris_aware_connection(
     monkeypatch.setattr(
         DuckDBDataSourceImpl,
         "from_existing_cursor",
-        lambda actual, name: (actual, name),
+        lambda actual, name: FakeDataSource(),
     )
     monkeypatch.setattr(
         ContractVerificationSession,
@@ -101,7 +106,60 @@ def test_soda_prod_uses_one_polaris_aware_connection(
 
     run_soda_prod()
 
-    assert events == ["attach", "USE databox", "USE polaris_aws.raw_ebird", "close"]
+    assert events == [
+        "attach",
+        "USE databox",
+        "USE polaris_aws.raw_ebird",
+        "datasource-close",
+        "close",
+    ]
+
+
+def test_soda_prod_selects_trino_catalog_per_contract_without_rewriting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from types import SimpleNamespace
+
+    from databox.orchestration import parallel_refresh
+    from soda_core.contracts.contract_verification import ContractVerificationSession
+
+    raw = tmp_path / "soda/contracts/raw_ebird/taxonomy.yaml"
+    raw.parent.mkdir(parents=True)
+    raw.write_text("dataset: databox/raw_ebird/taxonomy\n")
+    output = tmp_path / "soda/contracts/environmental_observations/fact_bird.yaml"
+    output.parent.mkdir(parents=True)
+    output.write_text("dataset: databox/environmental_observations/fact_bird\n")
+    calls: list[dict[str, Any]] = []
+    catalogs: list[str] = []
+
+    def make_datasource(actual: object, *, catalog: str) -> SimpleNamespace:
+        catalogs.append(catalog)
+        return SimpleNamespace(catalog=catalog, close_connection=lambda: None)
+
+    monkeypatch.setattr(parallel_refresh, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        parallel_refresh,
+        "settings",
+        SimpleNamespace(gateway="trino", trino_host="trino", trino_port=8081),
+    )
+    monkeypatch.setattr(parallel_refresh, "create_soda_data_source", make_datasource)
+    monkeypatch.setattr(
+        ContractVerificationSession,
+        "execute",
+        staticmethod(
+            lambda **kwargs: (
+                calls.append(kwargs) or SimpleNamespace(is_failed=False, get_errors_str=lambda: "")
+            )
+        ),
+    )
+
+    run_soda_prod()
+
+    assert catalogs == ["databox", "polaris_aws"]
+    assert [call["data_source_impls"][0].catalog for call in calls] == catalogs
+    sources = [call["contract_yaml_sources"][0].yaml_str for call in calls]
+    assert "databox/environmental_observations/fact_bird" in sources[0]
+    assert "databox/raw_ebird/taxonomy" in sources[1]
 
 
 def test_parallel_refresh_observes_overlap_then_transforms(

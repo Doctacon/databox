@@ -67,6 +67,7 @@ nav:
       - Contracts: contracts.md
       - Incremental loading: incremental-loading.md
       - Environments: environments.md
+      - Trino migration: trino-migration.md
   - Extend:
       - New source: new-source.md
       - Source layout: source-layout.md

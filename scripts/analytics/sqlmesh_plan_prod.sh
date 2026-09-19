@@ -5,7 +5,7 @@ repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 venv_dir=${VENV_DIR:-.venv}
 python="$repo/$venv_dir/bin/python"
 sqlmesh="$repo/$venv_dir/bin/sqlmesh"
-state_db="$repo/data/sqlmesh_state.duckdb"
+state_db=$("$python" -c 'from databox.config.settings import settings; print(settings.sqlmesh_state_path)')
 
 prod_exists() {
   "$python" - "$state_db" <<'PY'

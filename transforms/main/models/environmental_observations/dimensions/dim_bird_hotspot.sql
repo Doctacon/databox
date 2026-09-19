@@ -15,10 +15,10 @@ WITH ranked AS (
     _region_code AS region_code,
     lat::DOUBLE AS latitude,
     lng::DOUBLE AS longitude,
-    latest_obs_dt::TIMESTAMP AS latest_observation_datetime,
+    latest_obs_dt::TIMESTAMP(6) AS latest_observation_datetime,
     num_species_all_time,
     num_checklists_all_time,
-    _loaded_at::TIMESTAMP AS loaded_at,
+    _loaded_at::TIMESTAMP(6) AS loaded_at,
     ROW_NUMBER() OVER (PARTITION BY loc_id ORDER BY _loaded_at DESC) AS rn
   FROM polaris_aws.raw_ebird.hotspots
   WHERE loc_id IS NOT NULL

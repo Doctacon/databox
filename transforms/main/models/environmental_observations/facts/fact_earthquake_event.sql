@@ -21,8 +21,8 @@ SELECT
   magnitude_type,
   place,
   title,
-  event_time::TIMESTAMP AS event_time,
-  event_updated_at::TIMESTAMP AS event_updated_at,
+  CAST(FROM_ISO8601_TIMESTAMP(event_time) AT TIME ZONE 'UTC' AS TIMESTAMP(6)) AS event_time,
+  CAST(FROM_ISO8601_TIMESTAMP(event_updated_at) AT TIME ZONE 'UTC' AS TIMESTAMP(6)) AS event_updated_at,
   longitude::DOUBLE AS longitude,
   latitude::DOUBLE AS latitude,
   depth_km::DOUBLE AS depth_km,
@@ -32,7 +32,7 @@ SELECT
   event_type,
   alert,
   url,
-  _loaded_at::TIMESTAMP AS loaded_at,
+  _loaded_at::TIMESTAMP(6) AS loaded_at,
   _dlt_load_id AS dlt_load_id,
   _dlt_id AS dlt_id
 FROM ranked

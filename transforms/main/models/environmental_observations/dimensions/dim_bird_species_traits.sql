@@ -69,7 +69,8 @@ WITH avonet_normalized AS (
     CASE
       WHEN COUNT(*) = 0
       THEN 1
-      ELSE ERROR('AVONET normalized scientific names must be unique')
+      -- A failing cast is portable across DuckDB and Trino; ERROR() is not.
+      ELSE CAST('AVONET normalized scientific names must be unique' AS INTEGER)
     END AS is_valid
   FROM duplicate_avonet_keys
 ), matched AS (
@@ -129,7 +130,7 @@ WITH avonet_normalized AS (
     a.source_file_id,
     a.source_file_md5,
     a.source_url,
-    a.loaded_at::TIMESTAMP AS loaded_at,
+    a.loaded_at::TIMESTAMP(6) AS loaded_at,
     a._dlt_load_id AS dlt_load_id,
     a._dlt_id AS dlt_id
   FROM avonet_normalized AS a
@@ -152,7 +153,7 @@ WITH avonet_normalized AS (
     CASE
       WHEN COUNT(*) = 0
       THEN 1
-      ELSE ERROR('AVONET trait model must contain one row per conformed species')
+      ELSE CAST('AVONET trait model must contain one row per conformed species' AS INTEGER)
     END AS is_valid
   FROM duplicate_matches
 )

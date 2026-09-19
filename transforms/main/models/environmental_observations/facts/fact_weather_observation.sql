@@ -18,13 +18,13 @@ SELECT
   'noaa_api' AS source_pipeline,
   station || '|' || date || '|' || datatype AS source_id,
   station AS station_id,
-  date::DATE AS observation_date,
+  CAST(FROM_ISO8601_TIMESTAMP(date) AS DATE) AS observation_date,
   datatype,
   value::DOUBLE AS value,
   attributes,
   source,
   _location_id AS location_id,
-  _loaded_at::TIMESTAMP AS loaded_at,
+  _loaded_at::TIMESTAMP(6) AS loaded_at,
   _dlt_load_id AS dlt_load_id,
   _dlt_id AS dlt_id
 FROM ranked w

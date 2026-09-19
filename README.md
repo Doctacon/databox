@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A local-first ingestion and data-product platform with dlt-managed Iceberg
-tables on AWS S3, an Apache Polaris catalog, and local DuckDB analytics. Databox
+tables on AWS S3, an Apache Polaris catalog, and local Trino analytics. Databox
 transforms data with SQLMesh, validates it with Soda, and orchestrates the
 workflow with Dagster—without always-on infrastructure.
 
@@ -22,14 +22,20 @@ flowchart LR
     sources[Public sources] --> dlt[dlt]
     dlt --> iceberg[Iceberg tables on S3]
     dlt -->|commits metadata| polaris[Apache Polaris]
-    polaris -->|catalog discovery| duckdb[(Local DuckDB)]
-    iceberg -->|table data| duckdb
-    duckdb --> sqlmesh[SQLMesh models]
-    soda[Soda] -. validates .-> duckdb
+    polaris -->|catalog discovery| trino[(Local Trino)]
+    iceberg -->|raw table data| trino
+    sqlmesh[SQLMesh models] -->|executes| trino
+    trino -->|writes| analytics[Analytics Iceberg tables]
+    soda[Soda] -. validates .-> trino
     dagster[Dagster] -. orchestrates .-> dlt
     dagster -. orchestrates .-> sqlmesh
     dagster -. asset checks .-> soda
 ```
+
+The active deployment selects `DATABOX_SQLMESH_GATEWAY=trino` and materializes
+SQLMesh production outputs in a separate Iceberg analytics catalog. The `local`
+DuckDB gateway and its existing outputs remain available for rollback. See
+[Trino migration](docs/trino-migration.md) for setup, validation, and rollback.
 
 ## From source to model
 
@@ -75,13 +81,15 @@ writer credentials (access key, secret key, and session token),
 in `.env.example`. The configured `databox_lake` must already be provisioned with
 `s3://<bucket>/warehouse` and the bucket-scoped role before publication. Start
 the local catalog, bootstrap the pinned AVONET snapshot once, then refresh the
-routine sources:
+routine sources. For Trino outputs, set `DATABOX_SQLMESH_GATEWAY=trino` in `.env`
+and provision the separate analytics catalog as shown below:
 
 ```bash
 $EDITOR .env
 mkdir -p data .dagster
 docker compose --env-file .env -f compose.iceberg.yml up -d
 curl --fail --silent http://127.0.0.1:8182/q/health/ready
+uv run python scripts/platform/provision_trino_catalog.py
 DAGSTER_HOME="$PWD/.dagster" PYTHONPATH="$PWD" \
   uv run dg launch --target-path packages/databox --job avonet_ingest
 task full-refresh   # ingest Iceberg, run project-wide SQLMesh, then verify Soda contracts

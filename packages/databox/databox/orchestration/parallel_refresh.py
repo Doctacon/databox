@@ -17,6 +17,7 @@ from dagster import OpExecutionContext
 
 from databox.config.settings import PROJECT_ROOT, settings
 from databox.config.sources import SOURCES
+from databox.quality.verification import create_soda_data_source
 
 _SQLMESH_CACHE_DIR_ENV = "SQLMESH__CACHE_DIR"
 
@@ -142,35 +143,49 @@ def run_sqlmesh_prod() -> None:
 
 
 def run_soda_prod() -> None:
-    """Verify every committed Soda contract through one Polaris-aware connection."""
-    import duckdb
+    """Verify every committed Soda contract through the selected gateway."""
     from soda_core.common.yaml import ContractYamlSource
     from soda_core.contracts.contract_verification import ContractVerificationSession
-    from soda_duckdb.common.data_sources.duckdb_data_source import (  # type: ignore[import-untyped]
-        DuckDBDataSourceImpl,
-    )
 
     contracts_dir = PROJECT_ROOT / "soda" / "contracts"
     contracts = sorted([*contracts_dir.rglob("*.yaml"), *contracts_dir.rglob("*.yml")])
     if not contracts:
         raise RuntimeError("No Soda contracts found")
 
-    connection = duckdb.connect(settings.database_path)
-    try:
+    connection = None
+    datasource = None
+    if settings.gateway != "trino":
+        import duckdb
+        from soda_duckdb.common.data_sources.duckdb_data_source import (  # type: ignore[import-untyped]
+            DuckDBDataSourceImpl,
+        )
+
+        connection = duckdb.connect(settings.database_path)
         settings.attach_iceberg_to_duckdb(connection)
         datasource = DuckDBDataSourceImpl.from_existing_cursor(connection, name="databox")
+
+    try:
         failures: list[str] = []
         for contract in contracts:
             relative = contract.relative_to(PROJECT_ROOT)
             schema = relative.parts[2]
-            # Iceberg catalogs do not have DuckDB's implicit `main` schema, so
-            # selecting only `polaris_aws` fails before the first raw contract.
-            target = f"polaris_aws.{schema}" if schema.startswith("raw_") else "databox"
-            connection.execute(f"USE {target}")
-            result = ContractVerificationSession.execute(
-                contract_yaml_sources=[ContractYamlSource.from_str(contract.read_text())],
-                data_source_impls=[datasource],
-            )
+            contract_datasource = datasource
+            if settings.gateway == "trino":
+                catalog = "polaris_aws" if schema.startswith("raw_") else "databox"
+                contract_datasource = create_soda_data_source(settings, catalog=catalog)
+            elif connection is not None:
+                # Iceberg catalogs do not have DuckDB's implicit `main` schema.
+                target = f"polaris_aws.{schema}" if schema.startswith("raw_") else "databox"
+                connection.execute(f"USE {target}")
+            try:
+                result = ContractVerificationSession.execute(
+                    contract_yaml_sources=[ContractYamlSource.from_str(contract.read_text())],
+                    data_source_impls=[contract_datasource],
+                )
+            finally:
+                if settings.gateway == "trino" and contract_datasource is not None:
+                    # Soda closes opened implementations; this also covers parse failures.
+                    contract_datasource.close_connection()
             if result.is_failed:
                 failures.append(f"{relative}: {result.get_errors_str()}")
             else:
@@ -178,7 +193,10 @@ def run_soda_prod() -> None:
         if failures:
             raise RuntimeError("Soda contract verification failed:\n" + "\n".join(failures))
     finally:
-        connection.close()
+        if datasource is not None:
+            datasource.close_connection()
+        if connection is not None:
+            connection.close()
 
 
 def validate_iceberg_refresh_config() -> None:

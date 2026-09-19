@@ -12,7 +12,7 @@ WITH ebird_loads AS (
     load_id,
     schema_name,
     status,
-    inserted_at::TIMESTAMP AS completed_at
+    inserted_at::TIMESTAMP(6) AS completed_at
   FROM polaris_aws.raw_ebird._dlt_load_status
 ),
 gbif_loads AS (
@@ -21,7 +21,7 @@ gbif_loads AS (
     load_id,
     schema_name,
     status,
-    inserted_at::TIMESTAMP AS completed_at
+    inserted_at::TIMESTAMP(6) AS completed_at
   FROM polaris_aws.raw_gbif._dlt_load_status
 ),
 avonet_loads AS (
@@ -30,7 +30,7 @@ avonet_loads AS (
     load_id,
     schema_name,
     status,
-    inserted_at::TIMESTAMP AS completed_at
+    inserted_at::TIMESTAMP(6) AS completed_at
   FROM polaris_aws.raw_avonet._dlt_load_status
 ),
 xeno_canto_loads AS (
@@ -39,7 +39,7 @@ xeno_canto_loads AS (
     load_id,
     schema_name,
     status,
-    inserted_at::TIMESTAMP AS completed_at
+    inserted_at::TIMESTAMP(6) AS completed_at
   FROM polaris_aws.raw_xeno_canto._dlt_load_status
 ),
 noaa_loads AS (
@@ -48,7 +48,7 @@ noaa_loads AS (
     load_id,
     schema_name,
     status,
-    inserted_at::TIMESTAMP AS completed_at
+    inserted_at::TIMESTAMP(6) AS completed_at
   FROM polaris_aws.raw_noaa._dlt_load_status
 ),
 usgs_loads AS (
@@ -57,7 +57,7 @@ usgs_loads AS (
     load_id,
     schema_name,
     status,
-    inserted_at::TIMESTAMP AS completed_at
+    inserted_at::TIMESTAMP(6) AS completed_at
   FROM polaris_aws.raw_usgs._dlt_load_status
 ),
 usgs_earthquakes_loads AS (
@@ -66,7 +66,7 @@ usgs_earthquakes_loads AS (
     load_id,
     schema_name,
     status,
-    inserted_at::TIMESTAMP AS completed_at
+    inserted_at::TIMESTAMP(6) AS completed_at
   FROM polaris_aws.raw_usgs_earthquakes._dlt_load_status
 ),
 all_loads AS (
@@ -133,7 +133,7 @@ SELECT
   CASE WHEN l.status = 0 THEN 'success' ELSE 'failed' END AS status_label,
   l.completed_at,
   COALESCE(r.rows, 0) AS rows_loaded,
-  (CURRENT_TIMESTAMP - l.completed_at) AS age
+  DATE_DIFF('second', l.completed_at, CAST(CURRENT_TIMESTAMP AS TIMESTAMP(6))) AS age_seconds
 FROM latest_per_source l
 LEFT JOIN all_rows r
   ON r.source = l.source AND r.load_id = l.load_id

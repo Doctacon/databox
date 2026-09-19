@@ -638,6 +638,45 @@ is not covered by the 60-minute catalog RTO. Last-resort table registration must
 use a validated metadata location, never lexicographic S3 listing. Live PITR
 execution and the timed catalog RPO/RTO drill remain separately authorized work.
 
+## PostgreSQL collation safety
+
+Do not reuse a PostgreSQL data volume across Alpine/musl and Debian/glibc images
+without a collation/index migration. The PostgreSQL major version being unchanged
+is not sufficient. Physical backups and PITR retain the original index ordering.
+
+On 2026-09-18, the earlier `postgres:17.6-alpine3.22` to
+`postgres:17.6-bookworm` change left `polaris_schema.constraint_name` ordered under
+the old locale implementation. Polaris listed `raw_usgs.daily_values` and
+`raw_noaa.daily_weather` but returned 404 on load. Identical PostgreSQL predicates
+returned zero rows through the index and one row through a sequential scan.
+The catalog pointers, S3 metadata, manifests, and sampled data were intact.
+
+The authorized repair stopped Polaris, Trino, and the console, created a protected
+logical dump, and restored it into a disposable database. Counts and content
+hashes matched for all eight catalog tables. `REINDEX DATABASE polaris` then
+rebuilt the live database's user indexes; indexed natural-key lookups matched all
+97 catalog entities. Services were restarted and all 28 raw tables passed
+catalog load and limit-one data scans. No raw objects were rewritten or registered.
+The disposable restore database was removed. A post-repair pgBackRest differential
+backup completed successfully: `20260918-122538F_20260918-234442D`.
+
+The protected pre-repair dump is outside the repository at
+`~/.local/state/databox/catalog-index-repair-20260918T234000Z/polaris-before-reindex.dump`
+(mode `0600`, parent directory `0700`). It contains authentication metadata: do not
+print, commit, or share its contents. A logical restore rebuilds indexes; an older
+physical backup may require the same collation repair before use on Bookworm.
+
+**Remaining version-tracking caveat:** `polaris.datcollversion` is `NULL`, inherited
+from the old cluster, while the current locale reports `2.36`. PostgreSQL rejects
+`ALTER DATABASE polaris REFRESH COLLATION VERSION` with `invalid collation version
+change`. Reindexing succeeded independently. No system-catalog edits were made.
+Do not rely on automatic version-mismatch warnings for this database; plan a
+supported logical migration to a freshly initialized database before another
+libc/locale change. Never merely refresh a version label in place of rebuilding
+affected indexes. Future repairs must again quiesce writers, verify a restorable
+backup, compare indexed and heap lookups, and validate catalog reads before
+resuming dependent work.
+
 ## SQLMesh dev loop
 
 ```bash

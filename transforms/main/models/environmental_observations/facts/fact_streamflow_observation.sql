@@ -36,7 +36,7 @@ SELECT
   f._state_cd AS state_cd,
   f.latitude::DOUBLE AS latitude,
   f.longitude::DOUBLE AS longitude,
-  f._loaded_at::TIMESTAMP AS loaded_at,
+  f._loaded_at::TIMESTAMP(6) AS loaded_at,
   f._dlt_load_id AS dlt_load_id,
   f._dlt_id AS dlt_id
 FROM ranked f

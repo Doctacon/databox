@@ -103,7 +103,7 @@ SELECT
   r._query_state_province AS query_state_province,
   r._query_taxon_key AS query_taxon_key,
   r._query_dataset_key AS query_dataset_key,
-  r._loaded_at::TIMESTAMP AS loaded_at,
+  r._loaded_at::TIMESTAMP(6) AS loaded_at,
   r._dlt_load_id AS dlt_load_id,
   r._dlt_id AS dlt_id
 FROM ranked r

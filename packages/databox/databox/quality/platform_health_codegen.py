@@ -27,7 +27,7 @@ def _loads_cte(src: Source) -> str:
         f"    load_id,\n"
         f"    schema_name,\n"
         f"    status,\n"
-        f"    inserted_at::TIMESTAMP AS completed_at\n"
+        f"    inserted_at::TIMESTAMP(6) AS completed_at\n"
         f"  FROM {src.analytics_raw_catalog}._dlt_load_status\n"
         f")"
     )
@@ -95,7 +95,8 @@ def render(sources: list[Source] | None = None) -> str:
         "  CASE WHEN l.status = 0 THEN 'success' ELSE 'failed' END AS status_label,\n"
         "  l.completed_at,\n"
         "  COALESCE(r.rows, 0) AS rows_loaded,\n"
-        "  (CURRENT_TIMESTAMP - l.completed_at) AS age\n"
+        "  DATE_DIFF('second', l.completed_at, CAST(CURRENT_TIMESTAMP AS TIMESTAMP(6))) "
+        "AS age_seconds\n"
         "FROM latest_per_source l\n"
         "LEFT JOIN all_rows r\n"
         "  ON r.source = l.source AND r.load_id = l.load_id\n"

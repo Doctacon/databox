@@ -256,10 +256,26 @@ def soda_check(
         from soda_core.common.yaml import ContractYamlSource, DataSourceYamlSource
         from soda_core.contracts.contract_verification import ContractVerificationSession
 
-        result = ContractVerificationSession.execute(
-            contract_yaml_sources=[ContractYamlSource.from_str(contract_path.read_text())],
-            data_source_yaml_sources=[DataSourceYamlSource.from_str(settings.soda_datasource_yaml)],
-        )
+        contract_sources = [ContractYamlSource.from_str(contract_path.read_text())]
+        if settings.gateway == "trino":
+            from databox.quality.verification import create_soda_data_source
+
+            catalog = "polaris_aws" if contract_path.parent.name.startswith("raw_") else "databox"
+            datasource = create_soda_data_source(settings, catalog=catalog)
+            try:
+                result = ContractVerificationSession.execute(
+                    contract_yaml_sources=contract_sources,
+                    data_source_impls=[datasource],
+                )
+            finally:
+                datasource.close_connection()
+        else:
+            result = ContractVerificationSession.execute(
+                contract_yaml_sources=contract_sources,
+                data_source_yaml_sources=[
+                    DataSourceYamlSource.from_str(settings.soda_datasource_yaml)
+                ],
+            )
         metadata: dict[str, t.Any] = {
             "checks_total": result.number_of_checks,
             "checks_passed": result.number_of_checks_passed,

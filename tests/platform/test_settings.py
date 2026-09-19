@@ -7,15 +7,31 @@ from databox.config.settings import PROJECT_ROOT, DataboxSettings, settings
 from pydantic import ValidationError
 
 
-def test_sqlmesh_uses_only_local_databox_gateway() -> None:
+def test_sqlmesh_preserves_local_gateway_alongside_trino() -> None:
     config = settings.sqlmesh_config()
 
-    assert config.default_gateway == "local"
-    assert set(config.gateways) == {"local"}
+    assert config.default_gateway == settings.gateway
+    assert set(config.gateways) == {"local", "trino"}
     assert config.gateways["local"].connection.catalogs == {
         "databox": str(PROJECT_ROOT / "data" / "databox.duckdb")
     }
     assert Path(settings.database_path) == PROJECT_ROOT / "data" / "databox.duckdb"
+
+
+def test_trino_gateway_uses_separate_state_and_warehouse_locations() -> None:
+    configured = DataboxSettings(
+        _env_file=None,
+        DATABOX_SQLMESH_GATEWAY="trino",
+        DATABOX_AWS_S3_BUCKET="synthetic-bucket",
+    )
+    config = configured.sqlmesh_config()
+    gateway = config.gateways["trino"]
+    assert config.default_gateway == "trino"
+    assert gateway.connection.catalog == "databox"
+    assert gateway.connection.port == 8081
+    assert not gateway.connection.schema_location_mapping
+    assert gateway.state_connection.database == configured.sqlmesh_state_path
+    assert gateway.state_connection.database != config.gateways["local"].state_connection.database
 
 
 def test_alert_smtp_settings_are_secret_in_runtime_repr() -> None:

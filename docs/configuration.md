@@ -34,12 +34,12 @@ code imports it rather than redeclaring values.
 
 | Derived value | Expression |
 |---|---|
-| `settings.gateway` | Always `local` |
+| `settings.gateway` | `DATABOX_SQLMESH_GATEWAY`: active deployment `trino`; unset fallback `local` |
 | `settings.database_path` | `data/databox.duckdb` |
 | `settings.pyiceberg_catalog()` | Authenticated Polaris REST catalog |
 | `settings.raw_dataset_name(name)` | Source-specific `raw_<name>` Iceberg namespace |
 | `settings.soda_datasource_yaml` | DuckDB datasource using `database_path` |
-| `settings.sqlmesh_config()` | One local DuckDB gateway plus separate local SQLMesh state DB |
+| `settings.sqlmesh_config()` | Local DuckDB and Trino gateways, each with its own local state DB |
 
 ## Where it is read
 
@@ -67,8 +67,12 @@ remains a human recovery identity and is never injected into routine services.
 
 ## SQLMesh state
 
-SQLMesh state lives in `data/sqlmesh_state.duckdb`, separate from
-`data/databox.duckdb`. The data connection loads the `h3` extension while the
+The legacy local gateway's SQLMesh state lives in `data/sqlmesh_state.duckdb`,
+separate from `data/databox.duckdb`. The data connection loads the `h3` extension while the
 state connection does not; separating them avoids incompatible concurrent
 DuckDB connection configuration. `task db:reset` removes both local database
 files.
+
+The active Trino gateway uses `data/sqlmesh_trino_state.duckdb`; it never shares
+snapshots with the local output gateway. See [Trino migration](trino-migration.md)
+for the separate analytics catalog, connection settings, and rollback procedure.
